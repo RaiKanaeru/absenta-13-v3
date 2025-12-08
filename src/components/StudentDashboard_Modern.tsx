@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,10 +7,15 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
+import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, getCurrentYearWIB, formatDateWIB, getWIBTime, toWIBTime } from '@/lib/time-utils';
 import { FontSizeControl } from '@/components/ui/font-size-control';
+import { EditProfile } from './EditProfile';
+import { apiCall } from '@/utils/apiClient';
+import { getApiUrl } from '@/config/api';
 import { 
   LogOut, Clock, User, BookOpen, CheckCircle2, XCircle, Calendar, Save,
-  GraduationCap, Settings, Menu, X, Home, Users, FileText, Send, AlertCircle, MessageCircle, Eye, Plus
+  GraduationCap, Settings, Menu, X, Home, Users, FileText, Send, AlertCircle, MessageCircle, Eye, Plus, Edit,
+  ChevronLeft, ChevronRight, RefreshCw, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 interface StudentDashboardProps {
@@ -23,30 +28,26 @@ interface StudentDashboardProps {
   onLogout: () => void;
 }
 
-interface PengajuanIzin {
-  id_pengajuan: number;
-  jadwal_id: number;
-  tanggal_izin: string;
-  jenis_izin: 'sakit' | 'izin' | 'alpa' | 'dispen';
-  alasan: string;
-  bukti_pendukung?: string;
-  status: 'pending' | 'disetujui' | 'ditolak';
-  keterangan_guru?: string;
-  tanggal_pengajuan: string;
-  tanggal_respon?: string;
-  nama_mapel: string;
-  nama_guru: string;
-  jam_mulai: string;
-  jam_selesai: string;
-  // Data untuk kelas
-  siswa_izin?: Array<{
-    nama: string;
-    jenis_izin: 'sakit' | 'izin' | 'alpa' | 'dispen';
-    alasan: string;
-    bukti_pendukung?: string;
-  }>;
-  total_siswa_izin?: number;
-}
+// Fungsi untuk memproses guru_list dari string ke array
+const parseGuruList = (guruListString: string) => {
+  if (!guruListString || typeof guruListString !== 'string') {
+    return [];
+  }
+  
+  return guruListString.split('||').map(guruString => {
+    const [id_guru, nama_guru, nip, status_kehadiran, keterangan_guru, waktu_catat, is_primary] = guruString.split(':');
+    return {
+      id_guru: parseInt(id_guru) || 0,
+      nama_guru: nama_guru || '',
+      nip: nip || '',
+      status_kehadiran: status_kehadiran || 'belum_diambil',
+      keterangan_guru: keterangan_guru || '',
+      waktu_catat: waktu_catat || '',
+      is_primary: parseInt(is_primary) === 1
+    };
+  });
+};
+
 
 interface BandingAbsen {
   id_banding: number;
@@ -56,7 +57,6 @@ interface BandingAbsen {
   status_asli: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
   status_diajukan: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
   alasan_banding: string;
-  bukti_pendukung?: string;
   status_banding: 'pending' | 'disetujui' | 'ditolak';
   catatan_guru?: string;
   tanggal_pengajuan: string;
@@ -66,25 +66,8 @@ interface BandingAbsen {
   jam_mulai?: string;
   jam_selesai?: string;
   nama_kelas?: string;
-  // Data untuk banding kelas
-  siswa_banding?: Array<{
-    nama: string;
-    status_asli: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
-    status_diajukan: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
-    alasan_banding: string;
-    bukti_pendukung?: string;
-  }>;
-  total_siswa_banding?: number;
-}
-
-interface StudentDashboardProps {
-  userData: {
-    id: number;
-    username: string;
-    nama: string;
-    role: string;
-  };
-  onLogout: () => void;
+  jenis_banding?: 'individual';
+  nama_siswa?: string;
 }
 
 interface JadwalHariIni {
@@ -97,13 +80,37 @@ interface JadwalHariIni {
   nama_guru: string;
   nip: string;
   nama_kelas: string;
+  kode_ruang?: string;
+  nama_ruang?: string;
+  lokasi?: string;
   status_kehadiran: string;
+  keterangan?: string;
+  waktu_catat?: string;
+  tanggal_target?: string;
+  jenis_aktivitas?: 'pelajaran' | 'upacara' | 'istirahat' | 'kegiatan_khusus' | 'libur' | 'ujian' | 'lainnya';
+  is_absenable?: boolean;
+  keterangan_khusus?: string;
+  is_multi_guru?: boolean;
+  guru_list?: Array<{
+    id_guru: number;
+    nama_guru: string;
+    nip: string;
+    is_primary?: boolean;
+    status_kehadiran: string;
+    keterangan_guru?: string;
+    waktu_absen?: string; // NEW
+    is_submitted?: boolean; // NEW
+  }>;
+  is_primary?: boolean; // New field for multi-guru support
+  keterangan_guru?: string; // New field for individual guru notes
+  id_guru?: number; // New field for guru ID
 }
 
 interface KehadiranData {
-  [jadwal_id: number]: {
+  [key: string]: { // Support both jadwal_id and jadwal_id-guru_id format
     status: string;
     keterangan: string;
+    guru_id?: number;
   };
 }
 
@@ -116,11 +123,23 @@ interface RiwayatData {
     jam_selesai: string;
     nama_mapel: string;
     nama_guru: string;
+    kode_ruang?: string;
+    nama_ruang?: string;
     total_siswa: number;
     total_hadir: number;
     total_izin: number;
     total_sakit: number;
     total_alpa: number;
+    total_tidak_hadir?: number;
+    is_multi_guru?: boolean;
+    guru_list?: Array<{
+      id_guru: number;
+      nama_guru: string;
+      nip: string;
+      is_primary?: boolean;
+      status_kehadiran: string;
+      keterangan_guru?: string;
+    }>;
     siswa_tidak_hadir?: Array<{
       nama_siswa: string;
       nis: string;
@@ -131,15 +150,135 @@ interface RiwayatData {
   }>;
 }
 
+// Komponen Pagination
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+const Pagination = ({ currentPage, totalPages, onPageChange }: PaginationProps) => {
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
+  // FIXED: Don't show pagination if no data or only one page
+  if (totalPages <= 1 || totalPages === 0) {
+    return null; // Don't render pagination if no data
+  }
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2 mt-4 sm:mt-6 min-w-0">
+        {/* Mobile: Show only prev/next with page info */}
+        <div className="flex sm:hidden items-center gap-2 w-full justify-between px-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="flex items-center h-9 px-3 text-xs min-w-0 flex-shrink-0"
+          >
+            <ChevronLeft className="w-3 h-3 mr-1" />
+            <span className="text-xs">Sebelumnya</span>
+          </Button>
+          
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-gray-600 whitespace-nowrap">
+              {currentPage}/{totalPages}
+            </span>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="flex items-center h-9 px-3 text-xs min-w-0 flex-shrink-0"
+          >
+            <span className="text-xs">Selanjutnya</span>
+            <ChevronRight className="w-3 h-3 ml-1" />
+          </Button>
+        </div>
+
+        {/* Desktop: Show full pagination */}
+        <div className="hidden sm:flex items-center space-x-1 min-w-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="flex items-center h-8 px-2 text-xs"
+          >
+            <ChevronLeft className="w-3 h-3 mr-1" />
+            <span className="text-xs">Sebelumnya</span>
+          </Button>
+          
+          <div className="flex items-center space-x-1 overflow-x-auto">
+            {getVisiblePages().map((page, index) => (
+              <Button
+                key={index}
+                variant={page === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => typeof page === 'number' && onPageChange(page)}
+                disabled={page === '...'}
+                className="w-8 h-8 p-0 text-xs min-w-8"
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="flex items-center h-8 px-2 text-xs"
+          >
+            <span className="text-xs">Selanjutnya</span>
+            <ChevronRight className="w-3 h-3 ml-1" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) => {
   console.log('StudentDashboard: Component mounting/rendering with user:', userData);
   
   const [activeTab, setActiveTab] = useState('kehadiran');
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [currentUserData, setCurrentUserData] = useState(userData);
   const [jadwalHariIni, setJadwalHariIni] = useState<JadwalHariIni[]>([]);
   const [kehadiranData, setKehadiranData] = useState<KehadiranData>({});
+  const [adaTugasData, setAdaTugasData] = useState<{[key: number]: boolean}>({});
   const [riwayatData, setRiwayatData] = useState<RiwayatData[]>([]);
-  const [pengajuanIzin, setPengajuanIzin] = useState<PengajuanIzin[]>([]);
   const [bandingAbsen, setBandingAbsen] = useState<BandingAbsen[]>([]);
+  const [expandedBanding, setExpandedBanding] = useState<number | null>(null);
   const [detailRiwayat, setDetailRiwayat] = useState<{ 
     jadwal_id: number;
     jam_ke: number;
@@ -161,35 +300,113 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // State untuk form pengajuan izin kelas
-  const [formIzin, setFormIzin] = useState({
-    jadwal_id: '',
-    tanggal_izin: '',
-    siswa_izin: [] as Array<{
-      nama: string;
-      jenis_izin: 'sakit' | 'izin' | 'alpa' | 'dispen';
-      alasan: string;
-      bukti_pendukung?: string;
-    }>
+  // Lock body scroll when sidebar is open on mobile
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = originalOverflow || '';
+    }
+    return () => {
+      document.body.style.overflow = originalOverflow || '';
+    };
+  }, [sidebarOpen]);
+  
+  // State untuk edit absen dengan rentang tanggal
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    return getCurrentDateWIB();
   });
-  const [showFormIzin, setShowFormIzin] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [maxDate, setMaxDate] = useState<string>(() => {
+    return getCurrentDateWIB();
+  });
+  const [minDate, setMinDate] = useState<string>(() => {
+    const wibNow = getWIBTime();
+    const sevenDaysAgo = new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return formatDateWIB(sevenDaysAgo);
+  });
+  
   const [showFormBanding, setShowFormBanding] = useState(false);
-  const [daftarSiswa, setDaftarSiswa] = useState<Array<{id: number; nama: string}>>([]);
+  
+  // State untuk pagination
+  const [bandingAbsenPage, setBandingAbsenPage] = useState(1);
+  const [riwayatPage, setRiwayatPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+  const [riwayatItemsPerPage] = useState(7);
+  
+  // State untuk expandable rows
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   
   // State untuk form banding absen kelas
   const [formBanding, setFormBanding] = useState({
     jadwal_id: '',
     tanggal_absen: '',
-    siswa_banding: [] as Array<{
+    siswa_banding: [{
+      nama: '',
+      status_asli: 'alpa' as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen',
+      status_diajukan: 'hadir' as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen',
+      alasan_banding: ''
+    }] as Array<{
       nama: string;
       status_asli: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       status_diajukan: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       alasan_banding: string;
-      bukti_pendukung?: string;
     }>
   });
 
+  // State untuk daftar siswa yang bisa dipilih untuk banding
+  const [daftarSiswa, setDaftarSiswa] = useState<Array<{
+    id?: number;
+    id_siswa?: number;
+    nama: string;
+  }>>([]);
+  // State untuk menyimpan siswa yang dipilih (berbasis id)
+  const [selectedSiswaId, setSelectedSiswaId] = useState<number | null>(null);
+  
+  // State untuk menyimpan data status kehadiran siswa
+  const [siswaStatusData, setSiswaStatusData] = useState<{[key: string]: string}>({});
+  
+  const [loadingJadwal, setLoadingJadwal] = useState(false);
+  
+  // State untuk menyimpan jadwal berdasarkan tanggal yang dipilih untuk banding absen
+  const [jadwalBerdasarkanTanggal, setJadwalBerdasarkanTanggal] = useState<JadwalHariIni[]>([]);
+
+    // State untuk track updating status dan prevent race condition
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+    const [pendingUpdates, setPendingUpdates] = useState<Set<string>>(new Set());
+
   console.log('StudentDashboard: Current state - siswaId:', siswaId, 'initialLoading:', initialLoading, 'error:', error);
+
+  // Helper functions for expandable rows
+  const toggleRowExpansion = (rowId: number) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(rowId)) {
+      newExpandedRows.delete(rowId);
+    } else {
+      newExpandedRows.add(rowId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
+
+  const handleUpdateProfile = (updatedData: {
+    id: number;
+    username: string;
+    nama: string;
+    role: string;
+    email?: string;
+    alamat?: string;
+    telepon_orangtua?: string;
+    nomor_telepon_siswa?: string;
+    jenis_kelamin?: string;
+    nis?: string;
+    kelas?: string;
+  }) => {
+    setCurrentUserData(prevData => ({
+      ...prevData,
+      ...updatedData
+    }));
+  };
 
   // Get siswa perwakilan info
   useEffect(() => {
@@ -200,12 +417,24 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         setInitialLoading(true);
         setError(null);
         
+        // Get and clean token with mobile fallback
+        const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const cleanToken = rawToken ? rawToken.trim() : '';
+        
+        if (!cleanToken) {
+          console.error('❌ Token tidak ditemukan');
+          setError('Token tidak ditemukan. Silakan login kembali.');
+          setInitialLoading(false);
+          return;
+        }
+        
         console.log('StudentDashboard: Making fetch request to /api/siswa-perwakilan/info');
         
-        const response = await fetch('http://localhost:3001/api/siswa-perwakilan/info', {
+        const response = await fetch(getApiUrl('/api/siswa-perwakilan/info'), {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${cleanToken}`
           },
           credentials: 'include'
         });
@@ -220,6 +449,21 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           if (data.success) {
             setSiswaId(data.id_siswa);
             setKelasInfo(data.nama_kelas);
+            // Update currentUserData with latest data from server
+            setCurrentUserData(prevData => ({
+              ...prevData,
+              id: data.id,
+              username: data.username,
+              nama: data.nama,
+              role: data.role,
+              email: data.email,
+              alamat: data.alamat,
+              telepon_orangtua: data.telepon_orangtua,
+              nomor_telepon_siswa: data.nomor_telepon_siswa,
+              jenis_kelamin: data.jenis_kelamin,
+              nis: data.nis,
+              kelas: data.nama_kelas
+            }));
             console.log('StudentDashboard: Set siswaId to:', data.id_siswa, 'kelasInfo to:', data.nama_kelas);
           } else {
             setError(data.error || 'Data siswa tidak valid');
@@ -257,7 +501,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         let errorMessage = 'Koneksi bermasalah. ';
         
         if (error instanceof TypeError && error.message.includes('fetch')) {
-          errorMessage += 'Tidak dapat terhubung ke server. Pastikan server backend sedang berjalan di http://localhost:3001';
+          errorMessage += 'Tidak dapat terhubung ke server. Pastikan server backend sedang berjalan.';
         } else {
           errorMessage += 'Silakan periksa koneksi internet Anda dan coba lagi.';
         }
@@ -278,28 +522,79 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/jadwal-hari-ini`, {
+      // Get and clean token with mobile fallback
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        console.error('❌ Token tidak ditemukan');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-hari-ini`), {
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`
+        },
         credentials: 'include'
       });
 
       if (response.ok) {
         const data = await response.json();
         console.log('StudentDashboard: Loaded jadwal hari ini:', data);
-        setJadwalHariIni(data);
         
-        // Initialize kehadiran data
+        // Proses guru_list dari string ke array
+        const processedData = data.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
+          ...jadwal,
+          guru_list: jadwal.is_multi_guru && jadwal.guru_list 
+            ? parseGuruList(jadwal.guru_list) 
+            : []
+        }));
+        
+        setJadwalHariIni(processedData);
+        
+        // Initialize kehadiran data only for absenable schedules
         const initialKehadiran: KehadiranData = {};
-        data.forEach((jadwal: JadwalHariIni) => {
-          if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
-            initialKehadiran[jadwal.id_jadwal] = {
-              status: jadwal.status_kehadiran,
-              keterangan: ''
-            };
-          } else {
-            initialKehadiran[jadwal.id_jadwal] = {
-              status: 'hadir',
-              keterangan: ''
-            };
+        processedData.forEach((jadwal: JadwalHariIni) => {
+          // Only initialize kehadiran data for schedules that can be attended
+          if (jadwal.is_absenable) {
+            if (jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) {
+              // Handle multi-guru schedules
+              jadwal.guru_list.forEach((guru) => {
+                const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+                if (guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil') {
+                  initialKehadiran[guruKey] = {
+                    status: guru.status_kehadiran,
+                    keterangan: guru.keterangan_guru || '',
+                    guru_id: guru.id_guru
+                  };
+                } else {
+                  // Default to 'Hadir' for new entries
+                  initialKehadiran[guruKey] = {
+                    status: 'Hadir',
+                    keterangan: '',
+                    guru_id: guru.id_guru
+                  };
+                }
+              });
+            } else {
+              // Handle single-guru schedules
+              const guruId = (jadwal as any).guru_id || (jadwal as any).id_guru;
+              if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
+                initialKehadiran[jadwal.id_jadwal] = {
+                  status: jadwal.status_kehadiran,
+                  keterangan: jadwal.keterangan || '',
+                  guru_id: guruId
+                };
+              } else {
+                // Default to 'Hadir' for new entries, but allow user to change
+                initialKehadiran[jadwal.id_jadwal] = {
+                  status: 'Hadir',
+                  keterangan: '',
+                  guru_id: guruId
+                };
+              }
+            }
           }
         });
         setKehadiranData(initialKehadiran);
@@ -323,34 +618,135 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     }
   }, [siswaId]);
 
-  // Load daftar siswa kelas
-  const loadDaftarSiswa = useCallback(async () => {
+
+  // Load jadwal untuk banding absen berdasarkan tanggal yang dipilih
+  const loadJadwalBandingByDate = useCallback(async (tanggal: string) => {
     if (!siswaId) return;
 
+    setLoadingJadwal(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/daftar-siswa`, {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = token ? token.replace(/['"]/g, '') : '';
+      
+      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-rentang?tanggal=${tanggal}`), {
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`
+        },
         credentials: 'include'
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log('StudentDashboard: Loaded daftar siswa:', data);
-        setDaftarSiswa(data);
+        const result = await response.json();
+        console.log('StudentDashboard: Loaded jadwal banding by date:', result);
+        
+        if (result.success && result.data) {
+          // Proses guru_list dari string ke array
+          const processedData = result.data.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
+            ...jadwal,
+            guru_list: jadwal.is_multi_guru && jadwal.guru_list 
+              ? parseGuruList(jadwal.guru_list) 
+              : []
+          }));
+          
+          setJadwalBerdasarkanTanggal(processedData);
+          
+          // Initialize kehadiranData for banding mode
+          const initialKehadiran: KehadiranData = {};
+          processedData.forEach((jadwal: JadwalHariIni) => {
+            if (jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) {
+              // Handle multi-guru schedules
+              jadwal.guru_list.forEach((guru) => {
+                const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+                if (guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil') {
+                  initialKehadiran[guruKey] = {
+                    status: guru.status_kehadiran,
+                    keterangan: guru.keterangan_guru || '',
+                    guru_id: guru.id_guru
+                  };
+                } else {
+                  // Default to 'Hadir' for new entries
+                  initialKehadiran[guruKey] = {
+                    status: 'Hadir',
+                    keterangan: '',
+                    guru_id: guru.id_guru
+                  };
+                }
+              });
+            } else {
+              // Handle single-guru schedules
+              const guruId = (jadwal as any).guru_id || (jadwal as any).id_guru;
+              if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
+                initialKehadiran[jadwal.id_jadwal] = {
+                  status: jadwal.status_kehadiran,
+                  keterangan: jadwal.keterangan || '',
+                  guru_id: guruId
+                };
+              } else {
+                // Default to 'Hadir' for new entries
+                initialKehadiran[jadwal.id_jadwal] = {
+                  status: 'Hadir',
+                  keterangan: '',
+                  guru_id: guruId
+                };
+              }
+            }
+          });
+          setKehadiranData(initialKehadiran);
+        } else {
+          setJadwalBerdasarkanTanggal([]);
+          setKehadiranData({});
+        }
       } else {
-        const errorData = await response.json();
-        console.error('Error loading daftar siswa:', errorData);
+        // Check if response is JSON before trying to parse
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          toast({
+            title: "Error memuat jadwal",
+            description: errorData.error || 'Failed to load schedule',
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error memuat jadwal",
+            description: `HTTP ${response.status}: ${response.statusText}`,
+            variant: "destructive"
+          });
+        }
+        setJadwalBerdasarkanTanggal([]);
       }
     } catch (error) {
-      console.error('Error loading daftar siswa:', error);
+      console.error('Error loading jadwal banding by date:', error);
+      toast({
+        title: "Error",
+        description: "Network error while loading schedule",
+        variant: "destructive"
+      });
+      setJadwalBerdasarkanTanggal([]);
+    } finally {
+      setLoadingJadwal(false);
     }
   }, [siswaId]);
+
 
   // Load riwayat data
   const loadRiwayatData = useCallback(async () => {
     if (!siswaId) return;
 
     try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/riwayat-kehadiran`, {
+      // Get and clean token with mobile fallback
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        console.error('❌ Token tidak ditemukan');
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/riwayat-kehadiran`), {
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`
+        },
         credentials: 'include'
       });
 
@@ -367,77 +763,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     }
   }, [siswaId]);
 
-  // Load pengajuan izin data
-  const loadPengajuanIzin = useCallback(async () => {
-    if (!siswaId) return;
 
-    try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/pengajuan-izin`, {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('StudentDashboard: Loaded pengajuan izin data:', data);
-        setPengajuanIzin(data);
-      } else {
-        const errorData = await response.json();
-        console.error('Error loading pengajuan izin:', errorData);
-      }
-    } catch (error) {
-      console.error('Error loading pengajuan izin:', error);
-    }
-  }, [siswaId]);
-
-  // Submit pengajuan izin kelas
-  const submitPengajuanIzin = async () => {
-    if (!siswaId || formIzin.siswa_izin.length === 0) return;
-
-    try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/pengajuan-izin-kelas`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          jadwal_id: parseInt(formIzin.jadwal_id),
-          tanggal_izin: formIzin.tanggal_izin,
-          siswa_izin: formIzin.siswa_izin
-        })
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Berhasil",
-          description: "Pengajuan izin kelas berhasil dikirim"
-        });
-        
-        // Reset form dan reload data
-        setFormIzin({
-          jadwal_id: '',
-          tanggal_izin: '',
-          siswa_izin: []
-        });
-        setShowFormIzin(false);
-        loadPengajuanIzin();
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: errorData.error || "Gagal mengirim pengajuan izin",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error submitting pengajuan izin:', error);
-      toast({
-        title: "Error",
-        description: "Terjadi kesalahan saat mengirim pengajuan",
-        variant: "destructive"
-      });
-    }
-  };
 
   useEffect(() => {
     if (siswaId && activeTab === 'kehadiran') {
@@ -451,24 +777,28 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     }
   }, [siswaId, activeTab, loadRiwayatData]);
 
-  useEffect(() => {
-    if (siswaId && activeTab === 'pengajuan-izin') {
-      loadPengajuanIzin();
-      loadDaftarSiswa();
-    }
-  }, [siswaId, activeTab, loadPengajuanIzin, loadDaftarSiswa]);
 
   // Load Banding Absen
   const loadBandingAbsen = useCallback(async () => {
     if (!siswaId) return;
     
     try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/banding-absen`, {
+      // Get and clean token with mobile fallback
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        console.error('❌ Token tidak ditemukan');
+        return;
+      }
+      
+      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/banding-absen`), {
         method: 'GET',
-        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cleanToken}`
+        },
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -480,12 +810,155 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     }
   }, [siswaId]);
 
+  // Load daftar siswa untuk banding absen
+  const loadDaftarSiswa = useCallback(async () => {
+    if (!siswaId) return;
+    
+    try {
+      const rawToken = localStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        console.error('❌ Token tidak ditemukan');
+        return;
+      }
+      
+      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/daftar-siswa`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cleanToken}`
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDaftarSiswa(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error loading daftar siswa:', error);
+    }
+  }, [siswaId]);
+
+  // Load status kehadiran siswa untuk banding absen
+  const loadSiswaStatus = useCallback(async (siswaNama: string, tanggal: string, jadwalId: string) => {
+    if (!siswaId || !siswaNama || !tanggal || !jadwalId) return;
+    
+    try {
+      const rawToken = localStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        console.error('❌ Token tidak ditemukan');
+        return;
+      }
+      
+      // Cari ID siswa berdasarkan nama
+      const siswa = daftarSiswa.find(s => s.nama === siswaNama);
+      if (!siswa) {
+        console.error('❌ Siswa tidak ditemukan');
+        return;
+      }
+      
+      const response = await fetch(getApiUrl(`/api/siswa/${siswa.id}/status-kehadiran?tanggal=${tanggal}&jadwal_id=${jadwalId}`), {
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('StudentDashboard: Loaded status kehadiran siswa:', data);
+        
+        // Update status data
+        const statusKey = `${siswaNama}_${tanggal}_${jadwalId}`;
+        setSiswaStatusData(prev => ({
+          ...prev,
+          [statusKey]: data.status || 'alpa'
+        }));
+        
+        // Update form dengan status yang ditemukan
+        const newSiswaBanding = [{
+          nama: siswaNama,
+          status_asli: data.status || 'alpa',
+          status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
+          alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
+        }];
+        setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
+      } else {
+        console.error('Error loading status kehadiran siswa:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error loading status kehadiran siswa:', error);
+    }
+  }, [siswaId, daftarSiswa, formBanding]);
+
+  // Versi by-id: Load status kehadiran siswa menggunakan id_siswa (menghindari duplikasi nama)
+  const loadSiswaStatusById = useCallback(async (idSiswa: number, tanggal: string, jadwalId: string) => {
+    if (!siswaId || !idSiswa || !tanggal || !jadwalId) return;
+
+    try {
+      const rawToken = localStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+
+      if (!cleanToken) {
+        console.error('❌ Token tidak ditemukan');
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`/api/siswa/${idSiswa}/status-kehadiran?tanggal=${tanggal}&jadwal_id=${jadwalId}`), {
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('StudentDashboard: Loaded status kehadiran siswa (by id):', data);
+
+        const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === idSiswa);
+        const siswaNama = chosen?.nama || '';
+
+        // Update status data
+        const statusKey = `${idSiswa}_${tanggal}_${jadwalId}`;
+        setSiswaStatusData(prev => ({
+          ...prev,
+          [statusKey]: data.status || 'alpa'
+        }));
+
+        // Update form dengan status yang ditemukan
+        const newSiswaBanding = [{
+          nama: siswaNama,
+          status_asli: data.status || 'alpa',
+          status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
+          alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
+        }];
+        setFormBanding(prev => ({ ...prev, siswa_banding: newSiswaBanding }));
+      }
+    } catch (error) {
+      console.error('Error loading siswa status by id:', error);
+    }
+  }, [siswaId, daftarSiswa, formBanding]);
+
+
   useEffect(() => {
     if (siswaId && activeTab === 'banding-absen') {
       loadBandingAbsen();
+      loadRiwayatData();
       loadDaftarSiswa();
     }
-  }, [siswaId, activeTab, loadBandingAbsen, loadDaftarSiswa]);
+  }, [siswaId, activeTab, loadBandingAbsen, loadRiwayatData, loadDaftarSiswa]);
+
+  // useEffect untuk load jadwal ketika selectedDate berubah atau masuk edit mode
+  useEffect(() => {
+    if (isEditMode && selectedDate && siswaId && pendingUpdates.size === 0) {
+      loadJadwalBandingByDate(selectedDate);
+    }
+  }, [selectedDate, isEditMode, siswaId, loadJadwalBandingByDate, pendingUpdates.size]);
+
 
   // Submit kehadiran guru
   const submitKehadiran = async () => {
@@ -493,28 +966,97 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/siswa/submit-kehadiran-guru', {
+      // Validate multi-guru schedules - check if all teachers are being attended
+      const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
+      const multiGuruJadwal = jadwalData.filter(jadwal => jadwal.is_multi_guru && jadwal.is_absenable);
+      
+      for (const jadwal of multiGuruJadwal) {
+        if (jadwal.guru_list && jadwal.guru_list.length > 0) {
+          const expectedKeys = jadwal.guru_list.map(guru => `${jadwal.id_jadwal}-${guru.id_guru}`);
+          const providedKeys = Object.keys(kehadiranData);
+          const missingTeachers = expectedKeys.filter(key => !providedKeys.includes(key));
+          
+          if (missingTeachers.length > 0) {
+            toast({
+              title: "Validasi Gagal",
+              description: `Jadwal ${jadwal.nama_mapel} memerlukan absensi untuk semua guru. Silakan lengkapi absensi untuk semua guru terlebih dahulu.`,
+              variant: "destructive"
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Prepare kehadiran data with ada_tugas flags for multi-guru support
+      const kehadiranDataWithFlags: {[key: string]: {status: string; keterangan: string; ada_tugas: boolean; guru_id?: number}} = {};
+      Object.keys(kehadiranData).forEach(key => {
+        // Check if this is a multi-guru key (format: "jadwalId-guruId")
+        if (key.includes('-')) {
+          const [jadwalId, guruId] = key.split('-');
+          kehadiranDataWithFlags[key] = {
+            status: kehadiranData[key].status,
+            keterangan: kehadiranData[key].keterangan,
+            ada_tugas: adaTugasData[key] || false,
+            guru_id: parseInt(guruId)
+          };
+        } else {
+          // Single guru format
+          const jadwalIdNum = parseInt(key);
+          kehadiranDataWithFlags[jadwalIdNum] = {
+            status: kehadiranData[jadwalIdNum].status,
+            keterangan: kehadiranData[jadwalIdNum].keterangan,
+            ada_tugas: adaTugasData[jadwalIdNum] || false,
+            guru_id: kehadiranData[jadwalIdNum].guru_id // Include guru_id if available
+          };
+        }
+      });
+
+      const requestData = {
+        siswa_id: siswaId,
+        kehadiran_data: kehadiranDataWithFlags,
+        tanggal_absen: selectedDate
+      };
+      
+      console.log('📝 Submitting kehadiran data:', requestData);
+      console.log('📝 Kehadiran data keys:', Object.keys(kehadiranData));
+      console.log('📝 Selected date:', selectedDate);
+      
+      // Get and clean token with mobile fallback
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        toast({
+          title: "Error",
+          description: "Token tidak ditemukan. Silakan login ulang.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await fetch(getApiUrl('/api/siswa/submit-kehadiran-guru'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cleanToken}`
         },
         credentials: 'include',
-        body: JSON.stringify({
-          siswa_id: siswaId,
-          kehadiran_data: kehadiranData
-        })
+        body: JSON.stringify(requestData)
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast({
           title: "Berhasil!",
-          description: "Data kehadiran guru berhasil disimpan"
+          description: result.message || "Data kehadiran guru berhasil disimpan"
         });
         
         // Reload jadwal to get updated status
         loadJadwalHariIni();
       } else {
         const errorData = await response.json();
+        console.error('❌ Error submitting kehadiran:', errorData);
         toast({
           title: "Error",
           description: errorData.error || 'Failed to submit attendance',
@@ -533,30 +1075,205 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     }
   };
 
-  const updateKehadiranStatus = (jadwalId: number, status: string) => {
+  const updateKehadiranStatus = async (key: string | number, status: string) => {
+    const keyStr = String(key);
+    
+    // Prevent multiple updates pada key yang sama
+    if (pendingUpdates.has(keyStr)) {
+      console.log('Update already in progress for key:', keyStr);
+      return;
+    }
+
+    // Mark as updating
+    setIsUpdatingStatus(keyStr);
+    setPendingUpdates(prev => new Set([...prev, keyStr]));
+
+    // Simpan state lama untuk rollback
+    const previousState = kehadiranData[key];
+
+    // Update state lokal terlebih dahulu untuk responsif UI (Optimistic Update)
     setKehadiranData(prev => ({
       ...prev,
-      [jadwalId]: {
-        ...prev[jadwalId],
-        status: status
+      [key]: {
+        ...prev[key],
+        status: status,
+        keterangan: status === 'Hadir' ? '' : (prev[key]?.keterangan || '')
       }
     }));
+
+    try {
+      const rawToken = localStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      if (!cleanToken) {
+        throw new Error('Token tidak ditemukan');
+      }
+
+      // Tentukan jadwal_id dan guru_id dari key (mendukung multi-guru "jadwalId-guruId")
+      let jadwalId: number | null = null;
+      let guruId: number | null = null;
+
+      if (typeof key === 'string' && key.includes('-')) {
+        const [jid, gid] = key.split('-');
+        jadwalId = parseInt(jid, 10);
+        guruId = parseInt(gid, 10);
+      } else {
+        jadwalId = typeof key === 'number' ? key : parseInt(String(key), 10);
+        const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
+        const jadwal = jadwalData.find(j => j.id_jadwal === jadwalId);
+        
+        console.log('🔍 Debug jadwal lookup:', { key, jadwalId, jadwal, isEditMode });
+        
+        if (!jadwal) {
+          throw new Error('Jadwal tidak ditemukan');
+        }
+        
+        if (jadwal.is_multi_guru && Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
+        // Jangan fallback ke primary di multi-guru. Minta user memilih guru spesifik.
+        toast({
+          title: "Pilih Guru",
+          description: "Jadwal ini multi-guru. Silakan set status per guru.",
+          variant: "destructive"
+        });
+          // Rollback
+          setKehadiranData(prev => ({
+            ...prev,
+            [key]: previousState
+          }));
+        return;
+        } else {
+          // Try both guru_id and id_guru fields from jadwal object
+          guruId = (jadwal as any).guru_id || (jadwal as any).id_guru || null;
+          
+          // If still not found, try from kehadiranData
+          if (!guruId && kehadiranData[key]?.guru_id) {
+            guruId = kehadiranData[key].guru_id;
+            console.log('🔍 Using guru_id from kehadiranData:', guruId);
+          }
+          
+          console.log('🔍 Debug guruId extraction:', { 
+            from_jadwal_guru_id: (jadwal as any).guru_id, 
+            from_jadwal_id_guru: (jadwal as any).id_guru, 
+            from_kehadiranData: kehadiranData[key]?.guru_id,
+            final: guruId 
+          });
+        }
+      }
+
+      if (!jadwalId || !guruId) {
+        console.error('❌ Invalid IDs:', { jadwalId, guruId, key, kehadiranData: kehadiranData[key] });
+        throw new Error('Jadwal ID atau Guru ID tidak valid');
+      }
+
+      const tanggalTarget = isEditMode ? selectedDate : getCurrentDateWIB();
+      
+      console.log('🔄 Updating status:', { jadwalId, guruId, status, tanggal: tanggalTarget });
+
+      const resp = await fetch(getApiUrl('/api/siswa/update-status-guru'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cleanToken}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          jadwal_id: jadwalId,
+          guru_id: guruId,
+          status,
+          keterangan: kehadiranData[key]?.keterangan || '',
+          tanggal_absen: tanggalTarget,
+          ada_tugas: adaTugasData[key] || false
+        })
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Gagal menyimpan status');
+      }
+
+      const result = await resp.json();
+      console.log('✅ Status updated successfully:', result);
+
+      // Tampilkan notifikasi sukses
+      toast({
+        title: "Berhasil",
+        description: `Status berhasil diubah menjadi ${status}`,
+        variant: "default",
+        duration: 2000
+      });
+
+      // Tunggu 600ms untuk memastikan database sudah commit, baru reload
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      // Reload data untuk sinkronisasi dengan server
+      if (isEditMode) {
+        console.log('🔄 Reloading jadwal after successful update...');
+        await loadJadwalBandingByDate(selectedDate);
+      } else {
+        await loadJadwalHariIni();
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error updating status:', error);
+      
+      // Rollback ke state sebelumnya
+      setKehadiranData(prev => ({
+        ...prev,
+        [key]: previousState || {
+          status: 'Hadir',
+          keterangan: ''
+        }
+      }));
+
+      // Tampilkan error notification
+      toast({
+        title: "Gagal Menyimpan",
+        description: error.message || "Terjadi kesalahan saat menyimpan status. Silakan coba lagi.",
+        variant: "destructive",
+        duration: 4000
+      });
+    } finally {
+      // Clear updating state
+      setIsUpdatingStatus(null);
+      setPendingUpdates(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(keyStr);
+        return newSet;
+      });
+    }
   };
 
-  const updateKehadiranKeterangan = (jadwalId: number, keterangan: string) => {
+  const updateKehadiranKeterangan = (key: string | number, keterangan: string) => {
     setKehadiranData(prev => ({
       ...prev,
-      [jadwalId]: {
-        ...prev[jadwalId],
+      [key]: {
+        ...prev[key],
         keterangan: keterangan
       }
     }));
   };
 
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    if (!isEditMode) {
+      // Switching to edit mode, load today's schedule
+      const today = getCurrentDateWIB();
+      setSelectedDate(today);
+    } else {
+      // Switching back to normal mode, load today's schedule
+      loadJadwalHariIni();
+    }
+  };
+
+  // Handle date change
+  const handleDateChange = (newDate: string) => {
+    setSelectedDate(newDate);
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'hadir': return 'bg-green-100 text-green-800';
-      case 'tidak_hadir': return 'bg-red-100 text-red-800';
+      case 'tidak hadir': return 'bg-red-100 text-red-800';
       case 'izin': return 'bg-yellow-100 text-yellow-800';
       case 'sakit': return 'bg-blue-100 text-blue-800';
       case 'belum_diambil': return 'bg-gray-100 text-gray-800';
@@ -568,10 +1285,10 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     if (loading) {
       return (
         <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
+          <CardContent className="p-3 sm:p-6">
+            <div className="space-y-3 sm:space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="animate-pulse bg-gray-200 h-24 rounded"></div>
+                <div key={i} className="animate-pulse bg-gray-200 h-20 sm:h-24 rounded"></div>
               ))}
             </div>
           </CardContent>
@@ -581,40 +1298,306 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
     if (jadwalHariIni.length === 0) {
       return (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Calendar className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Tidak Ada Jadwal Hari Ini</h3>
-            <p className="text-gray-600">Selamat beristirahat! Tidak ada mata pelajaran yang terjadwal untuk hari ini.</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-4 sm:space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  {isEditMode ? 'Edit Absen Guru' : 'Jadwal Hari Ini'} - {kelasInfo}
+                </CardTitle>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {isEditMode && (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="date-picker" className="text-sm font-medium">
+                        Pilih Tanggal:
+                      </Label>
+                      <input
+                        id="date-picker"
+                        type="date"
+                        value={selectedDate}
+                        min={minDate}
+                        max={maxDate}
+                        onChange={(e) => handleDateChange(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  )}
+                  
+                  <Button
+                    onClick={toggleEditMode}
+                    variant={isEditMode ? "destructive" : "default"}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    {isEditMode ? (
+                      <>
+                        <XCircle className="w-4 h-4" />
+                        Keluar Edit Mode
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="w-4 h-4" />
+                        Edit Absen (7 Hari)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              
+              {isEditMode && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 text-blue-600 mt-0.5">
+                      <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium">Mode Edit Absen Aktif</p>
+                      <p>Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 sm:p-12 text-center">
+              <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Tidak Ada Jadwal Hari Ini</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-4">Selamat beristirahat! Tidak ada mata pelajaran yang terjadwal untuk hari ini.</p>
+              {!isEditMode && (
+                <p className="text-xs sm:text-sm text-gray-500 mb-4">
+                  Gunakan tombol "Edit Absen (30 Hari)" di atas untuk melihat jadwal hari lain.
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh Jadwal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       );
     }
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Edit Mode Toggle and Date Picker */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Jadwal Hari Ini - {kelasInfo}
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="truncate">
+                  {isEditMode ? 'Edit Absen Guru' : 'Jadwal Hari Ini'} - {kelasInfo}
+                </span>
+              </CardTitle>
+              
+              <div className="flex flex-col gap-3">
+                {isEditMode && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <Label htmlFor="date-picker" className="text-sm font-medium">
+                      Pilih Tanggal:
+                    </Label>
+                    <input
+                      id="date-picker"
+                      type="date"
+                      value={selectedDate}
+                      min={minDate}
+                      max={maxDate}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-auto"
+                    />
+                  </div>
+                )}
+                
+                <Button
+                  onClick={toggleEditMode}
+                  variant={isEditMode ? "destructive" : "default"}
+                  size="sm"
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                >
+                  {isEditMode ? (
+                    <>
+                      <XCircle className="w-4 h-4" />
+                      Keluar Edit Mode
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      Edit Absen (30 Hari)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            {isEditMode && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 text-blue-600 mt-0.5">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium">Mode Edit Absen Aktif</p>
+                    <p>Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="min-w-0">
+            <CardTitle className="flex items-center gap-2 min-w-0">
+              <Calendar className="w-5 h-5" />
+              <span className="truncate" title={isEditMode ? `Jadwal ${formatDateOnly(selectedDate)}` : 'Jadwal Hari Ini'}>
+                {isEditMode ? `Jadwal ${formatDateOnly(selectedDate)}` : 'Jadwal Hari Ini'}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {jadwalHariIni.map((jadwal, index) => (
-                <div key={jadwal.id_jadwal} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline">Jam ke-{jadwal.jam_ke}</Badge>
-                        <Badge variant="outline">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
-                        <Badge className={getStatusBadgeColor(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}>
+            <div className="space-y-3 sm:space-y-4">
+              {loading && isEditMode ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-gray-600">Memuat jadwal...</span>
+                </div>
+              ) : isEditMode && jadwalBerdasarkanTanggal.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Tidak ada jadwal untuk tanggal {selectedDate}</p>
+                </div>
+              ) : (() => {
+                // Group by jadwal_id to handle multi-guru properly
+                const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
+                
+                const groupedJadwal = jadwalData.reduce((acc, jadwal) => {
+                  const key = jadwal.id_jadwal;
+                  if (!acc[key]) {
+                    acc[key] = {
+                      ...jadwal,
+                      guru_list: []
+                    };
+                  }
+                  
+                  // Sumber prioritas guru_list:
+                  // 1) Jika jadwal.guru_list sudah array (hasil parsing), pakai itu
+                  if (Array.isArray((jadwal as any).guru_list) && (jadwal as any).guru_list.length > 0) {
+                    acc[key].guru_list = (jadwal as any).guru_list as Array<{
+                      id_guru: number;
+                      nama_guru: string;
+                      nip: string;
+                      is_primary?: boolean;
+                      status_kehadiran: string;
+                      keterangan_guru?: string;
+                      waktu_absen?: string;
+                      is_submitted?: boolean;
+                    }>;
+                  } else {
+                    // 2) Jika ada id_guru di record ini, dorong satu guru
+                    if ((jadwal as any).id_guru) {
+                    acc[key].guru_list!.push({
+                        id_guru: (jadwal as any).id_guru as number,
+                        nama_guru: (jadwal as any).nama_guru as string,
+                        nip: (jadwal as any).nip as string,
+                        is_primary: (jadwal as any).is_primary as boolean,
+                        status_kehadiran: (jadwal as any).status_kehadiran as string,
+                        keterangan_guru: (jadwal as any).keterangan_guru as string
+                      } as any);
+                    } else if (jadwal.is_multi_guru && typeof (jadwal as any).nama_guru === 'string' && acc[key].guru_list!.length === 0) {
+                      // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
+                      const raw = (jadwal as any).nama_guru as string;
+                      const parts = raw.split(/,|&| dan /gi).map(s => s.trim()).filter(Boolean);
+                      if (parts.length > 1) {
+                        parts.forEach((nama: string, idx: number) => {
+                          acc[key].guru_list!.push({
+                            id_guru: 0, // placeholder, belum bisa diupdate ke server
+                            nama_guru: nama,
+                            nip: '',
+                            is_primary: idx === 0,
+                            status_kehadiran: 'belum_diambil',
+                            keterangan_guru: ''
+                          } as {
+                            id_guru: number;
+                            nama_guru: string;
+                            nip: string;
+                            is_primary?: boolean;
+                            status_kehadiran: string;
+                            keterangan_guru?: string;
+                          });
+                        });
+                      }
+                    }
+                  }
+                  
+                  return acc;
+                }, {} as Record<number, JadwalHariIni & { guru_list: Array<{
+                  id_guru: number;
+                  nama_guru: string;
+                  nip: string;
+                  is_primary?: boolean;
+                  status_kehadiran: string;
+                  keterangan_guru?: string;
+                }> }>);
+                
+                const uniqueJadwal = Object.values(groupedJadwal);
+                
+                return uniqueJadwal.map((jadwal, index) => {
+                // Conditional rendering untuk jadwal yang tidak bisa diabsen
+                if (!jadwal.is_absenable) {
+                  return (
+                    <div key={jadwal.id_jadwal} className="border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50">
+                      <div className="mb-4">
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+                          <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
+                          <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {jadwal.jenis_aktivitas === 'upacara' ? '🏳️ Upacara' :
+                             jadwal.jenis_aktivitas === 'istirahat' ? '☕ Istirahat' :
+                             jadwal.jenis_aktivitas === 'kegiatan_khusus' ? '🎯 Kegiatan Khusus' :
+                             jadwal.jenis_aktivitas === 'libur' ? '🏖️ Libur' :
+                             jadwal.jenis_aktivitas === 'ujian' ? '📝 Ujian' :
+                             '📋 ' + (jadwal.jenis_aktivitas || 'Khusus')}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
+                            Tidak perlu absen
+                          </Badge>
+                        </div>
+                        <h4 className="font-semibold text-base sm:text-lg text-gray-700 break-words mb-1">
+                          {jadwal.keterangan_khusus || jadwal.nama_mapel}
+                        </h4>
+                        <p className="text-sm sm:text-base text-gray-600 break-words">Aktivitas Khusus</p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Jadwal normal yang bisa diabsen
+                return (
+                  <div key={jadwal.id_jadwal} className="border rounded-lg p-3 sm:p-4">
+                    <div className="mb-4">
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
+                        <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
+                        <Badge className={`text-xs ${getStatusBadgeColor(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}`}>
                           {(() => {
                             const status = kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil';
                             switch (status.toLowerCase()) {
                               case 'hadir': return 'Hadir';
-                              case 'tidak_hadir': return 'Tidak Hadir';
+                              case 'tidak hadir': return 'Tidak Hadir';
                               case 'izin': return 'Izin';
                               case 'sakit': return 'Sakit';
                               case 'belum_diambil': return 'Belum Diambil';
@@ -622,59 +1605,230 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                             }
                           })()}
                         </Badge>
+                        {jadwal.waktu_catat && (
+                          <Badge variant="secondary" className="text-xs">
+                            ✓ {formatDateTime24(jadwal.waktu_catat, true)}
+                          </Badge>
+                        )}
                       </div>
-                      <h4 className="font-semibold text-lg text-gray-900">{jadwal.nama_mapel}</h4>
-                      <p className="text-gray-600">{jadwal.nama_guru}</p>
-                      <p className="text-sm text-gray-500">NIP: {jadwal.nip}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                        Status Kehadiran Guru:
-                      </Label>
-                      <RadioGroup 
-                        value={kehadiranData[jadwal.id_jadwal]?.status || 'hadir'} 
-                        onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
-                        disabled={jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil'}
-                      >
-                        <div className="flex flex-wrap gap-6">
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="hadir" id={`hadir-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              Hadir
-                            </Label>
+                      <h4 className="font-semibold text-base sm:text-lg text-gray-900 break-words mb-2">{jadwal.nama_mapel}</h4>
+                      <div className="space-y-1">
+                        {!(jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) && (
+                          <>
+                            <p className="text-sm sm:text-base text-gray-600 break-words">{jadwal.nama_guru}</p>
+                            {jadwal.nip && <p className="text-xs sm:text-sm text-gray-500">NIP: {jadwal.nip}</p>}
+                          </>
+                        )}
+                        {jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="secondary" className="text-xs">
+                              <Users className="w-3 h-3 mr-1" />
+                              Multi-Guru ({jadwal.guru_list.length} guru)
+                            </Badge>
+                            {jadwal.guru_list.slice(1).map((guru, idx: number) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {guru.nama_guru}
+                              </Badge>
+                            ))}
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="tidak_hadir" id={`tidak_hadir-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`tidak_hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2">
-                              <XCircle className="w-4 h-4 text-red-600" />
-                              Tidak Hadir
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="izin" id={`izin-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`izin-${jadwal.id_jadwal}`} className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-yellow-600" />
-                              Izin
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="sakit" id={`sakit-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`sakit-${jadwal.id_jadwal}`} className="flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-blue-600" />
-                              Sakit
-                            </Label>
-                          </div>
+                        )}
+                      </div>
+                      {jadwal.kode_ruang && (
+                        <div className="text-xs sm:text-sm text-blue-600 mt-2">
+                          <Badge variant="outline" className="text-xs">
+                            {jadwal.kode_ruang}
+                          </Badge>
+                          {jadwal.nama_ruang && ` - ${jadwal.nama_ruang}`}
                         </div>
-                      </RadioGroup>
+                      )}
                     </div>
 
-                    {kehadiranData[jadwal.id_jadwal]?.status !== 'hadir' && (
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Multi-guru form */}
+                    {jadwal.is_multi_guru ? (
+                      (jadwal.guru_list && jadwal.guru_list.length > 0) ? (
+                      <div className="space-y-3 sm:space-y-4">
+                        <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                          Status Kehadiran Guru (Multi-Guru):
+                        </Label>
+                        {jadwal.guru_list.map((guru, guruIdx) => {
+                          const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+                          const currentStatus = kehadiranData[guruKey]?.status || guru.status_kehadiran || 'belum_diambil';
+                          const isSubmitted = currentStatus !== 'belum_diambil';
+                          
+                          return (
+                            <div key={guruKey} className={`border rounded-lg p-3 sm:p-4 ${isSubmitted ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 sm:mb-3">
+                                <div className="flex items-center gap-2">
+                                  <h5 className="font-medium text-gray-800 text-sm sm:text-base">{guru.nama_guru}</h5>
+                                  {isSubmitted ? (
+                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                  ) : (
+                                    <AlertCircle className="w-4 h-4 text-yellow-600" />
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                  {guru.is_primary && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Guru Utama
+                                    </Badge>
+                                  )}
+                                  <Badge variant={isSubmitted ? "default" : "outline"} className="text-xs">
+                                    {isSubmitted ? 'Sudah Diabsen' : 'Belum Diabsen'}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <p className="text-xs sm:text-sm text-gray-600 mb-2">NIP: {guru.nip}</p>
+                              {guru.waktu_absen && (
+                                <p className="text-xs text-gray-500 mb-2 sm:mb-3">
+                                  Waktu absen: {formatDateTime24(guru.waktu_absen, true)}
+                                </p>
+                              )}
+                              <RadioGroup 
+                                value={kehadiranData[guruKey]?.status ?? (guru.status_kehadiran || undefined)} 
+                                onValueChange={(value) => updateKehadiranStatus(guruKey, value)}
+                                disabled={!guru.id_guru || guru.id_guru === 0 || isUpdatingStatus === guruKey}
+                              >
+                                {isUpdatingStatus === guruKey && (
+                                  <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
+                                    <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                                    Menyimpan...
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="Hadir" id={`hadir-${guruKey}`} />
+                                    <Label htmlFor={`hadir-${guruKey}`} className="flex items-center gap-2 text-sm">
+                                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                      Hadir
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${guruKey}`} />
+                                    <Label htmlFor={`tidak_hadir-${guruKey}`} className="flex items-center gap-2 text-sm">
+                                      <XCircle className="w-4 h-4 text-red-600" />
+                                      Tidak Hadir
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="Izin" id={`izin-${guruKey}`} />
+                                    <Label htmlFor={`izin-${guruKey}`} className="flex items-center gap-2 text-sm">
+                                      <User className="w-4 h-4 text-yellow-600" />
+                                      Izin
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="Sakit" id={`sakit-${guruKey}`} />
+                                    <Label htmlFor={`sakit-${guruKey}`} className="flex items-center gap-2 text-sm">
+                                      <BookOpen className="w-4 h-4 text-blue-600" />
+                                      Sakit
+                                    </Label>
+                                  </div>
+                                </div>
+                              </RadioGroup>
+                              
+                              {/* Keterangan untuk guru ini */}
+                              {kehadiranData[guruKey]?.status && kehadiranData[guruKey]?.status !== 'Hadir' && (
+                                <div className="mt-2 sm:mt-3">
+                                  <Label htmlFor={`keterangan-${guruKey}`} className="text-xs sm:text-sm font-medium text-gray-700">
+                                    Keterangan untuk {guru.nama_guru}:
+                                  </Label>
+                                  <Textarea
+                                    id={`keterangan-${guruKey}`}
+                                    placeholder="Masukkan keterangan jika diperlukan..."
+                                    value={kehadiranData[guruKey]?.keterangan || guru.keterangan_guru || ''}
+                                    onChange={(e) => updateKehadiranKeterangan(guruKey, e.target.value)}
+                                    className="mt-1 text-sm"
+                                    rows={2}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      ) : (
+                        <div className="p-3 border rounded bg-yellow-50 border-yellow-200 text-sm text-yellow-800">
+                          Jadwal ini multi-guru namun daftar guru belum tersedia. Silakan refresh/ulang sampai daftar guru tampil.
+                        </div>
+                      )
+                    ) : (
+                      /* Single guru form */
                       <div>
-                        <Label htmlFor={`keterangan-${jadwal.id_jadwal}`} className="text-sm font-medium text-gray-700">
+                        <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                          Status Kehadiran Guru:
+                        </Label>
+                        <RadioGroup 
+                          value={kehadiranData[jadwal.id_jadwal]?.status ?? undefined} 
+                          onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
+                          disabled={isUpdatingStatus === String(jadwal.id_jadwal)}
+                        >
+                          {isUpdatingStatus === String(jadwal.id_jadwal) && (
+                            <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
+                              <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                              Menyimpan...
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Hadir" id={`hadir-${jadwal.id_jadwal}`} />
+                              <Label htmlFor={`hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                Hadir
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${jadwal.id_jadwal}`} />
+                              <Label htmlFor={`tidak_hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                                <XCircle className="w-4 h-4 text-red-600" />
+                                Tidak Hadir
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Izin" id={`izin-${jadwal.id_jadwal}`} />
+                              <Label htmlFor={`izin-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                                <User className="w-4 h-4 text-yellow-600" />
+                                Izin
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Sakit" id={`sakit-${jadwal.id_jadwal}`} />
+                              <Label htmlFor={`sakit-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                                <BookOpen className="w-4 h-4 text-blue-600" />
+                                Sakit
+                              </Label>
+                            </div>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    )}
+
+                    {/* Opsi Ada Tugas */}
+                    {(kehadiranData[jadwal.id_jadwal]?.status === 'Tidak Hadir' || 
+                      kehadiranData[jadwal.id_jadwal]?.status === 'Izin' || 
+                      kehadiranData[jadwal.id_jadwal]?.status === 'Sakit') && (
+                      <div className="mt-2 sm:mt-3">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`ada-tugas-${jadwal.id_jadwal}`}
+                            checked={adaTugasData[jadwal.id_jadwal] || false}
+                            onChange={(e) => 
+                              setAdaTugasData(prev => ({ ...prev, [jadwal.id_jadwal]: e.target.checked }))
+                            }
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <Label htmlFor={`ada-tugas-${jadwal.id_jadwal}`} className="text-sm text-blue-600">
+                            Ada Tugas
+                          </Label>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Keterangan untuk single guru */}
+                    {!jadwal.is_multi_guru && (
+                      <div>
+                        <Label htmlFor={`keterangan-${jadwal.id_jadwal}`} className="text-xs sm:text-sm font-medium text-gray-700">
                           Keterangan:
                         </Label>
                         <Textarea
@@ -682,21 +1836,99 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                           placeholder="Masukkan keterangan jika diperlukan..."
                           value={kehadiranData[jadwal.id_jadwal]?.keterangan || ''}
                           onChange={(e) => updateKehadiranKeterangan(jadwal.id_jadwal, e.target.value)}
-                          disabled={jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil'}
-                          className="mt-1"
+                          disabled={false}
+                          className="mt-1 text-sm"
+                          rows={2}
                         />
                       </div>
                     )}
                   </div>
                 </div>
-              ))}
+                );
+                });
+              })()}
             </div>
 
             <div className="mt-6 pt-6 border-t">
+              {/* Preview Data Absensi untuk Multi Guru */}
+              {(() => {
+                const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
+                const multiGuruJadwal = jadwalData.filter(jadwal => jadwal.is_multi_guru && jadwal.is_absenable);
+                
+                if (multiGuruJadwal.length > 0) {
+                  return (
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        <h4 className="font-medium text-blue-800">Preview Data Absensi Multi Guru</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {multiGuruJadwal.map((jadwal) => (
+                          <div key={jadwal.id_jadwal} className="bg-white p-3 rounded border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium text-gray-800">{jadwal.nama_mapel}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                Multi-Guru ({jadwal.guru_list?.length || 0})
+                              </Badge>
+                            </div>
+                            <div className="space-y-2">
+                              {jadwal.guru_list?.map((guru) => {
+                                const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+                                const status = kehadiranData[guruKey]?.status || guru.status_kehadiran || 'belum_diambil';
+                                return (
+                                  <div key={guruKey} className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-700">{guru.nama_guru}</span>
+                                    <div className="flex items-center gap-2">
+                                      <Badge 
+                                        className={`text-xs ${
+                                          status === 'Hadir' ? 'bg-green-100 text-green-800' :
+                                          status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
+                                          status === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
+                                          status === 'Sakit' ? 'bg-blue-100 text-blue-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}
+                                      >
+                                        {status}
+                                      </Badge>
+                                      {kehadiranData[guruKey]?.keterangan && (
+                                        <span className="text-xs text-gray-500 truncate max-w-[100px]" title={kehadiranData[guruKey].keterangan}>
+                                          {kehadiranData[guruKey].keterangan}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {isEditMode && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 text-yellow-600 mt-0.5">
+                      <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="text-sm text-yellow-800">
+                      <p className="font-medium">Perhatian!</p>
+                      <p>Anda sedang mengedit absen untuk tanggal {formatDateOnly(selectedDate)}. Perubahan akan disimpan dan menggantikan data sebelumnya.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <Button 
                 onClick={submitKehadiran} 
                 disabled={loading} 
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className={`w-full ${isEditMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -706,7 +1938,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                 ) : (
                   <div className="flex items-center gap-2">
                     <Save className="w-4 h-4" />
-                    Simpan Data Kehadiran
+                    {isEditMode ? 'Simpan Perubahan Absen' : 'Simpan Data Kehadiran'}
                   </div>
                 )}
               </Button>
@@ -721,197 +1953,432 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     if (riwayatData.length === 0) {
       return (
         <Card>
-          <CardContent className="p-12 text-center">
-            <Calendar className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Belum Ada Riwayat</h3>
-            <p className="text-gray-600">Riwayat kehadiran kelas akan muncul setelah ada data absensi.</p>
+          <CardContent className="p-6 sm:p-12 text-center">
+            <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Belum Ada Riwayat</h3>
+            <p className="text-sm sm:text-base text-gray-600">Riwayat kehadiran kelas akan muncul setelah ada data absensi.</p>
           </CardContent>
         </Card>
       );
     }
 
     return (
-      <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            <p className="text-blue-800 font-medium">Riwayat Kehadiran Kelas</p>
+      <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+        {/* Header yang mobile responsive */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <p className="text-blue-800 font-medium text-sm sm:text-base">Riwayat Kehadiran Kelas</p>
+            </div>
+            <p className="text-blue-700 text-xs sm:text-sm">Sebagai perwakilan kelas, Anda dapat melihat ringkasan kehadiran seluruh siswa</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-sm text-blue-600 font-medium">
+                {riwayatData.length} hari riwayat
+              </div>
+              <div className="text-xs text-blue-500">
+                Halaman {riwayatPage} dari {Math.ceil(riwayatData.length / riwayatItemsPerPage)}
+              </div>
+            </div>
           </div>
-          <p className="text-blue-700 text-sm mt-1">Sebagai perwakilan kelas, Anda dapat melihat ringkasan kehadiran seluruh siswa</p>
         </div>
 
-        {riwayatData.map((hari, index) => (
-          <Card key={index}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                {new Date(hari.tanggal).toLocaleDateString('id-ID', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Jam Ke</TableHead>
-                    <TableHead>Waktu</TableHead>
-                    <TableHead>Mata Pelajaran</TableHead>
-                    <TableHead>Guru</TableHead>
-                    <TableHead>Total Hadir</TableHead>
-                    <TableHead>Tidak Hadir</TableHead>
-                    <TableHead>Detail</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {hari.jadwal.map((jadwal, jadwalIndex) => (
-                    <TableRow key={jadwalIndex}>
-                      <TableCell>
-                        <Badge variant="outline">Jam ke-{jadwal.jam_ke}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{jadwal.jam_mulai} - {jadwal.jam_selesai}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium">{jadwal.nama_mapel}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span>{jadwal.nama_guru}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-green-100 text-green-800">
-                            {jadwal.total_hadir}/{jadwal.total_siswa}
-                          </Badge>
+        {/* Card layout untuk mobile, tabel untuk desktop */}
+        <div className="block lg:hidden">
+          {riwayatData
+            .slice((riwayatPage - 1) * riwayatItemsPerPage, riwayatPage * riwayatItemsPerPage)
+            .map((hari, index) => {
+              const seenJadwal = new Set();
+              const uniqueJadwal = hari.jadwal.filter((jadwal) => {
+                const key = `${jadwal.jadwal_id}-${jadwal.jam_ke}-${jadwal.jam_mulai}-${jadwal.jam_selesai}-${jadwal.nama_mapel}`;
+                if (seenJadwal.has(key)) {
+                  return false;
+                }
+                seenJadwal.add(key);
+                return true;
+              });
+              
+              return (
+                <Card key={index} className="mb-4">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Calendar className="w-4 h-4" />
+                      {formatDateOnly(hari.tanggal)}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {uniqueJadwal.map((jadwal, jadwalIndex) => (
+                      <div key={jadwalIndex} className="border rounded-lg p-3 space-y-3">
+                        {/* Header jadwal */}
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setDetailRiwayat(jadwal)}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            Detail
+                          </Button>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {jadwal.total_izin > 0 && (
-                            <Badge className="bg-yellow-100 text-yellow-800 text-xs">
-                              Izin: {jadwal.total_izin}
-                            </Badge>
-                          )}
-                          {jadwal.total_sakit > 0 && (
-                            <Badge className="bg-blue-100 text-blue-800 text-xs">
-                              Sakit: {jadwal.total_sakit}
-                            </Badge>
-                          )}
-                          {jadwal.total_alpa > 0 && (
-                            <Badge className="bg-red-100 text-red-800 text-xs">
-                              Alpa: {jadwal.total_alpa}
-                            </Badge>
+                        
+                        {/* Informasi mata pelajaran */}
+                        <div>
+                          <h4 className="font-medium text-sm mb-1">{jadwal.nama_mapel}</h4>
+                          <p className="text-xs text-gray-600">{jadwal.jam_mulai} - {jadwal.jam_selesai}</p>
+                        </div>
+                        
+                        {/* Informasi guru */}
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Guru:</p>
+                          <p className="text-sm font-medium">{jadwal.nama_guru}</p>
+                          {!!jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0 && (
+                            <div className="mt-2">
+                              <Badge variant="secondary" className="text-xs mb-2">
+                                <Users className="w-3 h-3 mr-1" />
+                                Multi-Guru ({jadwal.guru_list.length})
+                              </Badge>
+                              <div className="space-y-1">
+                                {jadwal.guru_list.map((guru, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs ${
+                                        guru.status_kehadiran === 'Hadir' ? 'bg-green-100 text-green-800' :
+                                        guru.status_kehadiran === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
+                                        guru.status_kehadiran === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
+                                        guru.status_kehadiran === 'Sakit' ? 'bg-blue-100 text-blue-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}
+                                    >
+                                      {guru.nama_guru}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {guru.status_kehadiran || 'Belum'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            console.log('Detail jadwal:', jadwal);
-                            console.log('Jadwal keys:', Object.keys(jadwal));
-                            console.log('Jadwal.siswa_tidak_hadir:', jadwal.siswa_tidak_hadir);
-                            if (jadwal.siswa_tidak_hadir && jadwal.siswa_tidak_hadir.length > 0) {
-                              console.log('Contoh siswa pertama:', jadwal.siswa_tidak_hadir[0]);
-                              console.log('Siswa pertama keys:', Object.keys(jadwal.siswa_tidak_hadir[0]));
-                            }
-                            setDetailRiwayat(jadwal);
-                          }}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Detail
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        
+                        {/* Ruangan */}
+                        {jadwal.kode_ruang && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Ruangan:</p>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="outline" className="text-xs w-fit">
+                                {jadwal.kode_ruang}
+                              </Badge>
+                              {jadwal.nama_ruang && (
+                                <span className="text-xs text-gray-600">
+                                  {jadwal.nama_ruang}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Statistik kehadiran */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Total Hadir:</p>
+                            <Badge className="bg-green-100 text-green-800 text-xs">
+                              {jadwal.total_hadir}/{jadwal.total_siswa}
+                            </Badge>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Tidak Hadir:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {jadwal.total_izin > 0 && (
+                                <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                                  Izin: {jadwal.total_izin}
+                                </Badge>
+                              )}
+                              {jadwal.total_sakit > 0 && (
+                                <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                  Sakit: {jadwal.total_sakit}
+                                </Badge>
+                              )}
+                              {jadwal.total_alpa > 0 && (
+                                <Badge className="bg-red-100 text-red-800 text-xs">
+                                  Alpa: {jadwal.total_alpa}
+                                </Badge>
+                              )}
+                              {jadwal.total_tidak_hadir && jadwal.total_tidak_hadir > 0 && (
+                                <Badge className="bg-gray-100 text-gray-800 text-xs">
+                                  Tidak Hadir: {jadwal.total_tidak_hadir}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+        </div>
+
+        {/* Tabel untuk desktop */}
+        <div className="hidden lg:block">
+          {riwayatData
+            .slice((riwayatPage - 1) * riwayatItemsPerPage, riwayatPage * riwayatItemsPerPage)
+            .map((hari, index) => {
+              const seenJadwal = new Set();
+              const uniqueJadwal = hari.jadwal.filter((jadwal) => {
+                const key = `${jadwal.jadwal_id}-${jadwal.jam_ke}-${jadwal.jam_mulai}-${jadwal.jam_selesai}-${jadwal.nama_mapel}`;
+                if (seenJadwal.has(key)) {
+                  return false;
+                }
+                seenJadwal.add(key);
+                return true;
+              });
+              
+              return (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      {formatDateOnly(hari.tanggal)}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto max-w-full">
+                      <Table className="w-full table-fixed">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="whitespace-nowrap w-20">Jam Ke</TableHead>
+                            <TableHead className="whitespace-nowrap w-24">Waktu</TableHead>
+                            <TableHead className="whitespace-nowrap w-32">Mata Pelajaran</TableHead>
+                            <TableHead className="whitespace-nowrap w-28">Guru</TableHead>
+                            <TableHead className="whitespace-nowrap w-20">Ruangan</TableHead>
+                            <TableHead className="whitespace-nowrap w-24">Total Hadir</TableHead>
+                            <TableHead className="whitespace-nowrap w-28">Tidak Hadir</TableHead>
+                            <TableHead className="whitespace-nowrap w-20">Detail</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {uniqueJadwal.map((jadwal, jadwalIndex) => (
+                            <TableRow key={jadwalIndex}>
+                              <TableCell>
+                                <Badge variant="outline">Jam ke-{jadwal.jam_ke}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm whitespace-nowrap">{jadwal.jam_mulai} - {jadwal.jam_selesai}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-medium block max-w-[120px] truncate text-xs" title={jadwal.nama_mapel}>{jadwal.nama_mapel}</span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <span className="block max-w-[100px] truncate text-xs" title={jadwal.nama_guru}>{jadwal.nama_guru}</span>
+                                  {!!jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap gap-1">
+                                        <Badge variant="secondary" className="text-xs">
+                                          <Users className="w-3 h-3 mr-1" />
+                                          Multi-Guru ({jadwal.guru_list.length})
+                                        </Badge>
+                                      </div>
+                                      <div className="space-y-1">
+                                        {jadwal.guru_list.map((guru, idx: number) => (
+                                          <div key={idx} className="flex items-center gap-2">
+                                            <Badge 
+                                              variant="outline" 
+                                              className={`text-xs ${
+                                                guru.status_kehadiran === 'Hadir' ? 'bg-green-100 text-green-800' :
+                                                guru.status_kehadiran === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
+                                                guru.status_kehadiran === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
+                                                guru.status_kehadiran === 'Sakit' ? 'bg-blue-100 text-blue-800' :
+                                                'bg-gray-100 text-gray-800'
+                                              }`}
+                                            >
+                                              {guru.nama_guru}
+                                            </Badge>
+                                            <span className="text-xs text-gray-500">
+                                              {guru.status_kehadiran || 'Belum'}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {jadwal.kode_ruang ? (
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant="outline" className="text-xs w-fit">
+                                      {jadwal.kode_ruang}
+                                    </Badge>
+                                    {jadwal.nama_ruang && (
+                                      <span className="text-xs text-gray-600 max-w-[80px] truncate" title={jadwal.nama_ruang}>
+                                        {jadwal.nama_ruang}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-400">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-green-100 text-green-800">
+                                    {jadwal.total_hadir}/{jadwal.total_siswa}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  {jadwal.total_izin > 0 && (
+                                    <Badge className="bg-yellow-100 text-yellow-800 text-xs w-fit">
+                                      I:{jadwal.total_izin}
+                                    </Badge>
+                                  )}
+                                  {jadwal.total_sakit > 0 && (
+                                    <Badge className="bg-blue-100 text-blue-800 text-xs w-fit">
+                                      S:{jadwal.total_sakit}
+                                    </Badge>
+                                  )}
+                                  {jadwal.total_alpa > 0 && (
+                                    <Badge className="bg-red-100 text-red-800 text-xs w-fit">
+                                      A:{jadwal.total_alpa}
+                                    </Badge>
+                                  )}
+                                  {jadwal.total_tidak_hadir && jadwal.total_tidak_hadir > 0 && (
+                                    <Badge className="bg-gray-100 text-gray-800 text-xs w-fit">
+                                      TH:{jadwal.total_tidak_hadir}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => setDetailRiwayat(jadwal)}
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  Detail
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+        </div>
+
+        {/* Pagination Card untuk Riwayat - FIXED: Only show if there's data and more than 1 page */}
+        {riwayatData.length > 0 && Math.ceil(riwayatData.length / riwayatItemsPerPage) > 1 && (
+          <Card>
+            <CardContent className="p-4">
+              <Pagination
+                currentPage={riwayatPage}
+                totalPages={Math.ceil(riwayatData.length / riwayatItemsPerPage)}
+                onPageChange={setRiwayatPage}
+              />
             </CardContent>
           </Card>
-        ))}
+        )}
 
-        {/* Modal Detail Riwayat */}
+        {/* Modal Detail Riwayat - Mobile Responsive */}
         {detailRiwayat && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-              {console.log('Modal detailRiwayat:', detailRiwayat)}
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Detail Kehadiran - Jam ke-{detailRiwayat.jam_ke}</h3>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 sm:p-4">
+            <div className="bg-white rounded-lg p-3 sm:p-6 max-w-2xl w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto mx-2 sm:mx-0">
+              <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2 sm:gap-3">
+                <h3 className="text-sm sm:text-lg font-semibold leading-tight flex-1 min-w-0">
+                  Detail Kehadiran - Jam ke-{detailRiwayat.jam_ke}
+                </h3>
                 <Button 
                   variant="ghost" 
                   size="sm"
+                  className="flex-shrink-0 h-7 w-7 sm:h-8 sm:w-8 p-0"
                   onClick={() => setDetailRiwayat(null)}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>
               </div>
               
-              <div className="mb-4">
-                <p className="text-sm text-gray-600">
-                  {detailRiwayat.nama_mapel} ({detailRiwayat.jam_mulai} - {detailRiwayat.jam_selesai})
-                </p>
-                <p className="text-sm text-gray-600">Guru: {detailRiwayat.nama_guru}</p>
+              <div className="mb-3 sm:mb-4 space-y-2">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3">
+                  <p className="text-xs sm:text-sm text-gray-700">
+                    <span className="font-medium block sm:inline">{detailRiwayat.nama_mapel}</span>
+                    <span className="text-xs text-gray-500 block sm:inline sm:ml-2">
+                      {detailRiwayat.jam_mulai} - {detailRiwayat.jam_selesai}
+                    </span>
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                    <span className="font-medium">Guru:</span> {detailRiwayat.nama_guru}
+                  </p>
+                </div>
               </div>
 
               {detailRiwayat.siswa_tidak_hadir && Array.isArray(detailRiwayat.siswa_tidak_hadir) && detailRiwayat.siswa_tidak_hadir.length > 0 ? (
-                <div className="space-y-3">
-                  <h4 className="font-medium">Siswa Tidak Hadir:</h4>
-                  {console.log('Siswa tidak hadir:', detailRiwayat.siswa_tidak_hadir)}
-                  {detailRiwayat.siswa_tidak_hadir.map((siswa, idx) => {
-                    console.log('Siswa individual:', siswa);
-                    console.log('Siswa keys:', Object.keys(siswa));
-                    console.log('Siswa.nama_siswa:', siswa.nama_siswa);
-                    console.log('Siswa.nis:', siswa.nis);
-                    console.log('Siswa.status:', siswa.status);
-                    
-                    // Coba berbagai kemungkinan field untuk nama dan NIS
-                    const namaSiswa = siswa.nama_siswa || siswa.nama || siswa.nama_lengkap || siswa.nama_siswa_lengkap || 'Nama tidak tersedia';
-                    const nisSiswa = siswa.nis || siswa.nis_siswa || siswa.nomor_induk || siswa.nomor_induk_siswa || siswa.nis_lengkap || 'NIS tidak tersedia';
-                    const statusSiswa = siswa.status || siswa.status_kehadiran || 'Status tidak tersedia';
-                    
-                    return (
-                      <div key={idx} className="border rounded-lg p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">
-                              {namaSiswa}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              NIS: {nisSiswa}
-                            </p>
+                <div className="space-y-2 sm:space-y-3">
+                  <h4 className="font-medium text-xs sm:text-base flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Siswa Tidak Hadir ({detailRiwayat.siswa_tidak_hadir.length})
+                  </h4>
+                  <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto">
+                    {detailRiwayat.siswa_tidak_hadir.map((siswa, idx) => {
+                      const namaSiswa = siswa.nama_siswa || 'Nama tidak tersedia';
+                      const nisSiswa = siswa.nis || 'NIS tidak tersedia';
+                      const statusSiswa = siswa.status || 'Status tidak tersedia';
+                      
+                      return (
+                        <div key={idx} className="border rounded-lg p-2 sm:p-3 space-y-2 bg-gray-50">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-xs sm:text-sm truncate">
+                                  {namaSiswa}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  NIS: {nisSiswa}
+                                </p>
+                              </div>
+                              <Badge 
+                                variant={
+                                  statusSiswa === 'izin' ? 'secondary' :
+                                  statusSiswa === 'sakit' ? 'outline' : 'destructive'
+                                }
+                                className="capitalize text-xs flex-shrink-0 w-fit"
+                              >
+                                {statusSiswa}
+                              </Badge>
+                            </div>
+                            {siswa.keterangan && (
+                              <div className="pt-1 border-t border-gray-200">
+                                <p className="text-xs text-gray-600 break-words">
+                                  <span className="font-medium">Keterangan:</span> {siswa.keterangan}
+                                </p>
+                              </div>
+                            )}
+                            {siswa.nama_pencatat && (
+                              <p className="text-xs text-gray-500">
+                                Dicatat oleh: {siswa.nama_pencatat}
+                              </p>
+                            )}
                           </div>
-                          <Badge 
-                            variant={
-                              statusSiswa === 'izin' ? 'secondary' :
-                              statusSiswa === 'sakit' ? 'outline' : 'destructive'
-                            }
-                            className="capitalize"
-                          >
-                            {statusSiswa}
-                          </Badge>
                         </div>
-                        {siswa.keterangan && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            <strong>Keterangan:</strong> {siswa.keterangan}
-                          </p>
-                        )}
-                        {siswa.nama_pencatat && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Dicatat oleh: {siswa.nama_pencatat}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-2" />
-                  <p className="text-green-600 font-medium">Semua siswa hadir</p>
+                <div className="text-center py-4 sm:py-8">
+                  <CheckCircle2 className="w-8 h-8 sm:w-12 sm:h-12 mx-auto text-green-500 mb-2" />
+                  <p className="text-green-600 font-medium text-xs sm:text-base">Semua siswa hadir</p>
                 </div>
               )}
             </div>
@@ -921,453 +2388,184 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     );
   };
 
-  // Render Pengajuan Izin Content untuk Kelas
-  const renderPengajuanIzinContent = () => {
-    return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Pengajuan Izin Kelas</h2>
-            <p className="text-gray-600">Ajukan izin ketidakhadiran untuk siswa-siswa dalam kelas</p>
-          </div>
-          <Button 
-            onClick={() => setShowFormIzin(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Ajukan Izin Kelas
-          </Button>
-        </div>
-
-        {/* Form Pengajuan Izin Kelas */}
-        {showFormIzin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Form Pengajuan Izin Kelas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="jadwal">Jadwal Pelajaran</Label>
-                  <select 
-                    id="jadwal"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formIzin.jadwal_id}
-                    onChange={(e) => setFormIzin({...formIzin, jadwal_id: e.target.value})}
-                  >
-                    <option value="">Pilih jadwal pelajaran...</option>
-                    {jadwalHariIni.map((jadwal) => (
-                      <option key={jadwal.id_jadwal} value={jadwal.id_jadwal}>
-                        {jadwal.nama_mapel} - {jadwal.nama_guru} (Jam {jadwal.jam_ke}: {jadwal.jam_mulai}-{jadwal.jam_selesai})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="tanggal_izin">Tanggal Izin</Label>
-                  <input
-                    id="tanggal_izin"
-                    type="date"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formIzin.tanggal_izin}
-                    onChange={(e) => setFormIzin({...formIzin, tanggal_izin: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              {/* Pilihan Siswa */}
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-lg font-semibold">Siswa yang Izin</Label>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setFormIzin({
-                        ...formIzin,
-                        siswa_izin: [...formIzin.siswa_izin, {
-                          nama: '',
-                          jenis_izin: 'izin',
-                          alasan: '',
-                          bukti_pendukung: ''
-                        }]
-                      });
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tambah Siswa
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {formIzin.siswa_izin.map((siswa, index) => (
-                    <div key={index} className="p-4 border rounded-lg bg-gray-50 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700">Siswa {index + 1}</span>
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            const newSiswaIzin = formIzin.siswa_izin.filter((_, i) => i !== index);
-                            setFormIzin({...formIzin, siswa_izin: newSiswaIzin});
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <Label>Nama Siswa</Label>
-                          <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            value={siswa.nama}
-                            onChange={(e) => {
-                              const newSiswaIzin = [...formIzin.siswa_izin];
-                              newSiswaIzin[index] = {...newSiswaIzin[index], nama: e.target.value};
-                              setFormIzin({...formIzin, siswa_izin: newSiswaIzin});
-                            }}
-                          >
-                            <option value="">Pilih siswa...</option>
-                            {daftarSiswa.map((s) => (
-                              <option key={s.id} value={s.nama}>
-                                {s.nama}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <Label>Jenis Izin</Label>
-                          <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            value={siswa.jenis_izin}
-                            onChange={(e) => {
-                              const newSiswaIzin = [...formIzin.siswa_izin];
-                              newSiswaIzin[index] = {...newSiswaIzin[index], jenis_izin: e.target.value as 'sakit' | 'izin' | 'alpa' | 'dispen'};
-                              setFormIzin({...formIzin, siswa_izin: newSiswaIzin});
-                            }}
-                          >
-                            <option value="izin">Izin</option>
-                            <option value="sakit">Sakit</option>
-                            <option value="alpa">Alpa</option>
-                            <option value="dispen">Dispen</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <Label>Alasan</Label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Alasan izin..."
-                            value={siswa.alasan}
-                            onChange={(e) => {
-                              const newSiswaIzin = [...formIzin.siswa_izin];
-                              newSiswaIzin[index] = {...newSiswaIzin[index], alasan: e.target.value};
-                              setFormIzin({...formIzin, siswa_izin: newSiswaIzin});
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {formIzin.siswa_izin.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      Belum ada siswa yang dipilih untuk izin.
-                      <br />
-                      Klik "Tambah Siswa" untuk menambahkan siswa.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button 
-                  onClick={submitPengajuanIzin}
-                  disabled={!formIzin.jadwal_id || !formIzin.tanggal_izin || formIzin.siswa_izin.length === 0 || formIzin.siswa_izin.some(s => !s.nama || !s.alasan)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Kirim Pengajuan ({formIzin.siswa_izin.length} siswa)
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowFormIzin(false);
-                    setFormIzin({
-                      jadwal_id: '',
-                      tanggal_izin: '',
-                      siswa_izin: []
-                    });
-                  }}
-                >
-                  Batal
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Daftar Pengajuan Izin */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Riwayat Pengajuan Izin Kelas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pengajuanIzin.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Belum Ada Pengajuan</h3>
-                <p className="text-gray-600">Kelas belum memiliki riwayat pengajuan izin</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tanggal Pengajuan</TableHead>
-                      <TableHead>Tanggal Izin</TableHead>
-                      <TableHead>Jadwal</TableHead>
-                      <TableHead>Siswa Izin</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Keterangan</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pengajuanIzin.map((izin) => (
-                      <TableRow key={izin.id_pengajuan}>
-                        <TableCell>
-                          {new Date(izin.tanggal_pengajuan).toLocaleDateString('id-ID')}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(izin.tanggal_izin).toLocaleDateString('id-ID')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <span className="font-medium">{izin.nama_mapel}</span>
-                            <div className="text-sm text-gray-600">
-                              {izin.nama_guru} • {izin.jam_mulai}-{izin.jam_selesai}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {izin.siswa_izin && izin.siswa_izin.length > 0 ? (
-                            <div className="space-y-1">
-                              <div className="font-medium text-sm">
-                                {izin.total_siswa_izin || izin.siswa_izin.length} siswa
-                              </div>
-                              <div className="text-xs text-gray-600 max-w-xs">
-                                {izin.siswa_izin.slice(0, 3).map((s, idx) => (
-                                  <div key={idx}>
-                                    {s.nama} ({s.jenis_izin})
-                                  </div>
-                                ))}
-                                {izin.siswa_izin.length > 3 && (
-                                  <div className="text-blue-600">
-                                    +{izin.siswa_izin.length - 3} lainnya
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <Badge variant="outline" className={
-                              izin.jenis_izin === 'sakit' ? 'bg-red-50 text-red-700' :
-                              izin.jenis_izin === 'izin' ? 'bg-blue-50 text-blue-700' :
-                              izin.jenis_izin === 'dispen' ? 'bg-purple-50 text-purple-700' :
-                              'bg-gray-50 text-gray-700'
-                            }>
-                              {izin.jenis_izin.charAt(0).toUpperCase() + izin.jenis_izin.slice(1)}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={
-                            izin.status === 'disetujui' ? 'bg-green-100 text-green-800' :
-                            izin.status === 'ditolak' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }>
-                            {izin.status === 'disetujui' ? 'Disetujui' :
-                             izin.status === 'ditolak' ? 'Ditolak' : 'Menunggu'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 max-w-sm">
-                            {izin.siswa_izin && izin.siswa_izin.length > 0 ? (
-                              <div className="text-sm space-y-1">
-                                {izin.siswa_izin.slice(0, 2).map((s, idx) => (
-                                  <div key={idx} className="text-xs bg-gray-50 p-1 rounded">
-                                    <strong>{s.nama}:</strong> {s.alasan}
-                                  </div>
-                                ))}
-                                {izin.siswa_izin.length > 2 && (
-                                  <div className="text-xs text-blue-600">
-                                    +{izin.siswa_izin.length - 2} alasan lainnya
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="text-sm">{izin.alasan}</div>
-                            )}
-                            {izin.keterangan_guru && (
-                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                <strong>Respon Guru:</strong> {izin.keterangan_guru}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  };
 
   // Render Banding Absen Content
   // Render Banding Absen Content untuk Kelas
   const renderBandingAbsenContent = () => {
     return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Pengajuan Banding Absen Kelas</h2>
-            <p className="text-gray-600">Ajukan banding absensi untuk siswa-siswa dalam kelas</p>
+      <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
+        {/* Header - Mobile Responsive */}
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+              <h2 className="text-orange-800 font-medium text-sm sm:text-lg">Pengajuan Banding Absen</h2>
+            </div>
+            <p className="text-orange-700 text-xs sm:text-sm">Ajukan banding absensi untuk satu siswa</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-sm text-orange-600 font-medium">
+                {bandingAbsen.length} banding tersimpan
+              </div>
+              <Button 
+                onClick={() => setShowFormBanding(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-xs sm:text-sm h-8 sm:h-10"
+              >
+                <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                Ajukan Banding
+              </Button>
+            </div>
           </div>
-          <Button 
-            onClick={() => setShowFormBanding(true)}
-            className="bg-orange-600 hover:bg-orange-700"
-          >
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Ajukan Banding Kelas
-          </Button>
         </div>
 
-        {/* Form Pengajuan Banding Kelas */}
+        {/* Form Pengajuan Banding - Mobile Responsive */}
         {showFormBanding && (
           <Card>
-            <CardHeader>
-              <CardTitle>Form Pengajuan Banding Absen Kelas</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg">Form Pengajuan Banding Absen</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <Label htmlFor="jadwal_banding">Jadwal Pelajaran</Label>
-                  <select 
-                    id="jadwal_banding"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    value={formBanding.jadwal_id}
-                    onChange={(e) => setFormBanding({...formBanding, jadwal_id: e.target.value})}
-                  >
-                    <option value="">Pilih jadwal pelajaran...</option>
-                    {riwayatData.flatMap(hari => 
-                      hari.jadwal.map(j => (
-                        <option key={`${hari.tanggal}-${j.jam_ke}`} value={j.jadwal_id || `${hari.tanggal}-${j.jam_ke}`}>
-                          {hari.tanggal} - {j.nama_mapel} ({j.jam_mulai}-{j.jam_selesai}) - {j.nama_guru}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="tanggal_banding">Tanggal Absen</Label>
+                  <Label htmlFor="tanggal_banding" className="text-sm font-medium">Tanggal Absen</Label>
                   <input
                     id="tanggal_banding"
                     type="date"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                     value={formBanding.tanggal_absen}
-                    onChange={(e) => setFormBanding({...formBanding, tanggal_absen: e.target.value})}
+                    max={getCurrentDateWIB()}
+                    onChange={(e) => {
+                      const tanggal = e.target.value;
+                      setFormBanding({...formBanding, tanggal_absen: tanggal, jadwal_id: ''});
+                      if (tanggal) {
+                        loadJadwalBandingByDate(tanggal);
+                      } else {
+                        setJadwalBerdasarkanTanggal([]);
+                      }
+                      
+                      // Load status kehadiran siswa dari database ketika tanggal dipilih
+                      if (tanggal && formBanding.jadwal_id && selectedSiswaId) {
+                        loadSiswaStatusById(selectedSiswaId, tanggal, formBanding.jadwal_id);
+                      }
+                    }}
+                    required
                   />
+                  <p className="text-xs text-gray-500 mt-1">Pilih tanggal absen terlebih dahulu untuk melihat jadwal pelajaran (hanya hari ini dan masa lalu)</p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="jadwal_banding" className="text-sm font-medium">Jadwal Pelajaran</Label>
+                  <select 
+                    id="jadwal_banding"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    value={formBanding.jadwal_id}
+                    onChange={(e) => {
+                      setFormBanding({...formBanding, jadwal_id: e.target.value});
+                      
+                      // Load status kehadiran siswa dari database ketika jadwal dipilih
+                      if (e.target.value && formBanding.tanggal_absen && selectedSiswaId) {
+                        loadSiswaStatusById(selectedSiswaId, formBanding.tanggal_absen, e.target.value);
+                      }
+                    }}
+                    disabled={!formBanding.tanggal_absen || loadingJadwal}
+                  >
+                    <option value="">
+                      {!formBanding.tanggal_absen 
+                        ? "Pilih tanggal absen terlebih dahulu..." 
+                        : loadingJadwal 
+                          ? "Memuat jadwal..." 
+                          : "Pilih jadwal pelajaran..."
+                      }
+                    </option>
+                    {jadwalBerdasarkanTanggal && jadwalBerdasarkanTanggal.length > 0 ? jadwalBerdasarkanTanggal.map(j => (
+                      <option key={j.id_jadwal} value={j.id_jadwal}>
+                        {j.nama_mapel} ({j.jam_mulai}-{j.jam_selesai}) - {j.nama_guru}
+                      </option>
+                    )) : formBanding.tanggal_absen && !loadingJadwal ? (
+                      <option value="" disabled>Tidak ada jadwal untuk tanggal ini</option>
+                    ) : null}
+                  </select>
                 </div>
               </div>
 
-              {/* Pilihan Siswa untuk Banding */}
+              {/* Pilihan Siswa untuk Banding - Mobile Responsive */}
               <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-lg font-semibold">Siswa yang Ajukan Banding</Label>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setFormBanding({
-                        ...formBanding,
-                        siswa_banding: [...formBanding.siswa_banding, {
-                          nama: '',
-                          status_asli: 'alpa',
-                          status_diajukan: 'hadir',
-                          alasan_banding: '',
-                          bukti_pendukung: ''
-                        }]
-                      });
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Tambah Siswa
-                  </Button>
-                </div>
+                <div className="mb-3">
+                    <Label className="text-base sm:text-lg font-semibold">Siswa yang Ajukan Banding</Label>
+                    <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                    Pilih satu siswa untuk pengajuan banding absen
+                    </div>
+                  </div>
 
-                <div className="space-y-3">
-                  {formBanding.siswa_banding.map((siswa, index) => (
-                    <div key={index} className="p-4 border rounded-lg bg-gray-50 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700">Siswa {index + 1}</span>
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            const newSiswaBanding = formBanding.siswa_banding.filter((_, i) => i !== index);
-                            setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="p-3 sm:p-4 border rounded-lg bg-gray-50 space-y-4">
+                      <div className="grid grid-cols-1 gap-4">
                         <div>
-                          <Label>Nama Siswa</Label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Masukkan nama siswa..."
-                            value={siswa.nama}
+                          <Label className="text-sm font-medium">Nama Siswa</Label>
+                          <select
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            value={selectedSiswaId ?? ''}
                             onChange={(e) => {
-                              const newSiswaBanding = [...formBanding.siswa_banding];
-                              newSiswaBanding[index] = {...newSiswaBanding[index], nama: e.target.value};
-                              setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
+                              const val = e.target.value ? parseInt(e.target.value, 10) : NaN;
+                              const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === val) || undefined;
+
+                              setSelectedSiswaId(Number.isNaN(val) ? null : val);
+
+                              // Simpan nama ke form untuk tampilan (backend tidak memakai ini)
+                              const newSiswaBanding = [{
+                                nama: chosen?.nama || '',
+                                status_asli: formBanding.siswa_banding[0]?.status_asli || 'alpa',
+                                status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
+                                alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
+                              }];
+                              setFormBanding({ ...formBanding, siswa_banding: newSiswaBanding });
+
+                              // Load status kehadiran siswa dari database
+                              if (!Number.isNaN(val) && formBanding.tanggal_absen && formBanding.jadwal_id) {
+                                loadSiswaStatusById(val, formBanding.tanggal_absen, formBanding.jadwal_id);
+                              }
                             }}
-                          />
+                          >
+                            <option value="">Pilih siswa...</option>
+                            {daftarSiswa.map((s) => {
+                              const optionId = (s.id ?? s.id_siswa) as number;
+                              return (
+                                <option key={optionId} value={optionId}>
+                                  {s.nama}
+                                </option>
+                              );
+                            })}
+                          </select>
                           <div className="text-xs text-gray-500 mt-1">
-                            Masukkan nama siswa dari kelas untuk pengajuan banding absen
+                            Pilih nama siswa dari kelas untuk pengajuan banding absen
                           </div>
                         </div>
 
-                        <div>
-                          <Label>Status Tercatat</Label>
-                          <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            value={siswa.status_asli}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium">Status Tercatat</Label>
+                            <input
+                              type="text"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-sm"
+                              value={formBanding.siswa_banding[0]?.status_asli ? 
+                                formBanding.siswa_banding[0].status_asli.charAt(0).toUpperCase() + 
+                                formBanding.siswa_banding[0].status_asli.slice(1) : 'Belum dipilih'}
+                              readOnly
+                              disabled
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Status tercatat diambil dari database dan tidak bisa diubah</p>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium">Status Diajukan</Label>
+                            <select
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        value={formBanding.siswa_banding[0]?.status_diajukan || 'hadir'}
                             onChange={(e) => {
-                              const newSiswaBanding = [...formBanding.siswa_banding];
-                              newSiswaBanding[index] = {...newSiswaBanding[index], status_asli: e.target.value as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen'};
+                          const newSiswaBanding = [{
+                            nama: formBanding.siswa_banding[0]?.nama || '',
+                            status_asli: formBanding.siswa_banding[0]?.status_asli || 'alpa',
+                            status_diajukan: e.target.value as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen',
+                            alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
+                          }];
                               setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
                             }}
                           >
@@ -1378,62 +2576,38 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                             <option value="dispen">Dispen</option>
                           </select>
                         </div>
-
-                        <div>
-                          <Label>Status Diajukan</Label>
-                          <select
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            value={siswa.status_diajukan}
-                            onChange={(e) => {
-                              const newSiswaBanding = [...formBanding.siswa_banding];
-                              newSiswaBanding[index] = {...newSiswaBanding[index], status_diajukan: e.target.value as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen'};
-                              setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
-                            }}
-                          >
-                            <option value="hadir">Hadir</option>
-                            <option value="izin">Izin</option>
-                            <option value="sakit">Sakit</option>
-                            <option value="alpa">Alpa</option>
-                            <option value="dispen">Dispen</option>
-                          </select>
                         </div>
 
                         <div>
-                          <Label>Alasan Banding</Label>
+                          <Label className="text-sm font-medium">Alasan Banding</Label>
                           <input
                             type="text"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                             placeholder="Alasan banding..."
-                            value={siswa.alasan_banding}
+                        value={formBanding.siswa_banding[0]?.alasan_banding || ''}
                             onChange={(e) => {
-                              const newSiswaBanding = [...formBanding.siswa_banding];
-                              newSiswaBanding[index] = {...newSiswaBanding[index], alasan_banding: e.target.value};
+                          const newSiswaBanding = [{
+                            nama: formBanding.siswa_banding[0]?.nama || '',
+                            status_asli: formBanding.siswa_banding[0]?.status_asli || 'alpa',
+                            status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
+                            alasan_banding: e.target.value
+                          }];
                               setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
                             }}
                           />
                         </div>
                       </div>
-                    </div>
-                  ))}
-
-                  {formBanding.siswa_banding.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      Belum ada siswa yang dipilih untuk banding absen.
-                      <br />
-                      Klik "Tambah Siswa" untuk menambahkan siswa.
-                    </div>
-                  )}
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
                 <Button 
                   onClick={submitBandingAbsen}
-                  disabled={!formBanding.jadwal_id || !formBanding.tanggal_absen || formBanding.siswa_banding.length === 0 || formBanding.siswa_banding.some(s => !s.nama || !s.alasan_banding)}
-                  className="bg-orange-600 hover:bg-orange-700"
+                  disabled={!formBanding.tanggal_absen || !formBanding.jadwal_id || !selectedSiswaId || !formBanding.siswa_banding[0]?.alasan_banding || loadingJadwal}
+                  className="bg-orange-600 hover:bg-orange-700 text-sm h-9 sm:h-10"
                 >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Kirim Banding ({formBanding.siswa_banding.length} siswa)
+                  <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  Kirim Banding
                 </Button>
                 <Button 
                   variant="outline" 
@@ -1442,9 +2616,16 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                     setFormBanding({
                       jadwal_id: '',
                       tanggal_absen: '',
-                      siswa_banding: []
+                      siswa_banding: [{
+                        nama: '',
+                        status_asli: 'alpa',
+                        status_diajukan: 'hadir',
+                        alasan_banding: ''
+                      }]
                     });
+                    setJadwalBerdasarkanTanggal([]);
                   }}
+                  className="text-sm h-9 sm:h-10"
                 >
                   Batal
                 </Button>
@@ -1453,118 +2634,345 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           </Card>
         )}
 
-        {/* Daftar Banding Absen Kelas */}
+        {/* Daftar Banding Absen - Mobile Responsive */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Riwayat Pengajuan Banding Absen Kelas
+          <CardHeader className="pb-3">
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Riwayat Pengajuan Banding Absen</span>
+              </div>
+              <div className="text-left sm:text-right">
+                <div className="text-xs sm:text-sm text-gray-600 font-medium">
+                  {bandingAbsen.length} banding
+                </div>
+                <div className="text-xs text-gray-500">
+                  Halaman {bandingAbsenPage} dari {Math.ceil(bandingAbsen.length / itemsPerPage)}
+                </div>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {bandingAbsen.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageCircle className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Belum Ada Banding</h3>
-                <p className="text-gray-600">Kelas belum memiliki riwayat pengajuan banding absen</p>
+              <div className="text-center py-8 sm:py-12">
+                <MessageCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Belum Ada Banding</h3>
+                <p className="text-sm sm:text-base text-gray-600">Kelas belum memiliki riwayat pengajuan banding absen</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tanggal Pengajuan</TableHead>
-                      <TableHead>Tanggal Absen</TableHead>
-                      <TableHead>Jadwal</TableHead>
-                      <TableHead>Siswa Banding</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Keterangan</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bandingAbsen.map((banding) => (
-                      <TableRow key={banding.id_banding}>
-                        <TableCell>
-                          {new Date(banding.tanggal_pengajuan).toLocaleDateString('id-ID')}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(banding.tanggal_absen).toLocaleDateString('id-ID')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <span className="font-medium">{banding.nama_mapel}</span>
-                            <div className="text-sm text-gray-600">
-                              {banding.nama_guru} • {banding.jam_mulai}-{banding.jam_selesai}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {banding.siswa_banding && banding.siswa_banding.length > 0 ? (
-                            <div className="space-y-1">
-                              <div className="font-medium text-sm">
-                                {banding.total_siswa_banding || banding.siswa_banding.length} siswa
+              <>
+                {/* Mobile Card Layout */}
+                <div className="block lg:hidden space-y-4">
+                  {(() => {
+                    // FIXED: Enhanced deduplication to prevent looping
+                    const uniqueBandingAbsen = bandingAbsen.filter((banding, index, self) => {
+                      // Use multiple fields to ensure uniqueness
+                      const key = `${banding.id_banding}-${banding.tanggal_pengajuan}-${banding.siswa_id}`;
+                      return self.findIndex(b => 
+                        `${b.id_banding}-${b.tanggal_pengajuan}-${b.siswa_id}` === key
+                      ) === index;
+                    });
+                    
+                    return uniqueBandingAbsen
+                      .slice((bandingAbsenPage - 1) * itemsPerPage, bandingAbsenPage * itemsPerPage)
+                      .map((banding) => (
+                        <Card key={banding.id_banding} className="border-l-4 border-l-orange-500">
+                          <CardContent className="p-4 space-y-3">
+                            {/* Header dengan tanggal */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {formatDateWIB(banding.tanggal_pengajuan)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {formatTime24(banding.tanggal_pengajuan)}
+                                </div>
                               </div>
-                              <div className="text-xs text-gray-600 max-w-xs">
-                                {banding.siswa_banding.slice(0, 3).map((s, idx) => (
-                                  <div key={idx}>
-                                    {s.nama} ({s.status_asli} → {s.status_diajukan})
-                                  </div>
-                                ))}
-                                {banding.siswa_banding.length > 3 && (
-                                  <div className="text-orange-600">
-                                    +{banding.siswa_banding.length - 3} lainnya
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm space-y-1">
-                              <Badge variant="outline" className="capitalize">
-                                {banding.status_asli} → {banding.status_diajukan}
+                              <Badge className={
+                                banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
+                                banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
+                                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                              }>
+                                {banding.status_banding === 'disetujui' ? 'Disetujui' :
+                                 banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
                               </Badge>
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={
-                            banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800' :
-                            banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }>
-                            {banding.status_banding === 'disetujui' ? 'Disetujui' :
-                             banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 max-w-sm">
-                            {banding.siswa_banding && banding.siswa_banding.length > 0 ? (
-                              <div className="text-sm space-y-1">
-                                {banding.siswa_banding.slice(0, 2).map((s, idx) => (
-                                  <div key={idx} className="text-xs bg-gray-50 p-1 rounded">
-                                    <strong>{s.nama}:</strong> {s.alasan_banding}
+
+                            {/* Informasi jadwal */}
+                            <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-gray-500" />
+                                <span className="text-sm font-medium">{formatDateWIB(banding.tanggal_absen)}</span>
+                                <span className="text-xs text-gray-500">({banding.jam_mulai}-{banding.jam_selesai})</span>
+                              </div>
+                              <div className="text-sm">
+                                <div className="font-medium">{banding.nama_mapel}</div>
+                                <div className="text-gray-600">{banding.nama_guru}</div>
+                                <div className="text-xs text-gray-500">{banding.nama_kelas}</div>
+                              </div>
+                            </div>
+
+                            {/* Detail siswa */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {banding.nama_siswa || 'Siswa Individual'}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setExpandedBanding(
+                                    expandedBanding === banding.id_banding ? null : banding.id_banding
+                                  )}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  {expandedBanding === banding.id_banding ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1 py-0"
+                                >
+                                  {banding.status_asli} → {banding.status_diajukan}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {/* Respon guru */}
+                            {banding.catatan_guru && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <div className="text-xs font-medium text-blue-700 mb-1">Respon Guru:</div>
+                                <div className="text-xs text-blue-600 break-words">{banding.catatan_guru}</div>
+                              </div>
+                            )}
+
+                            {/* Expanded Detail */}
+                            {expandedBanding === banding.id_banding && (
+                              <div className="border-t pt-3 space-y-3">
+                                <div className="bg-white rounded-lg border p-3">
+                                  <h4 className="font-semibold text-gray-800 mb-3 text-sm">Detail Siswa Banding</h4>
+                                  
+                                  <div className="grid grid-cols-1 gap-3">
+                                    <div>
+                                      <div className="text-xs font-medium text-gray-600 mb-1">Nama Siswa</div>
+                                      <div className="text-sm text-gray-800">
+                                        {banding.nama_siswa || 'Siswa Individual'}
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <div className="text-xs font-medium text-gray-600 mb-1">Status Tercatat</div>
+                                        <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
+                                      </div>
+                                      <div>
+                                        <div className="text-xs font-medium text-gray-600 mb-1">Status Diajukan</div>
+                                        <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-medium text-gray-600 mb-1">Alasan</div>
+                                      <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
+                                    </div>
                                   </div>
-                                ))}
-                                {banding.siswa_banding.length > 2 && (
-                                  <div className="text-xs text-orange-600">
-                                    +{banding.siswa_banding.length - 2} alasan lainnya
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ));
+                  })()}
+                </div>
+
+                {/* Desktop Table Layout */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tanggal Pengajuan</TableHead>
+                        <TableHead>Tanggal Absen</TableHead>
+                        <TableHead>Jadwal</TableHead>
+                        <TableHead>Detail Siswa & Alasan</TableHead>
+                        <TableHead>Status Banding</TableHead>
+                        <TableHead>Respon Guru</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        // FIXED: Enhanced deduplication to prevent looping
+                        const uniqueBandingAbsen = bandingAbsen.filter((banding, index, self) => {
+                          // Use multiple fields to ensure uniqueness
+                          const key = `${banding.id_banding}-${banding.tanggal_pengajuan}-${banding.siswa_id}`;
+                          return self.findIndex(b => 
+                            `${b.id_banding}-${b.tanggal_pengajuan}-${b.siswa_id}` === key
+                          ) === index;
+                        });
+                        
+                        return uniqueBandingAbsen
+                          .slice((bandingAbsenPage - 1) * itemsPerPage, bandingAbsenPage * itemsPerPage)
+                          .map((banding) => (
+                          <React.Fragment key={banding.id_banding}>
+                          <TableRow className="hover:bg-gray-50">
+                          <TableCell>
+                              <div className="text-sm font-medium">
+                            {formatDateWIB(banding.tanggal_pengajuan)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {formatTime24(banding.tanggal_pengajuan)}
+                              </div>
+                          </TableCell>
+                          <TableCell>
+                              <div className="text-sm font-medium">
+                            {formatDateWIB(banding.tanggal_absen)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {banding.jam_mulai}-{banding.jam_selesai}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium text-sm">{banding.nama_mapel}</div>
+                                <div className="text-xs text-gray-600">
+                                  {banding.nama_guru}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {banding.nama_kelas}
+                                    </div>
+                                    </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-gray-700">
+                                    1 siswa
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setExpandedBanding(
+                                      expandedBanding === banding.id_banding ? null : banding.id_banding
+                                    )}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    {expandedBanding === banding.id_banding ? (
+                                      <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                                <div className="text-xs text-gray-600 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">
+                                      {banding.nama_siswa || 'Siswa Individual'}
+                                    </span>
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-xs px-1 py-0"
+                                    >
+                                      {banding.status_asli} → {banding.status_diajukan}
+                                    </Badge>
                                   </div>
+                                </div>
+                              </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={
+                                banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
+                                banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
+                                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                            }>
+                              {banding.status_banding === 'disetujui' ? 'Disetujui' :
+                               banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
+                            </Badge>
+                              {banding.tanggal_keputusan && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {formatDateWIB(banding.tanggal_keputusan)}
+                                </div>
+                              )}
+                          </TableCell>
+                          <TableCell>
+                              <div className="max-w-xs">
+                                {banding.catatan_guru ? (
+                                  <div className="text-sm bg-gray-50 p-2 rounded border-l-2 border-gray-300">
+                                    <div className="font-medium text-gray-700 mb-1">Respon Guru:</div>
+                                    <div className="text-gray-600 break-words">{banding.catatan_guru}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">Belum ada respon</span>
                                 )}
                               </div>
-                            ) : (
-                              <div className="text-sm">{banding.alasan_banding}</div>
-                            )}
-                            {banding.catatan_guru && (
-                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                <strong>Respon Guru:</strong> {banding.catatan_guru}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setExpandedBanding(
+                                  expandedBanding === banding.id_banding ? null : banding.id_banding
+                                )}
+                                className="text-xs"
+                              >
+                                {expandedBanding === banding.id_banding ? 'Tutup Detail' : 'Lihat Detail'}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Expanded Detail Row */}
+                          {expandedBanding === banding.id_banding && (
+                            <TableRow>
+                              <TableCell colSpan={7} className="bg-gray-50 p-0">
+                                <div className="p-4">
+                                  <div className="bg-white rounded-lg border p-4">
+                                    <h4 className="font-semibold text-gray-800 mb-3">Detail Siswa Banding</h4>
+                                    
+                                    <div className="border rounded-lg p-3">
+                                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-600 mb-1">Nama Siswa</div>
+                                          <div className="text-sm text-gray-800">
+                                            {banding.nama_siswa || 'Siswa Individual'}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-600 mb-1">Status Tercatat</div>
+                                          <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-600 mb-1">Status Diajukan</div>
+                                          <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-600 mb-1">Alasan</div>
+                                          <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          </React.Fragment>
+                          ));
+                        })()}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Pagination untuk Banding Absen - FIXED: Only show if there's data */}
+                {bandingAbsen.length > 0 && (
+                  <Pagination
+                    currentPage={bandingAbsenPage}
+                    totalPages={Math.ceil(bandingAbsen.length / itemsPerPage)}
+                    onPageChange={setBandingAbsenPage}
+                  />
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -1575,38 +2983,84 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   // Submit Banding Absen Kelas
   const submitBandingAbsen = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!siswaId || formBanding.siswa_banding.length === 0) return;
+    if (!siswaId) return;
+    if (!selectedSiswaId) {
+      toast({
+        title: "Error",
+        description: "Pilih siswa terlebih dahulu.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validasi field terisi
+    if (!formBanding.jadwal_id || !formBanding.tanggal_absen || !formBanding.siswa_banding[0]?.status_asli || !formBanding.siswa_banding[0]?.status_diajukan || !formBanding.siswa_banding[0]?.alasan_banding) {
+      toast({
+        title: "Error",
+        description: "Semua field wajib diisi.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/siswa/${siswaId}/banding-absen-kelas`, {
+      // Get and clean token with mobile fallback
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      if (!cleanToken) {
+        toast({
+          title: "Error",
+          description: "Token tidak ditemukan. Silakan login ulang.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const requestData = {
+        jadwal_id: formBanding.jadwal_id ? parseInt(formBanding.jadwal_id) : null,
+        tanggal_absen: formBanding.tanggal_absen,
+        status_asli: formBanding.siswa_banding[0]?.status_asli,
+        status_diajukan: formBanding.siswa_banding[0]?.status_diajukan,
+        alasan_banding: formBanding.siswa_banding[0]?.alasan_banding
+      };
+      
+      console.log('📝 Submitting banding absen data:', requestData);
+      console.log('📝 Form state:', formBanding);
+      
+      const response = await fetch(getApiUrl(`/api/siswa/${selectedSiswaId}/banding-absen`), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cleanToken}`
         },
         credentials: 'include',
-        body: JSON.stringify({
-          jadwal_id: parseInt(formBanding.jadwal_id),
-          tanggal_absen: formBanding.tanggal_absen,
-          siswa_banding: formBanding.siswa_banding
-        })
+        body: JSON.stringify(requestData)
       });
 
       if (response.ok) {
         toast({
           title: "Berhasil",
-          description: "Pengajuan banding absen kelas berhasil dikirim"
+          description: "Pengajuan banding absen berhasil dikirim"
         });
         
         // Reset form dan reload data
         setFormBanding({
           jadwal_id: '',
           tanggal_absen: '',
-          siswa_banding: []
+          siswa_banding: [{
+            nama: '',
+            status_asli: 'alpa',
+            status_diajukan: 'hadir',
+            alasan_banding: ''
+          }]
         });
+        setSelectedSiswaId(null);
         setShowFormBanding(false);
         loadBandingAbsen();
       } else {
         const errorData = await response.json();
+        console.error('❌ Error submitting banding absen:', errorData);
         toast({
           title: "Error",
           description: errorData.error || "Gagal mengirim pengajuan banding absen",
@@ -1686,25 +3140,25 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 overflow-x-hidden">
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-white shadow-xl transition-all duration-300 z-40 ${
-        sidebarOpen ? 'w-64' : 'w-16'
-      } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className={`fixed inset-y-0 left-0 bg-white shadow-xl transition-transform duration-300 z-40 w-64 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0 lg:w-64`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center lg:justify-start'}`}>
+          <div className={`flex items-center space-x-3`}>
             <div className="p-2 rounded-lg">
               <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
             </div>
+            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent hidden lg:block">
+              ABSENTA
+            </span>
             {sidebarOpen && (
               <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent block lg:hidden">
                 ABSENTA
               </span>
             )}
-            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent hidden lg:block">
-              ABSENTA
-            </span>
           </div>
           <Button
             variant="ghost"
@@ -1720,39 +3174,27 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         <nav className="p-4 space-y-2">
           <Button
             variant={activeTab === 'kehadiran' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
+            className={`w-full justify-start`}
             onClick={() => {setActiveTab('kehadiran'); setSidebarOpen(false);}}
           >
             <Clock className="h-4 w-4" />
-            {sidebarOpen && <span className="ml-2 block lg:hidden">Menu Kehadiran</span>}
-            <span className="ml-2 hidden lg:block">Menu Kehadiran</span>
+            <span className="ml-2">Menu Kehadiran</span>
           </Button>
           <Button
             variant={activeTab === 'riwayat' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
+            className={`w-full justify-start`}
             onClick={() => {setActiveTab('riwayat'); setSidebarOpen(false);}}
           >
             <Calendar className="h-4 w-4" />
-            {sidebarOpen && <span className="ml-2 block lg:hidden">Riwayat</span>}
-            <span className="ml-2 hidden lg:block">Riwayat</span>
-          </Button>
-          <Button
-            variant={activeTab === 'pengajuan-izin' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
-            onClick={() => {setActiveTab('pengajuan-izin'); setSidebarOpen(false);}}
-          >
-            <FileText className="h-4 w-4" />
-            {sidebarOpen && <span className="ml-2 block lg:hidden">Pengajuan Izin</span>}
-            <span className="ml-2 hidden lg:block">Pengajuan Izin</span>
+            <span className="ml-2">Riwayat</span>
           </Button>
           <Button
             variant={activeTab === 'banding-absen' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
+            className={`w-full justify-start`}
             onClick={() => {setActiveTab('banding-absen'); setSidebarOpen(false);}}
           >
             <MessageCircle className="h-4 w-4" />
-            {sidebarOpen && <span className="ml-2 block lg:hidden">Banding Absen</span>}
-            <span className="ml-2 hidden lg:block">Banding Absen</span>
+            <span className="ml-2">Banding Absen</span>
           </Button>
         </nav>
 
@@ -1765,37 +3207,52 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             </div>
           )}
           
-          <div className={`flex items-center space-x-3 mb-3 ${sidebarOpen ? '' : 'justify-center lg:justify-start'}`}>
+          <div className={`flex items-center space-x-3 mb-3`}>
             <div className="bg-emerald-100 p-2 rounded-full">
               <Settings className="h-4 w-4 text-emerald-600" />
             </div>
-            {sidebarOpen && (
-              <div className="flex-1 block lg:hidden">
-                <p className="text-sm font-medium text-gray-900">{userData.nama}</p>
-                <p className="text-xs text-gray-500">Siswa Perwakilan</p>
-              </div>
-            )}
-            <div className="flex-1 hidden lg:block">
-              <p className="text-sm font-medium text-gray-900">{userData.nama}</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">{currentUserData.nama}</p>
               <p className="text-xs text-gray-500">Siswa Perwakilan</p>
             </div>
           </div>
-          <Button
-            onClick={onLogout}
-            variant="outline"
-            size="sm"
-            className={`w-full ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
-          >
-            <LogOut className="h-4 w-4" />
-            {sidebarOpen && <span className="ml-2 block lg:hidden">Keluar</span>}
-            <span className="ml-2 hidden lg:block">Keluar</span>
-          </Button>
+          
+          <div className="space-y-2">
+            <Button
+              onClick={() => setShowEditProfile(true)}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="ml-2">Edit Profil</span>
+            </Button>
+            
+            <Button
+              onClick={onLogout}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="ml-2">Keluar</span>
+            </Button>
+          </div>
         </div>
       </div>
+ 
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Main Content */}
-      <div className="lg:ml-64">
-        <div className="p-4 lg:p-6">
+      <div className="lg:ml-64 overflow-x-hidden">
+        <div className="p-4 lg:p-6 min-w-0">
           {/* Mobile Header */}
           <div className="flex items-center justify-between mb-6 lg:hidden">
             <Button
@@ -1810,24 +3267,19 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           </div>
 
           {/* Desktop Header */}
-          <div className="hidden lg:flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+          <div className="hidden lg:flex justify-between items-center mb-8 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent truncate">
                 Dashboard Siswa
               </h1>
-              <p className="text-gray-600 mt-2">Selamat datang, {userData.nama}!</p>
+              <p className="text-gray-600 mt-2 truncate">Selamat datang, {currentUserData.nama}!</p>
               {kelasInfo && (
-                <p className="text-sm text-gray-500">Perwakilan Kelas {kelasInfo}</p>
+                <p className="text-sm text-gray-500 truncate">Perwakilan Kelas {kelasInfo}</p>
               )}
             </div>
             <div className="flex items-center space-x-2">
               <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                {new Date().toLocaleDateString('id-ID', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+                {formatDateOnly(getWIBTime())}
               </Badge>
             </div>
           </div>
@@ -1835,13 +3287,22 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           {/* Content */}
           {activeTab === 'kehadiran' && renderKehadiranContent()}
           {activeTab === 'riwayat' && renderRiwayatContent()}
-          {activeTab === 'pengajuan-izin' && renderPengajuanIzinContent()}
           {activeTab === 'banding-absen' && renderBandingAbsenContent()}
         </div>
       </div>
       
       {/* Floating Font Size Control for Mobile */}
       <FontSizeControl variant="floating" className="lg:hidden" />
+      
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <EditProfile
+          userData={currentUserData}
+          onUpdate={handleUpdateProfile}
+          onClose={() => setShowEditProfile(false)}
+          role="siswa"
+        />
+      )}
     </div>
   );
 };

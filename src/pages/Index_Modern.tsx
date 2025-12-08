@@ -4,6 +4,7 @@ import { AdminDashboard } from "@/components/AdminDashboard_Modern";
 import { TeacherDashboard } from "@/components/TeacherDashboard_Modern";
 import { StudentDashboard } from "@/components/StudentDashboard_Modern";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/config/api";
 
 type AppState = 'login' | 'dashboard';
 type UserRole = 'admin' | 'guru' | 'siswa' | null;
@@ -25,6 +26,32 @@ interface UserData {
   kelas_id?: number;
 }
 
+// Utility function to get token with mobile fallback
+const getToken = () => {
+  try {
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
+  } catch (error) {
+    console.error('❌ Error accessing storage:', error);
+    return null;
+  }
+};
+
+// Utility function to set token with mobile fallback
+const setToken = (token: string) => {
+  try {
+    localStorage.setItem('token', token);
+    console.log('✅ Token stored in localStorage');
+  } catch (error) {
+    console.error('❌ localStorage failed, trying sessionStorage:', error);
+    try {
+      sessionStorage.setItem('token', token);
+      console.log('✅ Token stored in sessionStorage as fallback');
+    } catch (sessionError) {
+      console.error('❌ Both localStorage and sessionStorage failed:', sessionError);
+    }
+  }
+};
+
 const Index = () => {
   console.log('🚀 ABSENTA Modern App Starting...');
   
@@ -37,8 +64,11 @@ const Index = () => {
   const checkExistingAuth = useCallback(async () => {
     try {
       console.log('🔍 Checking existing authentication...');
+      console.log('📱 localStorage available:', typeof(Storage) !== "undefined");
+      const token = getToken();
+      console.log('📱 Token found:', token ? 'exists' : 'not found');
       
-      const response = await fetch('/api/verify', {
+      const response = await fetch(getApiUrl('/api/verify'), {
         method: 'GET',
         credentials: 'include'
       });
@@ -69,7 +99,74 @@ const Index = () => {
 
         if (result.success && result.user) {
           console.log('✅ Existing auth found, user:', result.user);
-          setUserData(result.user);
+          
+          // Load latest profile data based on role
+          try {
+            let profileResponse;
+            switch (result.user.role) {
+              case 'admin':
+                profileResponse = await fetch(getApiUrl('/api/admin/info'), {
+                  method: 'GET',
+                  credentials: 'include'
+                });
+                break;
+              case 'guru':
+                profileResponse = await fetch(getApiUrl('/api/guru/info'), {
+                  method: 'GET',
+                  credentials: 'include'
+                });
+                break;
+              case 'siswa':
+                profileResponse = await fetch(getApiUrl('/api/siswa-perwakilan/info'), {
+                  method: 'GET',
+                  credentials: 'include'
+                });
+                break;
+              default:
+                profileResponse = null;
+            }
+            
+            if (profileResponse && profileResponse.ok) {
+              const profileData = await profileResponse.json();
+              console.log('📋 Profile data received:', profileData);
+              if (profileData.success) {
+                // Merge JWT data with latest profile data
+                const updatedUserData = {
+                  ...result.user,
+                  ...profileData,
+                  // Map field names for compatibility based on role
+                  ...(result.user.role === 'siswa' && {
+                    siswa_id: profileData.id_siswa,
+                    nis: profileData.nis,
+                    kelas: profileData.nama_kelas,
+                    kelas_id: profileData.kelas_id
+                  }),
+                  ...(result.user.role === 'guru' && {
+                    guru_id: profileData.guru_id,
+                    nip: profileData.nip,
+                    mapel: profileData.mata_pelajaran
+                  })
+                };
+                setUserData(updatedUserData);
+                console.log('✅ Updated user data with latest profile:', updatedUserData);
+              } else {
+                console.log('❌ Profile data not successful:', profileData);
+                setUserData(result.user);
+              }
+            } else {
+              console.log('❌ Profile response not ok:', profileResponse?.status, profileResponse?.statusText);
+              setUserData(result.user);
+            }
+          } catch (profileError) {
+            console.error('❌ Failed to load latest profile data:', profileError);
+            console.log('❌ Profile error details:', {
+              message: profileError.message,
+              stack: profileError.stack,
+              name: profileError.name
+            });
+            setUserData(result.user);
+          }
+          
           setCurrentState('dashboard');
           
           toast({
@@ -92,11 +189,13 @@ const Index = () => {
 
   const handleLogin = useCallback(async (credentials: { username: string; password: string }) => {
     console.log('🔐 Starting login process for:', credentials.username);
+    console.log('📱 User Agent:', navigator.userAgent);
+    console.log('📱 Is Mobile:', /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch(getApiUrl('/api/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,9 +241,9 @@ const Index = () => {
         setCurrentState('dashboard');
         setError(null);
         
-        // Store token in localStorage for persistence
+        // Store token with mobile fallback
         if (result.token) {
-          localStorage.setItem('authToken', result.token);
+          setToken(result.token);
         }
         
         toast({
@@ -173,13 +272,16 @@ const Index = () => {
     console.log('🚪 Logging out user...');
     
     try {
-      await fetch('/api/logout', {
+      await fetch(getApiUrl('/api/logout'), {
         method: 'POST',
         credentials: 'include'
       });
       
-      // Clear local storage
+      // Clear local storage and session storage
+      localStorage.removeItem('token');
       localStorage.removeItem('authToken');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('authToken');
       
       // Reset state
       setUserData(null);
@@ -195,7 +297,10 @@ const Index = () => {
     } catch (error) {
       console.error('❌ Logout error:', error);
       // Force logout even if request fails
+      localStorage.removeItem('token');
       localStorage.removeItem('authToken');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('authToken');
       setUserData(null);
       setCurrentState('login');
     }

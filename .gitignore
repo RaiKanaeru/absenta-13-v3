@@ -1,3 +1,9 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
 # Logs
 logs
 *.log
@@ -7,14 +13,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build
 dist
 dist-ssr
+build
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -22,3 +33,26 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+*.sublime-*
+
+# Database backups & archives
+backups/
+archives/
+reports/
+*.sql
+!absenta13.sql
+
+# Temporary files
+temp/
+downloads/
+.cache/
+
+# Redis
+dump.rdb
+redis/*.rdb
+
+# Uploads
+public/uploads/*
+!public/uploads/.gitkeep
