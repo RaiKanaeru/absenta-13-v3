@@ -761,7 +761,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
 
     // Validasi jabatan (opsional)
     if (jabatan !== undefined && jabatan !== null && jabatan !== '') {
-        const validJabatan = ['Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
+        const validJabatan = ['Siswa', 'Ketua Kelas', 'Wakil Ketua Kelas', 'Sekretaris Kelas', 'Bendahara Kelas', 'Perwakilan Siswa', 'Ketua Murid'];
         if (!validJabatan.includes(jabatan)) {
             errors.push(`Jabatan harus salah satu dari: ${validJabatan.join(', ')}`);
         }
