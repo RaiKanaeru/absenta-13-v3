@@ -478,20 +478,32 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
 
     const alignment = config.alignment || 'center';
     
+    // Helper to get correct image source
+    const getImageSrc = (src: string) => {
+      if (!src) return "";
+      if (src.startsWith('data:')) return src; // Base64
+      if (src.startsWith('http')) return src; // Full URL
+      if (src.startsWith('/')) return getApiUrl(src); // Relative path from API
+      return src;
+    };
+
     // Logo tengah
-    const logoElement = (config.logo || logoPreview) ? 
-      <img src={config.logo || logoPreview} alt="Logo Tengah" className="h-16 object-contain mx-auto mb-4" /> : null;
+    const logoSrc = getImageSrc(config.logo || logoPreview);
+    const logoElement = logoSrc ?
+      <img src={logoSrc} alt="Logo Tengah" className="h-16 object-contain mx-auto mb-4" /> : null;
     
     // Logo kiri dan kanan
-    const logoLeftElement = (config.logoLeftUrl || logoLeftPreview) ? 
-      <img src={config.logoLeftUrl || logoLeftPreview} alt="Logo Kiri" className="h-20 object-contain float-left mr-5" /> : null;
+    const logoLeftSrc = getImageSrc(config.logoLeftUrl || logoLeftPreview);
+    const logoLeftElement = logoLeftSrc ?
+      <img src={logoLeftSrc} alt="Logo Kiri" className="h-20 object-contain float-left mr-5" /> : null;
     
-    const logoRightElement = (config.logoRightUrl || logoRightPreview) ? 
-      <img src={config.logoRightUrl || logoRightPreview} alt="Logo Kanan" className="h-20 object-contain float-right ml-5" /> : null;
+    const logoRightSrc = getImageSrc(config.logoRightUrl || logoRightPreview);
+    const logoRightElement = logoRightSrc ?
+      <img src={logoRightSrc} alt="Logo Kanan" className="h-20 object-contain float-right ml-5" /> : null;
 
     return (
-      <div className="border rounded-lg p-6 bg-white">
-        <div className="overflow-hidden">
+      <div className="border rounded-lg p-6 bg-white mt-4">
+        <div className="overflow-hidden pt-4">
           {logoLeftElement}
           {logoRightElement}
           <div className={`text-${alignment} space-y-1 clear-both`}>

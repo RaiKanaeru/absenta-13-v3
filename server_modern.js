@@ -761,7 +761,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
 
     // Validasi jabatan (opsional)
     if (jabatan !== undefined && jabatan !== null && jabatan !== '') {
-        const validJabatan = ['Siswa', 'Ketua Kelas', 'Wakil Ketua Kelas', 'Sekretaris Kelas', 'Bendahara Kelas', 'Perwakilan Siswa', 'Ketua Murid'];
+        const validJabatan = ['Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
         if (!validJabatan.includes(jabatan)) {
             errors.push(`Jabatan harus salah satu dari: ${validJabatan.join(', ')}`);
         }
@@ -9413,13 +9413,15 @@ app.post('/api/admin/students-data', authenticateToken, requireRole(['admin']), 
 
         // First, insert into users table
         const createdAtWIB = getMySQLDateTimeWIB();
+        const dummyPassword = await bcrypt.hash('Siswa123!', saltRounds);
+
         const userInsertQuery = `
-            INSERT INTO users (username, email, role, nama, status, created_at)
-            VALUES (?, ?, 'siswa', ?, 'aktif', ?)
+            INSERT INTO users (username, password, email, role, nama, status, created_at)
+            VALUES (?, ?, ?, 'siswa', ?, 'aktif', ?)
         `;
 
         const [userResult] = await connection.execute(userInsertQuery, [
-            username, email, nama, createdAtWIB // nama will be used for the nama field
+            username, dummyPassword, email, nama, createdAtWIB // nama will be used for the nama field
         ]);
 
         const userId = userResult.insertId;
