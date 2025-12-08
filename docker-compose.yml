@@ -1,11 +1,51 @@
 version: '3.8'
 
+# ===========================================
+# ABSENTA 13 - Complete Docker Production Setup
+# ===========================================
+# Includes: App, MySQL, Redis, Nginx
+# All-in-one containerized solution
+# ===========================================
+
 services:
-  # Main application
+  # ===========================================
+  # NGINX - Reverse Proxy & Static Files
+  # ===========================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: absenta13-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./dist:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      absenta-app:
+        condition: service_healthy
+    networks:
+      - absenta-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "com.absenta.service=nginx"
+      - "com.absenta.description=Reverse Proxy"
+
+  # ===========================================
+  # APPLICATION - Node.js Backend + PM2
+  # ===========================================
   absenta-app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
     container_name: absenta13-app
     restart: unless-stopped
     ports:
@@ -13,49 +53,103 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DB_HOST=${DB_HOST:-mysql}
-      - DB_PORT=${DB_PORT:-3306}
+      # Database
+      - DB_HOST=mysql
+      - DB_PORT=3306
       - DB_USER=${DB_USER:-absenta}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:?Database password required}
       - DB_NAME=${DB_NAME:-absenta13}
-      - JWT_SECRET=${JWT_SECRET}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Security
+      - JWT_SECRET=${JWT_SECRET:?JWT secret required}
+      - SALT_ROUNDS=${SALT_ROUNDS:-12}
+      # App Settings
+      - UPLOAD_DIR=/app/public/uploads
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://absenta13.my.id}
     volumes:
-      - ./logs:/app/logs
-      - ./backups:/app/backups
-      - ./public/uploads:/app/public/uploads
+      - app_logs:/app/logs
+      - app_backups:/app/backups
+      - app_uploads:/app/public/uploads
+      - app_temp:/app/temp
+      - app_downloads:/app/downloads
+      - app_reports:/app/reports
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - absenta-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
       interval: 30s
       timeout: 10s
+      start_period: 60s
       retries: 3
+    labels:
+      - "com.absenta.service=app"
+      - "com.absenta.description=Backend API"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-  # MySQL Database
+  # ===========================================
+  # MYSQL - Database Server
+  # ===========================================
   mysql:
     image: mysql:8.0
     container_name: absenta13-mysql
     restart: unless-stopped
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DB_NAME:-absenta13}
-      - MYSQL_USER=${DB_USER:-absenta}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./database:/docker-entrypoint-initdb.d
     ports:
       - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MySQL root password required}
+      - MYSQL_DATABASE=${DB_NAME:-absenta13}
+      - MYSQL_USER=${DB_USER:-absenta}
+      - MYSQL_PASSWORD=${DB_PASSWORD:?Database password required}
+      - TZ=Asia/Jakarta
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - mysql_logs:/var/log/mysql
+      - ./docker/mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./absenta13.sql:/docker-entrypoint-initdb.d/absenta13.sql:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=200
+      --innodb_buffer_pool_size=256M
     networks:
       - absenta-network
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    labels:
+      - "com.absenta.service=mysql"
+      - "com.absenta.description=Database Server"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
-  # Redis Cache
+  # ===========================================
+  # REDIS - Cache & Session Store
+  # ===========================================
   redis:
     image: redis:7-alpine
     container_name: absenta13-redis
@@ -64,14 +158,113 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - absenta-network
-    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "com.absenta.service=redis"
+      - "com.absenta.description=Cache Server"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
+  # ===========================================
+  # ADMINER - Database Management (Optional)
+  # ===========================================
+  adminer:
+    image: adminer:4
+    container_name: absenta13-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=mysql
+      - ADMINER_DESIGN=nette
+    depends_on:
+      - mysql
+    networks:
+      - absenta-network
+    profiles:
+      - tools
+    labels:
+      - "com.absenta.service=adminer"
+      - "com.absenta.description=Database Admin UI"
+
+  # ===========================================
+  # REDIS COMMANDER - Redis Management (Optional)
+  # ===========================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: absenta13-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - absenta-network
+    profiles:
+      - tools
+    labels:
+      - "com.absenta.service=redis-commander"
+      - "com.absenta.description=Redis Admin UI"
+
+# ===========================================
+# VOLUMES - Persistent Data Storage
+# ===========================================
 volumes:
   mysql_data:
+    name: absenta13_mysql_data
+    driver: local
+  mysql_logs:
+    name: absenta13_mysql_logs
+    driver: local
   redis_data:
+    name: absenta13_redis_data
+    driver: local
+  app_logs:
+    name: absenta13_app_logs
+    driver: local
+  app_backups:
+    name: absenta13_app_backups
+    driver: local
+  app_uploads:
+    name: absenta13_app_uploads
+    driver: local
+  app_temp:
+    name: absenta13_app_temp
+    driver: local
+  app_downloads:
+    name: absenta13_app_downloads
+    driver: local
+  app_reports:
+    name: absenta13_app_reports
+    driver: local
+  nginx_logs:
+    name: absenta13_nginx_logs
+    driver: local
 
+# ===========================================
+# NETWORKS - Container Communication
+# ===========================================
 networks:
   absenta-network:
+    name: absenta13_network
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
