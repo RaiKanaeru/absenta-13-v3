@@ -1,10 +1,27 @@
 # ===========================================
-# ABSENTA 13 - Docker Stack for Cloudflare Tunnel
+# ABSENTA 13 - Full Docker Stack
 # ===========================================
 
 services:
   # ===========================================
-  # APPLICATION - Node.js Backend
+  # NGINX - Frontend (port 8080)
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: absenta13-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - absenta-network
+
+  # ===========================================
+  # APPLICATION - Node.js Backend (port 3001)
   # ===========================================
   app:
     build: .
@@ -44,7 +61,6 @@ services:
     image: mysql:8.0
     container_name: absenta13-mysql
     restart: unless-stopped
-    # No external ports - only accessible via Docker network
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootaja12345}
       - MYSQL_DATABASE=absenta13
@@ -70,7 +86,6 @@ services:
     image: redis:7-alpine
     container_name: absenta13-redis
     restart: unless-stopped
-    # No external ports - only accessible via Docker network
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
