@@ -473,19 +473,22 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
     }));
   };
 
+  // Helper to get correct image source - Moved to component level
+  const getImageSrc = (src: string) => {
+    if (!src) return "";
+    if (src.startsWith('data:')) return src; // Base64
+    if (src.startsWith('http')) return src; // Full URL
+    if (src.startsWith('/')) return getApiUrl(src); // Relative path from API
+    // Fallback for bare filenames - assume they are in uploads/letterheads/
+    return getApiUrl(`/uploads/letterheads/${src}`);
+  };
+
   const renderPreview = () => {
     if (!config.enabled) return null;
 
     const alignment = config.alignment || 'center';
     
-    // Helper to get correct image source
-    const getImageSrc = (src: string) => {
-      if (!src) return "";
-      if (src.startsWith('data:')) return src; // Base64
-      if (src.startsWith('http')) return src; // Full URL
-      if (src.startsWith('/')) return getApiUrl(src); // Relative path from API
-      return src;
-    };
+
 
     // Logo tengah
     const logoSrc = getImageSrc(config.logo || logoPreview);
@@ -835,7 +838,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                         <div className="text-center">
                           <p className="text-xs text-gray-500 mb-2">Logo Tengah</p>
                           <img 
-                            src={config.logo || logoPreview} 
+                            src={getImageSrc(config.logo || logoPreview)} 
                             alt="Logo Tengah" 
                             className="h-16 object-contain mx-auto border rounded"
                           />
@@ -850,7 +853,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                         <div className="text-center">
                           <p className="text-xs text-gray-500 mb-2">Logo Kiri</p>
                           <img 
-                            src={config.logoLeftUrl || logoLeftPreview} 
+                            src={getImageSrc(config.logoLeftUrl || logoLeftPreview)} 
                             alt="Logo Kiri" 
                             className="h-16 object-contain mx-auto border rounded"
                           />
@@ -865,7 +868,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                         <div className="text-center">
                           <p className="text-xs text-gray-500 mb-2">Logo Kanan</p>
                           <img 
-                            src={config.logoRightUrl || logoRightPreview} 
+                            src={getImageSrc(config.logoRightUrl || logoRightPreview)} 
                             alt="Logo Kanan" 
                             className="h-16 object-contain mx-auto border rounded"
                           />

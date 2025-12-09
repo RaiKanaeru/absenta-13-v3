@@ -6184,12 +6184,16 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
 
   const handleExport = () => {
     try {
-      if (!attendanceData || attendanceData.length === 0) {
-        alert('Tidak ada data untuk diekspor');
+      // Check filteredData instead of attendanceData to ensure we export what user sees
+      if (!filteredData || filteredData.length === 0) {
+        toast({
+          title: "Info",
+          description: "Tidak ada data untuk diekspor. Coba nonaktifkan filter atau ubah kriteria pencarian."
+        });
         return;
       }
 
-      console.log('📤 Exporting live student attendance data...');
+      console.log('📤 Exporting live student attendance data...', filteredData.length, 'records');
 
       // Prepare data for Excel export
       const exportData = filteredData.map((student: LiveStudentRow, index: number) => ({
@@ -7199,15 +7203,16 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
 
     const handleExport = () => {
       try {
-        if (!attendanceData || attendanceData.length === 0) {
+        // Check filteredData instead of attendanceData to ensure we export what user sees
+        if (!filteredData || filteredData.length === 0) {
           toast({
             title: "Info",
-            description: "Tidak ada data untuk diekspor"
+            description: "Tidak ada data untuk diekspor. Coba nonaktifkan filter atau ubah kriteria pencarian."
           });
           return;
         }
 
-        console.log('📤 Exporting live teacher attendance data...');
+        console.log('📤 Exporting live teacher attendance data...', filteredData.length, 'records');
         
         // Prepare data for Excel export
         const exportData = filteredData.map((teacher, index) => ({

@@ -56,9 +56,28 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
     }
   };
 
-  const getCellStyle = (format?: string, value?: any, columnKey?: string) => {
+  const getCellStyle = (format?: string, value?: any, columnKey?: string, align?: string) => {
     const baseStyle = "px-1 sm:px-2 py-1 text-xs border-r border-b border-gray-400 overflow-hidden";
     
+    // Explicit alignment from column config takes precedence
+    let alignStyle = "text-left";
+    if (align) {
+        alignStyle = `text-${align}`;
+    } else {
+        // Default alignment based on format
+        switch (format) {
+            case 'number':
+            case 'percentage':
+                alignStyle = "text-right font-mono";
+                break;
+            case 'date':
+                alignStyle = "text-center";
+                break;
+            default:
+                alignStyle = "text-left";
+        }
+    }
+
     // Special styling for attendance columns
     if (columnKey === 'hadir' && value > 0) {
       return `${baseStyle} text-center font-semibold bg-emerald-50 text-emerald-700`;
@@ -73,15 +92,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
       return `${baseStyle} text-center font-semibold bg-yellow-50 text-yellow-700`;
     }
     
-    switch (format) {
-      case 'number':
-      case 'percentage':
-        return `${baseStyle} text-right font-mono bg-white`;
-      case 'date':
-        return `${baseStyle} text-center bg-white`;
-      default:
-        return `${baseStyle} text-left bg-white`;
-    }
+    return `${baseStyle} ${alignStyle} bg-white`;
   };
 
   const getHeaderStyle = (align?: string) => {
@@ -275,7 +286,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                     {columns.map((column, colIndex) => (
                       <td
                         key={column.key}
-                        className={getCellStyle(column.format, row[column.key], column.key)}
+                        className={getCellStyle(column.format, row[column.key], column.key, column.align)}
                         style={{ 
                           width: column.width ? `${Math.max(column.width, 80)}px` : '120px'
                         }}
