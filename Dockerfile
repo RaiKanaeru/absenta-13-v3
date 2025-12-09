@@ -48,15 +48,29 @@ RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 # Copy built frontend
 COPY --from=builder /app/dist ./dist
 
-# Copy server files
+# Copy ALL server files (*.js di root)
 COPY server_modern.js ./
 COPY ecosystem.config.cjs ./
+COPY database-optimization.js ./
+COPY cache-system.js ./
+COPY backup-system.js ./
+COPY monitoring-system.js ./
+COPY load-balancer.js ./
+COPY query-optimizer.js ./
+COPY queue-system.js ./
+COPY security-system.js ./
+COPY alerting-system.js ./
+COPY disaster-recovery-system.js ./
+COPY performance-optimizer.js ./
+
+# Copy backend folder if exists
+COPY backend ./backend
 
 # Copy public assets
 COPY public ./public
 
 # Create directories
-RUN mkdir -p logs backups temp downloads reports public/uploads/letterheads
+RUN mkdir -p logs backups temp downloads reports archives public/uploads/letterheads
 
 # Expose port
 EXPOSE 3001
