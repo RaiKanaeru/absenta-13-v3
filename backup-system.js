@@ -278,7 +278,7 @@ class BackupSystem {
             
             // Get all tables
             const [tables] = await this.pool.execute(`
-                SELECT table_name 
+                SELECT table_name as tableName
                 FROM information_schema.tables 
                 WHERE table_schema = '${this.dbConfig.database}'
             `);
@@ -290,7 +290,11 @@ class BackupSystem {
             
             // Export each table
             for (const table of tables) {
-                const tableName = table.table_name;
+                const tableName = table.tableName; // Use aliased name
+                if (!tableName) {
+                    console.warn('⚠️ Skipping table with undefined name:', table);
+                    continue;
+                }
                 console.log(`📊 Exporting table: ${tableName}`);
                 
                 // Get table structure
@@ -373,7 +377,7 @@ class BackupSystem {
             
             // Get all tables
             const [tables] = await this.pool.execute(`
-                SELECT table_name 
+                SELECT table_name as tableName
                 FROM information_schema.tables 
                 WHERE table_schema = '${this.dbConfig.database}'
             `);
@@ -384,7 +388,11 @@ class BackupSystem {
             
             // Export each table
             for (const table of tables) {
-                const tableName = table.table_name;
+                const tableName = table.tableName; // Use aliased name
+                if (!tableName) {
+                    console.warn('⚠️ Skipping table with undefined name:', table);
+                    continue;
+                }
                 console.log(`📊 Exporting table: ${tableName}`);
                 
                 // Get table structure
