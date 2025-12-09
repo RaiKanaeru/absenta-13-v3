@@ -66,6 +66,9 @@ COPY performance-optimizer.js ./
 # Copy backend folder if exists
 COPY backend ./backend
 
+# Copy src folder (untuk utils, hooks, dll yang diimport server)
+COPY src ./src
+
 # Copy public assets
 COPY public ./public
 
