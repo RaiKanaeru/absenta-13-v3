@@ -370,6 +370,16 @@ class DatabaseOptimization {
     }
 
     /**
+     * Query with connection pool (alternative to execute)
+     */
+    async query(sql, params = []) {
+        if (!this.pool) {
+            throw new Error('Connection pool not initialized');
+        }
+        return await this.pool.query(sql, params);
+    }
+
+    /**
      * Get pool statistics
      */
     getPoolStats() {
