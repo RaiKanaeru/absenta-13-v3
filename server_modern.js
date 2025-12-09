@@ -2398,11 +2398,10 @@ app.get('/api/admin/guru', authenticateToken, requireRole(['admin']), async (req
             params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
         }
 
-        query += ' ORDER BY g.created_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        query += ` ORDER BY g.created_at DESC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
 
-        const [rows] = await global.dbPool.execute(query, params);
-        const [countResult] = await global.dbPool.execute(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [rows] = await global.dbPool.query(query, params);
+        const [countResult] = await global.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         res.json({
             success: true,
