@@ -66,6 +66,9 @@ COPY performance-optimizer.js ./
 # Copy backend folder if exists
 COPY backend ./backend
 
+# Copy server folder (routes, controllers, middleware, utils)
+COPY server ./server
+
 # Copy src folder (untuk utils, hooks, dll yang diimport server)
 COPY --from=builder /app/src ./src
 
