@@ -110,7 +110,7 @@ jobs:
             
             echo "🔄 Restarting application..."
             if command -v pm2 &> /dev/null; then
-              pm2 restart absenta-backend || pm2 start ecosystem.config.js --env production
+              pm2 restart absenta-backend || pm2 start ecosystem.config.cjs --env production
             elif command -v docker &> /dev/null; then
               docker-compose up -d --build absenta-app
             else
