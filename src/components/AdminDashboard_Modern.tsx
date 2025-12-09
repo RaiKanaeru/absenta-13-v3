@@ -937,6 +937,45 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // === VALIDASI CLIENT-SIDE (konsisten dengan Tambah Akun Siswa) ===
+    // Required fields
+    if (!formData.nis || !formData.nama) {
+      toast({ title: "Error", description: "NIS dan Nama wajib diisi!", variant: "destructive" });
+      return;
+    }
+
+    // NIS format: 8-20 digit angka
+    if (!/^[0-9]{8,20}$/.test(formData.nis)) {
+      toast({ title: "Error", description: "NIS harus berupa angka 8-20 digit!", variant: "destructive" });
+      return;
+    }
+
+    // Email format (jika diisi)
+    if (formData.email && formData.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({ title: "Error", description: "Format email tidak valid!", variant: "destructive" });
+      return;
+    }
+
+    // Telepon siswa format (jika diisi)
+    if (formData.nomor_telepon_siswa && formData.nomor_telepon_siswa.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.nomor_telepon_siswa.trim())) {
+      toast({ title: "Error", description: "Nomor telepon siswa harus berupa angka, maksimal 20 karakter!", variant: "destructive" });
+      return;
+    }
+
+    // Telepon orangtua format (jika diisi)
+    if (formData.telepon_orangtua && formData.telepon_orangtua.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.telepon_orangtua.trim())) {
+      toast({ title: "Error", description: "Nomor telepon orangtua harus berupa angka, maksimal 20 karakter!", variant: "destructive" });
+      return;
+    }
+
+    // Username format (jika diisi - untuk perwakilan kelas)
+    if (formData.username && formData.username.trim() !== '' && !/^[a-zA-Z0-9._-]{4,32}$/.test(formData.username)) {
+      toast({ title: "Error", description: "Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip!", variant: "destructive" });
+      return;
+    }
+    // === END VALIDASI ===
+
     setIsLoading(true);
 
     try {
@@ -1473,6 +1512,33 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // === VALIDASI CLIENT-SIDE (konsisten dengan Tambah Akun Guru) ===
+    // Required fields
+    if (!formData.nip || !formData.nama) {
+      toast({ title: "Error", description: "NIP dan Nama wajib diisi!", variant: "destructive" });
+      return;
+    }
+
+    // NIP format: 10-20 digit angka
+    if (!/^[0-9]{10,20}$/.test(formData.nip)) {
+      toast({ title: "Error", description: "NIP harus berupa angka 10-20 digit!", variant: "destructive" });
+      return;
+    }
+
+    // Email format (jika diisi)
+    if (formData.email && formData.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({ title: "Error", description: "Format email tidak valid!", variant: "destructive" });
+      return;
+    }
+
+    // Telepon format (jika diisi)
+    if (formData.telepon && formData.telepon.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.telepon.trim())) {
+      toast({ title: "Error", description: "Nomor telepon harus berupa angka, maksimal 20 karakter!", variant: "destructive" });
+      return;
+    }
+    // === END VALIDASI ===
+
     setIsLoading(true);
 
     try {
