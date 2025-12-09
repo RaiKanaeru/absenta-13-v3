@@ -389,6 +389,11 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     setEditingId(teacher.id);
     setDialogOpen(true);
   };  const handleDelete = async (id: number, nama: string) => {
+    // Confirmation dialog
+    if (!window.confirm(`Yakin ingin menghapus akun guru "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    
     try {
       await apiCall(`/api/admin/guru/${id}`, {
         method: 'DELETE',
@@ -1032,6 +1037,9 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   };
 
   const handleDelete = async (id: number, nama: string) => {
+    if (!window.confirm(`Yakin ingin menghapus data siswa "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/students-data/${id}`, {
         method: 'DELETE',
@@ -1587,6 +1595,9 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   };
 
   const handleDelete = async (id: number, nama: string) => {
+    if (!window.confirm(`Yakin ingin menghapus data guru "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/teachers-data/${id}`, {
         method: 'DELETE',
@@ -2096,6 +2107,9 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
   };
 
   const handleDelete = async (id: number, nama: string) => {
+    if (!window.confirm(`Yakin ingin menghapus mata pelajaran "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/mapel/${id}`, {
         method: 'DELETE',
@@ -2493,6 +2507,9 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
   };
 
   const handleDelete = async (id: number, nama: string) => {
+    if (!window.confirm(`Yakin ingin menghapus kelas "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/kelas/${id}`, {
         method: 'DELETE',
@@ -2929,6 +2946,9 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
   };
 
   const handleDelete = async (id: number, nama: string, nis: string) => {
+    if (!window.confirm(`Yakin ingin menghapus akun siswa "${nama}" (NIS: ${nis})? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/students/${nis}`, {
         method: 'DELETE',
@@ -5567,6 +5587,9 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
   };
 
   const handleDelete = async (id: number) => {
+    if (!window.confirm('Yakin ingin menghapus ruang ini? Tindakan ini tidak dapat dibatalkan.')) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/ruang/${id}`, {
         method: 'DELETE',
