@@ -1020,12 +1020,27 @@ const LaporanKehadiranSiswaView = ({ user }: { user: TeacherDashboardProps['user
 
     try {
       const url = getApiUrl(`/api/guru/download-laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`);
-      const resp = await fetch(url, { credentials: 'include' });
+      const resp = await fetch(url, { 
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+      
+      if (!resp.ok) {
+        throw new Error('Gagal mengunduh file Excel');
+      }
+      
       const blob = await resp.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx`;
       link.click();
+      
+      toast({
+        title: "Berhasil!",
+        description: "File Excel berhasil diunduh"
+      });
     } catch (err) {
       console.error('Error downloading excel:', err);
       setError('Gagal mengunduh file Excel');
@@ -2301,6 +2316,7 @@ const TeacherReportsView = ({ user }: { user: TeacherDashboardProps['userData'] 
 const BandingAbsenView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
   const [bandingList, setBandingList] = useState<BandingAbsenTeacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<number | null>(null);
   const [filterPending, setFilterPending] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -2354,6 +2370,8 @@ const BandingAbsenView = ({ user }: { user: TeacherDashboardProps['userData'] })
   };
 
   const handleBandingResponse = async (bandingId: number, status: 'disetujui' | 'ditolak', catatan: string = '') => {
+    if (processingId === bandingId) return; // Prevent double-click
+    setProcessingId(bandingId);
     try {
       await apiCall(`/api/banding-absen/${bandingId}/respond`, {
         method: 'PUT',
@@ -2391,6 +2409,8 @@ const BandingAbsenView = ({ user }: { user: TeacherDashboardProps['userData'] })
         description: (error as Error).message, 
         variant: "destructive" 
       });
+    } finally {
+      setProcessingId(null);
     }
   };
 
