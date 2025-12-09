@@ -1324,14 +1324,26 @@ const BackupManagementView: React.FC = () => {
                                             </div>
                                             <p className="text-sm text-orange-700">
                                                 Backup akan dijalankan pada: <strong>
-                                                {new Date(`${backupSettings.customScheduleDate}T${backupSettings.customScheduleTime}`).toLocaleDateString('id-ID', {
-                                                    weekday: 'long',
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
+                                                {(() => {
+                                                    try {
+                                                        const dateStr = backupSettings.customScheduleDate;
+                                                        const timeStr = backupSettings.customScheduleTime || '02:00';
+                                                        const dateObj = new Date(`${dateStr}T${timeStr}`);
+                                                        if (isNaN(dateObj.getTime())) {
+                                                            return `${dateStr} pukul ${timeStr}`;
+                                                        }
+                                                        return dateObj.toLocaleDateString('id-ID', {
+                                                            weekday: 'long',
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        });
+                                                    } catch {
+                                                        return `${backupSettings.customScheduleDate} pukul ${backupSettings.customScheduleTime || '02:00'}`;
+                                                    }
+                                                })()}
                                                 </strong>
                                             </p>
                                         </div>
