@@ -101,6 +101,10 @@ app.set('trust proxy', 2);
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : [
+        // Production domains
+        'https://absenta13.my.id',
+        'https://api.absenta13.my.id',
+        // Development domains
         'http://localhost:8080',
         'http://localhost:8081',
         'http://localhost:5173',
