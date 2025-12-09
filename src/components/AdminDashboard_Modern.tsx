@@ -2041,6 +2041,21 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!formData.kode_mapel || formData.kode_mapel.trim() === '') {
+      toast({ title: "Error", description: "Kode mata pelajaran wajib diisi!", variant: "destructive" });
+      return;
+    }
+    if (!formData.nama_mapel || formData.nama_mapel.trim() === '') {
+      toast({ title: "Error", description: "Nama mata pelajaran wajib diisi!", variant: "destructive" });
+      return;
+    }
+    if (!/^[A-Za-z0-9]{2,10}$/.test(formData.kode_mapel.trim())) {
+      toast({ title: "Error", description: "Kode mapel harus 2-10 karakter alfanumerik!", variant: "destructive" });
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -2437,6 +2452,17 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!formData.nama_kelas || formData.nama_kelas.trim() === '') {
+      toast({ title: "Error", description: "Nama kelas wajib diisi!", variant: "destructive" });
+      return;
+    }
+    if (!/^[A-Za-z0-9\s-]{2,30}$/.test(formData.nama_kelas.trim())) {
+      toast({ title: "Error", description: "Nama kelas harus 2-30 karakter, hanya huruf, angka, spasi, dan strip!", variant: "destructive" });
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -2775,8 +2801,8 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
   const validateForm = () => {
     const errors: {[key: string]: string} = {};
     
-    if (!formData.nis || !/^\d{8,15}$/.test(formData.nis)) {
-      errors.nis = 'NIS harus berupa angka 8-15 digit';
+    if (!formData.nis || !/^\d{8,20}$/.test(formData.nis)) {
+      errors.nis = 'NIS harus berupa angka 8-20 digit';
     }
     
     if (!formData.nama || formData.nama.trim().length < 2) {
@@ -5450,6 +5476,21 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!formData.kode_ruang || formData.kode_ruang.trim() === '') {
+      toast({ title: "Error", description: "Kode ruang wajib diisi!", variant: "destructive" });
+      return;
+    }
+    if (!/^[A-Za-z0-9]{2,20}$/.test(formData.kode_ruang.trim())) {
+      toast({ title: "Error", description: "Kode ruang harus 2-20 karakter alfanumerik!", variant: "destructive" });
+      return;
+    }
+    if (formData.kapasitas && (isNaN(parseInt(formData.kapasitas)) || parseInt(formData.kapasitas) <= 0)) {
+      toast({ title: "Error", description: "Kapasitas harus berupa angka positif!", variant: "destructive" });
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
