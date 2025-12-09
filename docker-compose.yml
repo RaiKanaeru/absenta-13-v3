@@ -1,12 +1,10 @@
-version: '3.8'
-
 # ===========================================
-# ABSENTA 13 - Full Docker Stack
+# ABSENTA 13 - Docker Stack for Cloudflare Tunnel
 # ===========================================
 
 services:
   # ===========================================
-  # APPLICATION
+  # APPLICATION - Node.js Backend
   # ===========================================
   app:
     build: .
@@ -40,14 +38,13 @@ services:
       - absenta-network
 
   # ===========================================
-  # MYSQL DATABASE
+  # MYSQL DATABASE (Internal Only)
   # ===========================================
   mysql:
     image: mysql:8.0
     container_name: absenta13-mysql
     restart: unless-stopped
-    ports:
-      - "3308:3306"
+    # No external ports - only accessible via Docker network
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootaja12345}
       - MYSQL_DATABASE=absenta13
@@ -67,14 +64,13 @@ services:
       - absenta-network
 
   # ===========================================
-  # REDIS CACHE
+  # REDIS CACHE (Internal Only)
   # ===========================================
   redis:
     image: redis:7-alpine
     container_name: absenta13-redis
     restart: unless-stopped
-    ports:
-      - "6380:6379"
+    # No external ports - only accessible via Docker network
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -85,26 +81,6 @@ services:
       retries: 5
     networks:
       - absenta-network
-
-  # ===========================================
-  # NGINX (Optional - jika tidak pakai aaPanel nginx)
-  # ===========================================
-  nginx:
-    image: nginx:alpine
-    container_name: absenta13-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./dist:/usr/share/nginx/html:ro
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-    depends_on:
-      - app
-    networks:
-      - absenta-network
-    profiles:
-      - with-nginx
 
 volumes:
   mysql_data:
