@@ -1,0 +1,115 @@
+version: '3.8'
+
+# ===========================================
+# ABSENTA 13 - Full Docker Stack
+# ===========================================
+
+services:
+  # ===========================================
+  # APPLICATION
+  # ===========================================
+  app:
+    build: .
+    container_name: absenta13-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=absenta
+      - DB_PASSWORD=${DB_PASSWORD:-rootaja12345}
+      - DB_NAME=absenta13
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET:-c7f199d6d61fcb73bf62642a2550c3bb2e8e3fa53d852854acf8d69774ff28ae}
+      - ALLOWED_ORIGINS=https://absenta13.my.id,https://api.absenta13.my.id
+      - TZ=Asia/Jakarta
+    volumes:
+      - ./public/uploads:/app/public/uploads
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - absenta-network
+
+  # ===========================================
+  # MYSQL DATABASE
+  # ===========================================
+  mysql:
+    image: mysql:8.0
+    container_name: absenta13-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootaja12345}
+      - MYSQL_DATABASE=absenta13
+      - MYSQL_USER=absenta
+      - MYSQL_PASSWORD=${DB_PASSWORD:-rootaja12345}
+      - TZ=Asia/Jakarta
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./absenta13.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - absenta-network
+
+  # ===========================================
+  # REDIS CACHE
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: absenta13-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - absenta-network
+
+  # ===========================================
+  # NGINX (Optional - jika tidak pakai aaPanel nginx)
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: absenta13-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - app
+    networks:
+      - absenta-network
+    profiles:
+      - with-nginx
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  absenta-network:
+    driver: bridge
