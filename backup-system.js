@@ -295,58 +295,76 @@ class BackupSystem {
                     console.warn('⚠️ Skipping table with undefined name:', table);
                     continue;
                 }
-                console.log(`📊 Exporting table: ${tableName}`);
                 
-                // Get table structure
-                const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
-                sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
-                sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
-                sqlContent += `${structure[0]['Create Table']};\n\n`;
-                
-                // Get table data with date filtering for attendance tables
-                let query = `SELECT * FROM \`${tableName}\``;
-                let queryParams = [];
-                
-                // Apply date filtering for attendance tables
-                if (tableName === 'absensi_siswa' || tableName === 'absensi_guru') {
-                    query += ` WHERE tanggal BETWEEN ? AND ?`;
-                    queryParams = [startDate, endDate];
-                }
-                
-                const [data] = await this.pool.execute(query, queryParams);
-                
-                if (data.length > 0) {
-                    sqlContent += `-- Data for table \`${tableName}\` (${data.length} records)\n`;
+                try {
+                    console.log(`📊 Exporting table: ${tableName}`);
                     
-                    // Get column names
-                    const columns = Object.keys(data[0]);
-                    const columnList = columns.map(col => `\`${col}\``).join(', ');
-                    
-                    // Insert data in batches
-                    const batchSize = 1000;
-                    for (let i = 0; i < data.length; i += batchSize) {
-                        const batch = data.slice(i, i + batchSize);
-                        const values = batch.map(row => {
-                            const rowValues = columns.map(col => {
-                                const value = row[col];
-                                if (value === null) return 'NULL';
-                                if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
-                                if (value instanceof Date) {
-                                    if (isNaN(value.getTime())) {
-                                        return 'NULL';
-                                    }
-                                    return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
-                                }
-                                return value;
-                            });
-                            return `(${rowValues.join(', ')})`;
-                        });
-                        
-                        sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
-                        sqlContent += values.join(',\n') + ';\n\n';
+                    // Get table structure
+                    const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
+                    if (!structure || !structure[0]) {
+                        console.warn(`⚠️ Could not get structure for table: ${tableName}`);
+                        continue;
                     }
-                } else {
-                    sqlContent += `-- No data found for table \`${tableName}\` in date range\n\n`;
+                    sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
+                    sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+                    sqlContent += `${structure[0]['Create Table']};\n\n`;
+                    
+                    // Get table data with date filtering for attendance tables
+                    let query = `SELECT * FROM \`${tableName}\``;
+                    let queryParams = [];
+                    
+                    // Apply date filtering for attendance tables
+                    if (tableName === 'absensi_siswa' || tableName === 'absensi_guru') {
+                        query += ` WHERE tanggal BETWEEN ? AND ?`;
+                        queryParams = [startDate, endDate];
+                    }
+                    
+                    let data = [];
+                    try {
+                        const result = await this.pool.execute(query, queryParams);
+                        data = result[0] || [];
+                    } catch (queryError) {
+                        console.warn(`⚠️ Could not query data for table ${tableName}:`, queryError.message);
+                        sqlContent += `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
+                        continue;
+                    }
+                    
+                    if (data && data.length > 0) {
+                        sqlContent += `-- Data for table \`${tableName}\` (${data.length} records)\n`;
+                        
+                        // Get column names
+                        const columns = Object.keys(data[0]);
+                        const columnList = columns.map(col => `\`${col}\``).join(', ');
+                        
+                        // Insert data in batches
+                        const batchSize = 1000;
+                        for (let i = 0; i < data.length; i += batchSize) {
+                            const batch = data.slice(i, i + batchSize);
+                            const values = batch.map(row => {
+                                const rowValues = columns.map(col => {
+                                    const value = row[col];
+                                    if (value === null) return 'NULL';
+                                    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+                                    if (value instanceof Date) {
+                                        if (isNaN(value.getTime())) {
+                                            return 'NULL';
+                                        }
+                                        return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                                    }
+                                    return value;
+                                });
+                                return `(${rowValues.join(', ')})`;
+                            });
+                            
+                            sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
+                            sqlContent += values.join(',\n') + ';\n\n';
+                        }
+                    } else {
+                        sqlContent += `-- No data found for table \`${tableName}\` in date range\n\n`;
+                    }
+                } catch (tableError) {
+                    console.error(`❌ Error exporting table ${tableName}:`, tableError.message);
+                    sqlContent += `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
                 }
             }
             
@@ -393,48 +411,68 @@ class BackupSystem {
                     console.warn('⚠️ Skipping table with undefined name:', table);
                     continue;
                 }
-                console.log(`📊 Exporting table: ${tableName}`);
                 
-                // Get table structure
-                const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
-                sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
-                sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
-                sqlContent += `${structure[0]['Create Table']};\n\n`;
-                
-                // Get table data
-                const [data] = await this.pool.execute(`SELECT * FROM \`${tableName}\``);
-                
-                if (data.length > 0) {
-                    sqlContent += `-- Data for table \`${tableName}\`\n`;
+                try {
+                    console.log(`📊 Exporting table: ${tableName}`);
                     
-                    // Get column names
-                    const columns = Object.keys(data[0]);
-                    const columnList = columns.map(col => `\`${col}\``).join(', ');
-                    
-                    // Insert data in batches
-                    const batchSize = 1000;
-                    for (let i = 0; i < data.length; i += batchSize) {
-                        const batch = data.slice(i, i + batchSize);
-                        const values = batch.map(row => {
-                            const rowValues = columns.map(col => {
-                                const value = row[col];
-                                if (value === null) return 'NULL';
-                                if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
-                                if (value instanceof Date) {
-                                    // Check if date is valid
-                                    if (isNaN(value.getTime())) {
-                                        return 'NULL';
-                                    }
-                                    return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
-                                }
-                                return value;
-                            });
-                            return `(${rowValues.join(', ')})`;
-                        });
-                        
-                        sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
-                        sqlContent += values.join(',\n') + ';\n\n';
+                    // Get table structure
+                    const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
+                    if (!structure || !structure[0]) {
+                        console.warn(`⚠️ Could not get structure for table: ${tableName}`);
+                        continue;
                     }
+                    sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
+                    sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+                    sqlContent += `${structure[0]['Create Table']};\n\n`;
+                    
+                    // Get table data with error handling
+                    let data = [];
+                    try {
+                        const result = await this.pool.execute(`SELECT * FROM \`${tableName}\``);
+                        data = result[0] || [];
+                    } catch (queryError) {
+                        console.warn(`⚠️ Could not query data for table ${tableName}:`, queryError.message);
+                        sqlContent += `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
+                        continue;
+                    }
+                    
+                    if (data && data.length > 0) {
+                        sqlContent += `-- Data for table \`${tableName}\` (${data.length} records)\n`;
+                        
+                        // Get column names
+                        const columns = Object.keys(data[0]);
+                        const columnList = columns.map(col => `\`${col}\``).join(', ');
+                        
+                        // Insert data in batches
+                        const batchSize = 1000;
+                        for (let i = 0; i < data.length; i += batchSize) {
+                            const batch = data.slice(i, i + batchSize);
+                            const values = batch.map(row => {
+                                const rowValues = columns.map(col => {
+                                    const value = row[col];
+                                    if (value === null) return 'NULL';
+                                    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+                                    if (value instanceof Date) {
+                                        // Check if date is valid
+                                        if (isNaN(value.getTime())) {
+                                            return 'NULL';
+                                        }
+                                        return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                                    }
+                                    return value;
+                                });
+                                return `(${rowValues.join(', ')})`;
+                            });
+                            
+                            sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
+                            sqlContent += values.join(',\n') + ';\n\n';
+                        }
+                    } else {
+                        sqlContent += `-- No data in table \`${tableName}\`\n\n`;
+                    }
+                } catch (tableError) {
+                    console.error(`❌ Error exporting table ${tableName}:`, tableError.message);
+                    sqlContent += `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
                 }
             }
             
