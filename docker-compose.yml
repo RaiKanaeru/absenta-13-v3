@@ -13,7 +13,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./dist:/usr/share/nginx/html:ro
+      - frontend_dist:/usr/share/nginx/html:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - app
@@ -43,6 +43,7 @@ services:
       - ALLOWED_ORIGINS=https://absenta13.my.id,https://api.absenta13.my.id
       - TZ=Asia/Jakarta
     volumes:
+      - frontend_dist:/app/dist
       - ./public/uploads:/app/public/uploads
       - ./logs:/app/logs
       - ./backups:/app/backups
@@ -100,6 +101,7 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  frontend_dist:
 
 networks:
   absenta-network:
