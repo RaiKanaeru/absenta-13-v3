@@ -1292,14 +1292,84 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     }
 };
 
+/**
+ * Export presensi siswa with daily detail
+ * GET /api/export/presensi-siswa
+ */
+export const exportPresensiSiswa = async (req, res) => {
+    try {
+        const { kelas_id, bulan, tahun } = req.query;
+        console.log('📊 Exporting presensi siswa:', { kelas_id, bulan, tahun });
+
+        // Get class name
+        const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+        const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
+
+        // Get students
+        const [studentsRows] = await global.dbPool.execute(
+            'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
+            [kelas_id]
+        );
+
+        // Get presensi data for the month
+        const [presensiRows] = await global.dbPool.execute(`
+            SELECT a.siswa_id, DATE_FORMAT(a.tanggal, '%Y-%m-%d') as tanggal, a.status, a.keterangan
+            FROM absensi_siswa a INNER JOIN siswa s ON a.siswa_id = s.id_siswa
+            WHERE s.kelas_id = ? AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) = ?
+            ORDER BY a.siswa_id, a.tanggal
+        `, [kelas_id, tahun, bulan]);
+
+        // Prepare export data
+        const daysInMonth = new Date(parseInt(tahun), parseInt(bulan), 0).getDate();
+        const exportData = studentsRows.map(student => {
+            const studentPresensi = presensiRows.filter(p => p.siswa_id === student.id);
+            const attendanceRecord = {};
+            const keteranganList = [];
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${tahun}-${String(bulan).padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                const presensi = studentPresensi.find(p => p.tanggal === dateStr);
+                attendanceRecord[`hari_${day}`] = presensi ? presensi.status : '';
+                if (presensi && presensi.keterangan) keteranganList.push(`${day}: ${presensi.keterangan}`);
+            }
+
+            return { nis: student.nis, nama: student.nama, jenis_kelamin: student.jenis_kelamin, keterangan: keteranganList.join('; '), ...attendanceRecord };
+        });
+
+        // Import modules
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const { generatePresensiColumns } = await import('../../backend/export/schemas/presensi-siswa-detail.js');
+
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
+        const columns = generatePresensiColumns(daysInMonth);
+        const reportData = exportData.map((row, index) => ({ no: index + 1, ...row }));
+
+        const workbook = await buildExcel({
+            title: 'Presensi Siswa', subtitle: 'Format Presensi Siswa SMKN 13',
+            reportPeriod: `${bulan}/${tahun}`, showLetterhead: letterhead.enabled, letterhead, columns, rows: reportData
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Presensi_Siswa_${kelasName}_${bulan}_${tahun}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Presensi siswa exported: ${exportData.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting presensi siswa:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 // ================================================
 // REMAINING EXPORTS - To be migrated
 // ================================================
-// - exportPresensiSiswa
 // - exportAdminAttendance
 // - exportJadwalMatrix
 // - exportJadwalGrid
 // - exportJadwalPrint
+
 
 
 
