@@ -5874,103 +5874,12 @@ app.get('/api/absensi/history', authenticateToken, async (req, res) => {
 });
 
 // ================================================
-// EXPORT EXCEL ENDPOINTS
+// EXPORT EXCEL ENDPOINTS - MIGRATED TO exportRoutes.js + exportController.js
 // ================================================
-
-// Export attendance to Excel
-app.get('/api/export/absensi', authenticateToken, requireRole(['admin']), async (req, res) => {
-    try {
-        const { date_start, date_end } = req.query;
-        console.log('📊 Exporting absensi guru:', { date_start, date_end });
-
-        let query = `
-            SELECT ag.tanggal, ag.status, ag.keterangan, ag.waktu_catat,
-                   j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
-                   COALESCE(g.nama, 'Sistem') as nama_guru, g.nip,
-                   k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                   s.nama as nama_pencatat, s.nis
-            FROM absensi_guru ag
-            JOIN jadwal j ON ag.jadwal_id = j.id_jadwal
-            LEFT JOIN guru g ON ag.guru_id = g.id_guru
-            JOIN kelas k ON ag.kelas_id = k.id_kelas
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            JOIN siswa s ON ag.siswa_pencatat_id = s.id_siswa
-        `;
-
-        let params = [];
-        let whereConditions = [];
-
-        if (date_start) {
-            whereConditions.push('ag.tanggal >= ?');
-            params.push(date_start);
-        }
-        if (date_end) {
-            whereConditions.push('ag.tanggal <= ?');
-            params.push(date_end);
-        }
-
-        if (whereConditions.length > 0) {
-            query += ' WHERE ' + whereConditions.join(' AND ');
-        }
-
-        query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
-
-        const [rows] = await global.dbPool.execute(query, params);
-
-        // Import required modules
-        const { buildExcel } = await import('./backend/export/excelBuilder.js');
-        const { getLetterhead } = await import('./backend/utils/letterheadService.js');
-        const { REPORT_KEYS } = await import('./backend/utils/letterheadService.js');
-        const absensiGuruSchema = await import('./backend/export/schemas/absensi-guru.js');
-
-        // Load letterhead configuration
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.ABSENSI_GURU });
-
-        // Prepare data for Excel
-        const reportData = rows.map((row, index) => ({
-            no: index + 1,
-            tanggal: row.tanggal,
-            hari: row.hari,
-            jam_ke: row.jam_ke,
-            waktu: `${row.jam_mulai} - ${row.jam_selesai}`,
-            nama_kelas: row.nama_kelas,
-            nama_mapel: row.nama_mapel,
-            nama_guru: row.nama_guru,
-            nip: row.nip,
-            status: row.status,
-            keterangan: row.keterangan || '-',
-            nama_pencatat: row.nama_pencatat
-        }));
-
-        const reportPeriod = date_start && date_end
-            ? `${date_start} - ${date_end}`
-            : 'Semua Periode';
-
-        // Generate Excel workbook
-        const workbook = await buildExcel({
-            title: absensiGuruSchema.default.title,
-            subtitle: absensiGuruSchema.default.subtitle,
-            reportPeriod: reportPeriod,
-            letterhead: letterhead,
-            columns: absensiGuruSchema.default.columns,
-            rows: reportData
-        });
-
-        // Set response headers
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=absensi-guru-${new Date().toISOString().split('T')[0]}.xlsx`);
-
-        // Write to response
-        await workbook.xlsx.write(res);
-        res.end();
-
-        console.log(`✅ Absensi guru exported successfully: ${rows.length} records`);
-
-    } catch (error) {
-        console.error('❌ Excel export error:', error);
-        res.status(500).json({ error: 'Failed to export data to Excel' });
-    }
-});
+// NOTE: Export endpoints below have been migrated to modular structure:
+// - /api/export/* routes are now in server/routes/exportRoutes.js
+// - Handler logic is now in server/controllers/exportController.js
+// ================================================
 
 // ================================================
 // GURU ENDPOINTS
@@ -8745,122 +8654,10 @@ app.put('/api/banding-absen/:bandingId/respond', authenticateToken, requireRole(
 // Import Absenta Export System
 import AbsentaExportSystem from './src/utils/absentaExportSystem.js';
 
-// Initialize export system
+// Initialize export system (kept for legacy endpoints not yet migrated)
 const exportSystem = new AbsentaExportSystem();
 
-// Export Daftar Guru (Format SMKN 13)
-app.get('/api/export/teacher-list', authenticateToken, requireRole(['admin']), async (req, res) => {
-    try {
-        const { academicYear = '2025-2026' } = req.query;
-        console.log('🎯 Exporting teacher list...');
-
-        // Query data guru dari database
-        const [teachers] = await global.dbPool.execute(`
-            SELECT 
-                nama,
-                nip
-            FROM guru 
-            WHERE status = 'aktif'
-            ORDER BY nama
-        `);
-
-        const workbook = await exportSystem.exportTeacherList(teachers, academicYear);
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Daftar_Guru_${academicYear.replace('-', '_')}_${Date.now()}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-
-        console.log(`✅ Teacher list exported successfully: ${teachers.length} records`);
-    } catch (error) {
-        console.error('❌ Error exporting teacher list:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Export Ringkasan Kehadiran Siswa (Format SMKN 13)
-app.get('/api/export/student-summary', authenticateToken, requireRole(['admin']), async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        console.log('📊 Exporting student summary...');
-
-        let query = `
-            SELECT 
-                s.nama,
-                s.nis,
-                k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) as D,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(a.id), 0), 0) as presentase
-            FROM siswa s
-            LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND a.tanggal BETWEEN ? AND ?
-            WHERE s.status = 'aktif'
-        `;
-
-        const params = [startDate, endDate];
-
-        if (kelas_id && kelas_id !== 'all') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-
-        query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
-
-        const [students] = await global.dbPool.execute(query, params);
-
-        // Import required modules
-        const { buildExcel } = await import('./backend/export/excelBuilder.js');
-        const { getLetterhead } = await import('./backend/utils/letterheadService.js');
-        const { REPORT_KEYS } = await import('./backend/utils/letterheadService.js');
-        const studentSummarySchema = await import('./backend/export/schemas/student-summary.js');
-
-        // Load letterhead configuration
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
-
-        // Prepare data for Excel
-        const reportData = students.map((row, index) => ({
-            no: index + 1,
-            nama: row.nama,
-            nis: row.nis,
-            kelas: row.nama_kelas,
-            hadir: row.H,
-            izin: row.I,
-            sakit: row.S,
-            alpa: row.A,
-            dispen: row.D,
-            presentase: row.presentase / 100 // Convert to decimal for percentage format
-        }));
-
-        const reportPeriod = `${startDate} - ${endDate}`;
-
-        // Generate Excel workbook
-        const workbook = await buildExcel({
-            title: studentSummarySchema.default.title,
-            subtitle: studentSummarySchema.default.subtitle,
-            reportPeriod: reportPeriod,
-            letterhead: letterhead,
-            columns: studentSummarySchema.default.columns,
-            rows: reportData
-        });
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}_${Date.now()}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-
-        console.log(`✅ Student summary exported successfully: ${students.length} records`);
-    } catch (error) {
-        console.error('❌ Error exporting student summary:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
+// NOTE: exportTeacherList and exportStudentSummary MIGRATED to exportController.js
 
 // Export Ringkasan Kehadiran Guru (Format SMKN 13)
 app.get('/api/export/teacher-summary', authenticateToken, requireRole(['admin']), async (req, res) => {
