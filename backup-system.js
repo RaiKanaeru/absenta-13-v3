@@ -787,7 +787,8 @@ class BackupSystem {
             ORDER BY a.tanggal DESC, s.nama ASC
         `;
         
-        const [rows] = await this.pool.execute(query, [dateRange.start, dateRange.end]);
+        // Use query() instead of execute() to avoid prepared statement issues
+        const [rows] = await this.pool.query(query, [dateRange.start, dateRange.end]);
         
         // Add headers
         worksheet.columns = [
@@ -841,7 +842,8 @@ class BackupSystem {
             ORDER BY a.tanggal DESC, a.jam_ke ASC
         `;
         
-        const [rows] = await this.pool.execute(query, [dateRange.start, dateRange.end]);
+        // Use query() instead of execute() to avoid prepared statement issues
+        const [rows] = await this.pool.query(query, [dateRange.start, dateRange.end]);
         
         // Add headers
         worksheet.columns = [
@@ -897,7 +899,8 @@ class BackupSystem {
             ORDER BY p.tanggal_pengajuan DESC
         `;
         
-        const [rows] = await this.pool.execute(query, [dateRange.start, dateRange.end]);
+        // Use query() instead of execute() to avoid prepared statement issues
+        const [rows] = await this.pool.query(query, [dateRange.start, dateRange.end]);
         
         // Add headers
         worksheet.columns = [
@@ -954,7 +957,8 @@ class BackupSystem {
             ORDER BY a.tanggal DESC, s.nama ASC
         `;
         
-        const [rows] = await this.pool.execute(query, [startDate, endDate]);
+        // Use query() instead of execute() to avoid prepared statement issues
+        const [rows] = await this.pool.query(query, [startDate, endDate]);
         
         // Add headers
         worksheet.columns = [
@@ -1006,7 +1010,8 @@ class BackupSystem {
             ORDER BY a.tanggal DESC, a.jam_ke ASC
         `;
         
-        const [rows] = await this.pool.execute(query, [startDate, endDate]);
+        // Use query() instead of execute() to avoid prepared statement issues
+        const [rows] = await this.pool.query(query, [startDate, endDate]);
         
         // Add headers
         worksheet.columns = [
@@ -1060,7 +1065,8 @@ class BackupSystem {
             ORDER BY p.tanggal_pengajuan DESC
         `;
         
-        const [rows] = await this.pool.execute(query, [startDate, endDate]);
+        // Use query() instead of execute() to avoid prepared statement issues
+        const [rows] = await this.pool.query(query, [startDate, endDate]);
         
         // Add headers
         worksheet.columns = [
