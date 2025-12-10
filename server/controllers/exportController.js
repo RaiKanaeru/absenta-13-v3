@@ -1187,14 +1187,120 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
 };
 
 // ================================================
+// LARGE EXPORTS - Complex monthly breakdown
+// ================================================
+
+/**
+ * Export rekap ketidakhadiran siswa
+ * GET /api/export/rekap-ketidakhadiran-siswa
+ */
+export const exportRekapKetidakhadiranSiswa = async (req, res) => {
+    try {
+        const { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
+        console.log('📊 Exporting rekap ketidakhadiran siswa:', { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir });
+
+        // Get class name
+        const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+        const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
+
+        // Get students
+        const [studentsRows] = await global.dbPool.execute(
+            'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin, s.kelas_id FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
+            [kelas_id]
+        );
+
+        // Import modules
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const rekapSiswaSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-siswa.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
+
+        // Determine report period
+        let reportPeriod;
+        if (tanggal_awal && tanggal_akhir) reportPeriod = `${tanggal_awal} - ${tanggal_akhir}`;
+        else if (bulan) reportPeriod = `${bulan} ${tahun}`;
+        else reportPeriod = `Tahun ${tahun}`;
+
+        if (studentsRows.length === 0) {
+            const workbook = await buildExcel({
+                title: rekapSiswaSchema.default.title, subtitle: rekapSiswaSchema.default.subtitle,
+                reportPeriod, letterhead, columns: rekapSiswaSchema.default.columns, rows: []
+            });
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="Rekap_Ketidakhadiran_Siswa_${kelasName}_${tahun}.xlsx"`);
+            await workbook.xlsx.write(res);
+            res.end();
+            return;
+        }
+
+        // Get presensi data
+        let presensiData = [];
+        const baseQuery = `
+            SELECT a.siswa_id, MONTH(a.tanggal) as bulan, YEAR(a.tanggal) as tahun,
+                COUNT(CASE WHEN a.status IN ('Sakit', 'Alpa', 'Izin') THEN 1 END) as total_ketidakhadiran,
+                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as total_kehadiran,
+                COUNT(*) as total_hari_efektif
+            FROM absensi_siswa a INNER JOIN siswa s ON a.siswa_id = s.id_siswa WHERE s.kelas_id = ?
+        `;
+
+        if (tanggal_awal && tanggal_akhir) {
+            const [rows] = await global.dbPool.execute(baseQuery + ` AND a.tanggal BETWEEN ? AND ? GROUP BY a.siswa_id, MONTH(a.tanggal), YEAR(a.tanggal)`, [kelas_id, tanggal_awal, tanggal_akhir]);
+            presensiData = rows;
+        } else if (bulan) {
+            const [rows] = await global.dbPool.execute(baseQuery + ` AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) = ? GROUP BY a.siswa_id, MONTH(a.tanggal), YEAR(a.tanggal)`, [kelas_id, tahun, bulan]);
+            presensiData = rows;
+        } else {
+            const [rows] = await global.dbPool.execute(baseQuery + ` AND YEAR(a.tanggal) = ? GROUP BY a.siswa_id, MONTH(a.tanggal), YEAR(a.tanggal)`, [kelas_id, tahun]);
+            presensiData = rows;
+        }
+
+        // Prepare export data
+        const exportData = studentsRows.map(student => {
+            const studentPresensi = presensiData.filter(p => p.siswa_id === student.id);
+            const totalKetidakhadiran = studentPresensi.reduce((sum, p) => sum + p.total_ketidakhadiran, 0);
+            const totalHariEfektif = studentPresensi.reduce((sum, p) => sum + p.total_hari_efektif, 0);
+            const persentaseKetidakhadiran = totalHariEfektif > 0 ? ((totalKetidakhadiran / totalHariEfektif) * 100).toFixed(2) : '0.00';
+
+            const monthlyData = { jul: 0, agt: 0, sep: 0, okt: 0, nov: 0, des: 0, jan: 0, feb: 0, mar: 0, apr: 0, mei: 0, jun: 0 };
+            const monthMap = { 7: 'jul', 8: 'agt', 9: 'sep', 10: 'okt', 11: 'nov', 12: 'des', 1: 'jan', 2: 'feb', 3: 'mar', 4: 'apr', 5: 'mei', 6: 'jun' };
+            studentPresensi.forEach(p => { if (monthMap[p.bulan]) monthlyData[monthMap[p.bulan]] = p.total_ketidakhadiran; });
+
+            return { nis: student.nis, nama: student.nama, jenis_kelamin: student.jenis_kelamin, ...monthlyData, total_ketidakhadiran: totalKetidakhadiran, persentase_ketidakhadiran: parseFloat(persentaseKetidakhadiran) / 100 };
+        });
+
+        // Create schema and data based on mode
+        let schema = rekapSiswaSchema.default;
+        let reportData = exportData.map((row, index) => ({ no: index + 1, ...row }));
+
+        const workbook = await buildExcel({
+            title: schema.title, subtitle: schema.subtitle, reportPeriod, letterhead, columns: schema.columns, rows: reportData
+        });
+
+        let filename = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${tahun}`;
+        if (tanggal_awal && tanggal_akhir) filename = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${tanggal_awal}_${tanggal_akhir}`;
+        else if (bulan) filename = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${tahun}_${bulan}`;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Rekap ketidakhadiran siswa exported: ${exportData.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting rekap ketidakhadiran siswa:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// ================================================
 // REMAINING EXPORTS - To be migrated
 // ================================================
-// - exportRekapKetidakhadiranSiswa
 // - exportPresensiSiswa
 // - exportAdminAttendance
 // - exportJadwalMatrix
 // - exportJadwalGrid
 // - exportJadwalPrint
+
 
 
 
