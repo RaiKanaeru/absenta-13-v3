@@ -24,7 +24,7 @@ services:
   # APPLICATION - Node.js Backend (port 3001)
   # ===========================================
   app:
-    build: .
+    image: raikanaeru/absenta13:latest
     container_name: absenta13-app
     restart: unless-stopped
     ports:
