@@ -246,8 +246,70 @@ export const exportStudentSummary = async (req, res) => {
  * GET /api/export/teacher-summary
  */
 export const exportTeacherSummary = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 8862
-    res.status(501).json({ error: 'Export teacher summary - implementation pending migration' });
+    try {
+        const { startDate, endDate } = req.query;
+        console.log('👨‍🏫 Exporting teacher summary...');
+
+        const [teachers] = await global.dbPool.execute(`
+            SELECT 
+                g.nama,
+                g.nip,
+                COALESCE(SUM(CASE WHEN kg.status = 'hadir' THEN 1 ELSE 0 END), 0) as H,
+                COALESCE(SUM(CASE WHEN kg.status = 'izin' THEN 1 ELSE 0 END), 0) as I,
+                COALESCE(SUM(CASE WHEN kg.status = 'sakit' THEN 1 ELSE 0 END), 0) as S,
+                COALESCE(SUM(CASE WHEN kg.status = 'alpa' THEN 1 ELSE 0 END), 0) as A,
+                COALESCE(SUM(CASE WHEN kg.status = 'hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id), 0), 0) as presentase
+            FROM guru g
+            LEFT JOIN kehadiran_guru kg ON g.id_guru = kg.guru_id 
+                AND kg.tanggal BETWEEN ? AND ?
+            WHERE g.status = 'aktif'
+            GROUP BY g.id_guru, g.nama, g.nip
+            ORDER BY g.nama
+        `, [startDate, endDate]);
+
+        // Import required modules
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const teacherSummarySchema = await import('../../backend/export/schemas/teacher-summary.js');
+
+        // Load letterhead configuration
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
+
+        // Prepare data for Excel
+        const reportData = teachers.map((row, index) => ({
+            no: index + 1,
+            nama: row.nama,
+            nip: row.nip,
+            hadir: row.H,
+            izin: row.I,
+            sakit: row.S,
+            alpa: row.A,
+            presentase: row.presentase / 100
+        }));
+
+        const reportPeriod = `${startDate} - ${endDate}`;
+
+        // Generate Excel workbook
+        const workbook = await buildExcel({
+            title: teacherSummarySchema.default.title,
+            subtitle: teacherSummarySchema.default.subtitle,
+            reportPeriod: reportPeriod,
+            letterhead: letterhead,
+            columns: teacherSummarySchema.default.columns,
+            rows: reportData
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Guru_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Teacher summary exported successfully: ${teachers.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting teacher summary:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 };
 
 /**
@@ -255,8 +317,109 @@ export const exportTeacherSummary = async (req, res) => {
  * GET /api/export/banding-absen
  */
 export const exportBandingAbsen = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 8931
-    res.status(501).json({ error: 'Export banding absen - implementation pending migration' });
+    try {
+        const { startDate, endDate, kelas_id, status } = req.query;
+        console.log('📋 Exporting banding absen...');
+
+        const { formatWIBDate } = await import('../utils/timeUtils.js');
+
+        let query = `
+            SELECT 
+                pba.id_banding,
+                DATE_FORMAT(pba.tanggal_pengajuan, '%Y-%m-%d') as tanggal_pengajuan,
+                DATE_FORMAT(pba.tanggal_absen, '%Y-%m-%d') as tanggal_absen,
+                s.nama as nama_pengaju,
+                COALESCE(k.nama_kelas, '-') as nama_kelas,
+                COALESCE(m.nama_mapel, 'Umum') as nama_mapel,
+                COALESCE(g.nama, 'Belum Ditentukan') as nama_guru,
+                COALESCE(j.jam_mulai, '00:00') as jam_mulai,
+                COALESCE(j.jam_selesai, '00:00') as jam_selesai,
+                COALESCE(CONCAT(j.jam_mulai, ' - ', j.jam_selesai), '-') as jadwal,
+                pba.status_asli,
+                pba.status_diajukan,
+                pba.alasan_banding,
+                pba.status_banding,
+                COALESCE(pba.catatan_guru, '-') as catatan_guru,
+                COALESCE(DATE_FORMAT(pba.tanggal_keputusan, '%Y-%m-%d %H:%i'), '-') as tanggal_keputusan,
+                COALESCE(guru_proses.nama, 'Belum Diproses') as diproses_oleh,
+                pba.jenis_banding
+            FROM pengajuan_banding_absen pba
+            JOIN siswa s ON pba.siswa_id = s.id_siswa
+            LEFT JOIN kelas k ON s.kelas_id = k.id_kelas OR pba.kelas_id = k.id_kelas
+            LEFT JOIN jadwal j ON pba.jadwal_id = j.id_jadwal
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN guru guru_proses ON pba.diproses_oleh = guru_proses.id_guru
+            WHERE DATE(pba.tanggal_pengajuan) BETWEEN ? AND ?
+        `;
+
+        const params = [startDate, endDate];
+
+        if (kelas_id && kelas_id !== 'all') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+
+        if (status && status !== 'all') {
+            query += ' AND pba.status_banding = ?';
+            params.push(status);
+        }
+
+        query += ' ORDER BY pba.tanggal_pengajuan DESC';
+
+        const [bandingData] = await global.dbPool.execute(query, params);
+
+        // Import required modules
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const bandingAbsenSchema = await import('../../backend/export/schemas/banding-absen.js');
+
+        // Load letterhead configuration
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
+
+        // Prepare data for Excel
+        const reportData = bandingData.map((row, index) => ({
+            no: index + 1,
+            tanggal_pengajuan: row.tanggal_pengajuan,
+            tanggal_absen: row.tanggal_absen,
+            pengaju: row.nama_pengaju,
+            kelas: row.nama_kelas,
+            mata_pelajaran: row.nama_mapel,
+            guru: row.nama_guru,
+            jadwal: row.jadwal,
+            status_asli: row.status_asli,
+            status_diajukan: row.status_diajukan,
+            status_banding: row.status_banding,
+            jenis_banding: row.jenis_banding,
+            alasan_banding: row.alasan_banding,
+            catatan_guru: row.catatan_guru,
+            tanggal_keputusan: row.tanggal_keputusan,
+            diproses_oleh: row.diproses_oleh
+        }));
+
+        const reportPeriod = `${formatWIBDate(new Date(startDate))} - ${formatWIBDate(new Date(endDate))}`;
+
+        // Generate Excel workbook
+        const workbook = await buildExcel({
+            title: bandingAbsenSchema.default.title,
+            subtitle: bandingAbsenSchema.default.subtitle,
+            reportPeriod: reportPeriod,
+            letterhead: letterhead,
+            columns: bandingAbsenSchema.default.columns,
+            rows: reportData
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Banding_Absen_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Banding absen exported successfully: ${bandingData.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting banding absen:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 };
 
 /**
