@@ -58,11 +58,15 @@ router.get('/rekap-ketidakhadiran-siswa', authenticateToken, requireRole(['admin
 router.get('/presensi-siswa', authenticateToken, requireRole(['admin']), exportController.exportPresensiSiswa);
 
 // ================================================
-// PENDING MIGRATION - Admin routes in server_modern.js
+// ADMIN EXPORT ROUTES
 // ================================================
-// - /admin/attendance
-// - /admin/jadwal-matrix
-// - /admin/jadwal-grid
-// - /admin/jadwal-print
+router.get('/admin/attendance', authenticateToken, requireRole(['admin']), exportController.exportAdminAttendance);
+
+// ================================================
+// PENDING MIGRATION - Large jadwal exports
+// ================================================
+// - /admin/jadwal-matrix (~310 lines)
+// - /admin/jadwal-grid (~270 lines)
+// - /admin/jadwal-print (~200+ lines)
 
 export default router;

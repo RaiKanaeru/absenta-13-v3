@@ -14080,45 +14080,7 @@ app.post('/api/admin/run-custom-schedule/:id', authenticateToken, requireRole(['
 });
 
 
-// Export attendance data as CSV
-app.get('/api/admin/export/attendance', authenticateToken, requireRole(['admin']), async (req, res) => {
-    try {
-        console.log('📊 Exporting attendance data...');
-
-        const query = `
-            SELECT 
-                DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal,
-                s.nama as nama_siswa,
-                s.nis,
-                k.nama_kelas,
-                a.status,
-                COALESCE(a.keterangan, '-') as keterangan,
-                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen
-            FROM absensi_siswa a
-            JOIN siswa s ON a.siswa_id = s.id_siswa
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            ORDER BY a.tanggal DESC, k.nama_kelas, s.nama
-        `;
-
-        const [rows] = await global.dbPool.execute(query);
-
-        let csvContent = '\uFEFF'; // UTF-8 BOM
-        csvContent += 'Tanggal,Nama Siswa,NIS,Kelas,Status,Keterangan,Waktu Absen\n';
-
-        rows.forEach(row => {
-            csvContent += `"${row.tanggal}","${row.nama_siswa}","${row.nis}","${row.nama_kelas}","${row.status}","${row.keterangan}","${row.waktu_absen}"\n`;
-        });
-
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', 'attachment; filename="data-kehadiran-siswa.csv"');
-        res.send(csvContent);
-
-        console.log(`✅ Attendance data exported successfully: ${rows.length} records`);
-    } catch (error) {
-        console.error('❌ Error exporting attendance data:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
+// NOTE: exportAdminAttendance MIGRATED to exportController.js
 
 // Export Jadwal Pelajaran - Matrix Format
 app.get('/api/admin/export/jadwal-matrix', authenticateToken, requireRole(['admin']), async (req, res) => {
