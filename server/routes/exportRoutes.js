@@ -48,10 +48,12 @@ router.get('/rekap-ketidakhadiran', authenticateToken, requireRole(['guru', 'adm
 // Ringkasan kehadiran siswa SMKN13
 router.get('/ringkasan-kehadiran-siswa-smkn13', authenticateToken, requireRole(['guru', 'admin']), exportController.exportRingkasanKehadiranSiswaSmkn13);
 
+// Rekap ketidakhadiran guru SMKN13
+router.get('/rekap-ketidakhadiran-guru-smkn13', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranGuruSmkn13);
+
 // ================================================
 // PENDING MIGRATION - Routes still in server_modern.js
 // ================================================
-// - /rekap-ketidakhadiran-guru-smkn13
 // - /rekap-ketidakhadiran-siswa
 // - /presensi-siswa
 // - /admin/attendance

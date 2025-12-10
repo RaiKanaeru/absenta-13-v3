@@ -1081,15 +1081,121 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
 };
 
 // ================================================
+// MORE EXPORTS
+// ================================================
+
+/**
+ * Export rekap ketidakhadiran guru SMKN13
+ * GET /api/export/rekap-ketidakhadiran-guru-smkn13
+ */
+export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
+    try {
+        const { tahun } = req.query;
+        console.log('📊 Exporting rekap ketidakhadiran guru SMKN 13:', { tahun });
+
+        if (!tahun) {
+            return res.status(400).json({ error: 'Tahun harus diisi' });
+        }
+
+        const query = `
+            SELECT 
+                g.id_guru as id, g.nama, g.nip,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
+                COALESCE(SUM(CASE WHEN a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as total_ketidakhadiran
+            FROM guru g
+            LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
+                AND YEAR(a.tanggal) = ? 
+                AND a.status = 'Tidak Hadir'
+            GROUP BY g.id_guru, g.nama, g.nip
+            ORDER BY g.nama
+        `;
+
+        const [rows] = await global.dbPool.execute(query, [tahun]);
+
+        // Calculate percentages
+        const hariEfektifPerBulan = { 7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17, 1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20 };
+        const dataWithPercentage = rows.map(row => {
+            const totalKetidakhadiran = row.total_ketidakhadiran;
+            let totalHariEfektif = 0;
+            const bulanData = [row.jul, row.agt, row.sep, row.okt, row.nov, row.des, row.jan, row.feb, row.mar, row.apr, row.mei, row.jun];
+            const bulanKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+
+            bulanKeys.forEach((bulan, index) => {
+                if (bulanData[index] > 0) totalHariEfektif += hariEfektifPerBulan[bulan];
+            });
+
+            if (totalHariEfektif === 0) {
+                totalHariEfektif = Object.values(hariEfektifPerBulan).reduce((sum, hari) => sum + hari, 0);
+            }
+            const persentaseKetidakhadiran = totalHariEfektif > 0 ? (totalKetidakhadiran / totalHariEfektif) * 100 : 0;
+            const persentaseKehadiran = 100 - persentaseKetidakhadiran;
+
+            return {
+                ...row,
+                persentase_ketidakhadiran: parseFloat(persentaseKetidakhadiran.toFixed(2)),
+                persentase_kehadiran: parseFloat(persentaseKehadiran.toFixed(2))
+            };
+        });
+
+        // Import required modules
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
+
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
+
+        const reportData = dataWithPercentage.map((row, index) => ({
+            no: index + 1, nama: row.nama, nip: row.nip,
+            jul: row.jul, agt: row.agt, sep: row.sep, okt: row.okt, nov: row.nov, des: row.des,
+            jan: row.jan, feb: row.feb, mar: row.mar, apr: row.apr, mei: row.mei, jun: row.jun,
+            total_ketidakhadiran: row.total_ketidakhadiran,
+            persentase_ketidakhadiran: row.persentase_ketidakhadiran / 100,
+            persentase_kehadiran: row.persentase_kehadiran / 100
+        }));
+
+        const workbook = await buildExcel({
+            title: rekapGuruSchema.default.title,
+            subtitle: rekapGuruSchema.default.subtitle,
+            reportPeriod: `Tahun ${tahun}`,
+            letterhead: letterhead,
+            columns: rekapGuruSchema.default.columns,
+            rows: reportData
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Rekap ketidakhadiran guru SMKN13 exported: ${dataWithPercentage.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting rekap ketidakhadiran guru SMKN13:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// ================================================
 // REMAINING EXPORTS - To be migrated
 // ================================================
-// - exportRekapKetidakhadiranGuruSmkn13
 // - exportRekapKetidakhadiranSiswa
 // - exportPresensiSiswa
 // - exportAdminAttendance
 // - exportJadwalMatrix
 // - exportJadwalGrid
 // - exportJadwalPrint
+
 
 
 
