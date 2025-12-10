@@ -40,6 +40,7 @@ import kelasRoutes from './server/routes/kelasRoutes.js';
 import jadwalRoutes from './server/routes/jadwalRoutes.js';
 import ruangRoutes from './server/routes/ruangRoutes.js';
 import absensiRoutes from './server/routes/absensiRoutes.js';
+import exportRoutes from './server/routes/exportRoutes.js';
 import { 
     getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
     getWIBTimestamp, getMySQLDateWIB, getMySQLDateTimeWIB, 
@@ -1460,6 +1461,9 @@ app.use('/api/admin/ruang', ruangRoutes);
 // ABSENSI CRUD (Modularized)
 app.use('/api/attendance', absensiRoutes); // Attendance submit endpoints
 app.use('/api', absensiRoutes); // Schedule and siswa endpoints (uses /schedule/:id/... and /siswa/...)
+
+// EXPORT ROUTES (Modularized)
+app.use('/api/export', exportRoutes); // All export endpoints
 
 // ================================================
 // TEMPLATE ENDPOINTS - Download Excel Templates
