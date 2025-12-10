@@ -822,9 +822,158 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
 };
 
 // ================================================
+// MORE EXPORTS - Using excelLetterhead utility
+// ================================================
+
+/**
+ * Export rekap ketidakhadiran
+ * GET /api/export/rekap-ketidakhadiran
+ */
+export const exportRekapKetidakhadiran = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id, reportType } = req.query;
+        const guruId = req.user.guru_id;
+
+        console.log('📊 Exporting rekap ketidakhadiran:', { startDate, endDate, kelas_id, reportType, guruId });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+        }
+
+        let query;
+        let params;
+
+        if (reportType === 'bulanan') {
+            query = `
+                SELECT 
+                    DATE_FORMAT(a.tanggal, '%Y-%m') as periode,
+                    k.nama_kelas,
+                    COUNT(DISTINCT s.id_siswa) as total_siswa,
+                    COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
+                    COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
+                FROM absensi_siswa a
+                JOIN siswa s ON a.siswa_id = s.id_siswa
+                JOIN kelas k ON s.kelas_id = k.id_kelas
+                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                WHERE a.tanggal BETWEEN ? AND ?
+                    AND j.guru_id = ?
+            `;
+            params = [startDate, endDate, guruId];
+
+            if (kelas_id && kelas_id !== 'all') {
+                query += ` AND s.kelas_id = ?`;
+                params.push(kelas_id);
+            }
+
+            query += ` GROUP BY DATE_FORMAT(a.tanggal, '%Y-%m'), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
+        } else {
+            query = `
+                SELECT 
+                    YEAR(a.tanggal) as periode,
+                    k.nama_kelas,
+                    COUNT(DISTINCT s.id_siswa) as total_siswa,
+                    COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
+                    COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
+                FROM absensi_siswa a
+                JOIN siswa s ON a.siswa_id = s.id_siswa
+                JOIN kelas k ON s.kelas_id = k.id_kelas
+                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                WHERE a.tanggal BETWEEN ? AND ?
+                    AND j.guru_id = ?
+            `;
+            params = [startDate, endDate, guruId];
+
+            if (kelas_id && kelas_id !== 'all') {
+                query += ` AND s.kelas_id = ?`;
+                params.push(kelas_id);
+            }
+
+            query += ` GROUP BY YEAR(a.tanggal), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
+        }
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        // Get class name
+        let className = 'Semua Kelas';
+        if (kelas_id && kelas_id !== 'all') {
+            const [kelasRows] = await global.dbPool.execute(
+                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+                [kelas_id]
+            );
+            if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
+        }
+
+        // Load letterhead
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
+
+        // Create Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN');
+
+        // Add letterhead
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, 12);
+
+        // Add title
+        currentRow = addReportTitle(
+            worksheet,
+            `REKAP KETIDAKHADIRAN ${reportType === 'bulanan' ? 'BULANAN' : 'TAHUNAN'}`,
+            `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`,
+            currentRow,
+            12
+        );
+
+        // Headers
+        const headers = ['NO', 'PERIODE', 'KELAS', 'TOTAL SISWA', 'HADIR', 'IZIN', 'SAKIT', 'ALPA', 'DISPEN', 'TOTAL ABSEN', '% HADIR', '% ABSEN'];
+        addHeaders(worksheet, headers, currentRow);
+        currentRow++;
+
+        // Data rows
+        rows.forEach((item, index) => {
+            const row = currentRow + index;
+            const totalSiswa = item.total_siswa || 0;
+            const hadir = item.hadir || 0;
+            const totalAbsen = (item.izin || 0) + (item.sakit || 0) + (item.alpa || 0) + (item.dispen || 0);
+            const presentaseHadir = totalSiswa > 0 ? ((hadir / totalSiswa) * 100).toFixed(1) : '0.0';
+            const presentaseAbsen = totalSiswa > 0 ? ((totalAbsen / totalSiswa) * 100).toFixed(1) : '0.0';
+
+            worksheet.getCell(row, 1).value = index + 1;
+            worksheet.getCell(row, 2).value = item.periode;
+            worksheet.getCell(row, 3).value = item.nama_kelas;
+            worksheet.getCell(row, 4).value = totalSiswa;
+            worksheet.getCell(row, 5).value = hadir;
+            worksheet.getCell(row, 6).value = item.izin || 0;
+            worksheet.getCell(row, 7).value = item.sakit || 0;
+            worksheet.getCell(row, 8).value = item.alpa || 0;
+            worksheet.getCell(row, 9).value = item.dispen || 0;
+            worksheet.getCell(row, 10).value = totalAbsen;
+            worksheet.getCell(row, 11).value = `${presentaseHadir}%`;
+            worksheet.getCell(row, 12).value = `${presentaseAbsen}%`;
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="rekap-ketidakhadiran-${reportType}-${startDate}-${endDate}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Rekap ketidakhadiran exported: ${rows.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting rekap ketidakhadiran:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// ================================================
 // REMAINING EXPORTS - To be migrated
 // ================================================
-// - exportRekapKetidakhadiran
 // - exportRingkasanKehadiranSiswaSmkn13
 // - exportRekapKetidakhadiranGuruSmkn13
 // - exportRekapKetidakhadiranSiswa
@@ -833,6 +982,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
 // - exportJadwalMatrix
 // - exportJadwalGrid
 // - exportJadwalPrint
+
 
 
 

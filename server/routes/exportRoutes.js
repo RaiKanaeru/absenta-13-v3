@@ -42,6 +42,9 @@ router.get('/riwayat-banding-absen', authenticateToken, requireRole(['guru', 'ad
 // Presensi siswa SMKN13 format
 router.get('/presensi-siswa-smkn13', authenticateToken, requireRole(['guru', 'admin']), exportController.exportPresensiSiswaSmkn13);
 
+// Rekap ketidakhadiran export
+router.get('/rekap-ketidakhadiran', authenticateToken, requireRole(['guru', 'admin']), exportController.exportRekapKetidakhadiran);
+
 // ================================================
 // PENDING MIGRATION - Routes still in server_modern.js
 // ================================================
