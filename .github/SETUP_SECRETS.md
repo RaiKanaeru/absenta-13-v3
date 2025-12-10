@@ -1,36 +1,36 @@
-# 🔄 Panduan Setup Deployment (Fresh Start - PEM Format)
+# � Manual Deploy Guide (Zero Trust Network)
 
-Error `ssh: no key found` terjadi karena format key terlalu baru. Kita harus pakai format **Legacy (PEM)**.
+Server ini menggunakan Zero Trust Network, jadi auto-deploy via SSH tidak tersedia.
 
-## 1️⃣ Di Server (Terminal)
-Jalankan perintah ini (Copy-Paste semua):
+## Setelah Push ke GitHub
+
+Setiap kali Anda push code ke `main`, GitHub Actions akan:
+1. ✅ Build Docker image
+2. ✅ Push ke Docker Hub (`raikanaeru/absenta13:latest`)
+
+## Deploy Manual ke Server
+
+SSH ke server Anda, lalu jalankan:
 
 ```bash
-# 1. Hapus kunci lama yang bermasalah
-rm -f ~/.ssh/github_actions*
-
-# 2. Generate Key Baru dengan Format PEM (PENTING: -m PEM)
-ssh-keygen -t rsa -b 4096 -m PEM -f ~/.ssh/github_actions -N ""
-
-# 3. Pasang Key ke Authorized Keys
-cat ~/.ssh/github_actions.pub >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-chmod 700 ~/.ssh
-
-# 4. Tampilkan Private Key (COPY KODE INI)
-cat ~/.ssh/github_actions
+cd /www/wwwroot/absenta13.my.id
+docker-compose pull
+docker-compose down && docker-compose up -d
 ```
 
-> ⚠️ **CEK FORMATNYA:**
-> Hasilnya HARUS diawali: `-----BEGIN RSA PRIVATE KEY-----`
-> (Jika diawali `-----BEGIN OPENSSH...` berarti SALAH, ulangi langkah 2 pakai `-m PEM`)
+## Verifikasi Deployment
+
+```bash
+# Cek container running
+docker ps
+
+# Cek logs aplikasi
+docker logs absenta13-app --tail 50
+
+# Test endpoint
+curl http://localhost:3001/api/health
+```
 
 ---
 
-## 2️⃣ Di GitHub (Settings)
-Update Secret `SSH_PRIVATE_KEY` dengan isi yang baru tadi (`-----BEGIN RSA...`).
-
----
-
-## 3️⃣ Trigger Deploy
-Re-run job actions. Pasti berhasil! 🚀
+> 💡 **Tip:** Bookmark perintah deploy di atas. Jalankan setiap kali ada update code.
