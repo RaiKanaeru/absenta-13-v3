@@ -862,17 +862,18 @@ class BackupSystem {
                 s.nis,
                 s.nama as nama_siswa,
                 k.nama_kelas,
-                p.tanggal_izin,
-                p.alasan,
-                p.status,
-                p.keterangan_guru,
-                p.tanggal_respon,
+                p.tanggal_absen,
+                p.status_asli,
+                p.status_diajukan,
+                p.alasan_banding as alasan,
+                p.status_banding as status,
+                p.catatan_guru as keterangan_guru,
+                p.tanggal_keputusan as tanggal_respon,
                 g.nama as nama_guru_approve
             FROM pengajuan_banding_absen p
-            -- Note: banding_absen_detail table is deprecated and excluded from backups
             JOIN siswa s ON p.siswa_id = s.id_siswa
             JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN guru g ON p.guru_id = g.id_guru
+            LEFT JOIN guru g ON p.diproses_oleh = g.id_guru
             WHERE p.tanggal_pengajuan BETWEEN ? AND ?
             ORDER BY p.tanggal_pengajuan DESC
         `;
@@ -885,12 +886,14 @@ class BackupSystem {
             { header: 'NIS', key: 'nis', width: 15 },
             { header: 'Nama Siswa', key: 'nama_siswa', width: 25 },
             { header: 'Kelas', key: 'nama_kelas', width: 15 },
-            { header: 'Tanggal Izin', key: 'tanggal_izin', width: 15 },
+            { header: 'Tanggal Absen', key: 'tanggal_absen', width: 15 },
+            { header: 'Status Asli', key: 'status_asli', width: 12 },
+            { header: 'Status Diajukan', key: 'status_diajukan', width: 12 },
             { header: 'Alasan', key: 'alasan', width: 30 },
-            { header: 'Status', key: 'status', width: 12 },
-            { header: 'Keterangan Guru', key: 'keterangan_guru', width: 30 },
-            { header: 'Tanggal Respon', key: 'tanggal_respon', width: 15 },
-            { header: 'Guru Approve', key: 'nama_guru_approve', width: 20 }
+            { header: 'Status Banding', key: 'status', width: 12 },
+            { header: 'Catatan Guru', key: 'keterangan_guru', width: 30 },
+            { header: 'Tanggal Keputusan', key: 'tanggal_respon', width: 15 },
+            { header: 'Diproses Oleh', key: 'nama_guru_approve', width: 20 }
         ];
         
         // Add data
@@ -1019,17 +1022,18 @@ class BackupSystem {
                 s.nis,
                 s.nama as nama_siswa,
                 k.nama_kelas,
-                p.tanggal_izin,
-                p.alasan,
-                p.status,
-                p.keterangan_guru,
-                p.tanggal_respon,
+                p.tanggal_absen,
+                p.status_asli,
+                p.status_diajukan,
+                p.alasan_banding as alasan,
+                p.status_banding as status,
+                p.catatan_guru as keterangan_guru,
+                p.tanggal_keputusan as tanggal_respon,
                 g.nama as nama_guru_approve
             FROM pengajuan_banding_absen p
-            -- Note: banding_absen_detail table is deprecated and excluded from backups
             JOIN siswa s ON p.siswa_id = s.id_siswa
             JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN guru g ON p.guru_id = g.id_guru
+            LEFT JOIN guru g ON p.diproses_oleh = g.id_guru
             WHERE p.tanggal_pengajuan BETWEEN ? AND ?
             ORDER BY p.tanggal_pengajuan DESC
         `;
@@ -1042,12 +1046,14 @@ class BackupSystem {
             { header: 'NIS', key: 'nis', width: 15 },
             { header: 'Nama Siswa', key: 'nama_siswa', width: 25 },
             { header: 'Kelas', key: 'nama_kelas', width: 15 },
-            { header: 'Tanggal Izin', key: 'tanggal_izin', width: 15 },
+            { header: 'Tanggal Absen', key: 'tanggal_absen', width: 15 },
+            { header: 'Status Asli', key: 'status_asli', width: 12 },
+            { header: 'Status Diajukan', key: 'status_diajukan', width: 12 },
             { header: 'Alasan', key: 'alasan', width: 30 },
-            { header: 'Status', key: 'status', width: 12 },
-            { header: 'Keterangan Guru', key: 'keterangan_guru', width: 30 },
-            { header: 'Tanggal Respon', key: 'tanggal_respon', width: 15 },
-            { header: 'Guru Approve', key: 'nama_guru_approve', width: 20 }
+            { header: 'Status Banding', key: 'status', width: 12 },
+            { header: 'Catatan Guru', key: 'keterangan_guru', width: 30 },
+            { header: 'Tanggal Keputusan', key: 'tanggal_respon', width: 15 },
+            { header: 'Diproses Oleh', key: 'nama_guru_approve', width: 20 }
         ];
         
         // Add data
