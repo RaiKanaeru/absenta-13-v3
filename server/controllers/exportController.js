@@ -551,19 +551,143 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 };
 
 // ================================================
-// PENDING MIGRATION - Functions defined but not yet implemented
-// These endpoints are still handled inline in server_modern.js
+// GURU & ADMIN EXPORTS - Using excelLetterhead utility
 // ================================================
-// Export the following as placeholders for future migration:
-// - exportRekapKetidakhadiranGuruSmkn13
-// - exportRekapKetidakhadiranSiswa
-// - exportPresensiSiswa
-// - exportRiwayatBandingAbsen
+
+import { addLetterheadToWorksheet, addReportTitle, addHeaders } from '../utils/excelLetterhead.js';
+
+/**
+ * Export riwayat banding absen
+ * GET /api/export/riwayat-banding-absen
+ */
+export const exportRiwayatBandingAbsen = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id, status } = req.query;
+        const guruId = req.user.guru_id;
+
+        console.log('📊 Exporting riwayat banding absen:', { startDate, endDate, kelas_id, status, guruId });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+        }
+
+        let query = `
+            SELECT 
+                ba.id,
+                DATE_FORMAT(ba.tanggal_pengajuan, '%Y-%m-%d') as tanggal_pengajuan,
+                DATE_FORMAT(ba.tanggal_absen, '%Y-%m-%d') as tanggal_absen,
+                ba.status_absen,
+                ba.alasan_banding,
+                ba.status,
+                DATE_FORMAT(ba.tanggal_disetujui, '%Y-%m-%d') as tanggal_disetujui,
+                ba.catatan,
+                s.nama as nama_siswa,
+                s.nis,
+                k.nama_kelas
+            FROM pengajuan_banding_absen ba
+            JOIN siswa s ON ba.siswa_id = s.id_siswa
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            WHERE ba.tanggal_pengajuan BETWEEN ? AND ?
+                AND ba.guru_id = ?
+        `;
+
+        const params = [startDate, endDate, guruId];
+
+        if (kelas_id && kelas_id !== 'all') {
+            query += ` AND s.kelas_id = ?`;
+            params.push(kelas_id);
+        }
+
+        if (status && status !== 'all') {
+            query += ` AND ba.status = ?`;
+            params.push(status);
+        }
+
+        query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        // Get class name for title
+        let className = 'Semua Kelas';
+        if (kelas_id && kelas_id !== 'all') {
+            const [kelasRows] = await global.dbPool.execute(
+                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+                [kelas_id]
+            );
+            if (kelasRows.length > 0) {
+                className = kelasRows[0].nama_kelas;
+            }
+        }
+
+        // Load letterhead
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
+
+        // Create Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('RIWAYAT BANDING ABSEN');
+
+        // Add letterhead
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, 11);
+
+        // Add title
+        currentRow = addReportTitle(
+            worksheet, 
+            'RIWAYAT PENGAJUAN BANDING ABSEN',
+            `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`,
+            currentRow,
+            11
+        );
+
+        // Headers
+        const headers = ['NO', 'TANGGAL', 'NAMA SISWA', 'NIS', 'KELAS', 'TANGGAL ABSEN', 'STATUS ABSEN', 'ALASAN BANDING', 'STATUS', 'TGL DISETUJUI', 'CATATAN'];
+        addHeaders(worksheet, headers, currentRow);
+        currentRow++;
+
+        // Data rows
+        rows.forEach((item, index) => {
+            const row = currentRow + index;
+            worksheet.getCell(row, 1).value = index + 1;
+            worksheet.getCell(row, 2).value = item.tanggal_pengajuan;
+            worksheet.getCell(row, 3).value = item.nama_siswa;
+            worksheet.getCell(row, 4).value = item.nis;
+            worksheet.getCell(row, 5).value = item.nama_kelas;
+            worksheet.getCell(row, 6).value = item.tanggal_absen;
+            worksheet.getCell(row, 7).value = item.status_absen;
+            worksheet.getCell(row, 8).value = item.alasan_banding;
+            worksheet.getCell(row, 9).value = item.status === 'approved' ? 'Disetujui' :
+                item.status === 'rejected' ? 'Ditolak' : 'Pending';
+            worksheet.getCell(row, 10).value = item.tanggal_disetujui || '-';
+            worksheet.getCell(row, 11).value = item.catatan || '-';
+        });
+
+        // Response
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="riwayat-banding-absen-${startDate}-${endDate}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Riwayat banding absen exported: ${rows.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting riwayat banding absen:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// ================================================
+// REMAINING EXPORTS - To be migrated
+// ================================================
 // - exportPresensiSiswaSmkn13
 // - exportRekapKetidakhadiran
 // - exportRingkasanKehadiranSiswaSmkn13
+// - exportRekapKetidakhadiranGuruSmkn13
+// - exportRekapKetidakhadiranSiswa
+// - exportPresensiSiswa
 // - exportAdminAttendance
 // - exportJadwalMatrix
 // - exportJadwalGrid
 // - exportJadwalPrint
+
 

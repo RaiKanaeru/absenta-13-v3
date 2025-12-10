@@ -4,8 +4,8 @@
  * Refactored from server_modern.js
  * 
  * MIGRATION STATUS:
- * ✅ MIGRATED (6 endpoints) - routed to exportController
- * ⏳ PENDING (11 endpoints) - still in server_modern.js
+ * ✅ MIGRATED (7 endpoints) - routed to exportController
+ * ⏳ PENDING (10 endpoints) - still in server_modern.js
  */
 
 import { Router } from 'express';
@@ -36,11 +36,12 @@ router.get('/banding-absen', authenticateToken, requireRole(['admin']), exportCo
 // Rekap ketidakhadiran guru export
 router.get('/rekap-ketidakhadiran-guru', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranGuru);
 
+// Riwayat banding absen export
+router.get('/riwayat-banding-absen', authenticateToken, requireRole(['guru', 'admin']), exportController.exportRiwayatBandingAbsen);
+
 // ================================================
-// PENDING MIGRATION - Routes defined but controller not yet implemented
-// These endpoints are still handled by server_modern.js directly
+// PENDING MIGRATION - Routes still in server_modern.js
 // ================================================
-// - /riwayat-banding-absen
 // - /presensi-siswa-smkn13
 // - /rekap-ketidakhadiran
 // - /ringkasan-kehadiran-siswa-smkn13
