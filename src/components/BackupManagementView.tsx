@@ -1579,12 +1579,20 @@ const BackupManagementView: React.FC = () => {
                                                         <span className="truncate block">{schedule.name}</span>
                                                     </TableCell>
                                                     <TableCell className="text-sm">
-                                                        {new Date(schedule.date).toLocaleDateString('id-ID', {
-                                                            weekday: 'long',
-                                                            year: 'numeric',
-                                                            month: 'long',
-                                                            day: 'numeric'
-                                                        })}
+                                                        {(() => {
+                                                            try {
+                                                                const dateObj = new Date(schedule.date + 'T00:00:00');
+                                                                if (isNaN(dateObj.getTime())) return schedule.date;
+                                                                return dateObj.toLocaleDateString('id-ID', {
+                                                                    weekday: 'long',
+                                                                    year: 'numeric',
+                                                                    month: 'long',
+                                                                    day: 'numeric'
+                                                                });
+                                                            } catch {
+                                                                return schedule.date;
+                                                            }
+                                                        })()}
                                                     </TableCell>
                                                     <TableCell className="text-sm">
                                                         {schedule.time}
@@ -1607,7 +1615,15 @@ const BackupManagementView: React.FC = () => {
                                                         }
                                                     </TableCell>
                                                     <TableCell className="text-sm">
-                                                        {new Date(schedule.created).toLocaleDateString('id-ID')}
+                                                        {(() => {
+                                                            try {
+                                                                const dateObj = new Date(schedule.created);
+                                                                if (isNaN(dateObj.getTime())) return 'N/A';
+                                                                return dateObj.toLocaleDateString('id-ID');
+                                                            } catch {
+                                                                return 'N/A';
+                                                            }
+                                                        })()}
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="flex items-center gap-1">
