@@ -45,13 +45,30 @@ class BackupSystem {
 
     /**
      * Initialize backup system
+     * @param {Object} externalPool - Optional external database pool (recommended to use global pool)
      */
-    async initialize() {
+    async initialize(externalPool = null) {
         console.log('🚀 Initializing Backup & Archive System...');
         
         try {
-            // Create connection pool
-            this.pool = mysql.createPool(this.dbConfig);
+            // Use external pool if provided, otherwise create own pool
+            if (externalPool) {
+                this.pool = externalPool;
+                console.log('📊 Using external database pool');
+            } else {
+                // Create own connection pool (fallback)
+                this.pool = mysql.createPool(this.dbConfig);
+                console.log('📊 Created own database pool');
+            }
+            
+            // Verify pool is working with a simple test query
+            try {
+                await this.pool.execute('SELECT 1 as test');
+                console.log('✅ Database pool connection verified');
+            } catch (poolError) {
+                console.error('❌ Database pool connection failed:', poolError.message);
+                throw poolError;
+            }
             
             // Create directories
             await this.createDirectories();

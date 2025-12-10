@@ -316,9 +316,9 @@ async function initializeDatabase() {
         await queryOptimizer.initialize();
         console.log('✅ Query optimizer initialized successfully');
 
-        // Initialize backup system
+        // Initialize backup system with shared database pool
         backupSystem = new BackupSystem();
-        await backupSystem.initialize();
+        await backupSystem.initialize(dbOptimization.pool);
         console.log('✅ Backup system initialized successfully');
 
         // Initialize download queue system
