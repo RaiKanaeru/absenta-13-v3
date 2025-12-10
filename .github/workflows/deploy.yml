@@ -77,6 +77,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          debug: true
           script: |
             echo "=========================================="
             echo "   🐳 ABSENTA 13 Docker Deployment"
