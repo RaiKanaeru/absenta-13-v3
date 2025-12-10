@@ -785,15 +785,16 @@ class BackupSystem {
             { header: 'Mata Pelajaran', key: 'nama_mapel', width: 20 }
         ];
         
-        // Add data
-        rows.forEach(row => {
+        // Add data (with null safety)
+        const safeRows = rows || [];
+        safeRows.forEach(row => {
             worksheet.addRow(row);
         });
         
         // Style headers
         this.styleWorksheet(worksheet, 'Student Attendance Data');
         
-        console.log(`✅ Exported ${rows.length} student attendance records`);
+        console.log(`✅ Exported ${safeRows.length} student attendance records`);
     }
 
     /**
@@ -837,15 +838,16 @@ class BackupSystem {
             { header: 'Mata Pelajaran', key: 'nama_mapel', width: 20 }
         ];
         
-        // Add data
-        rows.forEach(row => {
+        // Add data (with null safety)
+        const safeRows = rows || [];
+        safeRows.forEach(row => {
             worksheet.addRow(row);
         });
         
         // Style headers
         this.styleWorksheet(worksheet, 'Teacher Attendance Data');
         
-        console.log(`✅ Exported ${rows.length} teacher attendance records`);
+        console.log(`✅ Exported ${safeRows.length} teacher attendance records`);
     }
 
     /**
@@ -896,15 +898,16 @@ class BackupSystem {
             { header: 'Diproses Oleh', key: 'nama_guru_approve', width: 20 }
         ];
         
-        // Add data
-        rows.forEach(row => {
+        // Add data (with null safety)
+        const safeRows = rows || [];
+        safeRows.forEach(row => {
             worksheet.addRow(row);
         });
         
         // Style headers
         this.styleWorksheet(worksheet, 'Permission Requests Data');
         
-        console.log(`✅ Exported ${rows.length} permission request records`);
+        console.log(`✅ Exported ${safeRows.length} permission request records`);
     }
 
     /**
@@ -949,15 +952,16 @@ class BackupSystem {
             { header: 'Mata Pelajaran', key: 'nama_mapel', width: 20 }
         ];
         
-        // Add data
-        rows.forEach(row => {
+        // Add data (with null safety)
+        const safeRows = rows || [];
+        safeRows.forEach(row => {
             worksheet.addRow(row);
         });
         
         // Style headers
         this.styleWorksheet(worksheet, `Student Attendance Data (${startDate} to ${endDate})`);
         
-        console.log(`✅ Exported ${rows.length} date-filtered student attendance records`);
+        console.log(`✅ Exported ${safeRows.length} date-filtered student attendance records`);
     }
 
     /**
@@ -999,15 +1003,16 @@ class BackupSystem {
             { header: 'Mata Pelajaran', key: 'nama_mapel', width: 20 }
         ];
         
-        // Add data
-        rows.forEach(row => {
+        // Add data (with null safety)
+        const safeRows = rows || [];
+        safeRows.forEach(row => {
             worksheet.addRow(row);
         });
         
         // Style headers
         this.styleWorksheet(worksheet, `Teacher Attendance Data (${startDate} to ${endDate})`);
         
-        console.log(`✅ Exported ${rows.length} date-filtered teacher attendance records`);
+        console.log(`✅ Exported ${safeRows.length} date-filtered teacher attendance records`);
     }
 
     /**
@@ -1056,15 +1061,16 @@ class BackupSystem {
             { header: 'Diproses Oleh', key: 'nama_guru_approve', width: 20 }
         ];
         
-        // Add data
-        rows.forEach(row => {
+        // Add data (with null safety)
+        const safeRows = rows || [];
+        safeRows.forEach(row => {
             worksheet.addRow(row);
         });
         
         // Style headers
         this.styleWorksheet(worksheet, `Permission Requests Data (${startDate} to ${endDate})`);
         
-        console.log(`✅ Exported ${rows.length} date-filtered permission request records`);
+        console.log(`✅ Exported ${safeRows.length} date-filtered permission request records`);
     }
 
     /**
