@@ -14559,9 +14559,12 @@ app.post('/api/admin/create-semester-backup', authenticateToken, requireRole(['a
 
     } catch (error) {
         console.error('❌ Error creating semester backup:', error);
+        console.error('❌ Error stack:', error.stack);
         res.status(500).json({
             error: 'Internal server error',
-            message: error.message || 'Failed to create backup'
+            message: error.message || 'Failed to create backup',
+            details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+            backupSystemStatus: global.backupSystem ? 'initialized' : 'not initialized'
         });
     }
 });
