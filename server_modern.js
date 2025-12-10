@@ -16251,17 +16251,17 @@ app.get('/api/admin/export/jadwal-matrix', authenticateToken, requireRole(['admi
                     daySchedules.forEach((schedule) => {
                         const entry = [];
                         
-                        // Teacher name (clean, no NIP)
+                        // 1. Guru (Paling Atas - Bold di Excel idealnya, text biasa dulu)
                         const teacherName = schedule.nama_guru || 'Sistem';
                         entry.push(teacherName);
                         
-                        // Subject
+                        // 2. Mapel
                         entry.push(schedule.nama_mapel || '-');
                         
-                        // Room
+                        // 3. Ruang
                         entry.push(schedule.kode_ruang || 'TBD');
                         
-                        // Time
+                        // 4. Waktu
                         entry.push(`${schedule.jam_mulai} - ${schedule.jam_selesai}`);
                         
                         contentParts.push(entry.join('\n'));
