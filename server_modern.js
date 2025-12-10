@@ -17046,12 +17046,13 @@ app.post('/api/admin/init-letterhead', authenticateToken, requireRole(['admin'])
             });
         }
 
-        // Insert default letterhead
+        // Insert default letterhead matched with SMKN 13 Bandung
         const defaultLines = JSON.stringify([
-            { text: "PEMERINTAH DAERAH PROVINSI DKI JAKARTA", fontWeight: "bold" },
+            { text: "PEMERINTAH DAERAH PROVINSI JAWA BARAT", fontWeight: "bold" },
             { text: "DINAS PENDIDIKAN", fontWeight: "bold" },
-            { text: "SMK NEGERI 13 JAKARTA", fontWeight: "bold" },
-            { text: "Jl. Raya Bekasi Km. 18, Cakung, Jakarta Timur 13910", fontWeight: "normal" }
+            { text: "SEKOLAH MENENGAH KEJURUAN NEGERI 13 BANDUNG", fontWeight: "bold" },
+            { text: "Jl. Soekarno Hatta No. 10, Kota Bandung 40235", fontWeight: "normal" },
+            { text: "Telepon: (022) 5204095 | Email: smkn13bandung@sch.id", fontWeight: "normal" }
         ]);
 
         const query = `
