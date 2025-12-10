@@ -15263,20 +15263,31 @@ app.post('/api/admin/create-test-archive-data', authenticateToken, requireRole([
             WHERE keterangan = 'Test data for archive'
         `);
 
+        // First get a valid jadwal_id and guru_id from the database
+        const [jadwalRows] = await global.dbPool.pool.execute(`
+            SELECT id_jadwal FROM jadwal LIMIT 1
+        `);
+        const [guruRows] = await global.dbPool.pool.execute(`
+            SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1
+        `);
+        
+        const validJadwalId = jadwalRows.length > 0 ? jadwalRows[0].id_jadwal : null;
+        const validGuruId = guruRows.length > 0 ? guruRows[0].id_guru : null;
+
         // Insert test student attendance records
         const [studentResult] = await global.dbPool.pool.execute(`
             INSERT INTO absensi_siswa (siswa_id, jadwal_id, tanggal, status, keterangan, guru_id)
             SELECT 
-                s.id as siswa_id,
-                1 as jadwal_id,
+                s.id_siswa as siswa_id,
+                ? as jadwal_id,
                 ? as tanggal,
                 'Hadir' as status,
                 'Test data for archive' as keterangan,
-                1 as guru_id
+                ? as guru_id
             FROM siswa s
             WHERE s.status = 'aktif'
             LIMIT 10
-        `, [oldDateStr]);
+        `, [validJadwalId, oldDateStr, validGuruId]);
 
         // Insert test teacher attendance records (skip for now due to foreign key constraints)
         const teacherResult = { affectedRows: 0 };
