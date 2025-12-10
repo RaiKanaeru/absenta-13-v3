@@ -550,109 +550,20 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
     }
 };
 
-/**
- * Export rekap ketidakhadiran guru SMKN13 format
- * GET /api/export/rekap-ketidakhadiran-guru-smkn13
- */
-export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 10205
-    res.status(501).json({ error: 'Export rekap ketidakhadiran guru SMKN13 - implementation pending migration' });
-};
-
-/**
- * Export rekap ketidakhadiran siswa
- * GET /api/export/rekap-ketidakhadiran-siswa
- */
-export const exportRekapKetidakhadiranSiswa = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 10334
-    res.status(501).json({ error: 'Export rekap ketidakhadiran siswa - implementation pending migration' });
-};
-
-/**
- * Export presensi siswa
- * GET /api/export/presensi-siswa
- */
-export const exportPresensiSiswa = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 10676
-    res.status(501).json({ error: 'Export presensi siswa - implementation pending migration' });
-};
-
 // ================================================
-// GURU & ADMIN EXPORTS
+// PENDING MIGRATION - Functions defined but not yet implemented
+// These endpoints are still handled inline in server_modern.js
 // ================================================
+// Export the following as placeholders for future migration:
+// - exportRekapKetidakhadiranGuruSmkn13
+// - exportRekapKetidakhadiranSiswa
+// - exportPresensiSiswa
+// - exportRiwayatBandingAbsen
+// - exportPresensiSiswaSmkn13
+// - exportRekapKetidakhadiran
+// - exportRingkasanKehadiranSiswaSmkn13
+// - exportAdminAttendance
+// - exportJadwalMatrix
+// - exportJadwalGrid
+// - exportJadwalPrint
 
-/**
- * Export riwayat banding absen
- * GET /api/export/riwayat-banding-absen
- */
-export const exportRiwayatBandingAbsen = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 9226
-    res.status(501).json({ error: 'Export riwayat banding absen - implementation pending migration' });
-};
-
-/**
- * Export presensi siswa SMKN13 format
- * GET /api/export/presensi-siswa-smkn13
- */
-export const exportPresensiSiswaSmkn13 = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 9523
-    res.status(501).json({ error: 'Export presensi siswa SMKN13 - implementation pending migration' });
-};
-
-/**
- * Export rekap ketidakhadiran
- * GET /api/export/rekap-ketidakhadiran
- */
-export const exportRekapKetidakhadiran = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 9752
-    res.status(501).json({ error: 'Export rekap ketidakhadiran - implementation pending migration' });
-};
-
-/**
- * Export ringkasan kehadiran siswa SMKN13
- * GET /api/export/ringkasan-kehadiran-siswa-smkn13
- */
-export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 10035
-    res.status(501).json({ error: 'Export ringkasan kehadiran siswa SMKN13 - implementation pending migration' });
-};
-
-// ================================================
-// ADMIN SCHEDULE EXPORTS
-// ================================================
-
-/**
- * Export admin attendance
- * GET /api/export/admin/attendance
- */
-export const exportAdminAttendance = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 15980
-    res.status(501).json({ error: 'Export admin attendance - implementation pending migration' });
-};
-
-/**
- * Export jadwal matrix
- * GET /api/export/admin/jadwal-matrix
- */
-export const exportJadwalMatrix = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 16020
-    res.status(501).json({ error: 'Export jadwal matrix - implementation pending migration' });
-};
-
-/**
- * Export jadwal grid
- * GET /api/export/admin/jadwal-grid
- */
-export const exportJadwalGrid = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 16330
-    res.status(501).json({ error: 'Export jadwal grid - implementation pending migration' });
-};
-
-/**
- * Export jadwal print
- * GET /api/export/admin/jadwal-print
- */
-export const exportJadwalPrint = async (req, res) => {
-    // TODO: Move logic from server_modern.js line 16600
-    res.status(501).json({ error: 'Export jadwal print - implementation pending migration' });
-};
