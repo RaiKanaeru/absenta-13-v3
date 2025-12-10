@@ -1206,29 +1206,33 @@ class BackupSystem {
     async exportSystemConfiguration(workbook) {
         const worksheet = workbook.addWorksheet('System Configuration');
         
-        // Get system tables
+        // Get system tables (with null safety)
         const [users] = await this.pool.execute('SELECT username, role, status, created_at FROM users');
         const [classes] = await this.pool.execute('SELECT nama_kelas, status FROM kelas');
         const [subjects] = await this.pool.execute('SELECT nama_mapel, kode_mapel FROM mata_pelajaran');
         
+        const safeUsers = users || [];
+        const safeClasses = classes || [];
+        const safeSubjects = subjects || [];
+        
         // Add users
         worksheet.addRow(['SYSTEM USERS', '']);
         worksheet.addRow(['Username', 'Role', 'Status', 'Created At']);
-        users.forEach(user => {
+        safeUsers.forEach(user => {
             worksheet.addRow([user.username, user.role, user.status, user.created_at]);
         });
         
         worksheet.addRow(['', '']);
         worksheet.addRow(['CLASSES', '']);
         worksheet.addRow(['Class Name', 'Status']);
-        classes.forEach(cls => {
+        safeClasses.forEach(cls => {
             worksheet.addRow([cls.nama_kelas, cls.status]);
         });
         
         worksheet.addRow(['', '']);
         worksheet.addRow(['SUBJECTS', '']);
         worksheet.addRow(['Subject Name', 'Code']);
-        subjects.forEach(subject => {
+        safeSubjects.forEach(subject => {
             worksheet.addRow([subject.nama_mapel, subject.kode_mapel]);
         });
         
