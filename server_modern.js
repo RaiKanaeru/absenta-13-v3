@@ -16248,28 +16248,39 @@ app.get('/api/admin/export/jadwal-matrix', authenticateToken, requireRole(['admi
                 if (daySchedules.length > 0) {
                     let cellContent = '';
                     daySchedules.forEach((schedule, idx) => {
-                        if (idx > 0) cellContent += '\n';
-                        cellContent += `${schedule.jam_mulai}-${schedule.jam_selesai}\n`;
+                        if (idx > 0) cellContent += '\n\n'; // Add spacing between schedules in same slot
+                        
+                        // 1. Teacher (Top)
+                        if (schedule.guru_list && schedule.guru_list.includes(',')) {
+                            // Clean up multi-guru string if needed, or just display as is
+                            const cleanGuruList = schedule.guru_list.replace(/ \([^\)]+\)/g, ''); // Remove NIPs for cleaner display
+                            cellContent += `${cleanGuruList}\n`;
+                        } else {
+                            cellContent += `${schedule.nama_guru}\n`;
+                        }
+
+                        // 2. Subject (Middle)
                         cellContent += `${schedule.nama_mapel}\n`;
 
-                        // Handle multi-guru display
-                        if (schedule.guru_list && schedule.guru_list.includes(',')) {
-                            cellContent += `Guru: ${schedule.guru_list}\n`;
-                        } else {
-                            cellContent += `${schedule.guru_list || schedule.nama_guru}\n`;
-                        }
-
+                        // 3. Room (Bottom - with Location if available)
                         if (schedule.kode_ruang) {
                             cellContent += `${schedule.kode_ruang}`;
+                            // if (schedule.lokasi) cellContent += ` (${schedule.lokasi})`; 
+                            cellContent += '\n';
+                        } else {
+                             cellContent += 'Ruang TBD\n';
                         }
+                        
+                        // 4. Time (Bottom)
+                        cellContent += `${schedule.jam_mulai} - ${schedule.jam_selesai}`;
                     });
 
                     const cell = worksheet.getCell(classRow, dayIndex + 2);
                     cell.value = cellContent;
-                    cell.alignment = {
-                        horizontal: 'center',
-                        vertical: 'middle',
-                        wrapText: true
+                    cell.alignment = { 
+                        horizontal: 'center', 
+                        vertical: 'top', // Align top for better readability with multi-line
+                        wrapText: true 
                     };
                     Object.assign(cell, cellStyle);
                 } else {
