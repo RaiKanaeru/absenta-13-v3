@@ -16246,34 +16246,29 @@ app.get('/api/admin/export/jadwal-matrix', authenticateToken, requireRole(['admi
                 ).sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
 
                 if (daySchedules.length > 0) {
-                    let cellContent = '';
-                    daySchedules.forEach((schedule, idx) => {
-                        if (idx > 0) cellContent += '\n\n'; // Add spacing between schedules in same slot
+                    // Build cell content with clear structure
+                    const contentParts = [];
+                    daySchedules.forEach((schedule) => {
+                        const entry = [];
                         
-                        // 1. Teacher (Top)
-                        if (schedule.guru_list && schedule.guru_list.includes(',')) {
-                            // Clean up multi-guru string if needed, or just display as is
-                            const cleanGuruList = schedule.guru_list.replace(/ \([^\)]+\)/g, ''); // Remove NIPs for cleaner display
-                            cellContent += `${cleanGuruList}\n`;
-                        } else {
-                            cellContent += `${schedule.nama_guru}\n`;
-                        }
-
-                        // 2. Subject (Middle)
-                        cellContent += `${schedule.nama_mapel}\n`;
-
-                        // 3. Room (Bottom - with Location if available)
-                        if (schedule.kode_ruang) {
-                            cellContent += `${schedule.kode_ruang}`;
-                            // if (schedule.lokasi) cellContent += ` (${schedule.lokasi})`; 
-                            cellContent += '\n';
-                        } else {
-                             cellContent += 'Ruang TBD\n';
-                        }
+                        // Teacher name (clean, no NIP)
+                        const teacherName = schedule.nama_guru || 'Sistem';
+                        entry.push(teacherName);
                         
-                        // 4. Time (Bottom)
-                        cellContent += `${schedule.jam_mulai} - ${schedule.jam_selesai}`;
+                        // Subject
+                        entry.push(schedule.nama_mapel || '-');
+                        
+                        // Room
+                        entry.push(schedule.kode_ruang || 'TBD');
+                        
+                        // Time
+                        entry.push(`${schedule.jam_mulai} - ${schedule.jam_selesai}`);
+                        
+                        contentParts.push(entry.join('\n'));
                     });
+                    
+                    // Join multiple schedules with separator
+                    const cellContent = contentParts.join('\n───\n');
 
                     const cell = worksheet.getCell(classRow, dayIndex + 2);
                     cell.value = cellContent;
@@ -16290,13 +16285,20 @@ app.get('/api/admin/export/jadwal-matrix', authenticateToken, requireRole(['admi
                 }
             });
 
+            // Set row height based on content
+            const maxSchedules = Math.max(...daysOfWeek.map(day => 
+                schedules.filter(s => s.nama_kelas === className && s.hari === day).length
+            ), 1);
+            worksheet.getRow(classRow).height = Math.max(80, maxSchedules * 70);
+            
             currentRow++;
         });
 
-        // Auto-fit columns
-        worksheet.columns.forEach(column => {
-            column.width = 15;
-        });
+        // Set column widths - wider for better readability
+        worksheet.getColumn(1).width = 12; // KELAS column
+        for (let i = 2; i <= totalCols; i++) {
+            worksheet.getColumn(i).width = 22; // Day columns
+        }
 
         // Set response headers
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
