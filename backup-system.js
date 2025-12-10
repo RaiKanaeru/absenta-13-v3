@@ -1241,6 +1241,10 @@ class BackupSystem {
         const archiveDateStr = archiveDate.toISOString().split('T')[0];
         
         try {
+            // Ensure archive tables exist before archiving
+            console.log('📋 Ensuring archive tables exist...');
+            await this.createArchiveTables();
+            
             // Archive old student attendance
             const [studentArchiveResult] = await this.pool.execute(`
                 INSERT IGNORE INTO absensi_siswa_archive 
@@ -1261,20 +1265,31 @@ class BackupSystem {
             const archiveReport = {
                 backupId,
                 archiveDate: archiveDateStr,
-                studentRecordsArchived: studentArchiveResult.affectedRows,
-                teacherRecordsArchived: teacherArchiveResult.affectedRows,
+                studentRecordsArchived: studentArchiveResult?.affectedRows || 0,
+                teacherRecordsArchived: teacherArchiveResult?.affectedRows || 0,
                 timestamp: new Date().toISOString()
             };
             
             const reportFile = path.join(backupPath, `${backupId}_archive_report.json`);
             await fs.writeFile(reportFile, JSON.stringify(archiveReport, null, 2));
             
-            console.log(`✅ Archived ${studentArchiveResult.affectedRows} student records`);
-            console.log(`✅ Archived ${teacherArchiveResult.affectedRows} teacher records`);
+            console.log(`✅ Archived ${archiveReport.studentRecordsArchived} student records`);
+            console.log(`✅ Archived ${archiveReport.teacherRecordsArchived} teacher records`);
             
         } catch (error) {
-            console.error('❌ Data archiving failed:', error);
-            throw error;
+            console.error('⚠️ Data archiving failed (non-critical, continuing backup):', error.message);
+            // Create empty archive report instead of crashing
+            const archiveReport = {
+                backupId,
+                archiveDate: archiveDateStr,
+                studentRecordsArchived: 0,
+                teacherRecordsArchived: 0,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
+            const reportFile = path.join(backupPath, `${backupId}_archive_report.json`);
+            await fs.writeFile(reportFile, JSON.stringify(archiveReport, null, 2));
+            // Don't throw - archiving failure should not block backup
         }
     }
 
