@@ -82,7 +82,10 @@ jobs:
             echo "   🐳 ABSENTA 13 Docker Deployment"
             echo "=========================================="
             
-            cd ${{ secrets.DEPLOY_PATH }}
+            # Set default path if secret is not set
+            TARGET_DIR="${{ secrets.DEPLOY_PATH || '/www/wwwroot/absenta13.my.id' }}"
+            mkdir -p $TARGET_DIR
+            cd $TARGET_DIR
             
             echo "📥 Pulling latest Docker image..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/absenta13:latest
