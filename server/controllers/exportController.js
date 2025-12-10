@@ -972,9 +972,117 @@ export const exportRekapKetidakhadiran = async (req, res) => {
 };
 
 // ================================================
+// MORE EXPORTS
+// ================================================
+
+/**
+ * Export ringkasan kehadiran siswa SMKN13
+ * GET /api/export/ringkasan-kehadiran-siswa-smkn13
+ */
+export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+        const guruId = req.user.guru_id;
+
+        console.log('📊 Exporting ringkasan kehadiran siswa SMKN 13:', { startDate, endDate, kelas_id, guruId });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+        }
+
+        let query = `
+            SELECT 
+                s.id_siswa as id, s.nis, s.nama, k.nama_kelas,
+                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
+                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
+                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
+                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
+                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) as D,
+                COUNT(a.id) as total_absen
+            FROM siswa s
+            LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND a.tanggal BETWEEN ? AND ?
+                AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ?)
+            WHERE s.status = 'aktif'
+        `;
+
+        const params = [startDate, endDate, guruId];
+        if (kelas_id && kelas_id !== 'all') {
+            query += ` AND s.kelas_id = ?`;
+            params.push(kelas_id);
+        }
+        query += ` GROUP BY s.id_siswa, s.nis, s.nama, k.nama_kelas ORDER BY k.nama_kelas, s.nama`;
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        // Calculate percentage
+        const dataWithPercentage = rows.map(row => {
+            const total = row.H + row.I + row.S + row.A + row.D;
+            const presentase = total > 0 ? ((row.H / total) * 100).toFixed(2) : '0.00';
+            return { ...row, presentase: parseFloat(presentase) };
+        });
+
+        // Get class name
+        let className = 'Semua Kelas';
+        if (kelas_id && kelas_id !== 'all') {
+            const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+            if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
+        }
+
+        // Load letterhead
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
+
+        // Create Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('RINGKASAN KEHADIRAN SISWA');
+
+        // Add letterhead
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, 11);
+
+        // Add title
+        currentRow = addReportTitle(worksheet, 'RINGKASAN KEHADIRAN SISWA', `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`, currentRow, 11);
+
+        // Headers
+        const headers = ['NO', 'NAMA SISWA', 'NIS', 'KELAS', 'HADIR', 'IZIN', 'SAKIT', 'ALPA', 'DISPEN', 'TOTAL', '%'];
+        addHeaders(worksheet, headers, currentRow);
+        currentRow++;
+
+        // Data rows
+        dataWithPercentage.forEach((siswa, index) => {
+            const row = currentRow + index;
+            const total = siswa.H + siswa.I + siswa.S + siswa.A + siswa.D;
+            worksheet.getCell(row, 1).value = index + 1;
+            worksheet.getCell(row, 2).value = siswa.nama;
+            worksheet.getCell(row, 3).value = siswa.nis;
+            worksheet.getCell(row, 4).value = siswa.nama_kelas;
+            worksheet.getCell(row, 5).value = siswa.H || 0;
+            worksheet.getCell(row, 6).value = siswa.I || 0;
+            worksheet.getCell(row, 7).value = siswa.S || 0;
+            worksheet.getCell(row, 8).value = siswa.A || 0;
+            worksheet.getCell(row, 9).value = siswa.D || 0;
+            worksheet.getCell(row, 10).value = total;
+            worksheet.getCell(row, 11).value = `${parseFloat(siswa.presentase || 0).toFixed(2)}%`;
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="ringkasan-kehadiran-siswa-smkn13-${startDate}-${endDate}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Ringkasan kehadiran siswa exported: ${dataWithPercentage.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting ringkasan kehadiran siswa:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// ================================================
 // REMAINING EXPORTS - To be migrated
 // ================================================
-// - exportRingkasanKehadiranSiswaSmkn13
 // - exportRekapKetidakhadiranGuruSmkn13
 // - exportRekapKetidakhadiranSiswa
 // - exportPresensiSiswa
@@ -982,6 +1090,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
 // - exportJadwalMatrix
 // - exportJadwalGrid
 // - exportJadwalPrint
+
 
 
 
