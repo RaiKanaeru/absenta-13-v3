@@ -1,7 +1,14 @@
-import dotenv from 'dotenv';
-dotenv.config();
+/**
+ * Ruang Controller
+ * CRUD operations for classroom/room management
+ * Migrated from server_modern.js
+ */
 
-// Get All Ruang
+// ================================================
+// RUANG CRUD ENDPOINTS
+// ================================================
+
+// Get all rooms
 export const getRuang = async (req, res) => {
     try {
         console.log('🏢 Getting rooms for admin');
@@ -18,8 +25,8 @@ export const getRuang = async (req, res) => {
                 created_at
             FROM ruang_kelas
         `;
-        let params = [];
 
+        const params = [];
         if (search) {
             query += ` WHERE kode_ruang LIKE ? OR nama_ruang LIKE ? OR lokasi LIKE ?`;
             const searchTerm = `%${search}%`;
@@ -37,7 +44,7 @@ export const getRuang = async (req, res) => {
     }
 };
 
-// Get Single Ruang
+// Get single room
 export const getRuangById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -59,7 +66,7 @@ export const getRuangById = async (req, res) => {
     }
 };
 
-// Create Ruang
+// Create new room
 export const createRuang = async (req, res) => {
     try {
         const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
@@ -105,7 +112,7 @@ export const createRuang = async (req, res) => {
     }
 };
 
-// Update Ruang
+// Update room
 export const updateRuang = async (req, res) => {
     try {
         const { id } = req.params;
@@ -123,7 +130,7 @@ export const updateRuang = async (req, res) => {
             return res.status(400).json({ error: 'Kode ruang maksimal 10 karakter' });
         }
 
-        // Check for duplicate kode_ruang (excluding current record)
+        // Check for duplicate kode_ruang (excluding current room)
         const [existing] = await global.dbPool.execute(
             'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ? AND id_ruang != ?',
             [kodeUpper, id]
@@ -153,7 +160,7 @@ export const updateRuang = async (req, res) => {
     }
 };
 
-// Delete Ruang
+// Delete room
 export const deleteRuang = async (req, res) => {
     try {
         const { id } = req.params;

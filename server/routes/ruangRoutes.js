@@ -1,18 +1,20 @@
-import express from 'express';
+/**
+ * Ruang Routes
+ * Room/classroom CRUD endpoints
+ * Migrated from server_modern.js
+ */
+
+import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
-import { getRuang, getRuangById, createRuang, updateRuang, deleteRuang } from '../controllers/ruangController.js';
+import * as ruangController from '../controllers/ruangController.js';
 
-const router = express.Router();
+const router = Router();
 
-// Apply middleware to all routes
-router.use(authenticateToken);
-router.use(requireRole(['admin']));
-
-// Routes
-router.get('/', getRuang);
-router.get('/:id', getRuangById);
-router.post('/', createRuang);
-router.put('/:id', updateRuang);
-router.delete('/:id', deleteRuang);
+// Ruang CRUD - Admin only
+router.get('/', authenticateToken, requireRole(['admin']), ruangController.getRuang);
+router.get('/:id', authenticateToken, requireRole(['admin']), ruangController.getRuangById);
+router.post('/', authenticateToken, requireRole(['admin']), ruangController.createRuang);
+router.put('/:id', authenticateToken, requireRole(['admin']), ruangController.updateRuang);
+router.delete('/:id', authenticateToken, requireRole(['admin']), ruangController.deleteRuang);
 
 export default router;
