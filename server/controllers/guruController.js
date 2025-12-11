@@ -444,3 +444,120 @@ export const deleteGuru = async (req, res) => {
         connection.release();
     }
 };
+
+// ================================================
+// PROFILE UPDATE FUNCTIONS (Migrated from server_modern.js)
+// ================================================
+
+// Update profile for guru (self-service)
+export const updateProfile = async (req, res) => {
+    try {
+        const { nama, username, email, alamat, no_telepon, jenis_kelamin, mata_pelajaran, jabatan } = req.body;
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!nama || !username) {
+            return res.status(400).json({ error: 'Nama dan username wajib diisi' });
+        }
+
+        // Check if username is already taken by another user in users table
+        const [existingUser] = await global.dbPool.execute(
+            'SELECT id FROM users WHERE username = ? AND id != ?',
+            [username, userId]
+        );
+
+        if (existingUser.length > 0) {
+            return res.status(400).json({ error: 'Username sudah digunakan oleh user lain' });
+        }
+
+        // Start transaction
+        const connection = await global.dbPool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Update profile in users table (username, email)
+            await connection.execute(
+                `UPDATE users SET 
+                    nama = ?, 
+                    username = ?, 
+                    email = ?,
+                    updated_at = ?
+                WHERE id = ?`,
+                [nama, username, email || null, getMySQLDateTimeWIB(), userId]
+            );
+
+            // Update additional profile data in guru table
+            await connection.execute(
+                `UPDATE guru SET 
+                    nama = ?, 
+                    alamat = ?, 
+                    no_telp = ?,
+                    jenis_kelamin = ?,
+                    mata_pelajaran = ?,
+                    updated_at = ?
+                WHERE user_id = ?`,
+                [nama, alamat || null, no_telepon || null, jenis_kelamin || null, mata_pelajaran || null, getMySQLDateTimeWIB(), userId]
+            );
+
+            await connection.commit();
+
+            // Get updated user data
+            const [updatedUser] = await global.dbPool.execute(
+                `SELECT u.id, u.username, u.nama, u.email, u.role, g.alamat, g.no_telp as no_telepon, 
+                        g.nip, g.jenis_kelamin, g.mata_pelajaran, u.created_at, u.updated_at 
+                 FROM users u 
+                 LEFT JOIN guru g ON u.id = g.user_id 
+                 WHERE u.id = ?`,
+                [userId]
+            );
+
+            res.json({
+                success: true,
+                message: 'Profil berhasil diperbarui',
+                data: updatedUser[0]
+            });
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('❌ Error updating guru profile:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Change password for guru (self-service)
+export const changePassword = async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!newPassword) {
+            return res.status(400).json({ error: 'Password baru wajib diisi' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // Update password in users table
+        await global.dbPool.execute(
+            'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
+            [hashedPassword, getMySQLDateTimeWIB(), userId]
+        );
+
+        res.json({
+            success: true,
+            message: 'Password berhasil diubah'
+        });
+    } catch (error) {
+        console.error('❌ Error changing guru password:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};

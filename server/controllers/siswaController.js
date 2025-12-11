@@ -438,3 +438,139 @@ export const deleteSiswa = async (req, res) => {
         connection.release();
     }
 };
+
+// ================================================
+// PROFILE UPDATE FUNCTIONS (Migrated from server_modern.js)
+// ================================================
+
+import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+
+// Update profile for siswa (self-service)
+export const updateProfile = async (req, res) => {
+    try {
+        const { nama, username, email, alamat, telepon_orangtua, nomor_telepon_siswa, jenis_kelamin } = req.body;
+        const userId = req.user.id;
+
+        console.log('📝 Updating siswa profile:', { nama, username, email, alamat, telepon_orangtua, nomor_telepon_siswa, jenis_kelamin });
+
+        // Validate required fields
+        if (!nama || !username) {
+            return res.status(400).json({ error: 'Nama dan username wajib diisi' });
+        }
+
+        // Check if username is already taken by another user in users table
+        const [existingUser] = await global.dbPool.execute(
+            'SELECT id FROM users WHERE username = ? AND id != ?',
+            [username, userId]
+        );
+
+        if (existingUser.length > 0) {
+            return res.status(400).json({ error: 'Username sudah digunakan oleh user lain' });
+        }
+
+        // Check if nomor_telepon_siswa is already taken by another student (if provided)
+        if (nomor_telepon_siswa && nomor_telepon_siswa.trim()) {
+            const [existingPhone] = await global.dbPool.execute(
+                'SELECT user_id FROM siswa WHERE nomor_telepon_siswa = ? AND user_id != ?',
+                [nomor_telepon_siswa.trim(), userId]
+            );
+
+            if (existingPhone.length > 0) {
+                return res.status(400).json({ error: 'Nomor telepon siswa sudah digunakan oleh siswa lain' });
+            }
+        }
+
+        // Start transaction
+        const connection = await global.dbPool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Update profile in users table (username, email)
+            await connection.execute(
+                `UPDATE users SET 
+                    nama = ?, 
+                    username = ?, 
+                    email = ?,
+                    updated_at = ?
+                WHERE id = ?`,
+                [nama, username, email || null, getMySQLDateTimeWIB(), userId]
+            );
+
+            // Update additional profile data in siswa table
+            await connection.execute(
+                `UPDATE siswa SET 
+                    nama = ?, 
+                    alamat = ?, 
+                    telepon_orangtua = ?,
+                    nomor_telepon_siswa = ?,
+                    jenis_kelamin = ?,
+                    updated_at = ?
+                WHERE user_id = ?`,
+                [nama, alamat || null, telepon_orangtua || null, nomor_telepon_siswa || null, jenis_kelamin || null, getMySQLDateTimeWIB(), userId]
+            );
+
+            await connection.commit();
+
+            // Get updated user data with kelas info
+            const [updatedUser] = await global.dbPool.execute(
+                `SELECT u.id, u.username, u.nama, u.email, u.role, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa,
+                        s.nis, k.nama_kelas as kelas, s.jenis_kelamin, u.created_at, u.updated_at
+                 FROM users u
+                 LEFT JOIN siswa s ON u.id = s.user_id
+                 LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
+                 WHERE u.id = ?`,
+                [userId]
+            );
+
+            console.log('✅ Siswa profile updated successfully');
+
+            res.json({
+                success: true,
+                message: 'Profil berhasil diperbarui',
+                data: updatedUser[0]
+            });
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    } catch (error) {
+        console.error('❌ Error updating siswa profile:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Change password for siswa (self-service)
+export const changePassword = async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!newPassword) {
+            return res.status(400).json({ error: 'Password baru wajib diisi' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // Update password in users table
+        await global.dbPool.execute(
+            'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
+            [hashedPassword, getMySQLDateTimeWIB(), userId]
+        );
+
+        res.json({
+            success: true,
+            message: 'Password berhasil diubah'
+        });
+    } catch (error) {
+        console.error('❌ Error changing siswa password:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
