@@ -561,3 +561,247 @@ export const changePassword = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+// ================================================
+// GURU SELF-SERVICE ENDPOINTS
+// Migrated from server_modern.js - EXACT CODE COPY
+// ================================================
+
+import { getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
+
+// Helper function to build jadwal query
+const buildJadwalQuery = (role = 'admin', guruId = null) => {
+    let query = `
+        SELECT 
+            j.id_jadwal,
+            j.hari,
+            j.jam_ke,
+            j.jam_mulai,
+            j.jam_selesai,
+            j.jenis_aktivitas,
+            j.is_absenable,
+            j.keterangan_khusus,
+            j.is_multi_guru,
+            j.status,
+            COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+            COALESCE(m.kode_mapel, '') as kode_mapel,
+            k.id_kelas,
+            k.nama_kelas,
+            COALESCE(r.kode_ruang, '') as kode_ruang,
+            COALESCE(r.nama_ruang, '') as nama_ruang,
+            COALESCE(g.id_guru, 0) as guru_id,
+            COALESCE(g.nama, '') as nama_guru,
+            COALESCE(g.nip, '') as nip_guru
+        FROM jadwal j
+        LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+        JOIN kelas k ON j.kelas_id = k.id_kelas
+        LEFT JOIN ruang_kelas r ON j.ruang_id = r.id_ruang
+        LEFT JOIN guru g ON j.guru_id = g.id_guru
+        WHERE j.status = 'aktif'
+    `;
+
+    const params = [];
+    if (role === 'guru' && guruId) {
+        query += ' AND j.guru_id = ?';
+        params.push(guruId);
+    }
+
+    query += ' ORDER BY j.hari, j.jam_ke';
+    return { query, params };
+};
+
+// Get teacher schedule
+export const getGuruJadwal = async (req, res) => {
+    const guruId = req.user.guru_id;
+    console.log(`📅 Getting schedule for authenticated guru_id: ${guruId} (user_id: ${req.user.id})`);
+
+    if (!guruId) {
+        return res.status(400).json({ error: 'guru_id tidak ditemukan pada token pengguna' });
+    }
+
+    try {
+        const { query, params } = buildJadwalQuery('guru', guruId);
+        const [jadwal] = await global.dbPool.execute(query, params);
+
+        console.log(`✅ Found ${jadwal.length} schedule entries for guru_id: ${guruId}`);
+        res.json({ success: true, data: jadwal });
+    } catch (error) {
+        console.error('❌ Error fetching teacher schedule:', error);
+        res.status(500).json({ error: 'Gagal memuat jadwal guru.' });
+    }
+};
+
+// Get teacher attendance history
+export const getGuruHistory = async (req, res) => {
+    const guruId = req.user.guru_id;
+    console.log(`📊 Fetching teacher attendance history for guru_id: ${guruId} (user_id: ${req.user.id})`);
+
+    if (!guruId) {
+        return res.status(400).json({ error: 'guru_id tidak ditemukan pada token pengguna' });
+    }
+
+    try {
+        const [history] = await global.dbPool.execute(`
+            SELECT 
+                ag.tanggal, 
+                ag.status, 
+                ag.keterangan, 
+                k.nama_kelas, 
+                COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel
+            FROM absensi_guru ag
+            JOIN jadwal j ON ag.jadwal_id = j.id_jadwal
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
+            WHERE j.guru_id = ?
+            ORDER BY ag.tanggal DESC, j.jam_mulai ASC
+            LIMIT 50
+        `, [guruId]);
+
+        console.log(`✅ Found ${history.length} attendance history records for guru_id ${guruId}`);
+        res.json({ success: true, data: history });
+    } catch (error) {
+        console.error('❌ Error fetching teacher attendance history:', error);
+        res.status(500).json({ error: 'Gagal memuat riwayat absensi.' });
+    }
+};
+
+// Get student attendance history for teacher
+export const getGuruStudentAttendanceHistory = async (req, res) => {
+    try {
+        const guruId = req.user.guru_id;
+        const { page = 1, limit = 5 } = req.query;
+        console.log(`📊 Fetching student attendance history for guru_id: ${guruId} with pagination:`, { page, limit });
+
+        if (!guruId) {
+            return res.status(400).json({ error: 'guru_id tidak ditemukan pada token pengguna' });
+        }
+
+        const todayWIB = getMySQLDateWIB();
+        const thirtyDaysAgoWIB = new Date(new Date(todayWIB).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        const countQuery = `
+            SELECT COUNT(DISTINCT DATE(absensi.waktu_absen)) as total_days
+            FROM absensi_siswa absensi
+            INNER JOIN jadwal ON absensi.jadwal_id = jadwal.id_jadwal
+            WHERE jadwal.guru_id = ? 
+                AND absensi.waktu_absen >= ?
+        `;
+
+        const [countResult] = await global.dbPool.execute(countQuery, [guruId, thirtyDaysAgoWIB]);
+        const totalDays = countResult[0].total_days;
+        const totalPages = Math.ceil(totalDays / parseInt(limit));
+
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+
+        const datesQuery = `
+            SELECT DISTINCT DATE(absensi.waktu_absen) as tanggal
+            FROM absensi_siswa absensi
+            INNER JOIN jadwal ON absensi.jadwal_id = jadwal.id_jadwal
+            WHERE jadwal.guru_id = ? 
+                AND absensi.waktu_absen >= ?
+            ORDER BY tanggal DESC
+            LIMIT ? OFFSET ?
+        `;
+
+        const [datesResult] = await global.dbPool.execute(datesQuery, [guruId, thirtyDaysAgoWIB, parseInt(limit), offset]);
+        const dates = datesResult.map(row => row.tanggal);
+
+        if (dates.length === 0) {
+            return res.json({
+                success: true,
+                data: [],
+                totalDays,
+                totalPages,
+                currentPage: parseInt(page)
+            });
+        }
+
+        const datePlaceholders = dates.map(() => '?').join(',');
+        const query = `
+            SELECT 
+                DATE(absensi.waktu_absen) as tanggal,
+                jadwal.jam_ke,
+                jadwal.jam_mulai,
+                jadwal.jam_selesai,
+                mapel.nama_mapel,
+                kelas.nama_kelas,
+                siswa.nama as nama_siswa,
+                siswa.nis,
+                absensi.status as status_kehadiran,
+                absensi.keterangan,
+                absensi.waktu_absen,
+                guru_absen.status as status_guru,
+                guru_absen.keterangan as keterangan_guru,
+                ruang.kode_ruang,
+                ruang.nama_ruang,
+                ruang.lokasi
+            FROM absensi_siswa absensi
+            INNER JOIN jadwal ON absensi.jadwal_id = jadwal.id_jadwal
+            LEFT JOIN mapel ON jadwal.mapel_id = mapel.id_mapel
+            INNER JOIN kelas ON jadwal.kelas_id = kelas.id_kelas
+            INNER JOIN siswa siswa ON absensi.siswa_id = siswa.id_siswa
+            LEFT JOIN ruang_kelas ruang ON jadwal.ruang_id = ruang.id_ruang
+            LEFT JOIN absensi_guru guru_absen ON jadwal.id_jadwal = guru_absen.jadwal_id 
+                AND DATE(guru_absen.tanggal) = DATE(absensi.waktu_absen)
+            WHERE jadwal.guru_id = ? 
+                AND DATE(absensi.waktu_absen) IN (${datePlaceholders})
+            ORDER BY absensi.waktu_absen DESC, jadwal.jam_ke ASC
+        `;
+
+        const [history] = await global.dbPool.execute(query, [guruId, ...dates]);
+
+        console.log(`✅ Found ${history.length} student attendance records for guru_id ${guruId} (${dates.length} days)`);
+
+        res.json({
+            success: true,
+            data: history,
+            totalDays,
+            totalPages,
+            currentPage: parseInt(page),
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages,
+                totalDays,
+                limit: parseInt(limit)
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error fetching student attendance history:', error);
+        res.status(500).json({ error: 'Gagal memuat riwayat absensi siswa.' });
+    }
+};
+
+// Test endpoint for debugging
+export const guruTest = async (req, res) => {
+    try {
+        console.log('🧪 Test endpoint called');
+        res.json({ success: true, message: 'Test endpoint working', user: req.user });
+    } catch (error) {
+        console.error('❌ Test endpoint error:', error);
+        res.status(500).json({ error: 'Test endpoint error' });
+    }
+};
+
+// Simple student attendance endpoint
+export const getGuruStudentAttendanceSimple = async (req, res) => {
+    try {
+        const guruId = req.user.guru_id;
+        console.log(`📊 Simple endpoint called for guru_id: ${guruId}`);
+
+        if (!guruId) {
+            return res.status(400).json({ error: 'guru_id tidak ditemukan' });
+        }
+
+        const [result] = await global.dbPool.execute(`
+            SELECT COUNT(*) as total
+            FROM jadwal j
+            WHERE j.guru_id = ?
+        `, [guruId]);
+
+        console.log(`✅ Simple query result:`, result);
+        res.json({ success: true, data: result, message: 'Simple endpoint working' });
+    } catch (error) {
+        console.error('❌ Simple endpoint error:', error);
+        res.status(500).json({ error: 'Simple endpoint error' });
+    }
+};
