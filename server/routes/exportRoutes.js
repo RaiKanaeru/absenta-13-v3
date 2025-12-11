@@ -61,12 +61,12 @@ router.get('/presensi-siswa', authenticateToken, requireRole(['admin']), exportC
 // ADMIN EXPORT ROUTES
 // ================================================
 router.get('/admin/attendance', authenticateToken, requireRole(['admin']), exportController.exportAdminAttendance);
+router.get('/admin/jadwal-matrix', authenticateToken, requireRole(['admin']), exportController.exportJadwalMatrix);
+router.get('/admin/jadwal-grid', authenticateToken, requireRole(['admin']), exportController.exportJadwalGrid);
+router.get('/admin/jadwal-print', authenticateToken, requireRole(['admin']), exportController.exportJadwalPrint);
 
 // ================================================
-// PENDING MIGRATION - Large jadwal exports
+// ALL 17/17 EXPORTS MIGRATED! 🎉
 // ================================================
-// - /admin/jadwal-matrix (~310 lines)
-// - /admin/jadwal-grid (~270 lines)
-// - /admin/jadwal-print (~200+ lines)
 
 export default router;

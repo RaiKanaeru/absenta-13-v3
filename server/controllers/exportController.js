@@ -17,6 +17,10 @@ const getCommonExcelSetup = async (reportKey) => {
     return { letterhead };
 };
 
+// NOTE: addLetterheadToWorksheet, addReportTitle, addHeaders are imported from excelLetterhead.js
+// at line ~608 for exports that use them. Top-level imports removed to avoid redeclaration.
+
+
 // ================================================
 // ADMIN EXPORTS
 // ================================================
@@ -1407,11 +1411,237 @@ export const exportAdminAttendance = async (req, res) => {
 };
 
 // ================================================
-// REMAINING EXPORTS - To be migrated
+// JADWAL EXPORTS - Migrated from server_modern.js
 // ================================================
-// - exportJadwalMatrix
-// - exportJadwalGrid
-// - exportJadwalPrint
+
+/**
+ * Export jadwal matrix format
+ * GET /api/admin/export/jadwal-matrix
+ */
+export const exportJadwalMatrix = async (req, res) => {
+    try {
+        console.log('📅 Exporting jadwal matrix format...');
+        const { kelas_id, hari } = req.query;
+
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
+
+        let query = `
+            SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
+                k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang
+            FROM jadwal j
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+            WHERE j.status = 'aktif'
+        `;
+        const params = [];
+        if (kelas_id && kelas_id !== 'all') { query += ' AND j.kelas_id = ?'; params.push(kelas_id); }
+        if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
+        query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
+
+        const [schedules] = await global.dbPool.execute(query, params);
+
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Jadwal Matrix');
+
+        const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const totalCols = daysOfWeek.length + 1;
+
+        // Add letterhead
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
+
+        // Title
+        currentRow = addReportTitle(worksheet, 'JADWAL PELAJARAN MATRIX', `Tanggal Export: ${formatWIBDate()}`, currentRow, totalCols);
+
+        // Matrix headers
+        const headers = ['KELAS', ...daysOfWeek];
+        addHeaders(worksheet, headers, currentRow);
+        currentRow++;
+
+        // Matrix data
+        const uniqueClasses = [...new Set(schedules.map(s => s.nama_kelas))].sort();
+        uniqueClasses.forEach(className => {
+            worksheet.getCell(currentRow, 1).value = className;
+            daysOfWeek.forEach((day, dayIndex) => {
+                const daySchedules = schedules.filter(s => s.nama_kelas === className && s.hari === day)
+                    .sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
+                if (daySchedules.length > 0) {
+                    const content = daySchedules.map(s => 
+                        `${s.nama_guru}\n${s.nama_mapel}\n${s.kode_ruang || 'TBD'}\n${s.jam_mulai}-${s.jam_selesai}`
+                    ).join('\n───\n');
+                    worksheet.getCell(currentRow, dayIndex + 2).value = content;
+                    worksheet.getCell(currentRow, dayIndex + 2).alignment = { horizontal: 'center', vertical: 'top', wrapText: true };
+                } else {
+                    worksheet.getCell(currentRow, dayIndex + 2).value = '-';
+                }
+            });
+            worksheet.getRow(currentRow).height = Math.max(80, daySchedules?.length * 70 || 80);
+            currentRow++;
+        });
+
+        worksheet.getColumn(1).width = 12;
+        for (let i = 2; i <= totalCols; i++) worksheet.getColumn(i).width = 22;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Matrix_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+        console.log(`✅ Jadwal matrix exported: ${schedules.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting jadwal matrix:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
+ * Export jadwal grid format
+ * GET /api/admin/export/jadwal-grid
+ */
+export const exportJadwalGrid = async (req, res) => {
+    try {
+        console.log('📅 Exporting jadwal grid format...');
+        const { kelas_id, hari } = req.query;
+
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
+
+        let query = `
+            SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
+                k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                COALESCE(g.nama, 'Sistem') as nama_guru, COALESCE(g.nip, '-') as nip_guru,
+                rk.kode_ruang, rk.nama_ruang
+            FROM jadwal j
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+            WHERE j.status = 'aktif'
+        `;
+        const params = [];
+        if (kelas_id && kelas_id !== 'all') { query += ' AND j.kelas_id = ?'; params.push(kelas_id); }
+        if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
+        query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
+
+        const [schedules] = await global.dbPool.execute(query, params);
+
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Jadwal Grid');
+
+        const totalCols = 10;
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
+        currentRow = addReportTitle(worksheet, 'JADWAL PELAJARAN GRID', `Tanggal Export: ${formatWIBDate()}`, currentRow, totalCols);
+
+        const headers = ['NO', 'HARI', 'JAM KE', 'WAKTU', 'KELAS', 'MAPEL', 'GURU', 'NIP', 'RUANG', 'AKTIVITAS'];
+        addHeaders(worksheet, headers, currentRow);
+        currentRow++;
+
+        schedules.forEach((schedule, index) => {
+            worksheet.getCell(currentRow, 1).value = index + 1;
+            worksheet.getCell(currentRow, 2).value = schedule.hari;
+            worksheet.getCell(currentRow, 3).value = schedule.jam_ke;
+            worksheet.getCell(currentRow, 4).value = `${schedule.jam_mulai}-${schedule.jam_selesai}`;
+            worksheet.getCell(currentRow, 5).value = schedule.nama_kelas;
+            worksheet.getCell(currentRow, 6).value = schedule.nama_mapel;
+            worksheet.getCell(currentRow, 7).value = schedule.nama_guru;
+            worksheet.getCell(currentRow, 8).value = schedule.nip_guru;
+            worksheet.getCell(currentRow, 9).value = schedule.kode_ruang || '-';
+            worksheet.getCell(currentRow, 10).value = schedule.jenis_aktivitas;
+            currentRow++;
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Grid_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+        console.log(`✅ Jadwal grid exported: ${schedules.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting jadwal grid:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
+ * Export jadwal print format
+ * GET /api/admin/export/jadwal-print
+ */
+export const exportJadwalPrint = async (req, res) => {
+    try {
+        console.log('📅 Exporting jadwal print format...');
+        const { kelas_id, hari } = req.query;
+
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
+
+        let query = `
+            SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
+                k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang, rk.nama_ruang
+            FROM jadwal j
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+            WHERE j.status = 'aktif'
+        `;
+        const params = [];
+        if (kelas_id && kelas_id !== 'all') { query += ' AND j.kelas_id = ?'; params.push(kelas_id); }
+        if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
+        query += ` ORDER BY k.nama_kelas, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke`;
+
+        const [schedules] = await global.dbPool.execute(query, params);
+
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Jadwal Print');
+
+        const totalCols = 8;
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
+        currentRow = addReportTitle(worksheet, 'JADWAL PELAJARAN - PRINT', `Tanggal Export: ${formatWIBDate()}`, currentRow, totalCols);
+
+        // Group by class
+        const classesSeen = new Set();
+        schedules.forEach((schedule, index) => {
+            if (!classesSeen.has(schedule.nama_kelas)) {
+                if (classesSeen.size > 0) currentRow++; // Space between classes
+                classesSeen.add(schedule.nama_kelas);
+                worksheet.getCell(currentRow, 1).value = `KELAS: ${schedule.nama_kelas}`;
+                worksheet.getCell(currentRow, 1).font = { bold: true, size: 12 };
+                worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
+                currentRow++;
+                addHeaders(worksheet, ['NO', 'HARI', 'JAM', 'WAKTU', 'MAPEL', 'GURU', 'RUANG', 'AKTIVITAS'], currentRow);
+                currentRow++;
+            }
+            worksheet.getCell(currentRow, 1).value = index + 1;
+            worksheet.getCell(currentRow, 2).value = schedule.hari;
+            worksheet.getCell(currentRow, 3).value = schedule.jam_ke;
+            worksheet.getCell(currentRow, 4).value = `${schedule.jam_mulai}-${schedule.jam_selesai}`;
+            worksheet.getCell(currentRow, 5).value = schedule.nama_mapel;
+            worksheet.getCell(currentRow, 6).value = schedule.nama_guru;
+            worksheet.getCell(currentRow, 7).value = schedule.kode_ruang || '-';
+            worksheet.getCell(currentRow, 8).value = schedule.jenis_aktivitas;
+            currentRow++;
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Print_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+        console.log(`✅ Jadwal print exported: ${schedules.length} records`);
+    } catch (error) {
+        console.error('❌ Error exporting jadwal print:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// ================================================
+// ALL EXPORTS MIGRATED - 17/17 COMPLETE! 🎉
+// ================================================
+
 
 
 
