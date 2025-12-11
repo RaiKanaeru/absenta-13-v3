@@ -5,6 +5,7 @@ import {
     getGuruJadwal, getGuruHistory, getGuruStudentAttendanceHistory,
     guruTest, getGuruStudentAttendanceSimple
 } from '../controllers/guruController.js';
+import { getPresensiSiswaSmkn13, getRekapKetidakhadiran } from '../controllers/guruReportsController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -25,5 +26,9 @@ router.get('/history', authenticateToken, requireRole(['guru', 'admin']), getGur
 router.get('/student-attendance-history', authenticateToken, requireRole(['guru', 'admin']), getGuruStudentAttendanceHistory);
 router.get('/test', authenticateToken, requireRole(['guru', 'admin']), guruTest);
 router.get('/student-attendance-simple', authenticateToken, requireRole(['guru', 'admin']), getGuruStudentAttendanceSimple);
+
+// Guru Reports endpoints - Migrated from server_modern.js
+router.get('/presensi-siswa-smkn13', authenticateToken, requireRole(['guru', 'admin']), getPresensiSiswaSmkn13);
+router.get('/rekap-ketidakhadiran', authenticateToken, requireRole(['guru', 'admin']), getRekapKetidakhadiran);
 
 export default router;
