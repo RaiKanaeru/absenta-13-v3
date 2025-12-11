@@ -6,7 +6,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, saveReportLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 
 // ================================================
 // HELPER FUNCTIONS
@@ -67,7 +67,7 @@ export const updateReportLetterhead = async (req, res) => {
             });
         }
 
-        const success = await saveReportLetterhead(letterhead);
+        const success = await setLetterheadForReport(REPORT_KEYS.LAPORAN_GURU, letterhead);
         if (!success) {
             return res.status(500).json({ error: 'Gagal menyimpan konfigurasi kop laporan' });
         }
