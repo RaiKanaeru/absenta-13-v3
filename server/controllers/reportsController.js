@@ -1,0 +1,725 @@
+/**
+ * Reports Controller
+ * Handles analytics dashboard and attendance reports (CSV/Excel)
+ * Migrated from server_modern.js
+ */
+
+import { getMySQLDateWIB, getWIBTime } from '../utils/timeUtils.js';
+import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+
+// ================================================
+// REPORTS & ANALYTICS ENDPOINTS
+// ================================================
+
+// Update permission request status (Deprecated but kept for compatibility)
+export const updatePermissionStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status || !['disetujui', 'ditolak'].includes(status)) {
+            return res.status(400).json({ error: 'Status harus disetujui atau ditolak' });
+        }
+
+        console.log(`🔄 Updating permission request ${id} to ${status}...`);
+
+        // Endpoint deprecated - pengajuan izin sudah dihapus
+        return res.status(410).json({
+            error: 'Endpoint deprecated',
+            message: 'Pengajuan izin sudah dihapus dari sistem'
+        });
+
+        /* Unreachable code kept for reference as per original file
+        console.log(`✅ Permission request ${id} updated to ${status}`);
+        res.json({ message: `Pengajuan berhasil ${status}` });
+        */
+    } catch (error) {
+        console.error('❌ Error updating permission request:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get analytics data for dashboard
+export const getAnalyticsDashboard = async (req, res) => {
+    try {
+        console.log('📊 Getting analytics dashboard data...');
+
+        // Get current WIB date components
+        const todayWIB = getMySQLDateWIB();
+        const wibNow = getWIBTime();
+        const currentYear = wibNow.getFullYear();
+        const currentMonth = wibNow.getMonth() + 1;
+
+        // Get student attendance statistics
+        const studentAttendanceQuery = `
+            SELECT 
+                'Hari Ini' as periode,
+                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status != 'Hadir' OR a.status IS NULL THEN 1 END) as tidak_hadir
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND a.tanggal = ?
+            UNION ALL
+            SELECT 
+                'Minggu Ini' as periode,
+                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status != 'Hadir' OR a.status IS NULL THEN 1 END) as tidak_hadir
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND YEARWEEK(a.tanggal, 1) = YEARWEEK(?, 1)
+            UNION ALL
+            SELECT 
+                'Bulan Ini' as periode,
+                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status != 'Hadir' OR a.status IS NULL THEN 1 END) as tidak_hadir
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND YEAR(a.tanggal) = ? 
+                AND MONTH(a.tanggal) = ?
+        `;
+
+        // Get teacher attendance statistics  
+        const teacherAttendanceQuery = `
+            SELECT 
+                'Hari Ini' as periode,
+                COUNT(CASE WHEN ag.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN ag.status != 'Hadir' OR ag.status IS NULL THEN 1 END) as tidak_hadir
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal = ?
+            UNION ALL
+            SELECT 
+                'Minggu Ini' as periode,
+                COUNT(CASE WHEN ag.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN ag.status != 'Hadir' OR ag.status IS NULL THEN 1 END) as tidak_hadir
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                AND YEARWEEK(ag.tanggal, 1) = YEARWEEK(?, 1)
+            UNION ALL
+            SELECT 
+                'Bulan Ini' as periode,
+                COUNT(CASE WHEN ag.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN ag.status != 'Hadir' OR ag.status IS NULL THEN 1 END) as tidak_hadir
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                AND YEAR(ag.tanggal) = ? 
+                AND MONTH(ag.tanggal) = ?
+        `;
+
+        // Get top absent students
+        const topAbsentStudentsQuery = `
+            SELECT 
+                s.nama,
+                k.nama_kelas,
+                COUNT(CASE WHEN a.status IN ('Alpa', 'Izin', 'Sakit', 'Dispen') THEN 1 END) as total_alpa
+            FROM siswa s
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
+            GROUP BY s.id_siswa, s.nama, k.nama_kelas
+            HAVING total_alpa > 0
+            ORDER BY total_alpa DESC
+            LIMIT 5
+        `;
+
+        // Get top absent teachers
+        const topAbsentTeachersQuery = `
+            SELECT 
+                g.nama,
+                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin', 'Dispen') THEN 1 END) as total_tidak_hadir
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id
+            GROUP BY g.id_guru, g.nama
+            HAVING total_tidak_hadir > 0
+            ORDER BY total_tidak_hadir DESC
+            LIMIT 5
+        `;
+
+        // Get recent notifications/banding absen requests
+        const notificationsQuery = `
+            SELECT 
+                ba.id_banding as id,
+                CONCAT('Banding absen dari ', s.nama, ' (', k.nama_kelas, ')') as message,
+                ba.tanggal_pengajuan as timestamp,
+                ba.status_banding as status,
+                'attendance_appeal' as type
+            FROM pengajuan_banding_absen ba
+            JOIN siswa s ON ba.siswa_id = s.id_siswa
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            WHERE ba.status_banding = 'pending'
+            ORDER BY ba.tanggal_pengajuan DESC
+            LIMIT 10
+        `;
+
+        // Get total students count (lightweight query)
+        const [totalStudentsResult] = await global.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"');
+        const totalStudents = totalStudentsResult[0]?.total || 0;
+
+        const [studentAttendance] = await global.dbPool.execute(studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]);
+        const [teacherAttendance] = await global.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]);
+        const [topAbsentStudents] = await global.dbPool.execute(topAbsentStudentsQuery);
+        const [topAbsentTeachers] = await global.dbPool.execute(topAbsentTeachersQuery);
+        const [notifications] = await global.dbPool.execute(notificationsQuery);
+
+        const analyticsData = {
+            studentAttendance: studentAttendance || [],
+            teacherAttendance: teacherAttendance || [],
+            topAbsentStudents: topAbsentStudents || [],
+            topAbsentTeachers: topAbsentTeachers || [],
+            notifications: notifications || [],
+            totalStudents: totalStudents
+        };
+
+        console.log(`✅ Analytics data retrieved successfully`);
+        res.json(analyticsData);
+    } catch (error) {
+        console.error('❌ Error getting analytics data:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get live teacher attendance
+export const getLiveTeacherAttendance = async (req, res) => {
+    try {
+        console.log('📊 Getting live teacher attendance...');
+
+        const todayWIB = getMySQLDateWIB();
+        const wibNow = getWIBTime();
+        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const currentDayWIB = dayNames[wibNow.getDay()];
+
+        const query = `
+            SELECT DISTINCT
+                g.id_guru as id,
+                g.nama,
+                g.nip,
+                GROUP_CONCAT(DISTINCT m.nama_mapel ORDER BY m.nama_mapel SEPARATOR ', ') as nama_mapel,
+                GROUP_CONCAT(DISTINCT k.nama_kelas ORDER BY k.nama_kelas SEPARATOR ', ') as nama_kelas,
+                MIN(j.jam_mulai) as jam_mulai,
+                MAX(j.jam_selesai) as jam_selesai,
+                COALESCE(ag.status, 'Belum Absen') as status,
+                DATE_FORMAT(ag.waktu_catat, '%H:%i:%s') as waktu_absen,
+                ag.keterangan,
+                ag.waktu_catat as waktu_absen_full,
+                CASE 
+                    WHEN ag.waktu_catat IS NOT NULL THEN
+                        CASE 
+                            WHEN TIME(ag.waktu_catat) < '07:00:00' THEN 'Tepat Waktu'
+                            WHEN TIME(ag.waktu_catat) BETWEEN '07:00:00' AND '07:15:00' THEN 'Terlambat Ringan'
+                            WHEN TIME(ag.waktu_catat) BETWEEN '07:15:00' AND '08:00:00' THEN 'Terlambat'
+                            ELSE 'Terlambat Berat'
+                        END
+                    ELSE '-'
+                END as keterangan_waktu,
+                CASE 
+                    WHEN ag.waktu_catat IS NOT NULL THEN
+                        CASE 
+                            WHEN HOUR(ag.waktu_catat) < 12 THEN 'Pagi'
+                            WHEN HOUR(ag.waktu_catat) < 15 THEN 'Siang'
+                            ELSE 'Sore'
+                        END
+                    ELSE 'Belum Absen'
+                END as periode_absen
+            FROM jadwal j
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+                AND DATE(ag.tanggal) = ?
+            WHERE j.hari = ?
+            GROUP BY g.id_guru, g.nama, g.nip, ag.status, ag.waktu_catat, ag.keterangan
+            ORDER BY 
+                CASE WHEN ag.waktu_catat IS NOT NULL THEN 0 ELSE 1 END,
+                ag.waktu_catat DESC,
+                g.nama
+        `;
+
+        const [rows] = await global.dbPool.execute(query, [todayWIB, currentDayWIB]);
+        console.log(`✅ Live teacher attendance retrieved: ${rows.length} records`);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error getting live teacher attendance:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get live student attendance
+export const getLiveStudentAttendance = async (req, res) => {
+    try {
+        console.log('📊 Getting live student attendance...');
+
+        // FIX: Get today's date in WIB timezone
+        const todayWIB = getMySQLDateWIB();
+
+        const query = `
+            SELECT 
+                s.id_siswa as id,
+                s.nama,
+                s.nis,
+                k.nama_kelas,
+                COALESCE(a.status, 'Belum Absen') as status,
+                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
+                a.keterangan,
+                a.waktu_absen as waktu_absen_full,
+                CASE 
+                    WHEN a.waktu_absen IS NOT NULL THEN
+                        CASE 
+                            WHEN TIME(a.waktu_absen) < '07:00:00' THEN 'Tepat Waktu'
+                            WHEN TIME(a.waktu_absen) BETWEEN '07:00:00' AND '07:15:00' THEN 'Terlambat Ringan'
+                            WHEN TIME(a.waktu_absen) BETWEEN '07:15:00' AND '08:00:00' THEN 'Terlambat'
+                            ELSE 'Terlambat Berat'
+                        END
+                    ELSE '-'
+                END as keterangan_waktu,
+                CASE 
+                    WHEN a.waktu_absen IS NOT NULL THEN
+                        CASE 
+                            WHEN HOUR(a.waktu_absen) < 12 THEN 'Pagi'
+                            WHEN HOUR(a.waktu_absen) < 15 THEN 'Siang'
+                            ELSE 'Sore'
+                        END
+                    ELSE 'Belum Absen'
+                END as periode_absen
+            FROM siswa s
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND DATE(a.waktu_absen) = ?
+            WHERE s.status = 'aktif'
+            ORDER BY 
+                CASE WHEN a.waktu_absen IS NOT NULL THEN 0 ELSE 1 END,
+                a.waktu_absen DESC,
+                k.nama_kelas,
+                s.nama
+        `;
+
+        const [rows] = await global.dbPool.execute(query, [todayWIB]);
+        console.log(`✅ Live student attendance retrieved: ${rows.length} records`);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error getting live student attendance:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get teacher attendance report
+export const getTeacherAttendanceReport = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+        console.log('📊 Getting teacher attendance report:', { startDate, endDate, kelas_id });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+
+        let query = `
+            SELECT 
+                DATE_FORMAT(ag.tanggal, '%Y-%m-%d') as tanggal,
+                k.nama_kelas,
+                COALESCE(g.nama, 'Sistem') as nama_guru,
+                g.nip as nip_guru,
+                m.nama_mapel,
+                CASE 
+                    WHEN ag.jam_ke IS NOT NULL THEN CONCAT('Jam ke-', ag.jam_ke)
+                    ELSE CONCAT(j.jam_mulai, ' - ', j.jam_selesai)
+                END as jam_hadir,
+                j.jam_mulai,
+                j.jam_selesai,
+                COALESCE(ag.status, 'Tidak Ada Data') as status,
+                COALESCE(ag.keterangan, '-') as keterangan,
+                j.jam_ke
+            FROM jadwal j
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+                AND ag.tanggal BETWEEN ? AND ?
+            WHERE j.status = 'aktif'
+        `;
+
+        const params = [startDate, endDate];
+
+        if (kelas_id && kelas_id !== '') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+
+        query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
+
+        const [rows] = await global.dbPool.execute(query, params);
+        console.log(`✅ Teacher attendance report retrieved: ${rows.length} records`);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error getting teacher attendance report:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Download teacher attendance report as Excel (CSV)
+export const downloadTeacherAttendanceReport = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+        console.log('📊 Downloading teacher attendance report:', { startDate, endDate, kelas_id });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+
+        let query = `
+            SELECT 
+                COALESCE(DATE_FORMAT(ag.tanggal, '%d/%m/%Y'), DATE_FORMAT(DATE(NOW()), '%d/%m/%Y')) as tanggal,
+                k.nama_kelas,
+                COALESCE(g.nama, 'Sistem') as nama_guru,
+                g.nip as nip_guru,
+                m.nama_mapel,
+                CASE 
+                    WHEN ag.jam_ke IS NOT NULL THEN CONCAT('Jam ke-', ag.jam_ke)
+                    ELSE CONCAT(j.jam_mulai, ' - ', j.jam_selesai)
+                END as jam_hadir,
+                j.jam_mulai,
+                j.jam_selesai,
+                CONCAT(j.jam_mulai, ' - ', j.jam_selesai) as jadwal,
+                COALESCE(ag.status, 'Tidak Ada Data') as status,
+                COALESCE(ag.keterangan, '-') as keterangan
+            FROM jadwal j
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+                AND ag.tanggal BETWEEN ? AND ?
+            WHERE j.status = 'aktif'
+        `;
+
+        const params = [startDate, endDate];
+
+        if (kelas_id && kelas_id !== '') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+
+        query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        // Enhanced CSV format with UTF-8 BOM for Excel compatibility
+        let csvContent = '\uFEFF'; // UTF-8 BOM
+        csvContent += 'Tanggal,Kelas,Guru,NIP,Mata Pelajaran,Jam Hadir,Jam Mulai,Jam Selesai,Jadwal,Status,Keterangan\n';
+
+        rows.forEach(row => {
+            csvContent += `"${row.tanggal}","${row.nama_kelas}","${row.nama_guru}","${row.nip_guru || ''}","${row.nama_mapel}","${row.jam_hadir || ''}","${row.jam_mulai}","${row.jam_selesai}","${row.jadwal}","${row.status}","${row.keterangan || ''}"\n`;
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-guru-${startDate}-${endDate}.csv"`);
+        res.send(csvContent);
+
+        console.log(`✅ Teacher attendance report downloaded successfully: ${rows.length} records`);
+    } catch (error) {
+        console.error('❌ Error downloading teacher attendance report:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get student attendance report
+export const getStudentAttendanceReport = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+        console.log('📊 Getting student attendance report:', { startDate, endDate, kelas_id });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+
+        let query = `
+            SELECT 
+                DATE_FORMAT(a.waktu_absen, '%Y-%m-%d') as tanggal,
+                k.nama_kelas,
+                s.nama as nama_siswa,
+                s.nis as nis_siswa,
+                'Absensi Harian' as nama_mapel,
+                'Siswa Perwakilan' as nama_guru,
+                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
+                '07:00' as jam_mulai,
+                '17:00' as jam_selesai,
+                COALESCE(a.status, 'Tidak Hadir') as status,
+                COALESCE(a.keterangan, '-') as keterangan,
+                NULL as jam_ke
+            FROM absensi_siswa a
+            JOIN siswa s ON a.siswa_id = s.id_siswa
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
+        `;
+
+        const params = [startDate, endDate];
+
+        if (kelas_id && kelas_id !== '') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+
+        query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
+
+        const [rows] = await global.dbPool.execute(query, params);
+        console.log(`✅ Student attendance report retrieved: ${rows.length} records`);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error getting student attendance report:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Download student attendance report as CSV
+export const downloadStudentAttendanceReport = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+        console.log('📊 Downloading student attendance report:', { startDate, endDate, kelas_id });
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+
+        let query = `
+            SELECT 
+                DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal,
+                k.nama_kelas,
+                s.nama as nama_siswa,
+                s.nis as nis_siswa,
+                'Absensi Harian' as nama_mapel,
+                'Siswa Perwakilan' as nama_guru,
+                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
+                '07:00' as jam_mulai,
+                '17:00' as jam_selesai,
+                '07:00 - 17:00' as jadwal,
+                COALESCE(a.status, 'Tidak Hadir') as status,
+                COALESCE(a.keterangan, '-') as keterangan
+            FROM absensi_siswa a
+            JOIN siswa s ON a.siswa_id = s.id_siswa
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
+        `;
+
+        const params = [startDate, endDate];
+
+        if (kelas_id && kelas_id !== '') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+
+        query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        // Enhanced CSV format with UTF-8 BOM for Excel compatibility
+        let csvContent = '\uFEFF'; // UTF-8 BOM
+        csvContent += 'Tanggal,Kelas,Nama Siswa,NIS,Mata Pelajaran,Guru,Waktu Absen,Jam Mulai,Jam Selesai,Jadwal,Status,Keterangan\n';
+
+        rows.forEach(row => {
+            csvContent += `"${row.tanggal}","${row.nama_kelas}","${row.nama_siswa}","${row.nis_siswa || ''}","${row.nama_mapel || ''}","${row.nama_guru || ''}","${row.waktu_absen || ''}","${row.jam_mulai || ''}","${row.jam_selesai || ''}","${row.jadwal || ''}","${row.status}","${row.keterangan || ''}"\n`;
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-siswa-${startDate}-${endDate}.csv"`);
+        res.send(csvContent);
+
+        console.log(`✅ Student attendance report downloaded successfully: ${rows.length} records`);
+    } catch (error) {
+        console.error('❌ Error downloading student attendance report:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get student attendance summary
+export const getStudentAttendanceSummary = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+
+        let query = `
+            SELECT 
+                s.id_siswa as siswa_id,
+                s.nama,
+                s.nis,
+                k.nama_kelas,
+                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
+                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+                COALESCE(COUNT(a.id), 0) AS total,
+                CASE 
+                    WHEN COUNT(a.id) = 0 THEN 0
+                    ELSE ROUND((SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
+                END AS presentase
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            WHERE s.status = 'aktif'
+        `;
+        const params = [startDate, endDate];
+        if (kelas_id && kelas_id !== '') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+        query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
+
+        const [rows] = await global.dbPool.execute(query, params);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error getting student attendance summary:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Download student attendance summary as styled Excel
+export const downloadStudentAttendanceExcel = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id } = req.query;
+
+        // Validasi input
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+
+        // Validasi format tanggal
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+
+        if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+            return res.status(400).json({ error: 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD' });
+        }
+
+        // Validasi rentang tanggal
+        if (startDateObj > endDateObj) {
+            return res.status(400).json({ error: 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai' });
+        }
+
+        // Validasi batas rentang (maksimal 1 tahun)
+        const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
+        if (daysDiff > 366) {
+            return res.status(400).json({ error: 'Rentang tanggal tidak boleh lebih dari 366 hari' });
+        }
+
+        console.log(`📊 Generating student attendance excel for period: ${startDate} to ${endDate}, class: ${kelas_id || 'all'}`);
+
+        let query = `
+            SELECT 
+                s.nama,
+                s.nis,
+                k.nama_kelas,
+                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
+                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+                COALESCE(COUNT(a.id), 0) AS total,
+                CASE 
+                    WHEN COUNT(a.id) = 0 THEN 0
+                    ELSE ROUND((SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
+                END AS presentase
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            WHERE s.status = 'aktif'
+        `;
+
+        const params = [startDate, endDate];
+        if (kelas_id && kelas_id !== '' && kelas_id !== 'all') {
+            query += ' AND k.id_kelas = ?';
+            params.push(kelas_id);
+        }
+
+        query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        console.log(`📊 Found ${rows.length} students for export`);
+
+        // Build schema-aligned rows
+        const exportRows = rows.map((r, idx) => ({
+            no: idx + 1,
+            nama: r.nama || '',
+            nis: r.nis || '',
+            kelas: r.nama_kelas || '',
+            hadir: Number(r.H) || 0,
+            izin: Number(r.I) || 0,
+            sakit: Number(r.S) || 0,
+            alpa: Number(r.A) || 0,
+            dispen: Number(r.D) || 0,
+            presentase: Number(r.presentase) / 100 || 0 // Convert to decimal for percentage format
+        }));
+
+        // Dynamic imports for backend utilities to avoid circular dependencies
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const studentSchemaModule = await import('../../backend/export/schemas/student-summary.js');
+        const studentSchema = studentSchemaModule.default;
+
+        // Load letterhead configuration
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_SISWA });
+
+        const reportPeriod = `${startDate} - ${endDate}`;
+        const workbook = await buildExcel({
+            title: studentSchema.title,
+            subtitle: studentSchema.subtitle,
+            reportPeriod,
+            showLetterhead: letterhead.enabled,
+            letterhead: letterhead,
+            columns: studentSchema.columns,
+            rows: exportRows
+        });
+
+        // Set headers
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx`);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ Student attendance excel generated successfully for ${exportRows.length} students`);
+    } catch (error) {
+        console.error('❌ Error downloading student attendance summary excel:', error);
+        console.error('Stack trace:', error.stack);
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Gagal membuat file Excel',
+                details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+            });
+        }
+    }
+};
+
+// Teacher attendance summary
+export const getTeacherAttendanceSummary = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        }
+        let query = `
+            SELECT 
+                g.id_guru as guru_id,
+                g.nama,
+                g.nip,
+                COALESCE(SUM(CASE WHEN ag.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN ag.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+                COALESCE(SUM(CASE WHEN ag.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+                COALESCE(SUM(CASE WHEN ag.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS A,
+                COALESCE(COUNT(ag.id_absensi), 0) AS total,
+                CASE 
+                    WHEN COUNT(ag.id_absensi) = 0 THEN 0
+                    ELSE ROUND((SUM(CASE WHEN ag.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
+                END AS presentase
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal BETWEEN ? AND ?
+            WHERE g.status = 'aktif'
+        `;
+        const params = [startDate, endDate];
+        query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
+        const [rows] = await global.dbPool.execute(query, params);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error getting teacher attendance summary:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
