@@ -1404,19 +1404,27 @@ export const exportAdminAttendance = async (req, res) => {
 // ================================================
 
 /**
- * Export jadwal matrix format
+ * Export jadwal matrix format - REDESIGNED to match web preview
  * GET /api/admin/export/jadwal-matrix
+ * 
+ * Features:
+ * - Multi-guru support with guru_list parsing
+ * - Styled cells with colors, borders, rich text
+ * - Proper cell structure (Guru, Mapel, Ruang, Time separated)
+ * - Matching web matrix layout
  */
 export const exportJadwalMatrix = async (req, res) => {
     try {
-        console.log('📅 Exporting jadwal matrix format...');
+        console.log('📅 Exporting jadwal matrix format (redesigned)...');
         const { kelas_id, hari } = req.query;
 
         const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
 
+        // Updated query to include multi-guru data
         let query = `
             SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
+                j.is_multi_guru, j.guru_list,
                 k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
                 COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang
             FROM jadwal j
@@ -1432,55 +1440,166 @@ export const exportJadwalMatrix = async (req, res) => {
         query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
 
         const [schedules] = await global.dbPool.execute(query, params);
+        console.log(`📊 Found ${schedules.length} schedules`);
 
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Jadwal Matrix');
+        const worksheet = workbook.addWorksheet('Jadwal Pelajaran Matrix');
 
         const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const totalCols = daysOfWeek.length + 1;
+
+        // Style definitions
+        const headerStyle = {
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } },
+            font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
+            alignment: { horizontal: 'center', vertical: 'middle' },
+            border: {
+                top: { style: 'thin', color: { argb: 'FF000000' } },
+                left: { style: 'thin', color: { argb: 'FF000000' } },
+                bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                right: { style: 'thin', color: { argb: 'FF000000' } }
+            }
+        };
+
+        const kelasStyle = {
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } },
+            font: { bold: true, size: 10 },
+            alignment: { horizontal: 'center', vertical: 'middle' },
+            border: {
+                top: { style: 'thin', color: { argb: 'FF000000' } },
+                left: { style: 'thin', color: { argb: 'FF000000' } },
+                bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                right: { style: 'thin', color: { argb: 'FF000000' } }
+            }
+        };
+
+        const cellBorder = {
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
+            bottom: { style: 'thin', color: { argb: 'FF000000' } },
+            right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
 
         // Add letterhead
         let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
 
         // Title
         currentRow = addReportTitle(worksheet, 'JADWAL PELAJARAN MATRIX', `Tanggal Export: ${formatWIBDate()}`, currentRow, totalCols);
-
-        // Matrix headers
-        const headers = ['KELAS', ...daysOfWeek];
-        addHeaders(worksheet, headers, currentRow);
         currentRow++;
 
-        // Matrix data
+        // Matrix headers with styling
+        const headerRow = worksheet.getRow(currentRow);
+        ['KELAS', ...daysOfWeek].forEach((header, idx) => {
+            const cell = headerRow.getCell(idx + 1);
+            cell.value = header;
+            cell.fill = headerStyle.fill;
+            cell.font = headerStyle.font;
+            cell.alignment = headerStyle.alignment;
+            cell.border = headerStyle.border;
+        });
+        headerRow.height = 25;
+        currentRow++;
+
+        // Helper function to parse guru_list
+        const parseGuruList = (guruList) => {
+            if (!guruList) return [];
+            return guruList.split('||').map(item => {
+                const [id, name] = item.split(':');
+                return { id: parseInt(id), name: name || 'Unknown' };
+            }).filter(g => g.name);
+        };
+
+        // Helper function to format time
+        const formatTime = (time) => {
+            if (!time) return '';
+            const parts = time.toString().split(':');
+            return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+        };
+
+        // Matrix data with proper styling
         const uniqueClasses = [...new Set(schedules.map(s => s.nama_kelas))].sort();
+        
         uniqueClasses.forEach(className => {
-            worksheet.getCell(currentRow, 1).value = className;
+            const dataRow = worksheet.getRow(currentRow);
+            
+            // Kelas column
+            const kelasCell = dataRow.getCell(1);
+            kelasCell.value = className;
+            kelasCell.fill = kelasStyle.fill;
+            kelasCell.font = kelasStyle.font;
+            kelasCell.alignment = kelasStyle.alignment;
+            kelasCell.border = kelasStyle.border;
+
+            let maxSlots = 1;
+
             daysOfWeek.forEach((day, dayIndex) => {
-                const daySchedules = schedules.filter(s => s.nama_kelas === className && s.hari === day)
+                const daySchedules = schedules
+                    .filter(s => s.nama_kelas === className && s.hari === day)
                     .sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
+                
+                const cell = dataRow.getCell(dayIndex + 2);
+                
                 if (daySchedules.length > 0) {
-                    const content = daySchedules.map(s => 
-                        `${s.nama_guru}\n${s.nama_mapel}\n${s.kode_ruang || 'TBD'}\n${s.jam_mulai}-${s.jam_selesai}`
-                    ).join('\n───\n');
-                    worksheet.getCell(currentRow, dayIndex + 2).value = content;
-                    worksheet.getCell(currentRow, dayIndex + 2).alignment = { horizontal: 'center', vertical: 'top', wrapText: true };
+                    maxSlots = Math.max(maxSlots, daySchedules.length);
+                    
+                    // Build structured cell content
+                    const contentParts = daySchedules.map(s => {
+                        const lines = [];
+                        lines.push(s.nama_guru);
+                        if (s.nama_mapel) lines.push(s.nama_mapel);
+                        lines.push(s.kode_ruang || 'Ruang TBD');
+                        lines.push(`${formatTime(s.jam_mulai)} - ${formatTime(s.jam_selesai)}`);
+                        
+                        if (s.is_multi_guru && s.guru_list) {
+                            const guruNames = parseGuruList(s.guru_list);
+                            if (guruNames.length > 1) {
+                                lines.push('');
+                                lines.push('Multi-Guru:');
+                                guruNames.forEach(g => lines.push(`• ${g.name}`));
+                            }
+                        }
+                        return lines.join('\n');
+                    });
+                    
+                    cell.value = contentParts.join('\n\n────────────\n\n');
+                    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+                    cell.border = cellBorder;
+                    cell.font = { size: 9 };
+                    
+                    if (daySchedules.some(s => s.is_multi_guru)) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+                    }
                 } else {
-                    worksheet.getCell(currentRow, dayIndex + 2).value = '-';
+                    cell.value = '-';
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = cellBorder;
+                    cell.font = { size: 9, color: { argb: 'FF9CA3AF' } };
                 }
             });
-            worksheet.getRow(currentRow).height = Math.max(80, daySchedules?.length * 70 || 80);
+
+            dataRow.height = Math.max(60, maxSlots * 70);
             currentRow++;
         });
 
-        worksheet.getColumn(1).width = 12;
-        for (let i = 2; i <= totalCols; i++) worksheet.getColumn(i).width = 22;
+        // Column widths
+        worksheet.getColumn(1).width = 14;
+        for (let i = 2; i <= totalCols; i++) worksheet.getColumn(i).width = 28;
+
+        // Summary row
+        currentRow++;
+        const summaryRow = worksheet.getRow(currentRow);
+        summaryRow.getCell(1).value = `Total: ${schedules.length} jadwal dari ${uniqueClasses.length} kelas`;
+        summaryRow.getCell(1).font = { italic: true, size: 9 };
+        worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Matrix_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Pelajaran_Matrix_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
-        console.log(`✅ Jadwal matrix exported: ${schedules.length} records`);
+        console.log(`✅ Jadwal matrix exported (redesigned): ${schedules.length} records, ${uniqueClasses.length} classes`);
     } catch (error) {
+        console.error('❌ Export jadwal matrix error:', error);
         return sendDatabaseError(res, error);
     }
 };
