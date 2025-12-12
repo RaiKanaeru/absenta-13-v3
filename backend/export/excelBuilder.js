@@ -284,21 +284,21 @@ async function buildExcel(options) {
     columns.forEach((col, index) => {
         const cell = headerRow.getCell(index + 1);
         cell.value = col.label;
-        cell.font = { bold: true, size: 11 };
+        cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
         cell.alignment = { 
-            horizontal: col.align || 'left',
+            horizontal: col.align || 'center',
             vertical: 'middle'
         };
         cell.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FFE6F3FF' }
+            fgColor: { argb: 'FF1E40AF' }
         };
         cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
+            bottom: { style: 'thin', color: { argb: 'FF000000' } },
+            right: { style: 'thin', color: { argb: 'FF000000' } }
         };
     });
     currentRow++;
@@ -329,10 +329,10 @@ async function buildExcel(options) {
                 vertical: 'middle'
             };
             cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
+                top: { style: 'thin', color: { argb: 'FF000000' } },
+                left: { style: 'thin', color: { argb: 'FF000000' } },
+                bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                right: { style: 'thin', color: { argb: 'FF000000' } }
             };
 
             // Alternate row colors
@@ -340,7 +340,7 @@ async function buildExcel(options) {
                 cell.fill = {
                     type: 'pattern',
                     pattern: 'solid',
-                    fgColor: { argb: 'FFF8F9FA' }
+                    fgColor: { argb: 'FFF3F4F6' }
                 };
             }
         });

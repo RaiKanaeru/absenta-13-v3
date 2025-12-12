@@ -556,6 +556,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 // ================================================
 
 import { addLetterheadToWorksheet, addReportTitle, addHeaders } from '../utils/excelLetterhead.js';
+import { excelStyles, applyStyle, applyHeaderRow, borders, colors, formatTime, parseGuruList, getStatusStyle, addSummaryRow, applyAlternatingColors } from '../utils/excelStyles.js';
 
 /**
  * Export riwayat banding absen
@@ -1605,12 +1606,12 @@ export const exportJadwalMatrix = async (req, res) => {
 };
 
 /**
- * Export jadwal grid format
+ * Export jadwal grid format - REDESIGNED with consistent styling
  * GET /api/admin/export/jadwal-grid
  */
 export const exportJadwalGrid = async (req, res) => {
     try {
-        console.log('📅 Exporting jadwal grid format...');
+        console.log('📅 Exporting jadwal grid format (styled)...');
         const { kelas_id, hari } = req.query;
 
         const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
@@ -1618,9 +1619,9 @@ export const exportJadwalGrid = async (req, res) => {
 
         let query = `
             SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
+                j.is_multi_guru, j.guru_list,
                 k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                COALESCE(g.nama, 'Sistem') as nama_guru, COALESCE(g.nip, '-') as nip_guru,
-                rk.kode_ruang, rk.nama_ruang
+                COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang
             FROM jadwal j
             JOIN kelas k ON j.kelas_id = k.id_kelas
             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
@@ -1631,7 +1632,7 @@ export const exportJadwalGrid = async (req, res) => {
         const params = [];
         if (kelas_id && kelas_id !== 'all') { query += ' AND j.kelas_id = ?'; params.push(kelas_id); }
         if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
-        query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
+        query += ` ORDER BY k.nama_kelas, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke`;
 
         const [schedules] = await global.dbPool.execute(query, params);
 
@@ -1639,34 +1640,92 @@ export const exportJadwalGrid = async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Jadwal Grid');
 
-        const totalCols = 10;
-        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
-        currentRow = addReportTitle(worksheet, 'JADWAL PELAJARAN GRID', `Tanggal Export: ${formatWIBDate()}`, currentRow, totalCols);
+        const columns = ['No', 'Kelas', 'Hari', 'Jam Ke', 'Waktu', 'Mata Pelajaran', 'Guru', 'Ruang'];
+        const totalCols = columns.length;
 
-        const headers = ['NO', 'HARI', 'JAM KE', 'WAKTU', 'KELAS', 'MAPEL', 'GURU', 'NIP', 'RUANG', 'AKTIVITAS'];
-        addHeaders(worksheet, headers, currentRow);
+        // Add letterhead
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
+
+        // Title with styling
+        currentRow = addReportTitle(worksheet, 'JADWAL PELAJARAN GRID', `Tanggal Export: ${formatWIBDate()}`, currentRow, totalCols);
         currentRow++;
 
-        schedules.forEach((schedule, index) => {
-            worksheet.getCell(currentRow, 1).value = index + 1;
-            worksheet.getCell(currentRow, 2).value = schedule.hari;
-            worksheet.getCell(currentRow, 3).value = schedule.jam_ke;
-            worksheet.getCell(currentRow, 4).value = `${schedule.jam_mulai}-${schedule.jam_selesai}`;
-            worksheet.getCell(currentRow, 5).value = schedule.nama_kelas;
-            worksheet.getCell(currentRow, 6).value = schedule.nama_mapel;
-            worksheet.getCell(currentRow, 7).value = schedule.nama_guru;
-            worksheet.getCell(currentRow, 8).value = schedule.nip_guru;
-            worksheet.getCell(currentRow, 9).value = schedule.kode_ruang || '-';
-            worksheet.getCell(currentRow, 10).value = schedule.jenis_aktivitas;
+        // Headers with styling
+        const headerRow = worksheet.getRow(currentRow);
+        columns.forEach((col, idx) => {
+            const cell = headerRow.getCell(idx + 1);
+            cell.value = col;
+            applyStyle(cell, excelStyles.header);
+        });
+        headerRow.height = 25;
+        currentRow++;
+
+        const dataStartRow = currentRow;
+
+        // Data rows with styling
+        schedules.forEach((schedule, idx) => {
+            const row = worksheet.getRow(currentRow);
+            
+            // Parse multi-guru
+            let guruDisplay = schedule.nama_guru;
+            if (schedule.is_multi_guru && schedule.guru_list) {
+                const guruNames = parseGuruList(schedule.guru_list);
+                if (guruNames.length > 1) {
+                    guruDisplay = guruNames.map(g => g.name).join('\n');
+                }
+            }
+
+            const values = [
+                idx + 1,
+                schedule.nama_kelas,
+                schedule.hari,
+                schedule.jam_ke || '-',
+                `${formatTime(schedule.jam_mulai)} - ${formatTime(schedule.jam_selesai)}`,
+                schedule.nama_mapel,
+                guruDisplay,
+                schedule.kode_ruang || '-'
+            ];
+
+            values.forEach((val, colIdx) => {
+                const cell = row.getCell(colIdx + 1);
+                cell.value = val;
+                cell.border = borders.thin;
+                cell.alignment = { vertical: 'middle', wrapText: true };
+                if (colIdx === 0 || colIdx === 3) {
+                    cell.alignment.horizontal = 'center';
+                }
+            });
+
+            // Highlight multi-guru rows
+            if (schedule.is_multi_guru) {
+                for (let i = 1; i <= totalCols; i++) {
+                    row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.multiGuru } };
+                }
+            }
+
+            row.height = schedule.is_multi_guru ? 40 : 25;
             currentRow++;
         });
+
+        // Apply alternating colors
+        applyAlternatingColors(worksheet, dataStartRow, currentRow - 1, 1, totalCols);
+
+        // Column widths
+        [5, 12, 10, 8, 16, 25, 25, 12].forEach((width, idx) => {
+            worksheet.getColumn(idx + 1).width = width;
+        });
+
+        // Summary
+        currentRow++;
+        addSummaryRow(worksheet, `Total: ${schedules.length} jadwal`, currentRow, totalCols);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Grid_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
-        console.log(`✅ Jadwal grid exported: ${schedules.length} records`);
+        console.log(`✅ Jadwal grid exported (styled): ${schedules.length} records`);
     } catch (error) {
+        console.error('❌ Export jadwal grid error:', error);
         return sendDatabaseError(res, error);
     }
 };
