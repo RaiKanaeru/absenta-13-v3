@@ -7,13 +7,19 @@ import {
     deleteJadwal,
     getJadwalGuru,
     addJadwalGuru,
-    removeJadwalGuru
+    removeJadwalGuru,
+    getJadwalToday
 } from '../controllers/jadwalController.js';
 
 const router = express.Router();
 
 // Apply middleware to all routes
 router.use(authenticateToken);
+
+// Public/Shared Routes (Guru, Siswa, Admin)
+router.get('/today', requireRole(['admin', 'guru', 'siswa']), getJadwalToday);
+
+// Admin-only Routes
 router.use(requireRole(['admin']));
 
 // Main CRUD Routes

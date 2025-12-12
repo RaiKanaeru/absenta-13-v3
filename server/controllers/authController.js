@@ -1,20 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import getMySQLDateTimeWIB from '../../database-optimization.js'; // Assuming we strictly need this or can use global helper? 
-// global.dbPool is used, so we assume server_modern.js initializes it.
-// Helpers like getMySQLDateTimeWIB might need to be imported or duplicated.
-// Let's check imports in server_modern.js - it defines them locally.
-// I should probably extract helpers to utils first, but for now I'll use the global helpers strategy 
-// or duplicate small helpers if needed, OR export them from a utilities file.
-// Ideally, helpers should be in server/utils/dateUtils.js. 
-// For this step, I will stick to what's available or duplicate small logic to avoid circular deps or complex exports from root.
-// Actually, `server_modern.js` has them as local functions. 
-// I will create `server/utils/dateUtils.js` first to be clean? 
-// No, let's keep it simple for now and maybe assume we can access them if they were global, 
-// BUT they are NOT attached to global in server_modern.js.
-// So I MUST Duplicate or Extract them. Extracting is better.
-// I'll create `server/utils/time.js` for time helpers.
+import { sendErrorResponse, sendValidationError } from '../utils/errorHandler.js';
 
 dotenv.config();
 
@@ -116,8 +103,12 @@ export const login = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Login error:', error);
-        res.status(500).json({ error: 'Internal server error during login' });
+        return sendErrorResponse(
+            res, 
+            error, 
+            'Terjadi kesalahan saat memproses login Anda. Silakan coba lagi dalam beberapa saat atau hubungi administrator jika masalah berlanjut.',
+            500
+        );
     }
 };
 

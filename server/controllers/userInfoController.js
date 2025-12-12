@@ -6,6 +6,8 @@
 
 import { getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
 
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 // ================================================
 // SISWA PERWAKILAN ENDPOINTS
 // ================================================
@@ -138,11 +140,7 @@ export const getAdminInfo = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error getting admin info:', error);
-        res.status(500).json({
-            error: 'Gagal memuat informasi admin',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat informasi admin');
     }
 };
 

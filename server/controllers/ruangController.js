@@ -39,8 +39,7 @@ export const getRuang = async (req, res) => {
         console.log(`✅ Rooms retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting rooms:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -61,8 +60,7 @@ export const getRuangById = async (req, res) => {
 
         res.json(rows[0]);
     } catch (error) {
-        console.error('❌ Error getting room:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -107,8 +105,7 @@ export const createRuang = async (req, res) => {
             id: result.insertId
         });
     } catch (error) {
-        console.error('❌ Error creating room:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -155,8 +152,7 @@ export const updateRuang = async (req, res) => {
         console.log(`✅ Room updated: ${result.affectedRows} rows affected`);
         res.json({ success: true, message: 'Ruang berhasil diperbarui' });
     } catch (error) {
-        console.error('❌ Error updating room:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -191,7 +187,6 @@ export const deleteRuang = async (req, res) => {
         console.log(`✅ Room deleted: ${result.affectedRows} rows affected`);
         res.json({ success: true, message: 'Ruang berhasil dihapus' });
     } catch (error) {
-        console.error('❌ Error deleting room:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

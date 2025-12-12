@@ -6,7 +6,7 @@ import { useLetterhead } from '../hooks/useLetterhead';
 
 interface ExcelPreviewProps {
   title: string;
-  data: any[];
+  data: Record<string, string | number | Date | null | undefined>[];
   columns: {
     key: string;
     label: string;
@@ -41,22 +41,22 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
 }) => {
   // Load letterhead configuration
   const { letterhead } = useLetterhead(reportKey);
-  const formatCellValue = (value: any, format?: string) => {
+  const formatCellValue = (value: string | number | Date | null | undefined, format?: string): string => {
     if (value === null || value === undefined) return '';
     
     switch (format) {
       case 'number':
-        return typeof value === 'number' ? value.toLocaleString('id-ID') : value;
+        return typeof value === 'number' ? value.toLocaleString('id-ID') : String(value);
       case 'percentage':
-        return typeof value === 'number' ? `${value.toFixed(2)}%` : value;
+        return typeof value === 'number' ? `${value.toFixed(2)}%` : String(value);
       case 'date':
-        return value instanceof Date ? value.toLocaleDateString('id-ID') : value;
+        return value instanceof Date ? value.toLocaleDateString('id-ID') : String(value);
       default:
-        return value;
+        return value instanceof Date ? value.toLocaleDateString('id-ID') : String(value);
     }
   };
 
-  const getCellStyle = (format?: string, value?: any, columnKey?: string, align?: string) => {
+  const getCellStyle = (format?: string, value?: string | number | null, columnKey?: string, align?: string) => {
     const baseStyle = "px-1 sm:px-2 py-1 text-xs border-r border-b border-gray-400 overflow-hidden";
     
     // Explicit alignment from column config takes precedence
@@ -78,17 +78,18 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
         }
     }
 
-    // Special styling for attendance columns
-    if (columnKey === 'hadir' && value > 0) {
+    // Special styling for attendance columns (with type guard)
+    const numValue = typeof value === 'number' ? value : 0;
+    if (columnKey === 'hadir' && numValue > 0) {
       return `${baseStyle} text-center font-semibold bg-emerald-50 text-emerald-700`;
     }
-    if (columnKey === 'izin' && value > 0) {
+    if (columnKey === 'izin' && numValue > 0) {
       return `${baseStyle} text-center font-semibold bg-blue-50 text-blue-700`;
     }
-    if (columnKey === 'sakit' && value > 0) {
+    if (columnKey === 'sakit' && numValue > 0) {
       return `${baseStyle} text-center font-semibold bg-red-50 text-red-700`;
     }
-    if (columnKey === 'alpa' && value > 0) {
+    if (columnKey === 'alpa' && numValue > 0) {
       return `${baseStyle} text-center font-semibold bg-yellow-50 text-yellow-700`;
     }
     
@@ -283,19 +284,26 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                       rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                     } hover:bg-blue-50 transition-colors`}
                   >
-                    {columns.map((column, colIndex) => (
-                      <td
-                        key={column.key}
-                        className={getCellStyle(column.format, row[column.key], column.key, column.align)}
-                        style={{ 
-                          width: column.width ? `${Math.max(column.width, 80)}px` : '120px'
-                        }}
-                      >
-                        <div className="truncate" title={formatCellValue(row[column.key], column.format)}>
-                          {formatCellValue(row[column.key], column.format)}
-                        </div>
-                      </td>
-                    ))}
+                    {columns.map((column, colIndex) => {
+                      const cellValue = row[column.key];
+                      const safeValue = cellValue instanceof Date 
+                        ? cellValue.toLocaleDateString('id-ID') 
+                        : cellValue;
+                      const displayValue = formatCellValue(cellValue, column.format);
+                      return (
+                        <td
+                          key={column.key}
+                          className={getCellStyle(column.format, typeof safeValue === 'string' || typeof safeValue === 'number' ? safeValue : null, column.key, column.align)}
+                          style={{ 
+                            width: column.width ? `${Math.max(column.width, 80)}px` : '120px'
+                          }}
+                        >
+                          <div className="truncate" title={String(displayValue ?? '')}>
+                            {displayValue}
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

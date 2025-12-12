@@ -5,6 +5,8 @@
  */
 
 import bcrypt from 'bcrypt';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
@@ -36,8 +38,7 @@ export const getStudentsData = async (req, res) => {
         console.log(`✅ Students data retrieved: ${results.length} items`);
         res.json(results);
     } catch (error) {
-        console.error('❌ Error getting students data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -293,8 +294,7 @@ export const deleteStudentData = async (req, res) => {
     } catch (error) {
         // Rollback transaction on error
         await connection.rollback();
-        console.error('❌ Error deleting student data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }
@@ -409,8 +409,7 @@ export const promoteStudents = async (req, res) => {
         });
     } catch (error) {
         await connection.rollback();
-        console.error('❌ Error promoting students:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }

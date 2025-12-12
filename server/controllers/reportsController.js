@@ -5,6 +5,8 @@
  */
 
 import { getMySQLDateWIB, getWIBTime } from '../utils/timeUtils.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 
 // ================================================
@@ -34,8 +36,7 @@ export const updatePermissionStatus = async (req, res) => {
         res.json({ message: `Pengajuan berhasil ${status}` });
         */
     } catch (error) {
-        console.error('❌ Error updating permission request:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -170,8 +171,7 @@ export const getAnalyticsDashboard = async (req, res) => {
         console.log(`✅ Analytics data retrieved successfully`);
         res.json(analyticsData);
     } catch (error) {
-        console.error('❌ Error getting analytics data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -235,8 +235,7 @@ export const getLiveTeacherAttendance = async (req, res) => {
         console.log(`✅ Live teacher attendance retrieved: ${rows.length} records`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting live teacher attendance:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -293,8 +292,7 @@ export const getLiveStudentAttendance = async (req, res) => {
         console.log(`✅ Live student attendance retrieved: ${rows.length} records`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting live student attendance:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -346,8 +344,7 @@ export const getTeacherAttendanceReport = async (req, res) => {
         console.log(`✅ Teacher attendance report retrieved: ${rows.length} records`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting teacher attendance report:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -411,8 +408,7 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
 
         console.log(`✅ Teacher attendance report downloaded successfully: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error downloading teacher attendance report:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -459,8 +455,7 @@ export const getStudentAttendanceReport = async (req, res) => {
         console.log(`✅ Student attendance report retrieved: ${rows.length} records`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting student attendance report:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -519,8 +514,7 @@ export const downloadStudentAttendanceReport = async (req, res) => {
 
         console.log(`✅ Student attendance report downloaded successfully: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error downloading student attendance report:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -563,8 +557,7 @@ export const getStudentAttendanceSummary = async (req, res) => {
         const [rows] = await global.dbPool.execute(query, params);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting student attendance summary:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -719,7 +712,6 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         const [rows] = await global.dbPool.execute(query, params);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting teacher attendance summary:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

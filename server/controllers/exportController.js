@@ -5,6 +5,8 @@
  */
 
 import ExcelJS from 'exceljs';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import { buildExcel } from '../../backend/export/excelBuilder.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { formatWIBTime, formatWIBDate, getWIBTime } from '../utils/timeUtils.js';
@@ -155,8 +157,7 @@ export const exportTeacherList = async (req, res) => {
 
         console.log(`✅ Teacher list exported successfully: ${teachers.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting teacher list:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -240,8 +241,7 @@ export const exportStudentSummary = async (req, res) => {
 
         console.log(`✅ Student summary exported successfully: ${students.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting student summary:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -311,8 +311,7 @@ export const exportTeacherSummary = async (req, res) => {
 
         console.log(`✅ Teacher summary exported successfully: ${teachers.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting teacher summary:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -421,8 +420,7 @@ export const exportBandingAbsen = async (req, res) => {
 
         console.log(`✅ Banding absen exported successfully: ${bandingData.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting banding absen:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -549,8 +547,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 
         console.log(`✅ Rekap ketidakhadiran guru exported successfully: ${dataWithPercentage.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting rekap ketidakhadiran guru:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -675,8 +672,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 
         console.log(`✅ Riwayat banding absen exported: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting riwayat banding absen:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -820,8 +816,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
 
         console.log(`✅ Presensi siswa SMKN 13 exported: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting presensi siswa SMKN 13:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -970,8 +965,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
 
         console.log(`✅ Rekap ketidakhadiran exported: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting rekap ketidakhadiran:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1079,8 +1073,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
 
         console.log(`✅ Ringkasan kehadiran siswa exported: ${dataWithPercentage.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting ringkasan kehadiran siswa:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1185,8 +1178,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
 
         console.log(`✅ Rekap ketidakhadiran guru SMKN13 exported: ${dataWithPercentage.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting rekap ketidakhadiran guru SMKN13:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1291,8 +1283,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
 
         console.log(`✅ Rekap ketidakhadiran siswa exported: ${exportData.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting rekap ketidakhadiran siswa:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1361,8 +1352,7 @@ export const exportPresensiSiswa = async (req, res) => {
 
         console.log(`✅ Presensi siswa exported: ${exportData.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting presensi siswa:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1405,8 +1395,7 @@ export const exportAdminAttendance = async (req, res) => {
 
         console.log(`✅ Attendance data exported: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting attendance data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1492,8 +1481,7 @@ export const exportJadwalMatrix = async (req, res) => {
         res.end();
         console.log(`✅ Jadwal matrix exported: ${schedules.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting jadwal matrix:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1560,8 +1548,7 @@ export const exportJadwalGrid = async (req, res) => {
         res.end();
         console.log(`✅ Jadwal grid exported: ${schedules.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting jadwal grid:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1633,8 +1620,7 @@ export const exportJadwalPrint = async (req, res) => {
         res.end();
         console.log(`✅ Jadwal print exported: ${schedules.length} records`);
     } catch (error) {
-        console.error('❌ Error exporting jadwal print:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -1651,3 +1637,298 @@ export const exportJadwalPrint = async (req, res) => {
 
 
 
+
+// ================================================
+// ASYNC DOWNLOAD ENDPOINTS - Batch 17F
+// ================================================
+
+/**
+ * Request Excel download
+ * POST /api/guru/request-excel-download
+ */
+export const requestExcelDownload = async (req, res) => {
+    try {
+        const { startDate, endDate, kelas_id, mapel_id } = req.body;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+
+        console.log(`📥 Requesting Excel download for user ${userId} (${userRole})`);
+
+        const jobData = {
+            userId,
+            userRole,
+            startDate,
+            endDate,
+            kelas_id,
+            mapel_id,
+            timestamp: new Date().toISOString()
+        };
+
+        const job = await global.downloadQueue.addDownloadJob(jobData);
+
+        res.json({
+            success: true,
+            message: 'Download request queued successfully',
+            data: {
+                jobId: job.id,
+                status: 'queued',
+                estimatedTime: '2-5 minutes'
+            }
+        });
+
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Get download status
+ * GET /api/guru/download-status/:jobId
+ */
+export const getDownloadStatus = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const userId = req.user.id;
+
+        const jobStatus = await global.downloadQueue.getJobStatus(jobId, userId);
+
+        res.json({
+            success: true,
+            data: jobStatus
+        });
+
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Download file
+ * GET /api/downloads/:filename
+ */
+export const downloadFile = async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const userId = req.user.id;
+        
+        // Use path and fs imports (will need to be added to top of file)
+        const path = await import('path');
+        const fs = await import('fs/promises');
+
+        const filePath = path.default.join(global.downloadQueue.downloadDir, filename);
+
+        // Check if file exists
+        try {
+            await fs.default.access(filePath);
+        } catch (error) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Verify user has access to this file
+        const hasAccess = await global.downloadQueue.verifyFileAccess(filename, userId);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        res.download(filePath, filename);
+
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export laporan kehadiran siswa complete with daily detail (Guru View)
+ * GET /api/guru/download-laporan-kehadiran-siswa
+ */
+export const exportLaporanKehadiranSiswa = async (req, res) => {
+    try {
+        const { kelas_id, startDate, endDate } = req.query;
+        const guruId = req.user.guru_id;
+
+        if (!kelas_id) return res.status(400).json({ error: 'Kelas ID wajib diisi' });
+        if (!startDate || !endDate) return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 62) return res.status(400).json({ error: 'Rentang tanggal maksimal 62 hari' });
+
+        // Get mapel info
+        const [mapelInfo] = await global.dbPool.execute(`
+            SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
+            FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
+        `, [guruId]);
+
+        // Get scheduled dates
+        const [jadwalData] = await global.dbPool.execute(`
+            SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
+        `, [guruId, kelas_id]);
+
+        const pertemuanDates = [];
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][d.getDay()];
+            if (jadwalData.some(j => j.hari === dayName)) {
+                pertemuanDates.push(d.toISOString().split('T')[0]);
+            }
+        }
+
+        // Get actual attendance dates
+        const [actualDates] = await global.dbPool.execute(`
+            SELECT DISTINCT DATE(a.tanggal) as tanggal
+            FROM absensi_siswa a
+            WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            ORDER BY DATE(a.tanggal)
+        `, [guruId, kelas_id, startDate, endDate]);
+
+        const allDates = new Set(pertemuanDates);
+        actualDates.forEach(r => { if (r.tanggal) allDates.add(r.tanggal.toISOString().split('T')[0]); });
+        const finalDates = Array.from(allDates).sort();
+
+        // Get student summary stats
+        const [siswaData] = await global.dbPool.execute(`
+            SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+                COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+                CASE 
+                    WHEN ? = 0 THEN '0%'
+                    ELSE CONCAT(ROUND((SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+                END AS persentase_kehadiran
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+                AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+            GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+            ORDER BY s.nama
+        `, [finalDates.length, finalDates.length, startDate, endDate, guruId, kelas_id, kelas_id]);
+
+        // Get detailed daily attendance
+        const [detailKehadiran] = await global.dbPool.execute(`
+            SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+                AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+        `, [startDate, endDate, guruId, kelas_id, kelas_id]);
+
+        const attendanceMap = {};
+        detailKehadiran.forEach(r => {
+            if (!attendanceMap[r.id_siswa]) attendanceMap[r.id_siswa] = {};
+            if (r.tanggal && r.status) attendanceMap[r.id_siswa][r.tanggal.toISOString().split('T')[0]] = r.status;
+        });
+
+        // Generate Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const fs = await import('fs');
+        const path = await import('path');
+        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Laporan Kehadiran Siswa');
+        let currentRow = 1;
+
+        // Custom Letterhead Logic (Simplified from original)
+        if (letterhead.enabled && letterhead.lines?.length > 0) {
+            const alignment = letterhead.alignment || 'center';
+            // Logos
+            if (letterhead.logoLeftUrl || letterhead.logoRightUrl) {
+                const addLogo = (url, col) => {
+                    try {
+                        let buffer;
+                        if (url.startsWith('data:image/')) buffer = Buffer.from(url.split(',')[1], 'base64');
+                        else {
+                            const p = path.default.join(process.cwd(), 'public', url);
+                            if (fs.existsSync(p)) buffer = fs.readFileSync(p);
+                        }
+                        if (buffer) {
+                            const imgId = workbook.addImage({ buffer, extension: 'png' });
+                            sheet.addImage(imgId, { tl: { col, row: currentRow - 1 }, br: { col: col + 2, row: currentRow + 2 } });
+                        }
+                    } catch (e) {
+                         console.warn('Logo error:', e.message);
+                         sheet.getCell(currentRow, col + 1).value = '[LOGO]';
+                    }
+                };
+                if (letterhead.logoLeftUrl) addLogo(letterhead.logoLeftUrl, 0);
+                if (letterhead.logoRightUrl) addLogo(letterhead.logoRightUrl, Math.max(9, finalDates.length + 5)); // Put right logo at end
+            }
+            // Text Lines
+            letterhead.lines.forEach((line, idx) => {
+                const text = typeof line === 'string' ? line : line.text;
+                const bold = typeof line === 'object' ? line.fontWeight === 'bold' : idx === 0;
+                const cell = sheet.getCell(currentRow, 1);
+                cell.value = text;
+                cell.font = { bold, size: bold ? 14 : 12 };
+                cell.alignment = { horizontal: alignment };
+                sheet.mergeCells(currentRow, 1, currentRow, finalDates.length + 10);
+                currentRow++;
+            });
+            currentRow++;
+        }
+
+        // Title & Info
+        const addInfoRow = (text) => {
+            sheet.getCell(currentRow, 1).value = text;
+            sheet.getCell(currentRow, 1).font = { bold: true };
+            sheet.getCell(currentRow, 1).alignment = { horizontal: 'center' };
+            sheet.mergeCells(currentRow, 1, currentRow, finalDates.length + 10);
+            currentRow++;
+        };
+        addInfoRow('LAPORAN KEHADIRAN SISWA');
+        if (mapelInfo[0]) {
+            addInfoRow(`Mata Pelajaran: ${mapelInfo[0].nama_mapel}`);
+            addInfoRow(`Guru: ${mapelInfo[0].nama_guru}`);
+        }
+        currentRow++;
+
+        // Headers
+        const headerRow = currentRow;
+        const headers = ['No', 'Nama', 'NIS', 'L/P', ...finalDates.map(d => new Date(d).getDate()), 'H', 'I', 'S', 'A', 'D', '%'];
+        headers.forEach((h, i) => {
+            const cell = sheet.getCell(headerRow, i + 1);
+            cell.value = h;
+            cell.font = { bold: true };
+            cell.alignment = { horizontal: 'center' };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        // Data
+        siswaData.forEach((s, idx) => {
+            const row = headerRow + 1 + idx;
+            const basic = [idx + 1, s.nama, s.nis, s.jenis_kelamin];
+            const daily = finalDates.map(d => {
+                const st = attendanceMap[s.id_siswa]?.[d];
+                return st === 'Hadir' ? 'H' : st === 'Izin' ? 'I' : st === 'Sakit' ? 'S' : st === 'Alpa' ? 'A' : st === 'Dispen' ? 'D' : '-';
+            });
+            const summary = [s.total_hadir, s.total_izin, s.total_sakit, s.total_alpa, s.total_dispen, s.persentase_kehadiran];
+            
+            [...basic, ...daily, ...summary].forEach((val, colIds) => {
+                const cell = sheet.getCell(row, colIds + 1);
+                cell.value = val;
+                cell.alignment = { horizontal: 'center' };
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            });
+        });
+
+        // Widths
+        sheet.getColumn(1).width = 5;
+        sheet.getColumn(2).width = 25;
+        sheet.getColumn(3).width = 12;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};

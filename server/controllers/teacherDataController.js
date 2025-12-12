@@ -6,6 +6,8 @@
 
 import bcrypt from 'bcrypt';
 
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 
 // Get teachers data for admin dashboard
@@ -25,8 +27,7 @@ export const getTeachersData = async (req, res) => {
         console.log(`✅ Teachers data retrieved: ${results.length} items`);
         res.json(results);
     } catch (error) {
-        console.error('❌ Error getting teachers data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -159,8 +160,7 @@ export const updateTeacherData = async (req, res) => {
             throw error;
         }
     } catch (error) {
-        console.error('❌ Error updating teacher data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }
@@ -218,8 +218,7 @@ export const deleteTeacherData = async (req, res) => {
             throw error;
         }
     } catch (error) {
-        console.error('❌ Error deleting teacher data:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }

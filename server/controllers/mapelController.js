@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 dotenv.config();
 
 // Get All Mapel
@@ -16,8 +18,7 @@ export const getMapel = async (req, res) => {
         console.log(`✅ Subjects retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting subjects:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -106,8 +107,7 @@ export const updateMapel = async (req, res) => {
         console.log('✅ Subject updated successfully');
         res.json({ message: 'Mata pelajaran berhasil diupdate' });
     } catch (error) {
-        console.error('❌ Error updating subject:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -129,7 +129,6 @@ export const deleteMapel = async (req, res) => {
         console.log('✅ Subject deleted successfully');
         res.json({ message: 'Mata pelajaran berhasil dihapus' });
     } catch (error) {
-        console.error('❌ Error deleting subject:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

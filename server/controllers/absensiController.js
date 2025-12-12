@@ -224,8 +224,7 @@ export async function getStudentsForSchedule(req, res) {
         console.log(`✅ Found ${students.length} students for schedule ${id} (class ${kelasId})`);
         res.json(students);
     } catch (error) {
-        console.error('❌ Error getting students for schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 }
 
@@ -293,8 +292,7 @@ export async function getStudentsForScheduleByDate(req, res) {
         console.log(`✅ Found ${students.length} students for schedule ${id} on date ${targetDateStr}`);
         res.json(students);
     } catch (error) {
-        console.error('❌ Error getting students by date for schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 }
 
@@ -528,11 +526,7 @@ export async function submitTeacherAttendance(req, res) {
             connection.release();
         }
     } catch (error) {
-        console.error('❌ Error submitting kehadiran guru:', error);
-        res.status(500).json({
-            error: 'Gagal menyimpan data kehadiran guru',
-            details: error.message
-        });
+        return sendDatabaseError(res, error, 'Gagal menyimpan data kehadiran guru');
     }
 }
 
@@ -692,8 +686,7 @@ export async function updateTeacherStatus(req, res) {
 
         res.json({ success: true, message: 'Status kehadiran guru berhasil diperbarui' });
     } catch (error) {
-        console.error('❌ Error updating guru status:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 }
 
@@ -919,7 +912,138 @@ export async function getStudentAttendanceStatus(req, res) {
             nama_guru: statusData.nama_guru
         });
     } catch (error) {
-        console.error('❌ Error getting status kehadiran siswa:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
+    }
+}
+
+// ===========================
+// MIGRATED FROM SERVER_MODERN.JS
+// ===========================
+
+/**
+ * Record attendance (Simple version for siswa marking guru)
+ * POST /api/absensi
+ */
+export async function recordTeacherAttendanceSimple(req, res) {
+    try {
+        const { jadwal_id, guru_id, status, keterangan, terlambat, ada_tugas } = req.body;
+
+        // Check if attendance already recorded for today
+        const todayWIB = getMySQLDateWIB();
+        const [existing] = await global.dbPool.execute(
+            `SELECT * FROM absensi_guru 
+             WHERE jadwal_id = ? AND tanggal = ?`,
+            [jadwal_id, todayWIB]
+        );
+
+        if (existing.length > 0) {
+            return res.status(400).json({ error: 'Absensi untuk jadwal ini sudah dicatat hari ini' });
+        }
+
+        // Get jadwal details
+        const [jadwalData] = await global.dbPool.execute(
+            'SELECT * FROM jadwal WHERE id_jadwal = ?',
+            [jadwal_id]
+        );
+
+        if (jadwalData.length === 0) {
+            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+        }
+
+        // Map status based on flags
+        let finalStatus = status;
+        let isLate = 0;
+        let hasTask = 0;
+
+        if (terlambat && status === 'Hadir') {
+            isLate = 1;
+            finalStatus = 'Hadir';
+        } else if (ada_tugas && (status === 'Alpa' || status === 'Tidak Hadir')) {
+            hasTask = 1;
+            finalStatus = status;
+        }
+
+        // Record attendance
+        await global.dbPool.execute(
+            `INSERT INTO absensi_guru (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, jam_ke, status, keterangan, terlambat, ada_tugas)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [jadwal_id, guru_id, req.user.kelas_id, req.user.siswa_id, todayWIB, jadwalData[0].jam_ke, finalStatus, keterangan, isLate, hasTask]
+        );
+
+        console.log(`✅ Attendance recorded by ${req.user.nama} for guru_id: ${guru_id}, status: ${finalStatus}`);
+        res.json({ success: true, message: 'Absensi berhasil dicatat' });
+
+    } catch (error) {
+        console.error('❌ Record attendance error:', error);
+        res.status(500).json({ error: 'Failed to record attendance' });
+    }
+}
+
+/**
+ * Get attendance history (Raw list for dashboard/widgets)
+ * GET /api/absensi/history
+ */
+export async function getAbsensiHistory(req, res) {
+    try {
+        const { date_start, date_end, limit = 50 } = req.query;
+
+        let query = `
+            SELECT ag.*, j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
+                   COALESCE(g.nama, 'Sistem') as nama_guru, k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                   s.nama as nama_pencatat
+            FROM absensi_guru ag
+            JOIN jadwal j ON ag.jadwal_id = j.id_jadwal
+            LEFT JOIN guru g ON ag.guru_id = g.id_guru
+            JOIN kelas k ON ag.kelas_id = k.id_kelas
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            JOIN siswa s ON ag.siswa_pencatat_id = s.id_siswa
+        `;
+
+        let params = [];
+        let whereConditions = [];
+
+        // Filter by user role
+        if (req.user.role === 'guru') {
+            whereConditions.push('ag.guru_id = ?');
+            params.push(req.user.guru_id);
+        } else if (req.user.role === 'siswa') {
+            whereConditions.push('ag.kelas_id = ?');
+            params.push(req.user.kelas_id);
+        }
+
+        // Date filters
+        if (date_start) {
+            whereConditions.push('ag.tanggal >= ?');
+            params.push(date_start);
+        }
+        if (date_end) {
+            whereConditions.push('ag.tanggal <= ?');
+            params.push(date_end);
+        }
+
+        // For siswa role, always limit to last 7 days maximum
+        if (req.user.role === 'siswa') {
+            const todayWIB = getMySQLDateWIB();
+            const sevenDaysAgoWIB = new Date(new Date(todayWIB).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            whereConditions.push('ag.tanggal >= ?');
+            params.push(sevenDaysAgoWIB);
+        }
+
+        if (whereConditions.length > 0) {
+            query += ' WHERE ' + whereConditions.join(' AND ');
+        }
+
+        // Add sorting and limit
+        query += ' ORDER BY ag.tanggal DESC, ag.waktu_catat DESC LIMIT ?';
+        params.push(parseInt(limit));
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        console.log(`📊 Attendance history retrieved for ${req.user.role}: ${req.user.username}, count: ${rows.length}`);
+        res.json({ success: true, data: rows });
+
+    } catch (error) {
+        console.error('❌ Get attendance history error:', error);
+        res.status(500).json({ error: 'Failed to retrieve attendance history' });
     }
 }

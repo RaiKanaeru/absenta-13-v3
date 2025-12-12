@@ -24,7 +24,9 @@ import {
     submitTeacherAttendance,
     updateTeacherStatus,
     getClassAttendanceHistory,
-    getStudentAttendanceStatus
+    getStudentAttendanceStatus,
+    recordTeacherAttendanceSimple,
+    getAbsensiHistory
 } from '../controllers/absensiController.js';
 
 const router = express.Router();
@@ -32,6 +34,27 @@ const router = express.Router();
 // ===========================
 // Student Attendance (by Teacher)
 // ===========================
+
+
+// ===========================
+// Legacy/Direct Endpoints (Mapped via /api/absensi in server_modern.js or /api)
+// ===========================
+
+/**
+ * @route POST /api/absensi
+ * @desc Record attendance (Simple version for siswa marking guru) - Legacy Endpoint
+ * @access Siswa
+ */
+router.post('/absensi', authenticateToken, requireRole(['siswa']), recordTeacherAttendanceSimple);
+
+/**
+ * @route GET /api/absensi/history
+ * @desc Get attendance history (Raw list) - Legacy Endpoint
+ * @access Guru, Siswa
+ */
+router.get('/absensi/history', authenticateToken, requireRole(['guru', 'siswa']), getAbsensiHistory);
+
+
 
 /**
  * @route POST /api/attendance/submit

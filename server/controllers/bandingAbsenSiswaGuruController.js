@@ -8,6 +8,8 @@
 
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 // ================================================
 // SISWA BANDING ENDPOINTS
 // ================================================
@@ -52,8 +54,7 @@ export const getSiswaBandingAbsen = async (req, res) => {
         console.log(`✅ Banding absen retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting banding absen:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -111,8 +112,7 @@ export const submitSiswaBandingAbsen = async (req, res) => {
         console.log('✅ Banding absen submitted successfully');
         res.json({ message: 'Banding absen berhasil dikirim', id: result.insertId });
     } catch (error) {
-        console.error('❌ Error submitting banding absen:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -145,8 +145,7 @@ export const getDaftarSiswa = async (req, res) => {
         console.log(`✅ Daftar siswa retrieved: ${rows.length} students`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting daftar siswa:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -205,8 +204,7 @@ export const getGuruBandingAbsen = async (req, res) => {
             totalPages, totalPending, totalAll: totalRecords
         });
     } catch (error) {
-        console.error('❌ Error getting banding absen for guru:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -242,8 +240,7 @@ export const respondBandingAbsen = async (req, res) => {
             id: bandingId
         });
     } catch (error) {
-        console.error('❌ Error responding to banding absen:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -286,7 +283,6 @@ export const getGuruBandingAbsenHistory = async (req, res) => {
         console.log(`✅ Banding absen history fetched: ${rows.length} records`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error fetching banding absen history:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

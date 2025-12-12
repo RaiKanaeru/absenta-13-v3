@@ -390,7 +390,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
         // Initialize attendance with existing data or default to 'Hadir'
         const initialAttendance: {[key: number]: AttendanceStatus} = {};
         const initialNotes: {[key: number]: string} = {};
-        data.forEach((student: any) => {
+        data.forEach((student: Student) => {
           initialAttendance[student.id] = (student.attendance_status as AttendanceStatus) || 'Hadir';
           // Always load keterangan, even if empty
           initialNotes[student.id] = student.attendance_note || '';
@@ -440,7 +440,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
       // Initialize attendance with existing data or default to 'Hadir'
       const initialAttendance: {[key: number]: AttendanceStatus} = {};
       const initialNotes: {[key: number]: string} = {};
-      data.forEach((student: any) => {
+      data.forEach((student: Student) => {
         initialAttendance[student.id] = (student.attendance_status as AttendanceStatus) || 'Hadir';
         // Always load keterangan, even if empty
         initialNotes[student.id] = student.attendance_note || '';
@@ -528,7 +528,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
       }
       
       // Prepare attendance data with terlambat and ada_tugas flags
-      const attendanceData: {[key: number]: any} = {};
+      const attendanceData: {[key: number]: { status: AttendanceStatus; terlambat: boolean; ada_tugas: boolean }} = {};
       Object.keys(attendance).forEach(studentId => {
         const studentIdNum = parseInt(studentId);
         attendanceData[studentIdNum] = {
@@ -929,7 +929,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
 const LaporanKehadiranSiswaView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mapelInfo, setMapelInfo] = useState<{nama_mapel: string, nama_guru: string} | null>(null);
@@ -1170,7 +1170,7 @@ const LaporanKehadiranSiswaView = ({ user }: { user: TeacherDashboardProps['user
               title="Laporan Kehadiran Siswa"
               reportKey={VIEW_TO_REPORT_KEY['reports']}
               data={reportData.map((student, index) => {
-                const rowData: any = {
+                const rowData: Record<string, string | number> = {
                   no: index + 1,
                   nama: student.nama,
                   nis: student.nis || '-',
@@ -1257,7 +1257,7 @@ const RiwayatBandingAbsenView = ({ user }: { user: TeacherDashboardProps['userDa
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -1483,11 +1483,11 @@ const RiwayatBandingAbsenView = ({ user }: { user: TeacherDashboardProps['userDa
                     {reportData.map((item, index) => (
                       <TableRow key={item.id}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell>{formatDateWIB(item.tanggal_pengajuan)}</TableCell>
+                        <TableCell>{formatDateWIB(String(item.tanggal_pengajuan))}</TableCell>
                         <TableCell>{item.nama_siswa}</TableCell>
                         <TableCell>{item.nis}</TableCell>
                         <TableCell>{item.nama_kelas}</TableCell>
-                        <TableCell>{formatDateWIB(item.tanggal_absen)}</TableCell>
+                        <TableCell>{formatDateWIB(String(item.tanggal_absen))}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{item.status_absen}</Badge>
                         </TableCell>
@@ -1503,7 +1503,7 @@ const RiwayatBandingAbsenView = ({ user }: { user: TeacherDashboardProps['userDa
                         </TableCell>
                         <TableCell>
                           {item.tanggal_disetujui ? 
-                            formatDateWIB(item.tanggal_disetujui) : 
+                            formatDateWIB(String(item.tanggal_disetujui)) : 
                             '-'
                           }
                         </TableCell>
@@ -1526,7 +1526,7 @@ const PresensiSiswaSMKN13View = ({ user }: { user: TeacherDashboardProps['userDa
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -1696,12 +1696,12 @@ const PresensiSiswaSMKN13View = ({ user }: { user: TeacherDashboardProps['userDa
                     {reportData.map((item, index) => {
                       const total = item.total_siswa || 0;
                       const hadir = item.hadir || 0;
-                      const presentase = total > 0 ? ((hadir / total) * 100).toFixed(1) : '0.0';
+                      const presentase = Number(total) > 0 ? ((Number(hadir) / Number(total)) * 100).toFixed(1) : '0.0';
                       
                       return (
                         <TableRow key={item.id}>
                           <TableCell>{index + 1}</TableCell>
-                          <TableCell>{formatDateWIB(item.tanggal)}</TableCell>
+                          <TableCell>{formatDateWIB(String(item.tanggal))}</TableCell>
                           <TableCell>{item.hari}</TableCell>
                           <TableCell>{item.jam_mulai} - {item.jam_selesai}</TableCell>
                           <TableCell>{item.mata_pelajaran}</TableCell>
@@ -1751,7 +1751,7 @@ const RekapKetidakhadiranView = ({ user }: { user: TeacherDashboardProps['userDa
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
   const [reportType, setReportType] = useState('bulanan'); // bulanan atau tahunan
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -1976,9 +1976,9 @@ const RekapKetidakhadiranView = ({ user }: { user: TeacherDashboardProps['userDa
                     {reportData.map((item, index) => {
                       const totalSiswa = item.total_siswa || 0;
                       const hadir = item.hadir || 0;
-                      const totalAbsen = item.izin + item.sakit + item.alpa + item.dispen || 0;
-                      const presentaseHadir = totalSiswa > 0 ? ((hadir / totalSiswa) * 100).toFixed(1) : '0.0';
-                      const presentaseAbsen = totalSiswa > 0 ? ((totalAbsen / totalSiswa) * 100).toFixed(1) : '0.0';
+                      const totalAbsen = (Number(item.izin) || 0) + (Number(item.sakit) || 0) + (Number(item.alpa) || 0) + (Number(item.dispen) || 0);
+                      const presentaseHadir = Number(totalSiswa) > 0 ? ((Number(hadir) / Number(totalSiswa)) * 100).toFixed(1) : '0.0';
+                      const presentaseAbsen = Number(totalSiswa) > 0 ? ((Number(totalAbsen) / Number(totalSiswa)) * 100).toFixed(1) : '0.0';
                       
                       return (
                         <TableRow key={item.id || index}>
@@ -2036,7 +2036,7 @@ const TeacherReportsView = ({ user }: { user: TeacherDashboardProps['userData'] 
   const [selectedMonth, setSelectedMonth] = useState('');
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

@@ -1,4 +1,7 @@
 import dotenv from 'dotenv';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
+import { getDayNameWIB } from '../utils/timeUtils.js';
 dotenv.config();
 
 // ================================================
@@ -165,8 +168,7 @@ export const getJadwal = async (req, res) => {
         console.log(`✅ Schedules retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting schedules:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -357,8 +359,7 @@ export const createJadwal = async (req, res) => {
             id: jadwalId
         });
     } catch (error) {
-        console.error('❌ Error adding schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -496,8 +497,7 @@ export const updateJadwal = async (req, res) => {
         console.log('✅ Schedule updated successfully');
         res.json({ message: 'Jadwal berhasil diperbarui' });
     } catch (error) {
-        console.error('❌ Error updating schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -519,8 +519,7 @@ export const deleteJadwal = async (req, res) => {
         console.log('✅ Schedule deleted successfully');
         res.json({ message: 'Jadwal berhasil dihapus' });
     } catch (error) {
-        console.error('❌ Error deleting schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -545,8 +544,7 @@ export const getJadwalGuru = async (req, res) => {
         console.log(`✅ Found ${rows.length} teachers for schedule ${id}`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting schedule teachers:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -590,8 +588,7 @@ export const addJadwalGuru = async (req, res) => {
         console.log('✅ Teacher added to schedule successfully');
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ Error adding teacher to schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -641,7 +638,50 @@ export const removeJadwalGuru = async (req, res) => {
         console.log('✅ Teacher removed from schedule successfully');
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ Error removing teacher from schedule:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
+    }
+};
+
+// ================================================
+// TODAY'S JADWAL
+// ================================================
+
+// Get today's schedule for guru or siswa
+export const getJadwalToday = async (req, res) => {
+    try {
+        const todayDayName = getDayNameWIB();
+        let query = '';
+        let params = [];
+
+        if (req.user.role === 'guru') {
+            query = `
+                SELECT j.*, k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel
+                FROM jadwal j
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                WHERE j.hari = ? AND j.status = 'aktif'
+                ORDER BY j.jam_ke
+            `;
+            params = [todayDayName];
+        } else if (req.user.role === 'siswa') {
+            query = `
+                SELECT j.*, COALESCE(g.nama, 'Sistem') as nama_guru, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel
+                FROM jadwal j
+                LEFT JOIN guru g ON j.guru_id = g.id_guru
+                LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                WHERE j.kelas_id = ? AND j.hari = ? AND j.status = 'aktif'
+                ORDER BY j.jam_ke
+            `;
+            params = [req.user.kelas_id, todayDayName];
+        }
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        console.log(`📅 Today's schedule retrieved for ${req.user.role}: ${req.user.username}`);
+        res.json({ success: true, data: rows });
+
+    } catch (error) {
+        console.error('❌ Get today schedule error:', error);
+        res.status(500).json({ error: 'Failed to retrieve today schedule' });
     }
 };

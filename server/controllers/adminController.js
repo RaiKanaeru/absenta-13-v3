@@ -1,4 +1,6 @@
 import bcrypt from 'bcrypt';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import dotenv from 'dotenv';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 
@@ -65,11 +67,7 @@ export const updateAdminProfile = async (req, res) => {
             data: updatedUser[0]
         });
     } catch (error) {
-        console.error('❌ Error updating admin profile:', error);
-        res.status(500).json({
-            error: 'Internal server error',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Internal server error');
     }
 };
 
@@ -102,7 +100,6 @@ export const changeAdminPassword = async (req, res) => {
             message: 'Password berhasil diubah'
         });
     } catch (error) {
-        console.error('❌ Error changing admin password:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

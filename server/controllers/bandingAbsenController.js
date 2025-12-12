@@ -66,8 +66,7 @@ export const getBandingAbsenReport = async (req, res) => {
         console.log(`✅ Banding absen report retrieved: ${rows.length} records`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting banding absen report:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -139,8 +138,7 @@ export const downloadBandingAbsen = async (req, res) => {
 
         console.log(`✅ Banding absen report downloaded successfully: ${rows.length} records`);
     } catch (error) {
-        console.error('❌ Error downloading banding absen report:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -168,8 +166,7 @@ export const getSubjects = async (req, res) => {
         console.log(`✅ Subjects retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting subjects:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -188,7 +185,6 @@ export const getClasses = async (req, res) => {
         console.log(`✅ Classes retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting classes:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

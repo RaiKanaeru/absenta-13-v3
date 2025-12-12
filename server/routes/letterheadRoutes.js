@@ -51,5 +51,6 @@ router.post('/letterhead/upload', authenticateToken, requireRole(['admin']), upl
 router.delete('/letterhead/delete-file', authenticateToken, requireRole(['admin']), letterheadController.deleteFile);
 router.delete('/letterhead/logo/:logoType', authenticateToken, requireRole(['admin']), letterheadController.deleteLogo);
 router.delete('/letterhead/:id', authenticateToken, requireRole(['admin']), letterheadController.deleteLetterheadConfig);
+router.post('/init-letterhead', authenticateToken, requireRole(['admin']), letterheadController.initializeDefaults);
 
 export default router;

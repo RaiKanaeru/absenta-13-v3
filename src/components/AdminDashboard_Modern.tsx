@@ -61,6 +61,9 @@ interface Teacher {
   no_telp?: string;
   jenis_kelamin?: 'L' | 'P';
   alamat?: string;
+  address?: string;
+  user_alamat?: string;
+  user_address?: string;
   status: 'aktif' | 'nonaktif';
   mata_pelajaran?: string;
   mapel_id?: number;
@@ -126,8 +129,10 @@ interface Subject {
 
 interface Kelas {
   id: number;
+  id_kelas?: number;
   nama_kelas: string;
   tingkat?: string;
+  status?: 'aktif' | 'tidak_aktif';
 }
 
 interface Schedule {
@@ -168,6 +173,7 @@ interface Room {
 interface LiveData {
   ongoing_classes: Array<{
     id?: number;
+    id_kelas?: number;
     kelas: string;
     guru: string;
     mapel: string;
@@ -320,7 +326,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
         password: formData.password || undefined, // Jangan kirim password kosong untuk update
         email: formData.email && formData.email.trim() !== '' ? formData.email.trim() : null,
         no_telp: formData.no_telp && formData.no_telp.trim() !== '' ? formData.no_telp.trim() : null,
-        jenis_kelamin: formData.jenis_kelamin && formData.jenis_kelamin !== '' ? formData.jenis_kelamin : null,
+        jenis_kelamin: formData.jenis_kelamin ? formData.jenis_kelamin : null,
         alamat: formData.alamat && formData.alamat.trim() !== '' ? formData.alamat.trim() : null,
         mapel_id: formData.mapel_id && formData.mapel_id !== '' ? parseInt(formData.mapel_id) : null,
         status: formData.status
@@ -4503,14 +4509,14 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     return slots;
   };
 
-  const validateJadwalForm = (formData: Record<string, string | number>, consecutiveHours: number) => {
+  const validateJadwalForm = (formData: Record<string, string | number | number[] | boolean>, consecutiveHours: number) => {
     const errors: string[] = [];
     
     // Validasi jam_ke
-    if (!formData.jam_ke || isNaN(parseInt(formData.jam_ke))) {
+    if (!formData.jam_ke || isNaN(parseInt(String(formData.jam_ke)))) {
       errors.push('Jam ke- harus diisi dengan angka');
     } else {
-      const jamKe = parseInt(formData.jam_ke);
+      const jamKe = parseInt(String(formData.jam_ke));
       if (jamKe < 1 || jamKe > 12) {
         errors.push('Jam ke- harus antara 1-12');
       }

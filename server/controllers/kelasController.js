@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 dotenv.config();
 
 // Get Active Kelas (Public - for dropdowns)
@@ -17,8 +19,7 @@ export const getActiveKelas = async (req, res) => {
         console.log(`✅ Found ${rows.length} active classes`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting classes:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -37,8 +38,7 @@ export const getKelas = async (req, res) => {
         console.log(`✅ Classes retrieved: ${rows.length} items`);
         res.json(rows);
     } catch (error) {
-        console.error('❌ Error getting classes:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -102,8 +102,7 @@ export const updateKelas = async (req, res) => {
         console.log('✅ Class updated successfully');
         res.json({ message: 'Kelas berhasil diupdate' });
     } catch (error) {
-        console.error('❌ Error updating class:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -125,7 +124,6 @@ export const deleteKelas = async (req, res) => {
         console.log('✅ Class deleted successfully');
         res.json({ message: 'Kelas berhasil dihapus' });
     } catch (error) {
-        console.error('❌ Error deleting class:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };

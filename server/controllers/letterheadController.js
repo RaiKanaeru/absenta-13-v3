@@ -5,6 +5,8 @@
  */
 
 import path from 'path';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import { promises as fs } from 'fs';
 import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 
@@ -43,11 +45,7 @@ export const getReportLetterhead = async (req, res) => {
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
         res.json({ success: true, data: letterhead });
     } catch (error) {
-        console.error('❌ Error loading report letterhead:', error);
-        res.status(500).json({
-            error: 'Gagal memuat konfigurasi kop laporan',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat konfigurasi kop laporan');
     }
 };
 
@@ -74,11 +72,7 @@ export const updateReportLetterhead = async (req, res) => {
 
         res.json({ success: true, message: 'Konfigurasi kop laporan berhasil disimpan', data: letterhead });
     } catch (error) {
-        console.error('❌ Error updating report letterhead:', error);
-        res.status(500).json({
-            error: 'Gagal memperbarui konfigurasi kop laporan',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memperbarui konfigurasi kop laporan');
     }
 };
 
@@ -96,11 +90,7 @@ export const getLetterheadConfig = async (req, res) => {
         const letterhead = await getLetterhead({ reportKey });
         res.json({ success: true, data: letterhead });
     } catch (error) {
-        console.error('❌ Error loading letterhead:', error);
-        res.status(500).json({
-            error: 'Gagal memuat konfigurasi KOP',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat konfigurasi KOP');
     }
 };
 
@@ -113,11 +103,7 @@ export const getAllLetterheadConfigs = async (req, res) => {
         const letterheads = await getAllLetterheads();
         res.json({ success: true, data: letterheads });
     } catch (error) {
-        console.error('❌ Error loading all letterheads:', error);
-        res.status(500).json({
-            error: 'Gagal memuat daftar KOP',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat daftar KOP');
     }
 };
 
@@ -136,11 +122,7 @@ export const setGlobalLetterhead = async (req, res) => {
 
         res.json({ success: true, message: 'Konfigurasi KOP global berhasil disimpan', data: letterhead });
     } catch (error) {
-        console.error('❌ Error updating global letterhead:', error);
-        res.status(500).json({
-            error: 'Gagal memperbarui konfigurasi KOP global',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memperbarui konfigurasi KOP global');
     }
 };
 
@@ -164,11 +146,7 @@ export const setReportLetterhead = async (req, res) => {
 
         res.json({ success: true, message: `Konfigurasi KOP untuk ${reportKey} berhasil disimpan`, data: letterhead });
     } catch (error) {
-        console.error('❌ Error updating report letterhead:', error);
-        res.status(500).json({
-            error: 'Gagal memperbarui konfigurasi KOP laporan',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal memperbarui konfigurasi KOP laporan');
     }
 };
 
@@ -204,11 +182,7 @@ export const uploadLogo = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Error uploading logo:', error);
-        res.status(500).json({
-            error: 'Gagal mengupload logo',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal mengupload logo');
     }
 };
 
@@ -235,11 +209,7 @@ export const deleteFile = async (req, res) => {
             res.status(404).json({ error: 'File tidak ditemukan' });
         }
     } catch (error) {
-        console.error('❌ Error deleting file:', error);
-        res.status(500).json({
-            error: 'Gagal menghapus file',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal menghapus file');
     }
 };
 
@@ -310,11 +280,7 @@ export const deleteLogo = async (req, res) => {
 
         res.json({ success: true, message: `Logo ${logoType} berhasil dihapus`, data: updateData });
     } catch (error) {
-        console.error('❌ Error deleting logo:', error);
-        res.status(500).json({
-            error: 'Gagal menghapus logo',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-        });
+        return sendDatabaseError(res, error, 'Gagal menghapus logo');
     }
 };
 
@@ -333,10 +299,72 @@ export const deleteLetterheadConfig = async (req, res) => {
 
         res.json({ success: true, message: 'Konfigurasi KOP berhasil dihapus' });
     } catch (error) {
-        console.error('❌ Error deleting letterhead:', error);
+        return sendDatabaseError(res, error, 'Gagal menghapus konfigurasi KOP');
+    }
+};
+
+/**
+ * Initialize default letterhead
+ * POST /api/admin/letterhead/init-defaults
+ */
+export const initializeDefaults = async (req, res) => {
+    try {
+        console.log('📝 Initializing default letterhead...');
+
+        // Check if letterhead already exists
+        const [existingRows] = await global.dbPool.execute(
+            'SELECT id FROM kop_laporan WHERE cakupan = "global" AND kode_laporan IS NULL AND aktif = 1 LIMIT 1'
+        );
+
+        if (existingRows.length > 0) {
+            console.log('ℹ️ Letterhead sudah ada, tidak perlu inisialisasi');
+            return res.json({
+                success: true,
+                message: 'Letterhead sudah ada di database'
+            });
+        }
+
+        // Insert default letterhead matched with SMKN 13 Bandung
+        const defaultLines = JSON.stringify([
+            { text: "PEMERINTAH DAERAH PROVINSI JAWA BARAT", fontWeight: "bold" },
+            { text: "DINAS PENDIDIKAN", fontWeight: "bold" },
+            { text: "SEKOLAH MENENGAH KEJURUAN NEGERI 13 BANDUNG", fontWeight: "bold" },
+            { text: "Jl. Soekarno Hatta No. 10, Kota Bandung 40235", fontWeight: "normal" },
+            { text: "Telepon: (022) 5204095 | Email: smkn13bandung@sch.id", fontWeight: "normal" }
+        ]);
+
+        const query = `
+      INSERT INTO kop_laporan (
+        cakupan, kode_laporan, aktif, perataan, baris_teks, 
+        logo_tengah_url, logo_kiri_url, logo_kanan_url
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+        const params = [
+            'global',
+            null,
+            1,
+            'tengah',
+            defaultLines,
+            null,
+            '/logo-kiri.png',
+            '/logo-kanan.png'
+        ];
+
+        await global.dbPool.execute(query, params);
+
+        console.log('✅ Letterhead default berhasil diinisialisasi');
+        res.json({
+            success: true,
+            message: 'Letterhead default berhasil diinisialisasi'
+        });
+
+    } catch (error) {
+        console.error('❌ Error initializing letterhead:', error);
         res.status(500).json({
-            error: 'Gagal menghapus konfigurasi KOP',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+            success: false,
+            message: 'Error menginisialisasi letterhead default',
+            error: error.message
         });
     }
 };

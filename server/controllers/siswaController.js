@@ -1,4 +1,6 @@
 import bcrypt from 'bcrypt';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -536,8 +538,7 @@ export const updateProfile = async (req, res) => {
             connection.release();
         }
     } catch (error) {
-        console.error('❌ Error updating siswa profile:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error, 'Gagal mengupdate profil');
     }
 };
 
@@ -570,7 +571,6 @@ export const changePassword = async (req, res) => {
             message: 'Password berhasil diubah'
         });
     } catch (error) {
-        console.error('❌ Error changing siswa password:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error, 'Gagal mengubah password');
     }
 };

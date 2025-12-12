@@ -5,6 +5,8 @@
  */
 
 import bcrypt from 'bcrypt';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -42,8 +44,7 @@ export const getTeachers = async (req, res) => {
         console.log(`✅ Teachers retrieved: ${results.length} items`);
         res.json(results);
     } catch (error) {
-        console.error('❌ Error getting teachers:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     }
 };
 
@@ -97,8 +98,7 @@ export const addTeacher = async (req, res) => {
             throw error;
         }
     } catch (error) {
-        console.error('❌ Error adding teacher:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }
@@ -170,8 +170,7 @@ export const updateTeacher = async (req, res) => {
             throw error;
         }
     } catch (error) {
-        console.error('❌ Error updating teacher:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }
@@ -220,8 +219,7 @@ export const deleteTeacher = async (req, res) => {
             throw error;
         }
     } catch (error) {
-        console.error('❌ Error deleting teacher:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return sendDatabaseError(res, error);
     } finally {
         connection.release();
     }

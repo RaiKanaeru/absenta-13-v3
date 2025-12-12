@@ -11,7 +11,6 @@ import { authenticateToken, requireRole } from '../middleware/auth.js';
 import {
     getSiswaBandingAbsen,
     submitSiswaBandingAbsen,
-    submitBandingAbsenKelas,
     getDaftarSiswa,
     getGuruBandingAbsen,
     respondBandingAbsen,
@@ -29,9 +28,6 @@ router.get('/siswa/:siswaId/banding-absen', authenticateToken, requireRole(['sis
 
 // Submit banding absen (individual)
 router.post('/siswa/:siswaId/banding-absen', authenticateToken, requireRole(['siswa']), submitSiswaBandingAbsen);
-
-// Submit banding absen kelas (DEPRECATED)
-router.post('/siswa/:siswaId/banding-absen-kelas', authenticateToken, requireRole(['siswa']), submitBandingAbsenKelas);
 
 // Get daftar siswa for banding absen
 router.get('/siswa/:siswaId/daftar-siswa', authenticateToken, requireRole(['siswa']), getDaftarSiswa);
