@@ -16,4 +16,7 @@ router.get('/stats', authenticateToken, dashboardController.getStats);
 // Dashboard chart data - all authenticated users
 router.get('/chart', authenticateToken, dashboardController.getChart);
 
+// Live summary data - admin only
+router.get('/live-summary', authenticateToken, dashboardController.getLiveSummary);
+
 export default router;

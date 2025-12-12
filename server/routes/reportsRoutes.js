@@ -47,6 +47,7 @@ router.get('/live-student-attendance', getLiveStudentAttendance);
 // Teacher Attendance
 router.get('/teacher-attendance-report', getTeacherAttendanceReport);
 router.get('/download-teacher-attendance', downloadTeacherAttendanceReport);
+router.get('/download-teacher-attendance-excel', downloadTeacherAttendanceReport); // Alias for frontend compatibility
 router.get('/teacher-attendance-summary', getTeacherAttendanceSummary);
 
 // Student Attendance

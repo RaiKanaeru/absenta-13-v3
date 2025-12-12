@@ -166,3 +166,77 @@ export const getChart = async (req, res) => {
         res.status(500).json({ error: 'Failed to retrieve chart data' });
     }
 };
+
+/**
+ * Get live summary data - ongoing classes and attendance
+ * GET /api/admin/live-summary
+ */
+export const getLiveSummary = async (req, res) => {
+    try {
+        const wibNow = getWIBTime();
+        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const currentDayWIB = dayNames[wibNow.getDay()];
+        const currentTimeWIB = `${wibNow.getHours().toString().padStart(2, '0')}:${wibNow.getMinutes().toString().padStart(2, '0')}:00`;
+        const todayWIB = getMySQLDateWIB();
+
+        // Get ongoing classes (current time between jam_mulai and jam_selesai)
+        const [ongoingClasses] = await global.dbPool.execute(`
+            SELECT 
+                j.id_jadwal,
+                j.jam_ke,
+                j.jam_mulai,
+                j.jam_selesai,
+                k.id_kelas,
+                k.nama_kelas,
+                m.nama_mapel,
+                g.nama as nama_guru,
+                COALESCE(
+                    (SELECT COUNT(*) FROM absensi_guru ag 
+                     WHERE ag.jadwal_id = j.id_jadwal 
+                     AND ag.tanggal = ?), 0
+                ) as absensi_diambil
+            FROM jadwal j
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN guru g ON j.guru_id = g.id_guru
+            WHERE j.hari = ?
+            AND j.status = 'aktif'
+            AND j.jam_mulai <= ?
+            AND j.jam_selesai > ?
+            ORDER BY k.nama_kelas, j.jam_ke
+        `, [todayWIB, currentDayWIB, currentTimeWIB, currentTimeWIB]);
+
+        // Get overall attendance percentage for today
+        const [attendanceStats] = await global.dbPool.execute(`
+            SELECT 
+                ROUND(
+                    (SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) * 100.0) / 
+                    NULLIF(COUNT(*), 0)
+                , 1) as percentage
+            FROM absensi_guru
+            WHERE tanggal = ?
+        `, [todayWIB]);
+
+        const liveSummary = {
+            ongoing_classes: ongoingClasses.map(cls => ({
+                id_kelas: cls.id_kelas,
+                nama_kelas: cls.nama_kelas,
+                nama_mapel: cls.nama_mapel,
+                nama_guru: cls.nama_guru,
+                jam_mulai: cls.jam_mulai,
+                jam_selesai: cls.jam_selesai,
+                absensi_diambil: cls.absensi_diambil
+            })),
+            overall_attendance_percentage: attendanceStats[0]?.percentage || 0,
+            current_time: currentTimeWIB,
+            current_day: currentDayWIB
+        };
+
+        console.log(`📊 Live summary retrieved: ${liveSummary.ongoing_classes.length} ongoing classes`);
+        res.json(liveSummary);
+
+    } catch (error) {
+        console.error('❌ Live summary error:', error);
+        res.status(500).json({ error: 'Failed to retrieve live summary' });
+    }
+};

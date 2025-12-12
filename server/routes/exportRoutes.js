@@ -58,12 +58,12 @@ router.get('/rekap-ketidakhadiran-siswa', authenticateToken, requireRole(['admin
 router.get('/presensi-siswa', authenticateToken, requireRole(['admin']), exportController.exportPresensiSiswa);
 
 // ================================================
-// ADMIN EXPORT ROUTES
+// ADMIN EXPORT ROUTES (mounted at /api/admin/export)
 // ================================================
-router.get('/admin/attendance', authenticateToken, requireRole(['admin']), exportController.exportAdminAttendance);
-router.get('/admin/jadwal-matrix', authenticateToken, requireRole(['admin']), exportController.exportJadwalMatrix);
-router.get('/admin/jadwal-grid', authenticateToken, requireRole(['admin']), exportController.exportJadwalGrid);
-router.get('/admin/jadwal-print', authenticateToken, requireRole(['admin']), exportController.exportJadwalPrint);
+router.get('/attendance', authenticateToken, requireRole(['admin']), exportController.exportAdminAttendance);
+router.get('/jadwal-matrix', authenticateToken, requireRole(['admin']), exportController.exportJadwalMatrix);
+router.get('/jadwal-grid', authenticateToken, requireRole(['admin']), exportController.exportJadwalGrid);
+router.get('/jadwal-print', authenticateToken, requireRole(['admin']), exportController.exportJadwalPrint);
 
 // ================================================
 // ALL 17/17 EXPORTS MIGRATED! 🎉
