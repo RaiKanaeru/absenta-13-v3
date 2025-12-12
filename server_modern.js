@@ -1,4 +1,4 @@
-// Load environment variables
+﻿// Load environment variables
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -50,6 +50,10 @@ import absensiRoutes from './server/routes/absensiRoutes.js';
 import exportRoutes from './server/routes/exportRoutes.js';
 import letterheadRoutes from './server/routes/letterheadRoutes.js';
 import dashboardRoutes from './server/routes/dashboardRoutes.js';
+import backupRoutes from './server/routes/backupRoutes.js';
+import templateRoutes from './server/routes/templateRoutes.js';
+import importRoutes from './server/routes/importRoutes.js';
+import monitoringRoutes from './server/routes/monitoringRoutes.js';
 import { 
     getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
     getWIBTimestamp, getMySQLDateWIB, getMySQLDateTimeWIB, 
@@ -726,8 +730,21 @@ app.use('/api', absensiRoutes); // Schedule and siswa endpoints (uses /schedule/
 
 // EXPORT ROUTES (Modularized)
 app.use('/api/export', exportRoutes); // All export endpoints
+app.use('/api/admin/export', exportRoutes); // Alias for frontend compatibility
 app.use('/api/admin', letterheadRoutes); // All letterhead endpoints
 app.use('/api/dashboard', dashboardRoutes); // Dashboard stats and chart
+app.use('/api/admin', dashboardRoutes); // Alias: /api/admin/live-summary
+
+// BACKUP, TEMPLATE, IMPORT, MONITORING ROUTES
+app.use('/api/admin', backupRoutes); // Backup endpoints
+app.use('/api/admin', templateRoutes); // Template download endpoints
+app.use('/api/admin', importRoutes); // Import Excel endpoints
+app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
+
+// Route Aliases for Frontend Compatibility
+app.use('/api/admin/classes', kelasRoutes); // Alias: /api/admin/classes -> kelas
+app.use('/api/admin/subjects', mapelRoutes); // Alias: /api/admin/subjects -> mapel
+app.use('/api/admin/students', siswaRoutes); // Alias: /api/admin/students -> siswa
 
 // ================================================
 // TEMPLATE ENDPOINTS - Download Excel Templates
