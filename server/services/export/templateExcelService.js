@@ -486,56 +486,95 @@ export async function exportRekapGuruMingguan({ guruData }) {
 }
 
 // ================================================
-// JADWAL PELAJARAN EXPORT (Matrix Format with Colors)
+// JADWAL PELAJARAN EXPORT (Complex Format - Exact Template Match)
 // ================================================
 
-// Color palette for mapel (ARGB format)
-const MAPEL_COLORS = [
-    'FFFF6B6B', // Red
-    'FF4ECDC4', // Teal
-    'FF45B7D1', // Blue
-    'FFFFD93D', // Yellow
-    'FF95E1D3', // Mint
-    'FFF38181', // Coral
-    'FFAA96DA', // Purple
-    'FFFCBAD3', // Pink
-    'FFA8D8EA', // Sky Blue
-    'FFFF9A8B', // Peach
-    'FF88D8B0', // Green
-    'FFFFCC5C', // Orange
-    'FF96CEB4', // Sage
-    'FFFFEAA7', // Light Yellow
-    'FFDFE6E9', // Light Gray
-    'FF74B9FF', // Light Blue
+// Time slots for jadwal (10 jam pelajaran per hari)
+const JAM_PELAJARAN = [
+    { jam: 1, mulai: '06:30', selesai: '07:15' },
+    { jam: 2, mulai: '07:15', selesai: '08:00' },
+    { jam: 3, mulai: '08:00', selesai: '08:45' },
+    { jam: 4, mulai: '08:45', selesai: '09:30' },
+    { jam: 5, mulai: '09:45', selesai: '10:30' },
+    { jam: 6, mulai: '10:30', selesai: '11:15' },
+    { jam: 7, mulai: '11:15', selesai: '12:00' },
+    { jam: 8, mulai: '12:00', selesai: '12:45' },
+    { jam: 9, mulai: '13:00', selesai: '13:45' },
+    { jam: 10, mulai: '13:45', selesai: '14:30' }
 ];
 
-/**
- * Get consistent color for mapel based on ID
- */
-function getMapelColor(mapelId) {
+const HARI_LIST = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+
+// Color palette for mapel (ARGB format) - matching school template colors
+const MAPEL_COLORS = {
+    default: [
+        'FFFF6B6B', // Red
+        'FF4ECDC4', // Teal  
+        'FF45B7D1', // Blue
+        'FFFFD93D', // Yellow
+        'FF95E1D3', // Mint
+        'FFF38181', // Coral
+        'FFAA96DA', // Purple
+        'FFFCBAD3', // Pink
+        'FFA8D8EA', // Sky Blue
+        'FFFF9A8B', // Peach
+        'FF88D8B0', // Green
+        'FFFFCC5C', // Orange
+        'FF96CEB4', // Sage
+        'FFFFEAA7', // Light Yellow
+        'FF00FF00', // Lime
+        'FFFF00FF', // Magenta
+        'FF00FFFF', // Cyan
+        'FFFFB6C1', // Light Pink
+    ]
+};
+
+// Map to store consistent colors per mapel
+const mapelColorCache = new Map();
+
+function getMapelColor(mapelId, mapelName) {
     if (!mapelId) return 'FFFFFFFF'; // White for empty
-    return MAPEL_COLORS[mapelId % MAPEL_COLORS.length];
+    
+    if (!mapelColorCache.has(mapelId)) {
+        const colorIndex = mapelColorCache.size % MAPEL_COLORS.default.length;
+        mapelColorCache.set(mapelId, MAPEL_COLORS.default[colorIndex]);
+    }
+    return mapelColorCache.get(mapelId);
 }
 
 /**
- * Export Jadwal Pelajaran Matrix Format
- * Generate colorful Excel with jadwal per kelas per hari
+ * Export Jadwal Pelajaran - Complex Format (Exact Template Match)
+ * Format: Time slots header, 3 rows per kelas (MAPEL, RUANG, GURU), colorful cells
  * 
  * @param {Object} params
  * @param {Array} params.jadwalData - Data jadwal dari DB
  * @returns {Promise<Buffer>} - Excel file buffer
  */
 export async function exportJadwalPelajaran({ jadwalData }) {
-    console.log(`📊 Generating jadwal matrix with ${jadwalData?.length || 0} items`);
+    console.log(`📊 Generating complex jadwal with ${jadwalData?.length || 0} items`);
+    
+    // Reset color cache for consistent colors
+    mapelColorCache.clear();
     
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.default.Workbook();
-    const sheet = workbook.addWorksheet('Jadwal Pelajaran Matrix');
+    const sheet = workbook.addWorksheet('JADWAL');
     
-    // Header styling
+    // ========== STYLING ==========
     const headerStyle = {
-        font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } },
+        font: { bold: true, size: 8, color: { argb: 'FF000000' } },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } } // Light green header
+    };
+    
+    const cellStyle = {
+        font: { size: 7 },
         alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
         border: {
             top: { style: 'thin' },
@@ -545,151 +584,203 @@ export async function exportJadwalPelajaran({ jadwalData }) {
         }
     };
     
-    // Title
-    sheet.mergeCells('A1:G1');
-    sheet.getCell('A1').value = 'PEMERINTAH DAERAH PROVINSI JAWA BARAT';
-    sheet.getCell('A1').font = { bold: true, size: 12 };
-    sheet.getCell('A1').alignment = { horizontal: 'center' };
+    // ========== CALCULATE COLUMNS ==========
+    // Column A: KELAS
+    // Column B: JAM KE (label row type)
+    // Then for each HARI: 10 columns (one per jam)
+    // Total: 2 + (6 hari * 10 jam) = 62 columns
     
-    sheet.mergeCells('A2:G2');
-    sheet.getCell('A2').value = 'DINAS PENDIDIKAN';
-    sheet.getCell('A2').alignment = { horizontal: 'center' };
+    const totalJamPerHari = JAM_PELAJARAN.length;
+    const startDataCol = 3; // Column C
     
-    sheet.mergeCells('A3:G3');
-    sheet.getCell('A3').value = 'SMK NEGERI 13 BANDUNG';
-    sheet.getCell('A3').font = { bold: true, size: 14 };
-    sheet.getCell('A3').alignment = { horizontal: 'center' };
+    // Set column widths
+    sheet.getColumn(1).width = 10; // KELAS
+    sheet.getColumn(2).width = 8;  // JAM KE label
     
-    sheet.mergeCells('A5:G5');
-    sheet.getCell('A5').value = 'JADWAL PELAJARAN MATRIX';
-    sheet.getCell('A5').font = { bold: true, size: 12 };
-    sheet.getCell('A5').alignment = { horizontal: 'center' };
-    
-    sheet.mergeCells('A6:G6');
-    sheet.getCell('A6').value = `Tanggal Export: ${new Date().toLocaleDateString('id-ID')}`;
-    sheet.getCell('A6').alignment = { horizontal: 'center' };
-    
-    // Headers
-    const headers = ['KELAS', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
-    const headerRow = sheet.getRow(8);
-    headers.forEach((h, i) => {
-        const cell = headerRow.getCell(i + 1);
-        cell.value = h;
-        Object.assign(cell, headerStyle);
-    });
-    headerRow.height = 25;
-    
-    // Column widths
-    sheet.getColumn(1).width = 15; // KELAS
-    for (let i = 2; i <= 7; i++) {
-        sheet.getColumn(i).width = 25; // Days
+    for (let i = startDataCol; i <= startDataCol + (HARI_LIST.length * totalJamPerHari); i++) {
+        sheet.getColumn(i).width = 6;
     }
     
-    // Group jadwal by kelas
+    // ========== ROW 1: HARI HEADER ==========
+    let currentRow = 1;
+    const hariHeaderRow = sheet.getRow(currentRow);
+    
+    // Merge cells for each HARI
+    let colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        const startCol = colOffset;
+        const endCol = colOffset + totalJamPerHari - 1;
+        
+        // Merge hari header
+        sheet.mergeCells(currentRow, startCol, currentRow, endCol);
+        const cell = sheet.getCell(currentRow, startCol);
+        cell.value = hari;
+        Object.assign(cell, headerStyle);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } };
+        
+        colOffset += totalJamPerHari;
+    }
+    hariHeaderRow.height = 18;
+    
+    // ========== ROW 2: JAM KE HEADER ==========
+    currentRow = 2;
+    const jamKeRow = sheet.getRow(currentRow);
+    sheet.getCell(currentRow, 1).value = 'KELAS';
+    Object.assign(sheet.getCell(currentRow, 1), headerStyle);
+    sheet.getCell(currentRow, 2).value = 'JAM KE';
+    Object.assign(sheet.getCell(currentRow, 2), headerStyle);
+    
+    colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        for (let j = 0; j < totalJamPerHari; j++) {
+            const cell = sheet.getCell(currentRow, colOffset + j);
+            cell.value = j + 1; // Jam ke 1, 2, 3, ...
+            Object.assign(cell, headerStyle);
+        }
+        colOffset += totalJamPerHari;
+    }
+    jamKeRow.height = 15;
+    
+    // ========== ROW 3: WAKTU HEADER ==========
+    currentRow = 3;
+    const waktuRow = sheet.getRow(currentRow);
+    sheet.getCell(currentRow, 2).value = 'WAKTU';
+    Object.assign(sheet.getCell(currentRow, 2), headerStyle);
+    
+    colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        for (let j = 0; j < totalJamPerHari; j++) {
+            const cell = sheet.getCell(currentRow, colOffset + j);
+            const jam = JAM_PELAJARAN[j];
+            cell.value = `${jam.mulai}-${jam.selesai}`;
+            cell.font = { size: 6 };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = headerStyle.border;
+        }
+        colOffset += totalJamPerHari;
+    }
+    waktuRow.height = 20;
+    
+    // ========== GROUP JADWAL BY KELAS ==========
     const jadwalByKelas = new Map();
     
     if (jadwalData && jadwalData.length > 0) {
         jadwalData.forEach(j => {
             const kelasKey = j.nama_kelas || `Kelas ${j.kelas_id}`;
             if (!jadwalByKelas.has(kelasKey)) {
-                jadwalByKelas.set(kelasKey, {
-                    SENIN: [],
-                    SELASA: [],
-                    RABU: [],
-                    KAMIS: [],
-                    JUMAT: [],
-                    SABTU: []
-                });
+                jadwalByKelas.set(kelasKey, []);
             }
-            
-            const hari = (j.hari || '').toUpperCase();
-            if (jadwalByKelas.get(kelasKey)[hari]) {
-                jadwalByKelas.get(kelasKey)[hari].push(j);
-            }
+            jadwalByKelas.get(kelasKey).push(j);
         });
     }
     
-    // Sort kelas names
+    // Sort kelas
     const sortedKelas = Array.from(jadwalByKelas.keys()).sort();
     
-    let currentRow = 9;
+    // ========== DATA ROWS: 3 ROWS PER KELAS ==========
+    currentRow = 4;
     
-    sortedKelas.forEach(kelasName => {
+    for (const kelasName of sortedKelas) {
         const kelasJadwal = jadwalByKelas.get(kelasName);
-        const row = sheet.getRow(currentRow);
         
-        // Kelas cell
-        row.getCell(1).value = kelasName;
-        row.getCell(1).font = { bold: true };
-        row.getCell(1).alignment = { vertical: 'top' };
-        row.getCell(1).border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
+        // Create lookup: hari -> jam_ke -> jadwal
+        const jadwalLookup = {};
+        for (const hari of HARI_LIST) {
+            jadwalLookup[hari] = {};
+        }
         
-        // Days
-        const days = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
-        days.forEach((day, idx) => {
-            const cell = row.getCell(idx + 2);
-            const dayJadwal = kelasJadwal[day] || [];
-            
-            if (dayJadwal.length > 0) {
-                // Sort by jam_ke
-                dayJadwal.sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
-                
-                // Create content
-                const content = dayJadwal.map(j => {
-                    const mapel = j.nama_mapel || j.keterangan_khusus || '-';
-                    const guru = j.nama_guru || '';
-                    const jam = `${j.jam_mulai?.substring(0, 5) || ''}-${j.jam_selesai?.substring(0, 5) || ''}`;
-                    return `${mapel}\n${guru}\n${jam}`;
-                }).join('\n---\n');
-                
-                cell.value = content;
-                
-                // Color based on first mapel
-                const firstMapelId = dayJadwal[0]?.mapel_id;
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: getMapelColor(firstMapelId) }
-                };
-            } else {
-                cell.value = '-';
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFF5F5F5' }
-                };
+        kelasJadwal.forEach(j => {
+            const hari = (j.hari || '').toUpperCase();
+            const jamKe = j.jam_ke || 1;
+            if (jadwalLookup[hari]) {
+                jadwalLookup[hari][jamKe] = j;
             }
-            
-            cell.alignment = { vertical: 'top', wrapText: true };
-            cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
-            };
         });
         
-        row.height = 80; // Allow for multiple items
-        currentRow++;
-    });
+        // Row 1: MAPEL
+        const mapelRow = sheet.getRow(currentRow);
+        sheet.mergeCells(currentRow, 1, currentRow + 2, 1); // Merge kelas name across 3 rows
+        sheet.getCell(currentRow, 1).value = kelasName;
+        sheet.getCell(currentRow, 1).font = { bold: true, size: 8 };
+        sheet.getCell(currentRow, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+        sheet.getCell(currentRow, 1).border = cellStyle.border;
+        
+        sheet.getCell(currentRow, 2).value = 'MAPEL';
+        Object.assign(sheet.getCell(currentRow, 2), cellStyle);
+        sheet.getCell(currentRow, 2).font = { bold: true, size: 7 };
+        
+        // Row 2: RUANG
+        const ruangRow = sheet.getRow(currentRow + 1);
+        sheet.getCell(currentRow + 1, 2).value = 'RUANG';
+        Object.assign(sheet.getCell(currentRow + 1, 2), cellStyle);
+        sheet.getCell(currentRow + 1, 2).font = { bold: true, size: 7 };
+        
+        // Row 3: GURU
+        const guruRow = sheet.getRow(currentRow + 2);
+        sheet.getCell(currentRow + 2, 2).value = 'GURU';
+        Object.assign(sheet.getCell(currentRow + 2, 2), cellStyle);
+        sheet.getCell(currentRow + 2, 2).font = { bold: true, size: 7 };
+        
+        // Fill data for each hari and jam
+        colOffset = startDataCol;
+        for (const hari of HARI_LIST) {
+            for (let j = 0; j < totalJamPerHari; j++) {
+                const jamKe = j + 1;
+                const jadwal = jadwalLookup[hari][jamKe];
+                
+                const mapelCell = sheet.getCell(currentRow, colOffset + j);
+                const ruangCell = sheet.getCell(currentRow + 1, colOffset + j);
+                const guruCell = sheet.getCell(currentRow + 2, colOffset + j);
+                
+                if (jadwal) {
+                    // MAPEL
+                    mapelCell.value = jadwal.kode_mapel || jadwal.nama_mapel?.substring(0, 6) || '-';
+                    const color = getMapelColor(jadwal.mapel_id, jadwal.nama_mapel);
+                    mapelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                    
+                    // RUANG
+                    ruangCell.value = jadwal.nama_ruang?.substring(0, 6) || '-';
+                    ruangCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                    
+                    // GURU
+                    guruCell.value = jadwal.nama_guru?.split(' ')[0] || '-'; // First name only
+                    guruCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+                } else {
+                    mapelCell.value = '';
+                    ruangCell.value = '';
+                    guruCell.value = '';
+                }
+                
+                // Apply cell style
+                [mapelCell, ruangCell, guruCell].forEach(cell => {
+                    cell.font = { size: 6 };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = cellStyle.border;
+                });
+            }
+            colOffset += totalJamPerHari;
+        }
+        
+        // Set row heights
+        mapelRow.height = 15;
+        ruangRow.height = 12;
+        guruRow.height = 12;
+        
+        currentRow += 3; // Move to next kelas (3 rows per kelas)
+    }
     
     // If no data
     if (sortedKelas.length === 0) {
-        const row = sheet.getRow(9);
-        row.getCell(1).value = 'Tidak ada data jadwal';
-        sheet.mergeCells('A9:G9');
+        sheet.getCell(4, 1).value = 'Tidak ada data jadwal';
+        sheet.mergeCells('A4:G4');
     }
     
-    console.log(`✅ Generated jadwal matrix for ${sortedKelas.length} classes`);
+    console.log(`✅ Generated complex jadwal for ${sortedKelas.length} classes`);
     
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer;
 }
+
 
 /**
  * Fetch jadwal lengkap dari database untuk export
