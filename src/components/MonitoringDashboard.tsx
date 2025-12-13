@@ -470,15 +470,15 @@ const MonitoringDashboard: React.FC = () => {
                             <CardContent className="space-y-4">
                                 <div className="flex justify-between">
                                     <span>Active:</span>
-                                    <Badge variant="outline">{metrics.database.connections.active || 0}</Badge>
+                                    <Badge variant="outline">{metrics?.database?.connections?.active || 0}</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Idle:</span>
-                                    <Badge variant="outline">{metrics.database.connections.idle || 0}</Badge>
+                                    <Badge variant="outline">{metrics?.database?.connections?.idle || 0}</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Total:</span>
-                                    <Badge variant="outline">{metrics.database.connections.total || 0}</Badge>
+                                    <Badge variant="outline">{metrics?.database?.connections?.total || 0}</Badge>
                                 </div>
                             </CardContent>
                         </Card>
@@ -628,15 +628,15 @@ const MonitoringDashboard: React.FC = () => {
                             <CardContent className="space-y-4">
                                 <div className="flex justify-between">
                                     <span>Average:</span>
-                                    <Badge variant="outline">{(metrics.application.responseTime.average || 0).toFixed(2)}ms</Badge>
+                                    <Badge variant="outline">{(metrics?.application?.responseTime?.average || 0).toFixed(2)}ms</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Minimum:</span>
-                                    <Badge variant="outline">{(metrics.application.responseTime.min || 0).toFixed(2)}ms</Badge>
+                                    <Badge variant="outline">{(metrics?.application?.responseTime?.min || 0).toFixed(2)}ms</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Maximum:</span>
-                                    <Badge variant="outline">{(metrics.application.responseTime.max || 0).toFixed(2)}ms</Badge>
+                                    <Badge variant="outline">{(metrics?.application?.responseTime?.max || 0).toFixed(2)}ms</Badge>
                                 </div>
                             </CardContent>
                         </Card>
@@ -652,18 +652,18 @@ const MonitoringDashboard: React.FC = () => {
                             <CardContent className="space-y-4">
                                 <div className="flex justify-between">
                                     <span>Total Queries:</span>
-                                    <Badge variant="outline">{metrics.database.queries.total || 0}</Badge>
+                                    <Badge variant="outline">{metrics?.database?.queries?.total || 0}</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Slow Queries:</span>
                                     <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                                        {metrics.database.queries.slow || 0}
+                                        {metrics?.database?.queries?.slow || 0}
                                     </Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Failed Queries:</span>
                                     <Badge variant="outline" className="bg-red-100 text-red-800">
-                                        {metrics.database.queries.failed || 0}
+                                        {metrics?.database?.queries?.failed || 0}
                                     </Badge>
                                 </div>
                             </CardContent>
@@ -683,19 +683,19 @@ const MonitoringDashboard: React.FC = () => {
                         <CardContent>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                                 <div className="text-center">
-                                    <div className="text-lg sm:text-2xl font-bold">{metrics.database.connections.active || 0}</div>
+                                    <div className="text-lg sm:text-2xl font-bold">{metrics?.database?.connections?.active || 0}</div>
                                     <p className="text-xs sm:text-sm text-gray-600">Active Connections</p>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-lg sm:text-2xl font-bold">{metrics.database.connections.idle || 0}</div>
+                                    <div className="text-lg sm:text-2xl font-bold">{metrics?.database?.connections?.idle || 0}</div>
                                     <p className="text-xs sm:text-sm text-gray-600">Idle Connections</p>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-lg sm:text-2xl font-bold">{metrics.database.queries.total || 0}</div>
+                                    <div className="text-lg sm:text-2xl font-bold">{metrics?.database?.queries?.total || 0}</div>
                                     <p className="text-xs sm:text-sm text-gray-600">Total Queries</p>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-lg sm:text-2xl font-bold">{(metrics.database.responseTime.average || 0).toFixed(2)}ms</div>
+                                    <div className="text-lg sm:text-2xl font-bold">{(metrics?.database?.responseTime?.average || 0).toFixed(2)}ms</div>
                                     <p className="text-xs sm:text-sm text-gray-600">Avg Query Time</p>
                                 </div>
                             </div>
