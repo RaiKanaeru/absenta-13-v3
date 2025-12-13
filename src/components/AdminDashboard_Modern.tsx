@@ -2802,13 +2802,16 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
 
   const fetchStudents = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/students', { onLogout });
-      setStudents(data);
+      const response = await apiCall('/api/admin/students', { onLogout });
+      // Backend returns { success, data, pagination } - extract the data array
+      const studentsArray = response?.data || response || [];
+      setStudents(Array.isArray(studentsArray) ? studentsArray : []);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast({ title: "Error memuat data siswa", description: error.message, variant: "destructive" });
     }
   }, [onLogout]);
+
 
   const fetchClasses = useCallback(async () => {
     try {
