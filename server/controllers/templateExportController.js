@@ -164,20 +164,26 @@ export const downloadRekapGuruMingguan = async (req, res) => {
 // ================================================
 
 /**
- * Export jadwal pelajaran
+ * Export jadwal pelajaran matrix dengan warna per mapel
  * GET /api/admin/export/jadwal-pelajaran
  */
 export const downloadJadwalPelajaran = async (req, res) => {
     try {
-        console.log(`📊 Generating jadwal pelajaran export`);
+        console.log(`📊 Generating jadwal pelajaran matrix export`);
         
-        // Generate Excel (uses template with formatting preserved)
+        // Fetch jadwal data from DB
+        const { fetchJadwalForExport } = await import('../services/export/templateExcelService.js');
+        const jadwalData = await fetchJadwalForExport(global.dbPool);
+        
+        console.log(`📄 Found ${jadwalData.length} jadwal items for export`);
+        
+        // Generate Excel matrix with colors
         const buffer = await exportJadwalPelajaran({
-            jadwalData: [] // Template is pre-filled, just export as-is
+            jadwalData: jadwalData
         });
         
         // Set response headers
-        const filename = `JADWAL_PELAJARAN_${TAHUN_PELAJARAN}.xlsx`;
+        const filename = `JADWAL_PELAJARAN_MATRIX_${TAHUN_PELAJARAN}.xlsx`;
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -186,7 +192,7 @@ export const downloadJadwalPelajaran = async (req, res) => {
         
         res.send(buffer);
         
-        console.log(`✅ Jadwal pelajaran exported: ${filename}`);
+        console.log(`✅ Jadwal pelajaran matrix exported: ${filename}`);
         
     } catch (error) {
         console.error('❌ Error exporting jadwal pelajaran:', error);
