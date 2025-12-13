@@ -67,7 +67,15 @@ router.get('/jadwal-print', authenticateToken, requireRole(['admin']), exportCon
 router.get('/rekap-jadwal-guru', authenticateToken, requireRole(['admin']), exportController.exportRekapJadwalGuru);
 
 // ================================================
-// ALL 17/17 EXPORTS MIGRATED! 🎉
+// TEMPLATE-BASED EXPORTS (per guidelines)
+// Load .xlsx template → Fill data → Preserve formulas
+// ================================================
+router.get('/templates', authenticateToken, requireRole(['admin']), exportController.listExportTemplates);
+router.get('/rekap-ketidakhadiran-guru-template', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranGuruTemplate);
+router.get('/rekap-ketidakhadiran-kelas-template', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranKelasTemplate);
+
+// ================================================
+// ALL EXPORTS MIGRATED! 🎉
 // ================================================
 
 export default router;

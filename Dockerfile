@@ -48,26 +48,18 @@ RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 # Copy built frontend
 COPY --from=builder /app/dist ./dist
 
-# Copy ALL server files (*.js di root)
+# Copy server entry point
 COPY server_modern.js ./
 COPY ecosystem.config.cjs ./
-COPY database-optimization.js ./
-COPY cache-system.js ./
-COPY backup-system.js ./
-COPY monitoring-system.js ./
-COPY load-balancer.js ./
-COPY query-optimizer.js ./
-COPY queue-system.js ./
-COPY security-system.js ./
-COPY alerting-system.js ./
-COPY disaster-recovery-system.js ./
-COPY performance-optimizer.js ./
 
-# Copy backend folder if exists
+# Copy backend folder
 COPY backend ./backend
 
-# Copy server folder (routes, controllers, middleware, utils)
+# Copy server folder (includes routes, controllers, middleware, utils, services/system)
 COPY server ./server
+
+# Copy scripts folder
+COPY scripts ./scripts
 
 # Copy src folder (untuk utils, hooks, dll yang diimport server)
 COPY --from=builder /app/src ./src

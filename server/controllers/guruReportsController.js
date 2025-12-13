@@ -4,6 +4,8 @@
  * Migrated from server_modern.js
  */
 
+import { sendDatabaseError } from '../utils/errorHandler.js';
+
 // Get presensi siswa SMK 13 untuk laporan guru
 export const getPresensiSiswaSmkn13 = async (req, res) => {
     try {

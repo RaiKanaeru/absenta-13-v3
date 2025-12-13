@@ -4,6 +4,8 @@
  * Migrated from server_modern.js - Batch 17C
  */
 
+import { sendDatabaseError } from '../utils/errorHandler.js';
+
 // ================================================
 // SECURITY ENDPOINTS
 // ================================================

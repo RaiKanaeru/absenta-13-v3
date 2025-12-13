@@ -4,6 +4,8 @@
  * Migrated from server_modern.js
  */
 
+import { sendDatabaseError } from '../utils/errorHandler.js';
+
 // ================================================
 // RUANG CRUD ENDPOINTS
 // ================================================

@@ -2341,3 +2341,279 @@ export const exportRekapJadwalGuru = async (req, res) => {
         return sendDatabaseError(res, error);
     }
 };
+
+// ================================================
+// TEMPLATE-BASED EXPORTS (per guidelines)
+// Load .xlsx template → Fill data → Preserve formulas
+// ================================================
+
+import templateExportService from '../services/templateExportService.js';
+
+/**
+ * Export rekap ketidakhadiran guru TEMPLATE-BASED
+ * GET /api/export/rekap-ketidakhadiran-guru-template
+ * 
+ * Uses actual template from sekolah, preserving formulas and formatting
+ */
+export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
+    try {
+        const { tahun } = req.query;
+        console.log('📋 [TEMPLATE] Exporting rekap ketidakhadiran guru:', { tahun });
+
+        if (!tahun) {
+            return res.status(400).json({ error: 'Tahun harus diisi' });
+        }
+
+        const mapping = templateExportService.REKAP_GURU_MAPPING;
+        
+        // Check if template exists
+        const hasTemplate = await templateExportService.templateExists(mapping.templateFile);
+        if (!hasTemplate) {
+            return res.status(404).json({ 
+                error: 'Template file tidak ditemukan',
+                message: `Please copy "${mapping.templateFile}" to server/templates/excel/`,
+                fallback: '/api/export/rekap-ketidakhadiran-guru' // Fallback to schema-based
+            });
+        }
+
+        // Load template
+        const workbook = await templateExportService.loadTemplate(mapping.templateFile);
+        const worksheet = workbook.worksheets[0]; // First sheet
+
+        // Query data (same as schema-based version)
+        const query = `
+            SELECT 
+                g.id_guru as id,
+                g.nama,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as jul,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as agt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as sep,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as okt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as nov,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as des,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as jan,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as feb,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as mar,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as apr,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as mei,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as jun
+            FROM guru g
+            LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
+                AND (YEAR(a.tanggal) = ? OR (YEAR(a.tanggal) = ? - 1 AND MONTH(a.tanggal) >= 7))
+            WHERE g.status = 'aktif'
+            GROUP BY g.id_guru, g.nama
+            ORDER BY g.nama
+        `;
+
+        const tahunInt = parseInt(tahun);
+        const [rows] = await global.dbPool.execute(query, [tahunInt, tahunInt]);
+
+        // Transform data for template
+        const templateData = rows.map((row, index) => ({
+            no: index + 1,
+            nama: row.nama,
+            jul: row.jul || 0,
+            agt: row.agt || 0,
+            sep: row.sep || 0,
+            okt: row.okt || 0,
+            nov: row.nov || 0,
+            des: row.des || 0,
+            jan: row.jan || 0,
+            feb: row.feb || 0,
+            mar: row.mar || 0,
+            apr: row.apr || 0,
+            mei: row.mei || 0,
+            jun: row.jun || 0
+        }));
+
+        // Clone row styles for additional data rows if needed
+        const templateRowCount = 20; // Assume template has ~20 preset rows
+        if (templateData.length > templateRowCount) {
+            for (let i = templateRowCount; i < templateData.length; i++) {
+                templateExportService.cloneRowStyle(worksheet, mapping.startRow, mapping.startRow + i);
+            }
+        }
+
+        // Fill data using mapping (preserves formulas in O, P, Q)
+        templateExportService.fillCells(worksheet, templateData, mapping, mapping.startRow);
+
+        // Send response
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahun}.xlsx"`);
+        
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ [TEMPLATE] Rekap ketidakhadiran guru exported: ${templateData.length} records`);
+
+    } catch (error) {
+        console.error('❌ [TEMPLATE] Export rekap ketidakhadiran guru error:', error);
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export rekap ketidakhadiran kelas TEMPLATE-BASED
+ * GET /api/export/rekap-ketidakhadiran-kelas-template
+ * 
+ * Uses actual template from sekolah, preserving formulas and formatting
+ */
+export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
+    try {
+        const { kelas_id, semester, tahun } = req.query;
+        console.log('📋 [TEMPLATE] Exporting rekap ketidakhadiran kelas:', { kelas_id, semester, tahun });
+
+        if (!kelas_id || !tahun) {
+            return res.status(400).json({ error: 'kelas_id dan tahun harus diisi' });
+        }
+
+        // Get kelas info
+        const [kelasRows] = await global.dbPool.execute(
+            'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+            [kelas_id]
+        );
+        if (kelasRows.length === 0) {
+            return res.status(404).json({ error: 'Kelas tidak ditemukan' });
+        }
+        const namaKelas = kelasRows[0].nama_kelas;
+
+        // Determine tingkat (X, XI, XII, XIII) from kelas name
+        let tingkat = 'X';
+        if (namaKelas.includes('XIII')) tingkat = 'XIII';
+        else if (namaKelas.includes('XII')) tingkat = 'XII';
+        else if (namaKelas.includes('XI')) tingkat = 'XI';
+        else if (namaKelas.includes('X')) tingkat = 'X';
+
+        const mapping = templateExportService.REKAP_KELAS_GASAL_MAPPING;
+        const templateFile = mapping.templateFile(tingkat);
+        
+        // Check if template exists
+        const hasTemplate = await templateExportService.templateExists(templateFile);
+        if (!hasTemplate) {
+            return res.status(404).json({ 
+                error: 'Template file tidak ditemukan',
+                message: `Please copy "${templateFile}" to server/templates/excel/`,
+                fallback: '/api/export/rekap-ketidakhadiran-siswa' // Fallback
+            });
+        }
+
+        // Load template
+        const workbook = await templateExportService.loadTemplate(templateFile);
+        
+        // Find or use first sheet
+        let worksheet = workbook.worksheets.find(ws => ws.name.includes(namaKelas.split(' ').pop()));
+        if (!worksheet) worksheet = workbook.worksheets[0];
+
+        // Set header cells (kelas name, wali kelas)
+        if (mapping.headerCells) {
+            templateExportService.setCell(worksheet, mapping.headerCells.namaKelas, namaKelas);
+            // TODO: Get wali kelas from DB
+        }
+
+        // Query siswa and attendance data
+        const query = `
+            SELECT 
+                s.id_siswa,
+                s.nis,
+                s.nama,
+                s.jenis_kelamin,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as jul_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as jul_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as jul_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as agt_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as agt_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as agt_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as sep_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as sep_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as sep_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as okt_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as okt_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as okt_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as nov_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as nov_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as nov_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as des_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as des_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as des_a
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND YEAR(a.tanggal) = ?
+                AND MONTH(a.tanggal) BETWEEN 7 AND 12
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+            GROUP BY s.id_siswa, s.nis, s.nama, s.jenis_kelamin
+            ORDER BY s.nama
+        `;
+
+        const [siswaRows] = await global.dbPool.execute(query, [tahun, kelas_id]);
+
+        // Transform data
+        const templateData = siswaRows.map((row, index) => ({
+            no: index + 1,
+            nis: row.nis || '',
+            nama: row.nama,
+            jk: row.jenis_kelamin === 'Laki-laki' ? 'L' : 'P',
+            jul_s: row.jul_s || 0,
+            jul_i: row.jul_i || 0,
+            jul_a: row.jul_a || 0,
+            agt_s: row.agt_s || 0,
+            agt_i: row.agt_i || 0,
+            agt_a: row.agt_a || 0,
+            sep_s: row.sep_s || 0,
+            sep_i: row.sep_i || 0,
+            sep_a: row.sep_a || 0,
+            okt_s: row.okt_s || 0,
+            okt_i: row.okt_i || 0,
+            okt_a: row.okt_a || 0,
+            nov_s: row.nov_s || 0,
+            nov_i: row.nov_i || 0,
+            nov_a: row.nov_a || 0,
+            des_s: row.des_s || 0,
+            des_i: row.des_i || 0,
+            des_a: row.des_a || 0
+        }));
+
+        // Clone row styles if needed
+        const templateRowCount = 40;
+        if (templateData.length > templateRowCount) {
+            for (let i = templateRowCount; i < templateData.length; i++) {
+                templateExportService.cloneRowStyle(worksheet, mapping.startRow, mapping.startRow + i);
+            }
+        }
+
+        // Fill data (preserves formulas in JML columns)
+        templateExportService.fillCells(worksheet, templateData, mapping, mapping.startRow);
+
+        // Send response
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_${namaKelas.replace(/\s+/g, '_')}_${tahun}_GASAL.xlsx"`);
+        
+        await workbook.xlsx.write(res);
+        res.end();
+
+        console.log(`✅ [TEMPLATE] Rekap ketidakhadiran kelas exported: ${templateData.length} siswa`);
+
+    } catch (error) {
+        console.error('❌ [TEMPLATE] Export rekap ketidakhadiran kelas error:', error);
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * List available templates
+ * GET /api/export/templates
+ */
+export const listExportTemplates = async (req, res) => {
+    try {
+        const templates = await templateExportService.listTemplates();
+        res.json({
+            success: true,
+            templates,
+            templateDir: 'server/templates/excel/',
+            message: templates.length === 0 
+                ? 'No templates found. Please copy template files to server/templates/excel/'
+                : `Found ${templates.length} template(s)`
+        });
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};

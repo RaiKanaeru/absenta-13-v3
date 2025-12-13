@@ -17,16 +17,16 @@ import multer from 'multer';
 import fs, { mkdir } from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import DatabaseOptimization from './database-optimization.js';
-import QueryOptimizer from './query-optimizer.js';
-import BackupSystem from './backup-system.js';
-import DownloadQueue from './queue-system.js';
-import CacheSystem from './cache-system.js';
-import LoadBalancer from './load-balancer.js';
-import SystemMonitor from './monitoring-system.js';
-import SecuritySystem from './security-system.js';
-import DisasterRecoverySystem from './disaster-recovery-system.js';
-import PerformanceOptimizer from './performance-optimizer.js';
+import DatabaseOptimization from './server/services/system/database-optimization.js';
+import QueryOptimizer from './server/services/system/query-optimizer.js';
+import BackupSystem from './server/services/system/backup-system.js';
+import DownloadQueue from './server/services/system/queue-system.js';
+import CacheSystem from './server/services/system/cache-system.js';
+import LoadBalancer from './server/services/system/load-balancer.js';
+import SystemMonitor from './server/services/system/monitoring-system.js';
+import SecuritySystem from './server/services/system/security-system.js';
+import DisasterRecoverySystem from './server/services/system/disaster-recovery-system.js';
+import PerformanceOptimizer from './server/services/system/performance-optimizer.js';
 import AdmZip from 'adm-zip';
 import os from 'os';
 import rateLimit from 'express-rate-limit';
@@ -155,155 +155,7 @@ app.use('/api/', limiter);
 app.use('/uploads', express.static(`${uploadDir}`));
 
 // ================================================
-// HELPER FUNCTIONS
-// ================================================
-
-// Fungsi untuk cek overlap rentang waktu
-function isTimeOverlap(start1, end1, start2, end2) {
-    return start1 < end2 && start2 < end1;
-}
-
-// Helper function untuk build query jadwal yang standar untuk semua role
-function buildJadwalQuery(role = 'admin', guruId = null) {
-    const baseQuery = `
-        SELECT 
-            j.id_jadwal as id,
-            j.kelas_id,
-            j.mapel_id, 
-            j.guru_id,
-            j.ruang_id,
-            j.hari,
-            j.jam_ke,
-            j.jam_mulai,
-            j.jam_selesai,
-            j.status,
-            j.jenis_aktivitas,
-            j.is_absenable,
-            j.keterangan_khusus,
-            j.is_multi_guru,
-            k.nama_kelas,
-            COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-            COALESCE(g.nama, 'Sistem') as nama_guru,
-            rk.kode_ruang,
-            rk.nama_ruang,
-            rk.lokasi,
-            GROUP_CONCAT(CONCAT(jg2.guru_id, ':', g2.nama) ORDER BY jg2.is_primary DESC SEPARATOR '||') as guru_list
-        FROM jadwal j
-        JOIN kelas k ON j.kelas_id = k.id_kelas
-        LEFT JOIN mapel m ON j.mapel_id = m.id_mapel  
-        LEFT JOIN guru g ON j.guru_id = g.id_guru
-        LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-        LEFT JOIN jadwal_guru jg2 ON j.id_jadwal = jg2.jadwal_id
-        LEFT JOIN guru g2 ON jg2.guru_id = g2.id_guru
-        WHERE j.status = 'aktif'
-    `;
-
-    let whereClause = '';
-    let params = [];
-
-    if (role === 'guru' && guruId) {
-        whereClause = ' AND (j.guru_id = ? OR jg2.guru_id = ?)';
-        params = [guruId, guruId];
-    }
-
-    const orderBy = `
-        GROUP BY j.id_jadwal
-        ORDER BY 
-            FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'),
-            j.jam_ke, 
-            k.nama_kelas
-    `;
-
-    return {
-        query: baseQuery + whereClause + orderBy,
-        params
-    };
-}
-
-// Fungsi validasi format jam 24 jam
-function validateTimeFormat(timeString) {
-    if (!timeString || typeof timeString !== 'string') {
-        return false;
-    }
-
-    // Regex untuk format 24 jam: HH:MM (00:00 - 23:59)
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    return timeRegex.test(timeString.trim());
-}
-
-// Fungsi validasi logika waktu
-function validateTimeLogic(startTime, endTime) {
-    if (!validateTimeFormat(startTime) || !validateTimeFormat(endTime)) {
-        return { valid: false, error: 'Format waktu tidak valid. Gunakan format 24 jam (HH:MM)' };
-    }
-
-    // Konversi ke menit untuk perbandingan
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = timeToMinutes(endTime);
-
-    if (startMinutes >= endMinutes) {
-        return { valid: false, error: 'Jam selesai harus setelah jam mulai' };
-    }
-
-    return { valid: true };
-}
-
-// Fungsi konversi waktu ke menit
-function timeToMinutes(timeString) {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return hours * 60 + minutes;
-}
-
-// Format bytes to human readable format
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Helper functions for Excel import mapping
-const mapKelasByName = async (namaKelas) => {
-    if (!namaKelas || namaKelas === '-') return null;
-    const [rows] = await global.dbPool.execute(
-        'SELECT id_kelas FROM kelas WHERE nama_kelas = ? AND status = "aktif"',
-        [namaKelas.trim()]
-    );
-    return rows[0]?.id_kelas || null;
-};
-
-const mapMapelByName = async (namaMapel) => {
-    if (!namaMapel || namaMapel === '-') return null;
-    const [rows] = await global.dbPool.execute(
-        'SELECT id_mapel FROM mapel WHERE nama_mapel = ? AND status = "aktif"',
-        [namaMapel.trim()]
-    );
-    return rows[0]?.id_mapel || null;
-};
-
-const mapGuruByName = async (namaGuru) => {
-    if (!namaGuru || namaGuru === '-') return null;
-    const [rows] = await global.dbPool.execute(
-        'SELECT id_guru FROM guru WHERE nama = ? AND status = "aktif"',
-        [namaGuru.trim()]
-    );
-    return rows[0]?.id_guru || null;
-};
-
-const mapRuangByKode = async (kodeRuang) => {
-    if (!kodeRuang || kodeRuang === '-') return null;
-    const [rows] = await global.dbPool.execute(
-        'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ? AND status = "aktif"',
-        [kodeRuang.trim()]
-    );
-    return rows[0]?.id_ruang || null;
-};
-
-
-
-
-
+// SYSTEM INITIALIZATION
 // ================================================
 // DATABASE OPTIMIZATION SYSTEM - Connection Pool
 // ================================================
@@ -640,56 +492,14 @@ app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 
 // ================================================
-// REPORT LETTERHEAD MANAGEMENT ENDPOINTS
-// ================================================
-
-// Import letterhead manager (legacy)
-import { loadReportLetterhead, saveReportLetterhead, validateLetterhead } from './backend/utils/letterheadManager.js';
-
-// Import new letterhead service
-import {
-    getLetterhead,
-    setLetterheadGlobal,
-    setLetterheadForReport,
-    getAllLetterheads,
-    deleteLetterhead,
-    REPORT_KEYS
-} from './backend/utils/letterheadService.js';
-
-// Get report letterhead configuration
-// ================================================
-// NOTE: LETTERHEAD ROUTES MIGRATED TO letterheadController.js
-// All 10 letterhead endpoints moved to modular structure
+// MODULARIZED ENDPOINTS
 // ================================================
 
 // Update profile for guru
 // ================================================
-// NOTE: PROFILE UPDATE ROUTES MIGRATED TO guruController.js and siswaController.js
-// PUT /api/guru/update-profile, PUT /api/guru/change-password
-// PUT /api/siswa/update-profile, PUT /api/siswa/change-password
-// ================================================
 
-// ================================================
-// DASHBOARD ENDPOINTS - Real Data from MySQL
-// ================================================
 
-// Lightweight master data for filters
-// app.get('/api/admin/classes', authenticateToken, requireRole(['admin']), async (req, res) => {
-//     try {
-//         const [rows] = await global.dbPool.execute(
-//             'SELECT id_kelas AS id, nama_kelas FROM kelas WHERE status = "aktif" ORDER BY nama_kelas'
-//         );
-//         res.json(rows);
-//     } catch (error) {
-//         console.error('❌ Error fetching classes:', error);
-//         res.status(500).json({ error: 'Internal server error' });
-//     }
-// }); // DUPLICATE ENDPOINT - COMMENTED OUT
 
-// ================================================
-// NOTE: DASHBOARD ROUTES MIGRATED TO dashboardController.js
-// GET /api/dashboard/stats, GET /api/dashboard/chart
-// ================================================
 
 // ================================================
 // CRUD ENDPOINTS - ADMIN ONLY
@@ -746,14 +556,7 @@ app.use('/api/admin/classes', kelasRoutes); // Alias: /api/admin/classes -> kela
 app.use('/api/admin/subjects', mapelRoutes); // Alias: /api/admin/subjects -> mapel
 app.use('/api/admin/students', siswaRoutes); // Alias: /api/admin/students -> siswa
 
-// ================================================
-// TEMPLATE ENDPOINTS - Download Excel Templates
-// ================================================
 
-// Template endpoints untuk SISWA - DIHAPUS KARENA DUPLIKASI
-// Endpoint yang benar ada di baris 2943 dengan format yang lebih sesuai
-
-// Template endpoints untuk SISWA template-friendly - DIHAPUS KARENA DUPLIKASI
 
 // ================================================
 // ALL API ENDPOINTS MODULARIZED

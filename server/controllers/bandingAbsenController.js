@@ -4,6 +4,8 @@
  * Migrated from server_modern.js - EXACT CODE COPY
  */
 
+import { sendDatabaseError } from '../utils/errorHandler.js';
+
 // ================================================
 // BANDING ABSEN ENDPOINTS
 // ================================================
