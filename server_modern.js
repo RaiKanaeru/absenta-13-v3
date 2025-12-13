@@ -132,11 +132,32 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 console.log('🔐 CORS Allowed Origins:', allowedOrigins);
 
-// Middleware setup
-app.use(cors({
+// CORS configuration with proper preflight handling
+const corsOptions = {
     credentials: true,
-    origin: allowedOrigins
-}));
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, Postman)
+        if (!origin) {
+            return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        // Log blocked origin for debugging
+        console.log(`⚠️ CORS blocked origin: ${origin}`);
+        return callback(new Error('Not allowed by CORS'), false);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    optionsSuccessStatus: 200 // For legacy browser support
+};
+
+// Middleware setup
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
@@ -528,6 +549,7 @@ app.use('/api/admin/jadwal', jadwalRoutes);
 app.use('/api/admin/ruang', ruangRoutes);
 app.use('/api', userInfoRoutes); // User self-service info endpoints
 app.use('/api', bandingAbsenRoutes);
+app.use('/api/admin', bandingAbsenRoutes); // Alias for frontend compatibility
 app.use('/api', bandingAbsenSiswaGuruRoutes); // Siswa & Guru banding endpoints
 app.use('/api/admin', reportsRoutes); // Analytics & Reports endpoints
 app.use('/api/admin', adminDashboardRoutes); // Admin dashboard teacher/student management (User Accounts)
