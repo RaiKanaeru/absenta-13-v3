@@ -495,6 +495,18 @@ app.use((req, res, next) => {
 
 // Login endpoint - Real authentication with MySQL
 // ================================================
+// HEALTH CHECK ENDPOINT
+// ================================================
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+// ================================================
 // AUTHENTICATION ENDPOINTS
 // ================================================
 
