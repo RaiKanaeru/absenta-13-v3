@@ -21,7 +21,7 @@ import {
     REKAP_GURU_MAPPING,
     getTemplatePathByTingkat,
     extractTingkatFromKelas
-} from '../config/exportConfig.js';
+} from '../../config/exportConfig.js';
 
 // ================================================
 // HELPER FUNCTIONS
