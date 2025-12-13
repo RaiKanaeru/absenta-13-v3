@@ -191,8 +191,9 @@ export const getSiswa = async (req, res) => {
         query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
         params.push(parseInt(limit), parseInt(offset));
 
-        const [rows] = await global.dbPool.execute(query, params);
-        const [countResult] = await global.dbPool.execute(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        // Menggunakan .query() karena .execute() (prepared statements) memiliki masalah dengan LIMIT/OFFSET pada beberapa versi MySQL/driver
+        const [rows] = await global.dbPool.query(query, params);
+        const [countResult] = await global.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         res.json({
             success: true,
