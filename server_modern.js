@@ -196,8 +196,6 @@ async function initializeDatabase() {
     try {
         // Initialize database optimization system
         await dbOptimization.initialize();
-        // ASSIGN GLOBAL POOL FOR CONTROLLERS
-        global.dbPool = dbOptimization.pool;
         console.log('✅ Database optimization system initialized successfully');
 
         // Initialize query optimizer
