@@ -64,6 +64,7 @@ router.get('/attendance', authenticateToken, requireRole(['admin']), exportContr
 router.get('/jadwal-matrix', authenticateToken, requireRole(['admin']), exportController.exportJadwalMatrix);
 router.get('/jadwal-grid', authenticateToken, requireRole(['admin']), exportController.exportJadwalGrid);
 router.get('/jadwal-print', authenticateToken, requireRole(['admin']), exportController.exportJadwalPrint);
+router.get('/rekap-jadwal-guru', authenticateToken, requireRole(['admin']), exportController.exportRekapJadwalGuru);
 
 // ================================================
 // ALL 17/17 EXPORTS MIGRATED! 🎉

@@ -2221,3 +2221,123 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         return sendDatabaseError(res, error);
     }
 };
+
+/**
+ * Export rekap jadwal guru mingguan (Availability Matrix)
+ * GET /api/admin/export/rekap-jadwal-guru
+ * Layout: Rows = Guru, Columns = Days, Value = ADA/Empty
+ */
+export const exportRekapJadwalGuru = async (req, res) => {
+    try {
+        console.log('👨‍🏫 Exporting rekap jadwal guru matrix...');
+        const { tahun_ajar } = req.query;
+
+        // Letterhead
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
+
+        // Query: Get valid days for each active teacher
+        const query = `
+            SELECT DISTINCT g.id_guru, g.nama, g.kode_guru, j.hari
+            FROM guru g
+            LEFT JOIN jadwal j ON g.id_guru = j.guru_id AND j.status = 'aktif'
+            WHERE g.status = 'aktif'
+            ORDER BY g.nama, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')
+        `;
+
+        const [rows] = await global.dbPool.execute(query);
+
+        // Transform Data
+        const teachers = {};
+        rows.forEach(row => {
+            if (!teachers[row.id_guru]) {
+                teachers[row.id_guru] = {
+                    nama: row.nama,
+                    kode: row.kode_guru || `G${row.id_guru}`,
+                    days: new Set()
+                };
+            }
+            if (row.hari) {
+                teachers[row.id_guru].days.add(row.hari);
+            }
+        });
+
+        // Build Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Rekap Jadwal Guru');
+
+        const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+        const totalCols = 3 + days.length; // No, Nama, Kode + Days
+
+        // 1. Add Letterhead
+        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
+
+        // 2. Add Title
+        currentRow = addReportTitle(worksheet, 'REKAP JADWAL GURU - MINGGUAN', `TAHUN PELAJARAN ${tahun_ajar || '2024-2025'}`, currentRow, totalCols);
+        currentRow++;
+
+        // 3. Add Header Row
+        const headerRow = worksheet.getRow(currentRow);
+        ['NO', 'NAMA GURU', 'KODE', ...days.map(d => d.toUpperCase())].forEach((label, idx) => {
+            const cell = headerRow.getCell(idx + 1);
+            cell.value = label;
+            applyStyle(cell, excelStyles.header);
+            // Greenish header for days similar to image
+            if (idx >= 3) {
+                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Light green
+                 cell.font = { bold: true, color: { argb: 'FF000000' } };
+            }
+        });
+        headerRow.height = 25;
+        currentRow++;
+
+        const dataStartRow = currentRow;
+        let no = 1;
+
+        // 4. Data Rows
+        Object.values(teachers).forEach(t => {
+            const row = worksheet.getRow(currentRow);
+            
+            // Fixed Info
+            const cellNo = row.getCell(1); cellNo.value = no++; applyStyle(cellNo, excelStyles.cellCenter);
+            const cellName = row.getCell(2); cellName.value = t.nama; applyStyle(cellName, excelStyles.cell);
+            const cellKode = row.getCell(3); cellKode.value = t.kode; applyStyle(cellKode, excelStyles.cellCenter);
+
+            // Days Columns
+            days.forEach((day, idx) => {
+                const cell = row.getCell(4 + idx);
+                const hasSchedule = t.days.has(day);
+                
+                cell.value = hasSchedule ? 'ADA' : '';
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = borders.thin;
+                cell.font = { bold: true };
+
+                if (hasSchedule) {
+                     // White/Plain background for ADA
+                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+                } else {
+                    // Grey for empty slots (meaning No Schedule)
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1D5DB' } }; // Light Gray
+                }
+            });
+            currentRow++;
+        });
+
+        // Widths
+        worksheet.getColumn(1).width = 5;
+        worksheet.getColumn(2).width = 35;
+        worksheet.getColumn(3).width = 10;
+        for(let i=4; i<=totalCols; i++) worksheet.getColumn(i).width = 12;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Rekap_Jadwal_Guru_${Date.now()}.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+        console.log(`✅ Rekap jadwal guru exported: ${Object.keys(teachers).length} teachers`);
+
+    } catch (error) {
+        console.error('❌ Export rekap jadwal guru error:', error);
+        return sendDatabaseError(res, error);
+    }
+};
