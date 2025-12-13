@@ -72,7 +72,7 @@ export const exportAbsensi = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const absensiGuruSchema = await import('../../backend/export/schemas/absensi-guru.js');
 
         // Load letterhead configuration
@@ -201,7 +201,7 @@ export const exportStudentSummary = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const studentSummarySchema = await import('../../backend/export/schemas/student-summary.js');
 
         // Load letterhead configuration
@@ -273,7 +273,7 @@ export const exportTeacherSummary = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const teacherSummarySchema = await import('../../backend/export/schemas/teacher-summary.js');
 
         // Load letterhead configuration
@@ -374,7 +374,7 @@ export const exportBandingAbsen = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const bandingAbsenSchema = await import('../../backend/export/schemas/banding-absen.js');
 
         // Load letterhead configuration
@@ -499,7 +499,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
 
         // Load letterhead configuration
@@ -622,7 +622,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
         }
 
         // Load letterhead
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
 
         // Create Excel
@@ -749,8 +749,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
-
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         // Load letterhead configuration
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
 
@@ -910,7 +909,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         }
 
         // Load letterhead
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
 
         // Create Excel
@@ -1030,7 +1029,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         }
 
         // Load letterhead
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
 
         // Create Excel
@@ -1148,7 +1147,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
 
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
@@ -1208,7 +1207,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
 
         // Import modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const rekapSiswaSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-siswa.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
 
@@ -1334,7 +1333,7 @@ export const exportPresensiSiswa = async (req, res) => {
 
         // Import modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const { generatePresensiColumns } = await import('../../backend/export/schemas/presensi-siswa-detail.js');
 
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
@@ -1419,7 +1418,7 @@ export const exportJadwalMatrix = async (req, res) => {
         console.log('📅 Exporting jadwal matrix format (redesigned)...');
         const { kelas_id, hari } = req.query;
 
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // Use getLetterhead from top-level import (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
 
         // Updated query to include multi-guru data
@@ -1614,7 +1613,7 @@ export const exportJadwalGrid = async (req, res) => {
         console.log('📅 Exporting jadwal grid format (styled)...');
         const { kelas_id, hari } = req.query;
 
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // Use getLetterhead from top-level import (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
 
         let query = `
@@ -1739,7 +1738,7 @@ export const exportJadwalPrint = async (req, res) => {
         console.log('📅 Exporting jadwal print format...');
         const { kelas_id, hari } = req.query;
 
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
 
         let query = `
@@ -2006,7 +2005,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const ExcelJS = (await import('exceljs')).default;
         const fs = await import('fs');
         const path = await import('path');
-        const { getLetterhead, REPORT_KEYS } = await import('../../backend/utils/letterheadService.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
         const workbook = new ExcelJS.Workbook();
