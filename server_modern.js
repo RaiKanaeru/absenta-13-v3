@@ -155,6 +155,31 @@ const corsOptions = {
 };
 
 // Middleware setup
+
+// CRITICAL: Manual CORS headers FIRST - ensures CORS works even if error occurs later
+// This catches preflight OPTIONS and sets headers before any other middleware
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    
+    // Check if origin is allowed
+    if (!origin || allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin || '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
+    }
+    
+    // Handle preflight OPTIONS request immediately
+    if (req.method === 'OPTIONS') {
+        console.log(`✅ CORS preflight handled for origin: ${origin}`);
+        return res.status(200).end();
+    }
+    
+    next();
+});
+
+// Standard CORS middleware (backup)
 app.use(cors(corsOptions));
 
 // Handle preflight requests implies by above middleware or explicit options if needed
