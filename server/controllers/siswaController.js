@@ -9,7 +9,7 @@ const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 // Validasi payload siswa untuk Create/Update
 async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId = null, excludeUserId = null } = {}) {
     const errors = [];
-    const { nis, nama, username, email, kelas_id, jenis_kelamin, jabatan, nomor_telepon_siswa, telepon_orangtua } = body;
+    const { nis, nama, username, email, kelas_id, jenis_kelamin, jabatan, nomor_telepon_siswa, telepon_orangtua, password } = body;
 
     // Validasi NIS (wajib)
     if (!isUpdate || nis !== undefined) {
