@@ -54,6 +54,7 @@ import backupRoutes from './server/routes/backupRoutes.js';
 import templateRoutes from './server/routes/templateRoutes.js';
 import importRoutes from './server/routes/importRoutes.js';
 import monitoringRoutes from './server/routes/monitoringRoutes.js';
+import templateExportRoutes from './server/routes/templateExportRoutes.js';
 import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
     getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
@@ -586,6 +587,7 @@ app.use('/api/admin', backupRoutes); // Backup endpoints
 app.use('/api/admin', templateRoutes); // Template download endpoints
 app.use('/api/admin', importRoutes); // Import Excel endpoints
 app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
+app.use('/api/admin/export', templateExportRoutes); // Template-based Excel export
 
 // Route Aliases for Frontend Compatibility
 app.use('/api/admin/classes', kelasRoutes); // Alias: /api/admin/classes -> kelas
