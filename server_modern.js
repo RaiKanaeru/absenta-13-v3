@@ -155,8 +155,8 @@ const corsOptions = {
 // Middleware setup
 app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
+// Handle preflight requests implies by above middleware or explicit options if needed
+// app.options('*', cors(corsOptions)); // Removing this to prevent path-to-regexp error
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
