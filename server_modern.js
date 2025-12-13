@@ -54,6 +54,7 @@ import backupRoutes from './server/routes/backupRoutes.js';
 import templateRoutes from './server/routes/templateRoutes.js';
 import importRoutes from './server/routes/importRoutes.js';
 import monitoringRoutes from './server/routes/monitoringRoutes.js';
+import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
     getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
     getWIBTimestamp, getMySQLDateWIB, getMySQLDateTimeWIB, 
@@ -161,6 +162,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
+app.use(requestIdMiddleware);  // Add request ID tracking for debugging
 
 // Rate limiting
 const limiter = rateLimit({
@@ -589,6 +591,12 @@ app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
 app.use('/api/admin/classes', kelasRoutes); // Alias: /api/admin/classes -> kelas
 app.use('/api/admin/subjects', mapelRoutes); // Alias: /api/admin/subjects -> mapel
 app.use('/api/admin/students', siswaRoutes); // Alias: /api/admin/students -> siswa
+
+// ================================================
+// GLOBAL ERROR HANDLERS (MUST BE AFTER ALL ROUTES)
+// ================================================
+app.use(notFoundHandler);  // Handle 404 - API routes not found
+app.use(globalErrorHandler);  // Handle all unhandled errors
 
 
 
