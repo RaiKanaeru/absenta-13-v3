@@ -169,9 +169,12 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
 
 // Get All Siswa
 export const getSiswa = async (req, res) => {
+    console.log('📥 getSiswa endpoint hit:', req.originalUrl);
     try {
         const { page = 1, limit = 10, search = '' } = req.query;
         const offset = (page - 1) * limit;
+        
+        console.log('📊 Query params:', { page, limit, search, offset });
 
         let query = `
             SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status
@@ -189,11 +192,15 @@ export const getSiswa = async (req, res) => {
         }
 
         query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        params.push(Number(limit), Number(offset));
+        
+        console.log('🔍 Executing query with params:', params);
 
         // Menggunakan .query() karena .execute() (prepared statements) memiliki masalah dengan LIMIT/OFFSET pada beberapa versi MySQL/driver
         const [rows] = await global.dbPool.query(query, params);
         const [countResult] = await global.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        
+        console.log('✅ Query successful, rows:', rows.length);
 
         res.json({
             success: true,
@@ -206,14 +213,16 @@ export const getSiswa = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Get siswa error:', error);
+        console.error('❌ Get siswa error:', error.message);
+        console.error('❌ Full error:', error);
         res.status(500).json({ 
             error: 'Failed to retrieve student data',
             details: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            code: error.code || 'UNKNOWN'
         });
     }
 };
+
 
 // Create Siswa
 export const createSiswa = async (req, res) => {
