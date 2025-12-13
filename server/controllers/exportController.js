@@ -1424,7 +1424,6 @@ export const exportJadwalMatrix = async (req, res) => {
         // Updated query to include multi-guru data
         let query = `
             SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
-                j.is_multi_guru, j.guru_list,
                 k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
                 COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang
             FROM jadwal j
@@ -1618,7 +1617,6 @@ export const exportJadwalGrid = async (req, res) => {
 
         let query = `
             SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
-                j.is_multi_guru, j.guru_list,
                 k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
                 COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang
             FROM jadwal j
