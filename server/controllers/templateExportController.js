@@ -169,7 +169,7 @@ export const downloadRekapGuruMingguan = async (req, res) => {
  */
 export const downloadJadwalPelajaran = async (req, res) => {
     try {
-        console.log(`📊 Generating jadwal pelajaran matrix export`);
+        console.log(`📊 Generating jadwal pelajaran matrix export (Complex)`);
         
         // Fetch jadwal data from DB
         const { fetchJadwalForExport } = await import('../services/export/templateExcelService.js');
@@ -178,7 +178,7 @@ export const downloadJadwalPelajaran = async (req, res) => {
         console.log(`📄 Found ${jadwalData.length} jadwal items for export`);
         
         // Generate Excel matrix with colors
-        const buffer = await exportJadwalPelajaran({
+        const buffer = await exportJadwalPelajaranComplex({
             jadwalData: jadwalData
         });
         

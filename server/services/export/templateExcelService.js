@@ -550,7 +550,7 @@ function getMapelColor(mapelId, mapelName) {
  * @param {Array} params.jadwalData - Data jadwal dari DB
  * @returns {Promise<Buffer>} - Excel file buffer
  */
-export async function exportJadwalPelajaran({ jadwalData }) {
+export async function exportJadwalPelajaranComplex({ jadwalData }) {
     console.log(`📊 Generating complex jadwal with ${jadwalData?.length || 0} items`);
     
     // Reset color cache for consistent colors
