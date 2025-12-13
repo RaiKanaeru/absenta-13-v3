@@ -7,7 +7,7 @@ import {
     exportRekapKelasGasal,
     exportRekapGuruTahunan,
     exportRekapGuruMingguan,
-    exportJadwalPelajaran,
+    exportJadwalPelajaranComplex,
     fetchRekapSiswaByKelas,
     fetchRekapGuru,
     fetchGuruJadwalMingguan,
