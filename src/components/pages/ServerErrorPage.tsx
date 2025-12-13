@@ -17,6 +17,7 @@ interface ServerErrorPageProps {
 /**
  * 500 Server Error Page
  * Informative error page with debugging details (in dev mode)
+ * Color scheme: Soft blue to match website theme
  */
 const ServerErrorPage: React.FC<ServerErrorPageProps> = ({ error, onRetry }) => {
     const navigate = useNavigate();
@@ -43,7 +44,7 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-red-950 via-gray-900 to-gray-900 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
             {/* Background pattern */}
             <div className="absolute inset-0 overflow-hidden opacity-10">
                 <div className="absolute inset-0" style={{
@@ -53,9 +54,9 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
 
             <div className="relative z-10 max-w-xl w-full">
                 {/* Error card */}
-                <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-red-500/30 shadow-2xl overflow-hidden">
+                <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-blue-500/30 shadow-2xl overflow-hidden">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6">
+                    <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6">
                         <div className="flex items-center gap-4">
                             <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
                                 <AlertTriangle className="w-10 h-10 text-white" />
@@ -73,24 +74,24 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                             <h2 className="text-xl font-semibold text-white mb-2">
                                 Terjadi Kesalahan Server
                             </h2>
-                            <p className="text-gray-400">
+                            <p className="text-blue-200/70">
                                 {error?.message || 'Maaf, terjadi kesalahan pada server kami. Tim teknis sudah diberitahu dan sedang memperbaiki masalah ini.'}
                             </p>
                         </div>
 
                         {/* Error code & request ID */}
                         {(error?.code || error?.requestId) && (
-                            <div className="bg-gray-800/50 rounded-lg p-4 space-y-2">
+                            <div className="bg-blue-900/30 rounded-lg p-4 space-y-2">
                                 {error?.code && (
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Error Code</span>
-                                        <span className="text-red-400 font-mono">{error.code}</span>
+                                        <span className="text-blue-300/70">Error Code</span>
+                                        <span className="text-blue-300 font-mono">{error.code}</span>
                                     </div>
                                 )}
                                 {error?.requestId && (
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Request ID</span>
-                                        <span className="text-gray-300 font-mono text-xs">{error.requestId}</span>
+                                        <span className="text-blue-300/70">Request ID</span>
+                                        <span className="text-blue-200 font-mono text-xs">{error.requestId}</span>
                                     </div>
                                 )}
                             </div>
@@ -98,10 +99,10 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
 
                         {/* Developer details (only in dev mode) */}
                         {isDevelopment && error && (
-                            <div className="border border-yellow-500/30 rounded-lg overflow-hidden">
+                            <div className="border border-cyan-500/30 rounded-lg overflow-hidden">
                                 <button
                                     onClick={() => setShowDetails(!showDetails)}
-                                    className="w-full flex items-center justify-between p-3 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
+                                    className="w-full flex items-center justify-between p-3 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition-colors"
                                 >
                                     <div className="flex items-center gap-2">
                                         <Bug className="w-4 h-4" />
@@ -111,11 +112,11 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                                 </button>
                                 
                                 {showDetails && (
-                                    <div className="p-4 space-y-3 bg-gray-950/50">
+                                    <div className="p-4 space-y-3 bg-slate-950/50">
                                         {error.details && (
                                             <div>
-                                                <p className="text-xs text-gray-500 mb-1">Details:</p>
-                                                <pre className="text-xs text-gray-300 bg-gray-900 p-2 rounded overflow-auto max-h-20">
+                                                <p className="text-xs text-blue-300/50 mb-1">Details:</p>
+                                                <pre className="text-xs text-blue-200 bg-slate-900 p-2 rounded overflow-auto max-h-20">
                                                     {typeof error.details === 'string' 
                                                         ? error.details 
                                                         : JSON.stringify(error.details, null, 2)}
@@ -124,8 +125,8 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                                         )}
                                         {error.stack && (
                                             <div>
-                                                <p className="text-xs text-gray-500 mb-1">Stack Trace:</p>
-                                                <pre className="text-xs text-gray-400 bg-gray-900 p-2 rounded overflow-auto max-h-32 font-mono">
+                                                <p className="text-xs text-blue-300/50 mb-1">Stack Trace:</p>
+                                                <pre className="text-xs text-blue-200/70 bg-slate-900 p-2 rounded overflow-auto max-h-32 font-mono">
                                                     {error.stack}
                                                 </pre>
                                             </div>
@@ -140,7 +141,7 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                             {onRetry && (
                                 <Button
                                     onClick={onRetry}
-                                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                                 >
                                     <RefreshCcw className="w-4 h-4 mr-2" />
                                     Coba Lagi
@@ -149,7 +150,7 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                             <Button
                                 onClick={() => navigate('/')}
                                 variant="outline"
-                                className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                                className="flex-1 border-blue-500/30 text-blue-200 hover:bg-blue-900/30"
                             >
                                 <Home className="w-4 h-4 mr-2" />
                                 Ke Beranda
@@ -157,7 +158,7 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                             <Button
                                 onClick={copyErrorDetails}
                                 variant="outline"
-                                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                                className="border-blue-500/30 text-blue-200 hover:bg-blue-900/30"
                             >
                                 {copied ? (
                                     <Check className="w-4 h-4 text-green-400" />
@@ -168,11 +169,11 @@ ${error?.stack ? `Stack:\n${error.stack}` : ''}
                         </div>
 
                         {/* Contact support */}
-                        <div className="text-center text-sm text-gray-500">
+                        <div className="text-center text-sm text-blue-300/50">
                             <p>
                                 Butuh bantuan? Hubungi administrator sistem{' '}
                                 {error?.requestId && (
-                                    <span>dengan kode: <code className="text-gray-400">{error.requestId}</code></span>
+                                    <span>dengan kode: <code className="text-blue-300">{error.requestId}</code></span>
                                 )}
                             </p>
                         </div>

@@ -18,13 +18,7 @@ interface ErrorBoundaryProps {
 /**
  * Enhanced Error Boundary Component
  * Catches JavaScript errors in child components and displays a beautiful fallback UI
- * 
- * Features:
- * - Modern, clean error UI
- * - Copy error details button
- * - Expandable stack trace (dev mode)
- * - Reset/retry functionality
- * - Custom fallback support
+ * Color scheme: Soft blue to match website theme
  */
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
@@ -41,7 +35,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        // Log the error
         console.error('🚨 ErrorBoundary caught an error:', error);
         console.error('📋 Component stack:', errorInfo.componentStack);
         
@@ -50,13 +43,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             errorInfo
         });
 
-        // Call optional error handler
         this.props.onError?.(error, errorInfo);
-
-        // In production, you might want to send to error tracking service
-        if (process.env.NODE_ENV === 'production') {
-            // Example: Sentry.captureException(error);
-        }
     }
 
     handleReset = () => {
@@ -102,7 +89,6 @@ ${errorInfo?.componentStack || 'No component stack'}
 
     render() {
         if (this.state.hasError) {
-            // Custom fallback if provided
             if (this.props.fallback) {
                 return this.props.fallback;
             }
@@ -111,7 +97,7 @@ ${errorInfo?.componentStack || 'No component stack'}
             const isDevelopment = process.env.NODE_ENV !== 'production';
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-950 to-gray-900 flex items-center justify-center p-4">
+                <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
                     {/* Background pattern */}
                     <div className="absolute inset-0 overflow-hidden opacity-5">
                         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=&quot;40&quot; height=&quot;40&quot; viewBox=&quot;0 0 40 40&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cpath d=&quot;M0 40L40 0H20L0 20M40 40V20L20 40&quot; fill=&quot;%23fff&quot;/%3E%3C/svg%3E')]"></div>
@@ -119,9 +105,9 @@ ${errorInfo?.componentStack || 'No component stack'}
 
                     <div className="relative z-10 max-w-lg w-full">
                         {/* Main card */}
-                        <div className="bg-gray-900/90 backdrop-blur-md rounded-2xl shadow-2xl border border-red-500/30 overflow-hidden">
+                        <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl shadow-2xl border border-blue-500/30 overflow-hidden">
                             {/* Header */}
-                            <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6">
+                            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6">
                                 <div className="flex items-center gap-4">
                                     <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
                                         <AlertTriangle className="w-8 h-8 text-white" />
@@ -136,18 +122,18 @@ ${errorInfo?.componentStack || 'No component stack'}
                             {/* Content */}
                             <div className="p-6 space-y-5">
                                 {/* Error message */}
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                                    <p className="text-red-300 font-mono text-sm break-all">
+                                <div className="bg-blue-500/10 border border-blue-400/20 rounded-lg p-4">
+                                    <p className="text-blue-200 font-mono text-sm break-all">
                                         {error?.message || 'Unknown error occurred'}
                                     </p>
                                 </div>
 
                                 {/* Developer details */}
                                 {isDevelopment && (
-                                    <div className="border border-yellow-500/30 rounded-lg overflow-hidden">
+                                    <div className="border border-cyan-500/30 rounded-lg overflow-hidden">
                                         <button
                                             onClick={() => this.setState({ showStack: !showStack })}
-                                            className="w-full flex items-center justify-between p-3 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
+                                            className="w-full flex items-center justify-between p-3 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition-colors"
                                         >
                                             <div className="flex items-center gap-2">
                                                 <Bug className="w-4 h-4" />
@@ -157,16 +143,16 @@ ${errorInfo?.componentStack || 'No component stack'}
                                         </button>
                                         
                                         {showStack && (
-                                            <div className="p-4 bg-gray-950/50 space-y-4">
+                                            <div className="p-4 bg-slate-950/50 space-y-4">
                                                 <div>
-                                                    <p className="text-xs text-gray-500 mb-2">Error Stack:</p>
-                                                    <pre className="text-xs text-gray-400 bg-gray-900 p-3 rounded overflow-auto max-h-32 font-mono">
+                                                    <p className="text-xs text-blue-300/50 mb-2">Error Stack:</p>
+                                                    <pre className="text-xs text-blue-200/70 bg-slate-900 p-3 rounded overflow-auto max-h-32 font-mono">
                                                         {error?.stack}
                                                     </pre>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 mb-2">Component Stack:</p>
-                                                    <pre className="text-xs text-gray-400 bg-gray-900 p-3 rounded overflow-auto max-h-32 font-mono">
+                                                    <p className="text-xs text-blue-300/50 mb-2">Component Stack:</p>
+                                                    <pre className="text-xs text-blue-200/70 bg-slate-900 p-3 rounded overflow-auto max-h-32 font-mono">
                                                         {errorInfo?.componentStack}
                                                     </pre>
                                                 </div>
@@ -186,21 +172,21 @@ ${errorInfo?.componentStack || 'No component stack'}
                                     </button>
                                     <button
                                         onClick={this.handleReload}
-                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors font-medium"
                                     >
                                         <RefreshCcw className="w-4 h-4" />
                                         Refresh
                                     </button>
                                     <button
                                         onClick={this.handleGoHome}
-                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors font-medium"
                                     >
                                         <Home className="w-4 h-4" />
                                         Beranda
                                     </button>
                                     <button
                                         onClick={this.handleCopyError}
-                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors font-medium"
                                     >
                                         {copied ? (
                                             <>
@@ -217,14 +203,14 @@ ${errorInfo?.componentStack || 'No component stack'}
                                 </div>
 
                                 {/* Help text */}
-                                <p className="text-center text-gray-500 text-sm">
+                                <p className="text-center text-blue-300/50 text-sm">
                                     Jika masalah berlanjut, hubungi administrator sistem.
                                 </p>
                             </div>
                         </div>
 
                         {/* Footer */}
-                        <p className="text-center text-gray-600 text-sm mt-6">
+                        <p className="text-center text-blue-300/40 text-sm mt-6">
                             ABSENTA 13 - Sistem Absensi Digital
                         </p>
                     </div>
