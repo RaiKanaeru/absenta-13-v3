@@ -391,13 +391,185 @@ export async function getKelasInfo(dbPool, kelasId) {
     return rows[0] || null;
 }
 
+// ================================================
+// REKAP GURU MINGGUAN EXPORT
+// ================================================
+
+/**
+ * Export Rekap Jadwal Guru Mingguan
+ * Menampilkan guru yang hadir per hari (SENIN-JUMAT)
+ * 
+ * @param {Object} params
+ * @param {Array} params.guruData - Array of { no, nama, kode, namaSingkat, jadwal: { SENIN: true, ... } }
+ * @returns {Promise<Buffer>} - Excel file buffer
+ */
+export async function exportRekapGuruMingguan({ guruData }) {
+    console.log(`📊 Generating rekap guru mingguan`);
+    
+    // Create new workbook (simpler than loading template for this format)
+    const ExcelJS = await import('exceljs');
+    const workbook = new ExcelJS.default.Workbook();
+    const sheet = workbook.addWorksheet('REKAP JADWAL GURU');
+    
+    // Header styling
+    const headerStyle = {
+        font: { bold: true, color: { argb: 'FF000000' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        border: {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        }
+    };
+    
+    // Title
+    sheet.mergeCells('A1:I1');
+    sheet.getCell('A1').value = 'REKAP JADWAL GURU - MINGGUAN';
+    sheet.getCell('A1').font = { bold: true, size: 14 };
+    sheet.getCell('A1').alignment = { horizontal: 'center' };
+    
+    sheet.mergeCells('A2:I2');
+    sheet.getCell('A2').value = `TAHUN PELAJARAN ${TAHUN_PELAJARAN}`;
+    sheet.getCell('A2').alignment = { horizontal: 'center' };
+    
+    // Headers
+    const headers = ['NO', 'NAMA GURU', 'KODE', '', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT'];
+    const headerRow = sheet.getRow(4);
+    headers.forEach((h, i) => {
+        headerRow.getCell(i + 1).value = h;
+        Object.assign(headerRow.getCell(i + 1), headerStyle);
+    });
+    
+    // Column widths
+    sheet.getColumn(1).width = 5;
+    sheet.getColumn(2).width = 35;
+    sheet.getColumn(3).width = 8;
+    sheet.getColumn(4).width = 12;
+    sheet.getColumn(5).width = 10;
+    sheet.getColumn(6).width = 10;
+    sheet.getColumn(7).width = 10;
+    sheet.getColumn(8).width = 10;
+    sheet.getColumn(9).width = 10;
+    
+    // Data rows
+    guruData.forEach((guru, index) => {
+        const row = sheet.getRow(5 + index);
+        row.getCell(1).value = index + 1;
+        row.getCell(2).value = guru.nama || '';
+        row.getCell(3).value = guru.kode || `G${index + 1}`;
+        row.getCell(4).value = guru.namaSingkat || '';
+        row.getCell(5).value = guru.jadwal?.SENIN ? 'ADA' : '';
+        row.getCell(6).value = guru.jadwal?.SELASA ? 'ADA' : '';
+        row.getCell(7).value = guru.jadwal?.RABU ? 'ADA' : '';
+        row.getCell(8).value = guru.jadwal?.KAMIS ? 'ADA' : '';
+        row.getCell(9).value = guru.jadwal?.JUMAT ? 'ADA' : '';
+        
+        // Apply borders
+        for (let i = 1; i <= 9; i++) {
+            row.getCell(i).border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            row.getCell(i).alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+        row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+    });
+    
+    console.log(`✅ Filled ${guruData.length} teachers schedule`);
+    
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
+}
+
+// ================================================
+// JADWAL PELAJARAN EXPORT
+// ================================================
+
+/**
+ * Export Jadwal Pelajaran
+ * Menggunakan template yang sudah ada dengan warna-warna per mapel
+ * 
+ * @param {Object} params
+ * @param {Array} params.jadwalData - Data jadwal per kelas
+ * @returns {Promise<Buffer>} - Excel file buffer
+ */
+export async function exportJadwalPelajaran({ jadwalData }) {
+    console.log(`📊 Generating jadwal pelajaran`);
+    
+    const workbook = await loadTemplate(TEMPLATE_PATHS.JADWAL);
+    
+    // Get JADWAL sheet
+    const sheet = workbook.getWorksheet('JADWAL');
+    if (!sheet) {
+        throw new Error('Sheet JADWAL tidak ditemukan dalam template');
+    }
+    
+    console.log(`📄 Using sheet: ${sheet.name}`);
+    console.log(`ℹ️ Template jadwal loaded - preserving formatting and colors`);
+    
+    // Note: For jadwal, the template usually has complex merging and coloring
+    // We preserve the template as-is since it's manually maintained
+    // This function is mainly for reading/exporting the current state
+    
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
+}
+
+/**
+ * Fetch guru jadwal mingguan dari database
+ * @param {Object} dbPool
+ * @returns {Promise<Array>}
+ */
+export async function fetchGuruJadwalMingguan(dbPool) {
+    const query = `
+        SELECT 
+            g.id_guru,
+            g.nama,
+            g.nip,
+            SUBSTRING(g.nama, 1, 10) as nama_singkat,
+            GROUP_CONCAT(DISTINCT DAYNAME(j.hari) SEPARATOR ',') as hari_mengajar
+        FROM guru g
+        LEFT JOIN jadwal j ON g.id_guru = j.guru_id
+        WHERE g.status = 'aktif'
+        GROUP BY g.id_guru, g.nama, g.nip
+        ORDER BY g.nama
+    `;
+    
+    const [rows] = await dbPool.execute(query);
+    
+    return rows.map((row, index) => {
+        const hariArray = (row.hari_mengajar || '').split(',');
+        return {
+            no: index + 1,
+            nama: row.nama,
+            kode: `G${index + 1}`,
+            namaSingkat: row.nama_singkat,
+            jadwal: {
+                SENIN: hariArray.includes('Monday'),
+                SELASA: hariArray.includes('Tuesday'),
+                RABU: hariArray.includes('Wednesday'),
+                KAMIS: hariArray.includes('Thursday'),
+                JUMAT: hariArray.includes('Friday')
+            }
+        };
+    });
+}
+
 export default {
     loadTemplate,
     findSheetByClassName,
     exportRekapKelasGasal,
     exportRekapGuruTahunan,
+    exportRekapGuruMingguan,
+    exportJadwalPelajaran,
     fetchRekapSiswaByKelas,
     fetchRekapGuru,
+    fetchGuruJadwalMingguan,
     getWaliKelas,
     getKelasInfo
 };
+

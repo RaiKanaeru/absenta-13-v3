@@ -148,6 +148,63 @@ export const STATUS_KEHADIRAN = {
 };
 
 // ================================================
+// CELL MAPPING - REKAP GURU MINGGUAN
+// Berdasarkan template "REKAP JADWAL GURU - MINGGUAN"
+// ================================================
+export const REKAP_GURU_MINGGUAN_MAPPING = {
+    // Data start row (setelah header)
+    DATA_START_ROW: 3,
+    
+    // Kolom identitas guru
+    KOLOM_IDENTITAS: {
+        NO: 'A',
+        NAMA_GURU: 'B',
+        KODE: 'C',      // Kode guru (G1, G2, dst)
+        NAMA_SINGKAT: 'D'  // Nama singkat
+    },
+    
+    // Kolom hari (marker "ADA" jika guru ada)
+    KOLOM_HARI: {
+        SENIN: 'E',
+        SELASA: 'F',
+        RABU: 'G',
+        KAMIS: 'H',
+        JUMAT: 'I'
+    }
+};
+
+// ================================================
+// CELL MAPPING - JADWAL PELAJARAN
+// Berdasarkan template "JADWAL PELAJARAN 2025-2026"
+// ================================================
+export const JADWAL_PELAJARAN_MAPPING = {
+    // Sheet names mapping ke kelas
+    SHEET_JADWAL: 'JADWAL',
+    SHEET_JAM_GURU: 'JAM GURU',
+    SHEET_MASTER_HARIAN: 'MASTER GURU HARIAN',
+    
+    // Header row
+    HEADER_ROW: 1,
+    
+    // Time slots (jam pelajaran)
+    JAM_PELAJARAN: [
+        { jam: 1, waktu: '06.30 - 07.15' },
+        { jam: 2, waktu: '07.15 - 08.00' },
+        { jam: 3, waktu: '08.00 - 08.45' },
+        { jam: 4, waktu: '08.45 - 09.30' },
+        { jam: 5, waktu: '09.45 - 10.30' },
+        { jam: 6, waktu: '10.30 - 11.15' },
+        { jam: 7, waktu: '11.15 - 12.00' },
+        { jam: 8, waktu: '12.00 - 12.45' },
+        { jam: 9, waktu: '13.00 - 13.30' },
+        { jam: 10, waktu: '13.30 - 14.00' }
+    ],
+    
+    // Hari dalam seminggu
+    HARI: ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT']
+};
+
+// ================================================
 // TINGKAT KELAS MAPPING
 // ================================================
 export const TINGKAT_KELAS = {

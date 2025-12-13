@@ -6,8 +6,11 @@
 import {
     exportRekapKelasGasal,
     exportRekapGuruTahunan,
+    exportRekapGuruMingguan,
+    exportJadwalPelajaran,
     fetchRekapSiswaByKelas,
     fetchRekapGuru,
+    fetchGuruJadwalMingguan,
     getWaliKelas,
     getKelasInfo
 } from '../services/export/templateExcelService.js';
@@ -117,6 +120,81 @@ export const downloadRekapGuruTahunan = async (req, res) => {
 };
 
 // ================================================
+// REKAP GURU MINGGUAN EXPORT
+// ================================================
+
+/**
+ * Export rekap jadwal guru mingguan
+ * GET /api/admin/export/rekap-guru-mingguan
+ */
+export const downloadRekapGuruMingguan = async (req, res) => {
+    try {
+        console.log(`📊 Generating rekap guru mingguan`);
+        
+        // Fetch guru jadwal data
+        const guruData = await fetchGuruJadwalMingguan(global.dbPool);
+        
+        console.log(`📄 Found ${guruData.length} teachers for export`);
+        
+        // Generate Excel
+        const buffer = await exportRekapGuruMingguan({
+            guruData: guruData
+        });
+        
+        // Set response headers
+        const filename = `REKAP_JADWAL_GURU_MINGGUAN_${TAHUN_PELAJARAN}.xlsx`;
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', buffer.length);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        
+        res.send(buffer);
+        
+        console.log(`✅ Rekap guru mingguan exported: ${filename}`);
+        
+    } catch (error) {
+        console.error('❌ Error exporting rekap guru mingguan:', error);
+        return sendErrorResponse(res, error, 'Gagal mengexport rekap guru mingguan');
+    }
+};
+
+// ================================================
+// JADWAL PELAJARAN EXPORT
+// ================================================
+
+/**
+ * Export jadwal pelajaran
+ * GET /api/admin/export/jadwal-pelajaran
+ */
+export const downloadJadwalPelajaran = async (req, res) => {
+    try {
+        console.log(`📊 Generating jadwal pelajaran export`);
+        
+        // Generate Excel (uses template with formatting preserved)
+        const buffer = await exportJadwalPelajaran({
+            jadwalData: [] // Template is pre-filled, just export as-is
+        });
+        
+        // Set response headers
+        const filename = `JADWAL_PELAJARAN_${TAHUN_PELAJARAN}.xlsx`;
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', buffer.length);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        
+        res.send(buffer);
+        
+        console.log(`✅ Jadwal pelajaran exported: ${filename}`);
+        
+    } catch (error) {
+        console.error('❌ Error exporting jadwal pelajaran:', error);
+        return sendErrorResponse(res, error, 'Gagal mengexport jadwal pelajaran');
+    }
+};
+
+// ================================================
 // LIST AVAILABLE TEMPLATES
 // ================================================
 
@@ -142,6 +220,20 @@ export const getExportTemplates = async (req, res) => {
                     description: 'Rekap ketidakhadiran guru untuk satu tahun ajaran',
                     endpoint: '/api/admin/export/rekap-guru-tahunan',
                     params: ['tahun_ajaran (optional)']
+                },
+                {
+                    id: 'rekap-guru-mingguan',
+                    name: 'Rekap Jadwal Guru (Mingguan)',
+                    description: 'Rekap guru yang mengajar per hari (Senin-Jumat)',
+                    endpoint: '/api/admin/export/rekap-guru-mingguan',
+                    params: []
+                },
+                {
+                    id: 'jadwal-pelajaran',
+                    name: 'Jadwal Pelajaran',
+                    description: 'Export jadwal pelajaran dengan warna per mapel',
+                    endpoint: '/api/admin/export/jadwal-pelajaran',
+                    params: []
                 }
             ],
             tahunAjaranDefault: TAHUN_PELAJARAN
@@ -154,5 +246,8 @@ export const getExportTemplates = async (req, res) => {
 export default {
     downloadRekapKelasGasal,
     downloadRekapGuruTahunan,
+    downloadRekapGuruMingguan,
+    downloadJadwalPelajaran,
     getExportTemplates
 };
+

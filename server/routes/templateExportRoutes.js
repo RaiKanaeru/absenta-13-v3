@@ -8,6 +8,8 @@ import { authenticateToken, requireRole } from '../middleware/auth.js';
 import {
     downloadRekapKelasGasal,
     downloadRekapGuruTahunan,
+    downloadRekapGuruMingguan,
+    downloadJadwalPelajaran,
     getExportTemplates
 } from '../controllers/templateExportController.js';
 
@@ -45,4 +47,19 @@ router.get('/rekap-kelas-gasal', downloadRekapKelasGasal);
  */
 router.get('/rekap-guru-tahunan', downloadRekapGuruTahunan);
 
+/**
+ * @route   GET /api/admin/export/rekap-guru-mingguan
+ * @desc    Export rekap jadwal guru mingguan
+ * @access  Admin
+ */
+router.get('/rekap-guru-mingguan', downloadRekapGuruMingguan);
+
+/**
+ * @route   GET /api/admin/export/jadwal-pelajaran
+ * @desc    Export jadwal pelajaran dengan warna per mapel
+ * @access  Admin
+ */
+router.get('/jadwal-pelajaran', downloadJadwalPelajaran);
+
 export default router;
+
