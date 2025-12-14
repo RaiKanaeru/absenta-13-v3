@@ -15,10 +15,12 @@ import {
     sendDatabaseError, 
     sendValidationError, 
     sendNotFoundError,
-    sendSuccessResponse,
-    ERROR_CODES,
-    AppError
+    sendSuccessResponse
 } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+// Create module logger
+const logger = createLogger('JamPelajaran');
 
 // Constants
 const MIN_JAM_KE = 1;
@@ -46,15 +48,15 @@ function isValidTimeRange(jamMulai, jamSelesai) {
  * GET /api/admin/jam-pelajaran/:kelasId
  */
 export const getJamPelajaranByKelas = async (req, res) => {
+    const log = logger.withRequest(req, res);
     const { kelasId } = req.params;
-    const requestId = res.locals?.requestId || `jp-${Date.now()}`;
     
-    console.log(`📋 [${requestId}] Get Jam Pelajaran | Kelas ID: ${kelasId}`);
+    log.requestStart('GetByKelas', { kelasId });
     
     try {
         // Validate kelasId
         if (!kelasId || isNaN(parseInt(kelasId))) {
-            console.log(`⚠️ [${requestId}] Invalid kelas ID: ${kelasId}`);
+            log.validationFail('kelasId', kelasId, 'Invalid or missing kelas ID');
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
         
@@ -66,11 +68,11 @@ export const getJamPelajaranByKelas = async (req, res) => {
             ORDER BY jp.jam_ke ASC
         `, [kelasId]);
         
-        console.log(`✅ [${requestId}] Found ${rows.length} jam pelajaran for kelas ${kelasId}`);
+        log.success('GetByKelas', { kelasId, count: rows.length });
         return sendSuccessResponse(res, rows, `Berhasil mengambil ${rows.length} jam pelajaran`);
         
     } catch (error) {
-        console.error(`❌ [${requestId}] Database error:`, error.message);
+        log.dbError('query', error, { kelasId });
         return sendDatabaseError(res, error, 'Gagal mengambil data jam pelajaran');
     }
 };
@@ -80,9 +82,9 @@ export const getJamPelajaranByKelas = async (req, res) => {
  * GET /api/admin/jam-pelajaran
  */
 export const getAllJamPelajaran = async (req, res) => {
-    const requestId = res.locals?.requestId || `jp-${Date.now()}`;
+    const log = logger.withRequest(req, res);
     
-    console.log(`📋 [${requestId}] Get All Jam Pelajaran`);
+    log.requestStart('GetAll');
     
     try {
         const [rows] = await global.dbPool.execute(`
@@ -114,11 +116,11 @@ export const getAllJamPelajaran = async (req, res) => {
         }, {});
         
         const result = Object.values(grouped);
-        console.log(`✅ [${requestId}] Found ${result.length} kelas with jam pelajaran, total ${rows.length} entries`);
+        log.success('GetAll', { kelasCount: result.length, totalEntries: rows.length });
         return sendSuccessResponse(res, result, `Berhasil mengambil jam pelajaran untuk ${result.length} kelas`);
         
     } catch (error) {
-        console.error(`❌ [${requestId}] Database error:`, error.message);
+        log.dbError('query', error);
         return sendDatabaseError(res, error, 'Gagal mengambil semua data jam pelajaran');
     }
 };
@@ -129,29 +131,30 @@ export const getAllJamPelajaran = async (req, res) => {
  * Body: { jam_pelajaran: [{ jam_ke, jam_mulai, jam_selesai, keterangan? }] }
  */
 export const upsertJamPelajaran = async (req, res) => {
+    const log = logger.withRequest(req, res);
     const { kelasId } = req.params;
     const { jam_pelajaran } = req.body;
-    const requestId = res.locals?.requestId || `jp-${Date.now()}`;
+    const startTime = Date.now();
     
-    console.log(`💾 [${requestId}] Upsert Jam Pelajaran | Kelas ID: ${kelasId} | Items: ${jam_pelajaran?.length || 0}`);
+    log.requestStart('Upsert', { kelasId, itemCount: jam_pelajaran?.length || 0 });
     
     try {
         // === VALIDATION ===
         
         // Validate kelasId
         if (!kelasId || isNaN(parseInt(kelasId))) {
-            console.log(`⚠️ [${requestId}] Invalid kelas ID: ${kelasId}`);
+            log.validationFail('kelasId', kelasId, 'Invalid or missing kelas ID');
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
         
         // Validate jam_pelajaran array
         if (!jam_pelajaran) {
-            console.log(`⚠️ [${requestId}] Missing jam_pelajaran in request body`);
+            log.validationFail('jam_pelajaran', null, 'Missing in request body');
             return sendValidationError(res, 'Data jam_pelajaran wajib diisi', { field: 'jam_pelajaran', expected: 'array' });
         }
         
         if (!Array.isArray(jam_pelajaran)) {
-            console.log(`⚠️ [${requestId}] jam_pelajaran is not an array: ${typeof jam_pelajaran}`);
+            log.validationFail('jam_pelajaran', typeof jam_pelajaran, 'Not an array');
             return sendValidationError(res, 'Data jam_pelajaran harus berupa array', { 
                 field: 'jam_pelajaran', 
                 received: typeof jam_pelajaran, 
@@ -160,7 +163,7 @@ export const upsertJamPelajaran = async (req, res) => {
         }
         
         if (jam_pelajaran.length === 0) {
-            console.log(`⚠️ [${requestId}] jam_pelajaran array is empty`);
+            log.validationFail('jam_pelajaran', 0, 'Empty array');
             return sendValidationError(res, 'Data jam_pelajaran tidak boleh kosong', { 
                 field: 'jam_pelajaran', 
                 received: 0, 
@@ -175,12 +178,12 @@ export const upsertJamPelajaran = async (req, res) => {
         );
         
         if (kelas.length === 0) {
-            console.log(`⚠️ [${requestId}] Kelas not found: ${kelasId}`);
+            log.warn('Kelas not found', { kelasId });
             return sendNotFoundError(res, `Kelas dengan ID ${kelasId} tidak ditemukan`);
         }
         
         const kelasName = kelas[0].nama_kelas;
-        console.log(`📝 [${requestId}] Validating ${jam_pelajaran.length} jam pelajaran for kelas "${kelasName}"`);
+        log.debug('Validating entries', { kelas: kelasName, count: jam_pelajaran.length });
         
         // Validate each jam pelajaran entry
         const errors = [];
@@ -257,12 +260,12 @@ export const upsertJamPelajaran = async (req, res) => {
         }
         
         if (errors.length > 0) {
-            console.log(`⚠️ [${requestId}] Validation failed with ${errors.length} errors`);
+            log.warn('Validation failed', { errorCount: errors.length, errors: errors.slice(0, 3) });
             return sendValidationError(res, `Terdapat ${errors.length} kesalahan validasi`, { errors });
         }
         
         // === DATABASE UPSERT ===
-        console.log(`💾 [${requestId}] Upserting ${jam_pelajaran.length} jam pelajaran...`);
+        log.debug('Starting upsert operation', { count: jam_pelajaran.length });
         
         let upsertedCount = 0;
         for (const jam of jam_pelajaran) {
@@ -278,7 +281,7 @@ export const upsertJamPelajaran = async (req, res) => {
             upsertedCount++;
         }
         
-        console.log(`✅ [${requestId}] Successfully saved ${upsertedCount} jam pelajaran for kelas "${kelasName}"`);
+        log.timed('Upsert', startTime, { kelasId, kelasName, upsertedCount });
         return sendSuccessResponse(res, { 
             upsertedCount, 
             kelasId: parseInt(kelasId),
@@ -286,7 +289,7 @@ export const upsertJamPelajaran = async (req, res) => {
         }, `Berhasil menyimpan ${upsertedCount} jam pelajaran untuk kelas ${kelasName}`);
         
     } catch (error) {
-        console.error(`❌ [${requestId}] Database error:`, error.message);
+        log.dbError('upsert', error, { kelasId });
         return sendDatabaseError(res, error, 'Gagal menyimpan jam pelajaran');
     }
 };
@@ -296,15 +299,15 @@ export const upsertJamPelajaran = async (req, res) => {
  * DELETE /api/admin/jam-pelajaran/:kelasId
  */
 export const deleteJamPelajaranByKelas = async (req, res) => {
+    const log = logger.withRequest(req, res);
     const { kelasId } = req.params;
-    const requestId = res.locals?.requestId || `jp-${Date.now()}`;
     
-    console.log(`🗑️ [${requestId}] Delete Jam Pelajaran | Kelas ID: ${kelasId}`);
+    log.requestStart('Delete', { kelasId });
     
     try {
         // Validate kelasId
         if (!kelasId || isNaN(parseInt(kelasId))) {
-            console.log(`⚠️ [${requestId}] Invalid kelas ID: ${kelasId}`);
+            log.validationFail('kelasId', kelasId, 'Invalid or missing kelas ID');
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
         
@@ -320,7 +323,7 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
             [kelasId]
         );
         
-        console.log(`✅ [${requestId}] Deleted ${result.affectedRows} jam pelajaran for kelas "${kelasName}"`);
+        log.success('Delete', { kelasId, kelasName, deletedCount: result.affectedRows });
         return sendSuccessResponse(res, { 
             deletedCount: result.affectedRows,
             kelasId: parseInt(kelasId),
@@ -328,7 +331,7 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
         }, `Berhasil menghapus ${result.affectedRows} jam pelajaran dari kelas ${kelasName}`);
         
     } catch (error) {
-        console.error(`❌ [${requestId}] Database error:`, error.message);
+        log.dbError('delete', error, { kelasId });
         return sendDatabaseError(res, error, 'Gagal menghapus jam pelajaran');
     }
 };
@@ -339,26 +342,27 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
  * Body: { sourceKelasId, targetKelasIds: [] }
  */
 export const copyJamPelajaran = async (req, res) => {
+    const log = logger.withRequest(req, res);
     const { sourceKelasId, targetKelasIds } = req.body;
-    const requestId = res.locals?.requestId || `jp-${Date.now()}`;
+    const startTime = Date.now();
     
-    console.log(`📋 [${requestId}] Copy Jam Pelajaran | Source: ${sourceKelasId} | Targets: ${targetKelasIds?.length || 0}`);
+    log.requestStart('Copy', { sourceKelasId, targetCount: targetKelasIds?.length || 0 });
     
     try {
         // === VALIDATION ===
         
         if (!sourceKelasId) {
-            console.log(`⚠️ [${requestId}] Missing sourceKelasId`);
+            log.validationFail('sourceKelasId', null, 'Missing source kelas ID');
             return sendValidationError(res, 'ID kelas sumber wajib diisi', { field: 'sourceKelasId' });
         }
         
         if (!targetKelasIds) {
-            console.log(`⚠️ [${requestId}] Missing targetKelasIds`);
+            log.validationFail('targetKelasIds', null, 'Missing target kelas IDs');
             return sendValidationError(res, 'ID kelas tujuan wajib diisi', { field: 'targetKelasIds' });
         }
         
         if (!Array.isArray(targetKelasIds)) {
-            console.log(`⚠️ [${requestId}] targetKelasIds is not an array: ${typeof targetKelasIds}`);
+            log.validationFail('targetKelasIds', typeof targetKelasIds, 'Not an array');
             return sendValidationError(res, 'ID kelas tujuan harus berupa array', { 
                 field: 'targetKelasIds', 
                 received: typeof targetKelasIds 
@@ -366,7 +370,7 @@ export const copyJamPelajaran = async (req, res) => {
         }
         
         if (targetKelasIds.length === 0) {
-            console.log(`⚠️ [${requestId}] targetKelasIds is empty`);
+            log.validationFail('targetKelasIds', 0, 'Empty array');
             return sendValidationError(res, 'Minimal pilih satu kelas tujuan', { field: 'targetKelasIds' });
         }
         
@@ -377,7 +381,7 @@ export const copyJamPelajaran = async (req, res) => {
         );
         
         if (sourceJam.length === 0) {
-            console.log(`⚠️ [${requestId}] No jam pelajaran found for source kelas ${sourceKelasId}`);
+            log.warn('Source kelas has no jam pelajaran', { sourceKelasId });
             return sendNotFoundError(res, 'Kelas sumber tidak memiliki konfigurasi jam pelajaran');
         }
         
@@ -389,7 +393,7 @@ export const copyJamPelajaran = async (req, res) => {
         const sourceKelasName = sourceKelas.length > 0 ? sourceKelas[0].nama_kelas : `ID ${sourceKelasId}`;
         
         // === COPY OPERATION ===
-        console.log(`💾 [${requestId}] Copying ${sourceJam.length} jam from "${sourceKelasName}" to ${targetKelasIds.length} kelas...`);
+        log.debug('Starting copy operation', { source: sourceKelasName, jamCount: sourceJam.length, targetCount: targetKelasIds.length });
         
         let copiedCount = 0;
         const copiedTo = [];
@@ -402,7 +406,7 @@ export const copyJamPelajaran = async (req, res) => {
             );
             
             if (targetKelas.length === 0) {
-                console.log(`⚠️ [${requestId}] Target kelas ${targetId} not found, skipping...`);
+                log.warn('Target kelas not found, skipping', { targetId });
                 continue;
             }
             
@@ -422,7 +426,7 @@ export const copyJamPelajaran = async (req, res) => {
             copiedCount++;
         }
         
-        console.log(`✅ [${requestId}] Successfully copied jam pelajaran to ${copiedCount} kelas: ${copiedTo.join(', ')}`);
+        log.timed('Copy', startTime, { sourceKelas: sourceKelasName, copiedToCount: copiedCount, jamCount: sourceJam.length });
         return sendSuccessResponse(res, { 
             copiedToCount: copiedCount,
             jamCount: sourceJam.length,
@@ -431,7 +435,7 @@ export const copyJamPelajaran = async (req, res) => {
         }, `Berhasil menyalin ${sourceJam.length} jam pelajaran dari ${sourceKelasName} ke ${copiedCount} kelas`);
         
     } catch (error) {
-        console.error(`❌ [${requestId}] Database error:`, error.message);
+        log.dbError('copy', error, { sourceKelasId, targetKelasIds });
         return sendDatabaseError(res, error, 'Gagal menyalin jam pelajaran');
     }
 };
@@ -441,9 +445,9 @@ export const copyJamPelajaran = async (req, res) => {
  * GET /api/admin/jam-pelajaran/default
  */
 export const getDefaultJamPelajaran = async (req, res) => {
-    const requestId = res.locals?.requestId || `jp-${Date.now()}`;
+    const log = logger.withRequest(req, res);
     
-    console.log(`📋 [${requestId}] Get Default Jam Pelajaran Template`);
+    log.requestStart('GetDefault');
     
     const defaultJam = [
         { jam_ke: 1, jam_mulai: '06:30', jam_selesai: '07:15', keterangan: null },
@@ -458,6 +462,6 @@ export const getDefaultJamPelajaran = async (req, res) => {
         { jam_ke: 10, jam_mulai: '13:45', jam_selesai: '14:30', keterangan: null }
     ];
     
-    console.log(`✅ [${requestId}] Returning default template with ${defaultJam.length} jam pelajaran`);
+    log.success('GetDefault', { count: defaultJam.length });
     return sendSuccessResponse(res, defaultJam, `Template default ${defaultJam.length} jam pelajaran`);
 };
