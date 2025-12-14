@@ -1187,102 +1187,306 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
 // ================================================
 
 /**
- * Export rekap ketidakhadiran siswa
+ * Export rekap ketidakhadiran siswa - Format SMK13
  * GET /api/export/rekap-ketidakhadiran-siswa
+ * Columns: NO, NIS/NISN, NAMA, L/P, S-I-A-JML per bulan (Jul-Des), TOTAL S-I-A, JUMLAH TOTAL, % TIDAK HADIR, % HADIR
  */
 export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
-        const { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
-        console.log('📊 Exporting rekap ketidakhadiran siswa:', { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir });
+        const { kelas_id, tahun, semester = 'gasal' } = req.query;
+        console.log('📊 Exporting rekap ketidakhadiran siswa (SMK13 format):', { kelas_id, tahun, semester });
 
-        // Get class name
-        const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+        // Get class info and wali kelas
+        const [kelasRows] = await global.dbPool.execute(`
+            SELECT k.nama_kelas, g.nama as wali_kelas 
+            FROM kelas k 
+            LEFT JOIN guru g ON k.id_kelas = g.id_guru 
+            WHERE k.id_kelas = ?
+        `, [kelas_id]);
         const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
+        const waliKelas = kelasRows.length > 0 ? kelasRows[0].wali_kelas : '-';
 
         // Get students
         const [studentsRows] = await global.dbPool.execute(
-            'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin, s.kelas_id FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
+            'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
             [kelas_id]
         );
 
-        // Import modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const rekapSiswaSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-siswa.js');
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
+        // Determine months based on semester
+        const months = semester === 'gasal' 
+            ? [7, 8, 9, 10, 11, 12] // Juli - Desember
+            : [1, 2, 3, 4, 5, 6];   // Januari - Juni
+        
+        const monthNames = {
+            1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MEI', 6: 'JUN',
+            7: 'JUL', 8: 'AGT', 9: 'SEP', 10: 'OKT', 11: 'NOV', 12: 'DES'
+        };
 
-        // Determine report period
-        let reportPeriod;
-        if (tanggal_awal && tanggal_akhir) reportPeriod = `${tanggal_awal} - ${tanggal_akhir}`;
-        else if (bulan) reportPeriod = `${bulan} ${tahun}`;
-        else reportPeriod = `Tahun ${tahun}`;
+        // Get attendance data with S/I/A breakdown per month
+        const [presensiData] = await global.dbPool.execute(`
+            SELECT 
+                a.siswa_id, 
+                MONTH(a.tanggal) as bulan,
+                SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as S,
+                SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as I,
+                SUM(CASE WHEN a.status IN ('Alpa', 'Alpha', 'Tanpa Keterangan') THEN 1 ELSE 0 END) as A
+            FROM absensi_siswa a 
+            INNER JOIN siswa s ON a.siswa_id = s.id_siswa 
+            WHERE s.kelas_id = ? AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) IN (${months.join(',')})
+            GROUP BY a.siswa_id, MONTH(a.tanggal)
+        `, [kelas_id, tahun]);
 
-        if (studentsRows.length === 0) {
-            const workbook = await buildExcel({
-                title: rekapSiswaSchema.default.title, subtitle: rekapSiswaSchema.default.subtitle,
-                reportPeriod, letterhead, columns: rekapSiswaSchema.default.columns, rows: []
-            });
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', `attachment; filename="Rekap_Ketidakhadiran_Siswa_${kelasName}_${tahun}.xlsx"`);
-            await workbook.xlsx.write(res);
-            res.end();
-            return;
+        // Total hari efektif (configurable, default 95 for gasal)
+        const TOTAL_HARI_EFEKTIF = semester === 'gasal' ? 95 : 95;
+
+        // Build Excel using ExcelJS directly for precise control
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN');
+
+        // Styles
+        const headerStyle = {
+            font: { bold: true, size: 11 },
+            alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+            border: {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            },
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } } // Yellow
+        };
+
+        const dataStyle = {
+            alignment: { horizontal: 'center', vertical: 'middle' },
+            border: {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            }
+        };
+
+        // Title Headers (Row 1-4)
+        worksheet.mergeCells('A1:AH1');
+        worksheet.getCell('A1').value = 'PERSENTASE KETIDAKHADIRAN PESERTA DIDIK';
+        worksheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFCC0000' } };
+        worksheet.getCell('A1').alignment = { horizontal: 'center' };
+
+        worksheet.mergeCells('A2:AH2');
+        worksheet.getCell('A2').value = 'SMK NEGERI 13 BANDUNG';
+        worksheet.getCell('A2').font = { bold: true, size: 12, color: { argb: 'FFCC0000' } };
+        worksheet.getCell('A2').alignment = { horizontal: 'center' };
+
+        worksheet.mergeCells('A3:AH3');
+        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahun}-${parseInt(tahun) + 1}`;
+        worksheet.getCell('A3').font = { bold: true, size: 11, color: { argb: 'FFCC0000' } };
+        worksheet.getCell('A3').alignment = { horizontal: 'center' };
+
+        // Class and Wali Kelas info (Row 5-6)
+        worksheet.getCell('A5').value = 'KELAS';
+        worksheet.getCell('B5').value = ':';
+        worksheet.getCell('C5').value = kelasName;
+        worksheet.getCell('A6').value = 'NAMA WALI KELAS';
+        worksheet.getCell('B6').value = ':';
+        worksheet.getCell('C6').value = waliKelas;
+
+        // Header Row 1 - Main headers (Row 8)
+        const headerRow1 = 8;
+        worksheet.getCell(`A${headerRow1}`).value = '';
+        worksheet.getCell(`B${headerRow1}`).value = '';
+        worksheet.getCell(`C${headerRow1}`).value = '';
+        worksheet.getCell(`D${headerRow1}`).value = '';
+        
+        // Merge "JUMLAH KETIDAKHADIRAN PESERTA DIDIK" across month columns
+        worksheet.mergeCells(`E${headerRow1}:AB${headerRow1}`);
+        worksheet.getCell(`E${headerRow1}`).value = 'JUMLAH KETIDAKHADIRAN PESERTA DIDIK';
+        Object.assign(worksheet.getCell(`E${headerRow1}`), headerStyle);
+
+        // Header Row 2 - Column headers (Row 9)
+        const headerRow2 = 9;
+        worksheet.getCell(`A${headerRow2}`).value = 'NO.';
+        worksheet.getCell(`B${headerRow2}`).value = 'NIS/NISN';
+        worksheet.getCell(`C${headerRow2}`).value = 'NAMA PESERTA DIDIK';
+        worksheet.getCell(`D${headerRow2}`).value = 'L/P';
+
+        // Month headers with S-I-A-JML
+        let col = 5; // Column E
+        months.forEach(month => {
+            worksheet.mergeCells(headerRow2, col, headerRow2, col + 3);
+            worksheet.getCell(headerRow2, col).value = monthNames[month];
+            Object.assign(worksheet.getCell(headerRow2, col), headerStyle);
+            col += 4;
+        });
+
+        // JUMLAH TOTAL header
+        worksheet.mergeCells(headerRow2, col, headerRow2, col + 2);
+        worksheet.getCell(headerRow2, col).value = 'JUMLAH TOTAL';
+        Object.assign(worksheet.getCell(headerRow2, col), headerStyle);
+        col += 3;
+
+        // Final columns
+        worksheet.getCell(headerRow2, col).value = 'JUMLAH\nTOTAL';
+        worksheet.getCell(headerRow2, col + 1).value = 'JUMLAH\nTIDAK\nHADIR';
+        worksheet.getCell(headerRow2, col + 2).value = 'JUMLAH\nPROSENT\nHADIR\n(%)';
+
+        // Header Row 3 - Sub headers S-I-A-JML (Row 10)
+        const headerRow3 = 10;
+        worksheet.getCell(`A${headerRow3}`).value = '';
+        worksheet.getCell(`B${headerRow3}`).value = '';
+        worksheet.getCell(`C${headerRow3}`).value = '';
+        worksheet.getCell(`D${headerRow3}`).value = '';
+
+        col = 5;
+        months.forEach(() => {
+            worksheet.getCell(headerRow3, col).value = 'S';
+            worksheet.getCell(headerRow3, col + 1).value = 'I';
+            worksheet.getCell(headerRow3, col + 2).value = 'A';
+            worksheet.getCell(headerRow3, col + 3).value = 'JML';
+            for (let i = 0; i < 4; i++) {
+                Object.assign(worksheet.getCell(headerRow3, col + i), headerStyle);
+            }
+            col += 4;
+        });
+
+        // Total S-I-A sub headers
+        worksheet.getCell(headerRow3, col).value = 'S';
+        worksheet.getCell(headerRow3, col + 1).value = 'I';
+        worksheet.getCell(headerRow3, col + 2).value = 'A';
+        for (let i = 0; i < 3; i++) {
+            Object.assign(worksheet.getCell(headerRow3, col + i), headerStyle);
         }
 
-        // Get presensi data
-        let presensiData = [];
-        const baseQuery = `
-            SELECT a.siswa_id, MONTH(a.tanggal) as bulan, YEAR(a.tanggal) as tahun,
-                COUNT(CASE WHEN a.status IN ('Sakit', 'Alpa', 'Izin') THEN 1 END) as total_ketidakhadiran,
-                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as total_kehadiran,
-                COUNT(*) as total_hari_efektif
-            FROM absensi_siswa a INNER JOIN siswa s ON a.siswa_id = s.id_siswa WHERE s.kelas_id = ?
-        `;
+        // Apply header styles to main columns
+        ['A', 'B', 'C', 'D'].forEach(c => {
+            for (let r = headerRow1; r <= headerRow3; r++) {
+                Object.assign(worksheet.getCell(`${c}${r}`), headerStyle);
+            }
+        });
 
-        if (tanggal_awal && tanggal_akhir) {
-            const [rows] = await global.dbPool.execute(baseQuery + ` AND a.tanggal BETWEEN ? AND ? GROUP BY a.siswa_id, MONTH(a.tanggal), YEAR(a.tanggal)`, [kelas_id, tanggal_awal, tanggal_akhir]);
-            presensiData = rows;
-        } else if (bulan) {
-            const [rows] = await global.dbPool.execute(baseQuery + ` AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) = ? GROUP BY a.siswa_id, MONTH(a.tanggal), YEAR(a.tanggal)`, [kelas_id, tahun, bulan]);
-            presensiData = rows;
-        } else {
-            const [rows] = await global.dbPool.execute(baseQuery + ` AND YEAR(a.tanggal) = ? GROUP BY a.siswa_id, MONTH(a.tanggal), YEAR(a.tanggal)`, [kelas_id, tahun]);
-            presensiData = rows;
-        }
+        // Merge NO, NIS, NAMA, L/P across 3 rows
+        ['A', 'B', 'C', 'D'].forEach(c => {
+            worksheet.mergeCells(`${c}${headerRow1}:${c}${headerRow3}`);
+        });
+        worksheet.getCell(`A${headerRow1}`).value = 'NO.';
+        worksheet.getCell(`B${headerRow1}`).value = 'NIS/NISN';
+        worksheet.getCell(`C${headerRow1}`).value = 'NAMA PESERTA DIDIK';
+        worksheet.getCell(`D${headerRow1}`).value = 'L/P';
 
-        // Prepare export data
-        const exportData = studentsRows.map(student => {
+        // Data rows starting at row 11
+        let dataRow = 11;
+        const totals = { S: 0, I: 0, A: 0 };
+        const monthlyTotals = {};
+        months.forEach(m => monthlyTotals[m] = { S: 0, I: 0, A: 0 });
+
+        studentsRows.forEach((student, index) => {
             const studentPresensi = presensiData.filter(p => p.siswa_id === student.id);
-            const totalKetidakhadiran = studentPresensi.reduce((sum, p) => sum + p.total_ketidakhadiran, 0);
-            const totalHariEfektif = studentPresensi.reduce((sum, p) => sum + p.total_hari_efektif, 0);
-            const persentaseKetidakhadiran = totalHariEfektif > 0 ? ((totalKetidakhadiran / totalHariEfektif) * 100).toFixed(2) : '0.00';
+            
+            worksheet.getCell(`A${dataRow}`).value = index + 1;
+            worksheet.getCell(`B${dataRow}`).value = student.nis;
+            worksheet.getCell(`C${dataRow}`).value = student.nama;
+            worksheet.getCell(`D${dataRow}`).value = student.jenis_kelamin === 'L' ? 'L' : 'P';
 
-            const monthlyData = { jul: 0, agt: 0, sep: 0, okt: 0, nov: 0, des: 0, jan: 0, feb: 0, mar: 0, apr: 0, mei: 0, jun: 0 };
-            const monthMap = { 7: 'jul', 8: 'agt', 9: 'sep', 10: 'okt', 11: 'nov', 12: 'des', 1: 'jan', 2: 'feb', 3: 'mar', 4: 'apr', 5: 'mei', 6: 'jun' };
-            studentPresensi.forEach(p => { if (monthMap[p.bulan]) monthlyData[monthMap[p.bulan]] = p.total_ketidakhadiran; });
+            let totalS = 0, totalI = 0, totalA = 0;
+            col = 5;
 
-            return { nis: student.nis, nama: student.nama, jenis_kelamin: student.jenis_kelamin, ...monthlyData, total_ketidakhadiran: totalKetidakhadiran, persentase_ketidakhadiran: parseFloat(persentaseKetidakhadiran) / 100 };
+            months.forEach(month => {
+                const monthData = studentPresensi.find(p => p.bulan === month) || { S: 0, I: 0, A: 0 };
+                const s = parseInt(monthData.S) || 0;
+                const i = parseInt(monthData.I) || 0;
+                const a = parseInt(monthData.A) || 0;
+                const jml = s + i + a;
+
+                worksheet.getCell(dataRow, col).value = s || 0;
+                worksheet.getCell(dataRow, col + 1).value = i || 0;
+                worksheet.getCell(dataRow, col + 2).value = a || 0;
+                worksheet.getCell(dataRow, col + 3).value = jml || 0;
+
+                // Apply cell styles
+                for (let c = 0; c < 4; c++) {
+                    Object.assign(worksheet.getCell(dataRow, col + c), dataStyle);
+                }
+
+                totalS += s;
+                totalI += i;
+                totalA += a;
+
+                monthlyTotals[month].S += s;
+                monthlyTotals[month].I += i;
+                monthlyTotals[month].A += a;
+
+                col += 4;
+            });
+
+            // Total S, I, A
+            worksheet.getCell(dataRow, col).value = totalS;
+            worksheet.getCell(dataRow, col + 1).value = totalI;
+            worksheet.getCell(dataRow, col + 2).value = totalA;
+
+            const jumlahTotal = totalS + totalI + totalA;
+            worksheet.getCell(dataRow, col + 3).value = jumlahTotal;
+
+            const persenTidakHadir = TOTAL_HARI_EFEKTIF > 0 ? ((jumlahTotal / TOTAL_HARI_EFEKTIF) * 100).toFixed(2) : '0.00';
+            const persenHadir = (100 - parseFloat(persenTidakHadir)).toFixed(2);
+
+            worksheet.getCell(dataRow, col + 4).value = parseFloat(persenTidakHadir);
+            worksheet.getCell(dataRow, col + 5).value = parseFloat(persenHadir);
+
+            // Apply styles to summary columns
+            for (let c = 0; c < 6; c++) {
+                Object.assign(worksheet.getCell(dataRow, col + c), dataStyle);
+            }
+
+            totals.S += totalS;
+            totals.I += totalI;
+            totals.A += totalA;
+
+            // Apply styles to identity columns
+            ['A', 'B', 'C', 'D'].forEach(c => {
+                Object.assign(worksheet.getCell(`${c}${dataRow}`), dataStyle);
+            });
+
+            dataRow++;
         });
 
-        // Create schema and data based on mode
-        let schema = rekapSiswaSchema.default;
-        let reportData = exportData.map((row, index) => ({ no: index + 1, ...row }));
+        // RATA-RATA row
+        worksheet.getCell(`A${dataRow}`).value = '';
+        worksheet.mergeCells(`A${dataRow}:D${dataRow}`);
+        worksheet.getCell(`A${dataRow}`).value = 'RATA-RATA';
+        Object.assign(worksheet.getCell(`A${dataRow}`), { ...dataStyle, font: { bold: true } });
 
-        const workbook = await buildExcel({
-            title: schema.title, subtitle: schema.subtitle, reportPeriod, letterhead, columns: schema.columns, rows: reportData
-        });
+        // Calculate and fill RATA-RATA for % Hadir
+        const avgPersenHadir = studentsRows.length > 0 
+            ? (100 - ((totals.S + totals.I + totals.A) / studentsRows.length / TOTAL_HARI_EFEKTIF * 100)).toFixed(2)
+            : '100.00';
 
-        let filename = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${tahun}`;
-        if (tanggal_awal && tanggal_akhir) filename = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${tanggal_awal}_${tanggal_akhir}`;
-        else if (bulan) filename = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${tahun}_${bulan}`;
+        const lastCol = col + 5;
+        worksheet.getCell(dataRow, lastCol).value = parseFloat(avgPersenHadir);
+        Object.assign(worksheet.getCell(dataRow, lastCol), { ...dataStyle, font: { bold: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B6B' } } });
 
+        // Set column widths
+        worksheet.getColumn(1).width = 5;  // NO
+        worksheet.getColumn(2).width = 15; // NIS
+        worksheet.getColumn(3).width = 30; // NAMA
+        worksheet.getColumn(4).width = 5;  // L/P
+        for (let i = 5; i <= 40; i++) {
+            worksheet.getColumn(i).width = 5;
+        }
+
+        // Set row heights
+        worksheet.getRow(headerRow1).height = 20;
+        worksheet.getRow(headerRow2).height = 20;
+        worksheet.getRow(headerRow3).height = 30;
+
+        const filename = `Persentase_Ketidakhadiran_${kelasName}_${semester === 'gasal' ? 'Gasal' : 'Genap'}_${tahun}`.replace(/\s/g, '_');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Rekap ketidakhadiran siswa exported: ${exportData.length} records`);
+        console.log(`✅ Rekap ketidakhadiran siswa (SMK13 format) exported: ${studentsRows.length} students`);
     } catch (error) {
+        console.error('❌ Error exporting rekap ketidakhadiran:', error);
         return sendDatabaseError(res, error);
     }
 };
