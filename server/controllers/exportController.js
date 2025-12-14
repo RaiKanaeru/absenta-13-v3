@@ -425,128 +425,194 @@ export const exportBandingAbsen = async (req, res) => {
 };
 
 /**
- * Export rekap ketidakhadiran guru
+ * Export rekap ketidakhadiran guru - Format SMK13
  * GET /api/export/rekap-ketidakhadiran-guru
+ * Template: REKAP KETIDAKHADIRAN GURU with BULAN/JUMLAH HARI EFEKTIF KERJA header
  */
 export const exportRekapKetidakhadiranGuru = async (req, res) => {
     try {
         const { tahun } = req.query;
-        console.log('📊 Exporting rekap ketidakhadiran guru:', { tahun });
+        const tahunAjaran = tahun || new Date().getFullYear();
+        console.log('📊 Exporting rekap ketidakhadiran guru (SMK13 format):', { tahunAjaran });
 
-        if (!tahun) {
-            return res.status(400).json({ error: 'Tahun harus diisi' });
-        }
+        // Hari efektif per bulan (configurable)
+        const hariEfektifPerBulan = {
+            7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,  // Jul-Des
+            1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20     // Jan-Jun
+        };
 
-        // Query untuk mendapatkan data guru dan presensi
+        // Calculate total hari efektif
+        const totalHariEfektif = Object.values(hariEfektifPerBulan).reduce((sum, h) => sum + h, 0);
+
+        // Query data guru dengan ketidakhadiran per bulan
         const query = `
             SELECT 
                 g.id_guru as id,
                 g.nama,
-                g.nip,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
-                COALESCE(SUM(CASE WHEN a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as total_ketidakhadiran
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jul,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as agt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as sep,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as okt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as nov,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as des,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jan,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as feb,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as mar,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as apr,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as mei,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jun
             FROM guru g
             LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
-                AND YEAR(a.tanggal) = ? 
-                AND a.status = 'Tidak Hadir'
-            GROUP BY g.id_guru, g.nama, g.nip
+                AND (
+                    (MONTH(a.tanggal) >= 7 AND YEAR(a.tanggal) = ?)
+                    OR (MONTH(a.tanggal) <= 6 AND YEAR(a.tanggal) = ? + 1)
+                )
+            WHERE g.status = 'aktif'
+            GROUP BY g.id_guru, g.nama
             ORDER BY g.nama
         `;
 
-        const [rows] = await global.dbPool.execute(query, [tahun]);
+        const [rows] = await global.dbPool.execute(query, [tahunAjaran, tahunAjaran]);
 
-        // Hitung persentase untuk setiap guru
-        const dataWithPercentage = rows.map(row => {
-            const totalKetidakhadiran = row.total_ketidakhadiran;
-            const hariEfektifPerBulan = {
-                7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,
-                1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20
-            };
+        // Build Excel using ExcelJS directly
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN GURU');
 
-            let totalHariEfektif = 0;
-            const bulanData = [row.jul, row.agt, row.sep, row.okt, row.nov, row.des, row.jan, row.feb, row.mar, row.apr, row.mei, row.jun];
-            const bulanKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+        // Styles
+        const titleStyle = { font: { bold: true, size: 12, color: { argb: 'FFCC0000' } }, alignment: { horizontal: 'center' } };
+        const headerStyle = {
+            font: { bold: true, size: 10 },
+            alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+            border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+        };
+        const dataStyle = {
+            alignment: { horizontal: 'center', vertical: 'middle' },
+            border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+        };
 
-            bulanKeys.forEach((bulan, index) => {
-                if (bulanData[index] > 0) {
-                    totalHariEfektif += hariEfektifPerBulan[bulan];
-                }
+        // Color fills for columns
+        const greenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+        const cyanFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B0F0' } };
+        const yellowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+        const lightGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+
+        // Title Headers (Row 1-3)
+        worksheet.mergeCells('A1:Q1');
+        worksheet.getCell('A1').value = 'REKAP KETIDAKHADIRAN GURU';
+        Object.assign(worksheet.getCell('A1'), titleStyle);
+
+        worksheet.mergeCells('A2:Q2');
+        worksheet.getCell('A2').value = 'SMK NEGERI 13 BANDUNG';
+        Object.assign(worksheet.getCell('A2'), titleStyle);
+
+        worksheet.mergeCells('A3:Q3');
+        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahunAjaran}-${parseInt(tahunAjaran) + 1}`;
+        Object.assign(worksheet.getCell('A3'), titleStyle);
+
+        // Header Row 1 - BULAN / JUMLAH HARI EFEKTIF KERJA (Row 5)
+        const headerRow1 = 5;
+        worksheet.mergeCells(`A${headerRow1}:B${headerRow1}`);
+        worksheet.getCell(`A${headerRow1}`).value = '';
+        
+        worksheet.mergeCells(`C${headerRow1}:N${headerRow1}`);
+        worksheet.getCell(`C${headerRow1}`).value = 'BULAN/ JUMLAH HARI EFEKTIF KERJA';
+        Object.assign(worksheet.getCell(`C${headerRow1}`), headerStyle);
+
+        // Kolom summary headers di row 5
+        worksheet.getCell(`O${headerRow1}`).value = 'JUMLAH SE KETIDAK\nHADIRAN';
+        worksheet.getCell(`P${headerRow1}`).value = 'PERSENTA SE KETIDAKH ADIRAN';
+        worksheet.getCell(`Q${headerRow1}`).value = 'PERSENTA SE KEHADIRA N (%)';
+        
+        [`O${headerRow1}`, `P${headerRow1}`, `Q${headerRow1}`].forEach(cell => {
+            Object.assign(worksheet.getCell(cell), { ...headerStyle, fill: yellowFill });
+        });
+
+        // Header Row 2 - Month names with hari efektif (Row 6)
+        const headerRow2 = 6;
+        const monthOrder = ['JUL', 'AGT', 'SEP', 'OKT', 'NOV', 'DES', 'JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN'];
+        const monthCols = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // C-N
+
+        worksheet.getCell(`A${headerRow2}`).value = 'NO.';
+        worksheet.getCell(`B${headerRow2}`).value = 'NAMA GURU';
+        Object.assign(worksheet.getCell(`A${headerRow2}`), { ...headerStyle, fill: yellowFill });
+        Object.assign(worksheet.getCell(`B${headerRow2}`), { ...headerStyle, fill: yellowFill });
+
+        monthOrder.forEach((month, idx) => {
+            const col = monthCols[idx];
+            worksheet.getCell(headerRow2, col).value = month;
+            Object.assign(worksheet.getCell(headerRow2, col), { ...headerStyle, fill: greenFill });
+        });
+
+        // Header Row 3 - Hari efektif numbers (Row 7)
+        const headerRow3 = 7;
+        worksheet.mergeCells(`A${headerRow1}:A${headerRow3}`);
+        worksheet.mergeCells(`B${headerRow1}:B${headerRow3}`);
+        worksheet.getCell(`A${headerRow1}`).value = 'NO.';
+        worksheet.getCell(`B${headerRow1}`).value = 'NAMA GURU';
+        Object.assign(worksheet.getCell(`A${headerRow1}`), { ...headerStyle, fill: yellowFill });
+        Object.assign(worksheet.getCell(`B${headerRow1}`), { ...headerStyle, fill: yellowFill });
+
+        const hariPerMonth = [14, 21, 22, 23, 20, 17, 15, 20, 22, 22, 21, 20]; // Jul-Jun
+        monthCols.forEach((col, idx) => {
+            worksheet.getCell(headerRow3, col).value = hariPerMonth[idx];
+            Object.assign(worksheet.getCell(headerRow3, col), { ...headerStyle, fill: cyanFill });
+        });
+
+        // Merge summary column headers across 3 rows
+        ['O', 'P', 'Q'].forEach(c => {
+            worksheet.mergeCells(`${c}${headerRow1}:${c}${headerRow3}`);
+        });
+
+        // Data rows starting at row 8
+        let dataRow = 8;
+        rows.forEach((guru, index) => {
+            const monthlyData = [guru.jul, guru.agt, guru.sep, guru.okt, guru.nov, guru.des, guru.jan, guru.feb, guru.mar, guru.apr, guru.mei, guru.jun];
+            const totalKetidakhadiran = monthlyData.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+            const persenKetidakhadiran = totalHariEfektif > 0 ? ((totalKetidakhadiran / totalHariEfektif) * 100).toFixed(2) : '0.00';
+            const persenKehadiran = (100 - parseFloat(persenKetidakhadiran)).toFixed(2);
+
+            worksheet.getCell(`A${dataRow}`).value = index + 1;
+            worksheet.getCell(`B${dataRow}`).value = guru.nama;
+            Object.assign(worksheet.getCell(`A${dataRow}`), dataStyle);
+            Object.assign(worksheet.getCell(`B${dataRow}`), { ...dataStyle, alignment: { horizontal: 'left', vertical: 'middle' } });
+
+            monthCols.forEach((col, idx) => {
+                worksheet.getCell(dataRow, col).value = parseInt(monthlyData[idx]) || 0;
+                Object.assign(worksheet.getCell(dataRow, col), { ...dataStyle, fill: idx < 6 ? lightGreenFill : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0FFFF' } } });
             });
 
-            if (totalHariEfektif === 0) {
-                totalHariEfektif = Object.values(hariEfektifPerBulan).reduce((sum, hari) => sum + hari, 0);
-            }
-            const persentaseKetidakhadiran = totalHariEfektif > 0 ? (totalKetidakhadiran / totalHariEfektif) * 100 : 0;
-            const persentaseKehadiran = 100 - persentaseKetidakhadiran;
+            worksheet.getCell(`O${dataRow}`).value = totalKetidakhadiran;
+            worksheet.getCell(`P${dataRow}`).value = parseFloat(persenKetidakhadiran);
+            worksheet.getCell(`Q${dataRow}`).value = parseFloat(persenKehadiran);
+            ['O', 'P', 'Q'].forEach(c => Object.assign(worksheet.getCell(`${c}${dataRow}`), dataStyle));
 
-            return {
-                ...row,
-                persentase_ketidakhadiran: parseFloat(persentaseKetidakhadiran.toFixed(2)),
-                persentase_kehadiran: parseFloat(persentaseKehadiran.toFixed(2))
-            };
+            dataRow++;
         });
 
-        // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
+        // Set column widths
+        worksheet.getColumn(1).width = 5;   // NO
+        worksheet.getColumn(2).width = 35;  // NAMA GURU
+        for (let i = 3; i <= 14; i++) worksheet.getColumn(i).width = 5; // Months
+        worksheet.getColumn(15).width = 10; // JUMLAH
+        worksheet.getColumn(16).width = 10; // % KETIDAKHADIRAN
+        worksheet.getColumn(17).width = 10; // % KEHADIRAN
 
-        // Load letterhead configuration
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
+        // Set row heights
+        worksheet.getRow(headerRow1).height = 25;
+        worksheet.getRow(headerRow2).height = 20;
+        worksheet.getRow(headerRow3).height = 20;
 
-        // Prepare data for Excel
-        const reportData = dataWithPercentage.map((row, index) => ({
-            no: index + 1,
-            nama: row.nama,
-            nip: row.nip,
-            jul: row.jul,
-            agt: row.agt,
-            sep: row.sep,
-            okt: row.okt,
-            nov: row.nov,
-            des: row.des,
-            jan: row.jan,
-            feb: row.feb,
-            mar: row.mar,
-            apr: row.apr,
-            mei: row.mei,
-            jun: row.jun,
-            total_ketidakhadiran: row.total_ketidakhadiran,
-            persentase_ketidakhadiran: row.persentase_ketidakhadiran / 100,
-            persentase_kehadiran: row.persentase_kehadiran / 100
-        }));
-
-        const reportPeriod = `Tahun ${tahun}`;
-
-        // Generate Excel workbook
-        const workbook = await buildExcel({
-            title: rekapGuruSchema.default.title,
-            subtitle: rekapGuruSchema.default.subtitle,
-            reportPeriod: reportPeriod,
-            letterhead: letterhead,
-            columns: rekapGuruSchema.default.columns,
-            rows: reportData
-        });
-
+        const filename = `Rekap_Ketidakhadiran_Guru_${tahunAjaran}-${parseInt(tahunAjaran) + 1}`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Rekap_Ketidakhadiran_Guru_${tahun}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Rekap ketidakhadiran guru exported successfully: ${dataWithPercentage.length} records`);
+        console.log(`✅ Rekap ketidakhadiran guru (SMK13 format) exported: ${rows.length} teachers`);
     } catch (error) {
+        console.error('❌ Error exporting rekap ketidakhadiran guru:', error);
         return sendDatabaseError(res, error);
     }
 };
