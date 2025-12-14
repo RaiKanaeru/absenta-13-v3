@@ -260,3 +260,117 @@ Output:
 - Return sebagai buffer (download) + nama file yang jelas:
   - `REKAP_KETIDAKHADIRAN_{KELAS}_{TAHUN}_GASAL.xlsx`
   - `REKAP_KETIDAKHADIRAN_GURU_{TAHUN}.xlsx`
+
+---
+
+## 12) Deployment Workflow (Production Server)
+
+### Prinsip Deployment
+
+1. **Jangan langsung edit di server** — Semua perubahan melalui Git.
+2. **Push dulu, pull kemudian** — Commit dan push ke GitHub, lalu pull di server.
+3. **Restart setelah pull** — Perubahan backend butuh restart container.
+
+### Workflow Standard
+
+```bash
+# Di LOKAL (development):
+git add -A
+git commit -m "fix: deskripsi singkat"
+git push origin main
+
+# Di SERVER (production):
+cd /path/to/absenta13
+git pull origin main
+docker-compose restart app
+# atau full rebuild jika ada perubahan dependencies:
+docker-compose down
+docker-compose up -d --build
+```
+
+### Checklist Deployment
+
+- [ ] Semua file sudah di-commit (`git status` clean)
+- [ ] Sudah di-push ke GitHub (`git push origin main`)
+- [ ] Server sudah `git pull origin main`
+- [ ] Container sudah di-restart (`docker-compose restart app`)
+- [ ] Verifikasi di browser (login, dashboard, fitur utama)
+
+### Debugging Production Issues
+
+1. **Cek logs backend:**
+   ```bash
+   docker-compose logs --tail=200 app
+   ```
+
+2. **Cek status container:**
+   ```bash
+   docker-compose ps
+   ```
+
+3. **Restart jika stuck:**
+   ```bash
+   docker-compose restart app
+   ```
+
+4. **Full rebuild jika ada masalah dependencies:**
+   ```bash
+   docker-compose down
+   docker-compose up -d --build
+   ```
+
+### Common Issues & Fixes
+
+| Error | Penyebab | Solusi |
+|-------|----------|--------|
+| 502 Bad Gateway | Backend crash/not running | Cek logs, restart container |
+| CORS Error | Origin tidak diizinkan | Tambahkan origin ke `allowedOrigins` di `server_modern.js` |
+| 500 Internal Error | `global.dbPool` undefined | Pastikan `global.dbPool = dbOptimization.pool` |
+| Monitoring 0/UNKNOWN | Global system vars undefined | Pastikan semua system di-assign ke `global.*` |
+
+### Environment Variables (Production)
+
+File `.env` di server harus berisi:
+```env
+NODE_ENV=production
+DB_HOST=absenta13-mysql
+DB_USER=root
+DB_PASSWORD=<password>
+DB_NAME=absenta13
+DB_PORT=3306
+JWT_SECRET=<secret>
+PORT=3001
+```
+
+### Important Paths
+
+- **Backend entry:** `server_modern.js`
+- **Routes:** `server/routes/*.js`
+- **Controllers:** `server/controllers/*.js`
+- **System services:** `server/services/system/*.js`
+- **Templates:** `server/templates/excel/*.xlsx`
+
+---
+
+## 13) Global Variables Reference
+
+Backend menggunakan variabel global untuk sistem-sistem berikut:
+
+```javascript
+// Di initializeDatabase() - server_modern.js
+global.dbPool = dbOptimization.pool;          // MySQL connection pool
+global.dbOptimization = dbOptimization;       // Full class instance
+global.queryOptimizer = queryOptimizer;
+global.performanceOptimizer = performanceOptimizer;
+global.backupSystem = backupSystem;
+global.downloadQueue = downloadQueue;
+global.cacheSystem = cacheSystem;
+global.loadBalancer = loadBalancer;
+global.systemMonitor = systemMonitor;
+global.securitySystem = securitySystem;
+global.disasterRecoverySystem = disasterRecoverySystem;
+global.testAlerts = [];
+```
+
+**PENTING:** Jika controller menggunakan `global.xxx` tapi nilainya `undefined`, periksa apakah assignment di `initializeDatabase()` sudah benar.
+
