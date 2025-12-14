@@ -382,3 +382,78 @@ global.testAlerts = [];
 
 **PENTING:** Jika controller menggunakan `global.xxx` tapi nilainya `undefined`, periksa apakah assignment di `initializeDatabase()` sudah benar.
 
+---
+
+## 14) Jam Pelajaran Dinamis per Kelas
+
+Fitur untuk konfigurasi jam pelajaran (waktu mulai/selesai) per kelas.
+
+### Database Table
+
+```sql
+CREATE TABLE jam_pelajaran (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kelas_id INT NOT NULL,
+    jam_ke INT NOT NULL,
+    jam_mulai TIME NOT NULL,
+    jam_selesai TIME NOT NULL,
+    keterangan VARCHAR(100) DEFAULT NULL,
+    FOREIGN KEY (kelas_id) REFERENCES kelas(id_kelas) ON DELETE CASCADE
+);
+```
+
+### API Endpoints
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| GET | `/api/admin/jam-pelajaran` | Get all (grouped by kelas) |
+| GET | `/api/admin/jam-pelajaran/:kelasId` | Get for specific class |
+| POST | `/api/admin/jam-pelajaran/:kelasId` | Bulk upsert |
+| POST | `/api/admin/jam-pelajaran/copy` | Copy to other classes |
+| GET | `/api/admin/jam-pelajaran/default` | Get default template |
+| DELETE | `/api/admin/jam-pelajaran/:kelasId` | Reset to default |
+
+### Default Jam (10 periode)
+
+| Jam | Mulai | Selesai | Keterangan |
+|-----|-------|---------|------------|
+| 1 | 07:00 | 07:45 | Pelajaran 1 |
+| 2 | 07:45 | 08:30 | Pelajaran 2 |
+| 3 | 08:30 | 09:15 | Pelajaran 3 |
+| 4 | 09:15 | 10:00 | Pelajaran 4 |
+| 5 | 10:15 | 11:00 | Pelajaran 5 |
+| 6 | 11:00 | 11:45 | Pelajaran 6 |
+| 7 | 12:30 | 13:15 | Pelajaran 7 |
+| 8 | 13:15 | 14:00 | Pelajaran 8 |
+| 9 | 14:00 | 14:45 | Pelajaran 9 |
+| 10 | 14:45 | 15:30 | Pelajaran 10 |
+
+### Frontend Component
+
+- File: `src/components/JamPelajaranConfig.tsx`
+- Access: `setActiveView('jam-pelajaran')` di AdminDashboard
+
+---
+
+## 15) Hari Efektif per Bulan (Guru)
+
+Konstanta hari efektif untuk perhitungan % ketidakhadiran guru:
+
+| Bulan | Hari Efektif |
+|-------|-------------|
+| Juli | 14 |
+| Agustus | 21 |
+| September | 22 |
+| Oktober | 23 |
+| November | 20 |
+| Desember | 17 |
+| Januari | 15 |
+| Februari | 20 |
+| Maret | 22 |
+| April | 22 |
+| Mei | 21 |
+| Juni | 20 |
+| **TOTAL** | **237** |
+
+Catatan: Nilai ini dipakai di header export REKAP KETIDAKHADIRAN GURU.
+
