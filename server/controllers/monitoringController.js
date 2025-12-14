@@ -473,7 +473,7 @@ export const getMonitoringDashboard = async (req, res) => {
         global.lastCpuUsage = cpuUsageData;
         global.lastCpuTime = Date.now();
         
-        // Fallback to load average
+        // Fallback to load average for CPU usage
         if (cpuUsage === 0 && loadAverage[0] > 0) {
             cpuUsage = Math.min(Math.max(loadAverage[0] * 100, 0), 100);
         }
@@ -501,43 +501,101 @@ export const getMonitoringDashboard = async (req, res) => {
             };
         }
 
-        // Get system monitor alerts
+        // Get system monitor data
+        const systemMonitorMetrics = global.systemMonitor ? global.systemMonitor.getMetrics() : null;
         const alerts = global.systemMonitor ? global.systemMonitor.getAlerts() : [];
         const healthStatus = global.systemMonitor ? global.systemMonitor.getHealthStatus() : { status: 'unknown', issues: [] };
 
-        const metrics = {
+        // Structure response to match frontend expectations
+        const responseData = {
+            // metrics wrapper for frontend compatibility
+            metrics: {
+                system: {
+                    memory: {
+                        used: usedMemory,
+                        total: totalMemory,
+                        percentage: (usedMemory / totalMemory) * 100
+                    },
+                    cpu: {
+                        usage: cpuUsage,
+                        loadAverage: loadAverage
+                    },
+                    disk: {
+                        used: 0,
+                        total: 40 * 1024 * 1024 * 1024, // 40GB
+                        percentage: 0
+                    },
+                    uptime: process.uptime()
+                },
+                application: {
+                    requests: {
+                        total: loadBalancerStats.totalRequests || 0,
+                        active: loadBalancerStats.activeRequests || 0,
+                        completed: loadBalancerStats.completedRequests || 0,
+                        failed: loadBalancerStats.failedRequests || 0
+                    },
+                    responseTime: {
+                        average: loadBalancerStats.averageResponseTime || 0,
+                        min: systemMonitorMetrics?.application?.responseTime?.min || 0,
+                        max: systemMonitorMetrics?.application?.responseTime?.max || 0
+                    },
+                    errors: {
+                        count: loadBalancerStats.failedRequests || 0,
+                        lastError: null
+                    }
+                },
+                database: {
+                    connections: dbConnectionStats,
+                    queries: {
+                        total: systemMonitorMetrics?.database?.queries?.total || 0,
+                        slow: systemMonitorMetrics?.database?.queries?.slow || 0,
+                        failed: systemMonitorMetrics?.database?.queries?.failed || 0
+                    },
+                    responseTime: {
+                        average: systemMonitorMetrics?.database?.responseTime?.average || 0,
+                        min: systemMonitorMetrics?.database?.responseTime?.min || 0,
+                        max: systemMonitorMetrics?.database?.responseTime?.max || 0
+                    }
+                }
+            },
+            // Direct system access for uptime display
             system: {
+                uptime: process.uptime(),
+                memory: {
+                    used: usedMemory,
+                    total: totalMemory,
+                    free: freeMemory,
+                    percentage: (usedMemory / totalMemory) * 100
+                },
                 cpu: {
                     usage: cpuUsage,
                     cores: cpus.length,
                     model: cpus[0]?.model || 'Unknown',
                     loadAvg: loadAverage
                 },
-                memory: {
-                    total: totalMemory,
-                    used: usedMemory,
-                    free: freeMemory,
-                    percentage: (usedMemory / totalMemory) * 100
-                },
-                uptime: process.uptime(),
                 platform: os.platform(),
                 hostname: os.hostname()
             },
-            process: {
-                memory: process.memoryUsage(),
-                cpu: process.cpuUsage(),
-                version: process.version,
-                pid: process.pid
-            },
-            loadBalancer: loadBalancerStats,
-            database: {
-                connections: dbConnectionStats
-            },
+            // Health status
             health: healthStatus,
-            alerts: alerts.slice(0, 10) // Last 10 alerts
+            // Load balancer stats
+            loadBalancer: loadBalancerStats,
+            // Alerts
+            alerts: alerts.slice(0, 10),
+            alertStats: {
+                total: alerts.length,
+                active: alerts.filter(a => !a.resolved).length,
+                resolved: alerts.filter(a => a.resolved).length,
+                last24h: alerts.filter(a => new Date(a.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length,
+                bySeverity: {
+                    warning: alerts.filter(a => a.severity === 'warning').length,
+                    critical: alerts.filter(a => a.severity === 'critical').length,
+                    emergency: alerts.filter(a => a.severity === 'emergency').length
+                }
+            }
         };
 
-        res.json({ success: true, data: metrics });
+        res.json({ success: true, data: responseData });
     } catch (error) {
         console.error('❌ Error getting monitoring dashboard:', error);
         res.status(500).json({ error: 'Internal server error', message: error.message });
