@@ -404,7 +404,8 @@ async function initializeDatabase() {
         console.log('✅ Performance optimizer initialized successfully');
 
         // Get connection pool for use in endpoints
-        global.dbPool = dbOptimization;
+        global.dbPool = dbOptimization.pool;  // Use the actual pool, not the class instance
+        global.dbOptimization = dbOptimization;  // Keep reference to full class for methods like getPoolStats()
         global.queryOptimizer = queryOptimizer;
         global.performanceOptimizer = performanceOptimizer;
         global.backupSystem = backupSystem;
