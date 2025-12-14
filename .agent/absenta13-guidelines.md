@@ -269,7 +269,18 @@ Output:
 
 1. **Jangan langsung edit di server** — Semua perubahan melalui Git.
 2. **Push dulu, pull kemudian** — Commit dan push ke GitHub, lalu pull di server.
-3. **Restart setelah pull** — Perubahan backend butuh restart container.
+3. **SELALU REBUILD setelah pull** — Perubahan kode backend butuh rebuild, bukan restart!
+
+### ⚠️ ATURAN PENTING: Restart vs Rebuild
+
+| Situasi | Command | Alasan |
+|---------|---------|--------|
+| Perubahan file `.js`, `.ts`, `.tsx` | `docker-compose up -d --build` | Kode di-copy ke image saat build |
+| Perubahan `package.json` | `docker-compose down && docker-compose up -d --build` | Dependencies berubah |
+| Perubahan `.env` saja | `docker-compose restart app` | Env dibaca saat runtime |
+| Container crash/hang | `docker-compose restart app` | Quick fix tanpa rebuild |
+
+**INGAT:** `docker-compose restart` TIDAK mengambil perubahan kode baru!
 
 ### Workflow Standard
 
@@ -279,12 +290,9 @@ git add -A
 git commit -m "fix: deskripsi singkat"
 git push origin main
 
-# Di SERVER (production):
-cd /path/to/absenta13
+# Di SERVER (production) - SELALU PAKAI INI:
+cd /www/wwwroot/absenta13.my.id
 git pull origin main
-docker-compose restart app
-# atau full rebuild jika ada perubahan dependencies:
-docker-compose down
 docker-compose up -d --build
 ```
 
@@ -293,7 +301,7 @@ docker-compose up -d --build
 - [ ] Semua file sudah di-commit (`git status` clean)
 - [ ] Sudah di-push ke GitHub (`git push origin main`)
 - [ ] Server sudah `git pull origin main`
-- [ ] Container sudah di-restart (`docker-compose restart app`)
+- [ ] Container sudah di-rebuild (`docker-compose up -d --build`)
 - [ ] Verifikasi di browser (login, dashboard, fitur utama)
 
 ### Debugging Production Issues
