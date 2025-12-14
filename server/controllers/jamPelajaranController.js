@@ -3,7 +3,7 @@
  * CRUD operations for dynamic jam pelajaran per kelas
  */
 
-import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/responseHelper.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
 
 /**
  * Get all jam pelajaran for a specific kelas
