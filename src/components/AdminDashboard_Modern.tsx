@@ -29,6 +29,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import BackupManagementView from "./BackupManagementView";
 import LoadBalancerView from "./LoadBalancerView";
 import MonitoringDashboard from "./MonitoringDashboard";
+import JamPelajaranConfig from "./JamPelajaranConfig";
 import SimpleRestoreView from "./SimpleRestoreView";
 import { printReport } from "../utils/printLayouts";
 import ExcelPreview from './ExcelPreview';
@@ -9580,6 +9581,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
       case 'reports':
         return <ErrorBoundary><ReportsView onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
+      case 'jam-pelajaran':
+        return <ErrorBoundary><JamPelajaranConfig /></ErrorBoundary>;
       default:
         return null;
     }

@@ -54,6 +54,7 @@ import backupRoutes from './server/routes/backupRoutes.js';
 import templateRoutes from './server/routes/templateRoutes.js';
 import importRoutes from './server/routes/importRoutes.js';
 import monitoringRoutes from './server/routes/monitoringRoutes.js';
+import jamPelajaranRoutes from './server/routes/jamPelajaranRoutes.js';
 import templateExportRoutes from './server/routes/templateExportRoutes.js';
 import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
@@ -590,6 +591,9 @@ app.use('/api/admin/kelas', kelasRoutes);
 
 // JADWAL CRUD (Modularized)
 app.use('/api/admin/jadwal', jadwalRoutes);
+
+// JAM PELAJARAN (Dynamic Time Slots per Kelas)
+app.use('/api/admin/jam-pelajaran', jamPelajaranRoutes);
 
 // RUANG CRUD (Modularized)
 app.use('/api/admin/ruang', ruangRoutes);
