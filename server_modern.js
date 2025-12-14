@@ -416,7 +416,11 @@ async function initializeDatabase() {
         global.securitySystem = securitySystem;
         global.disasterRecoverySystem = disasterRecoverySystem;
         global.testAlerts = [];
-        console.log('✅ Database connection pool, query optimizer, backup system, download queue, cache system, load balancer, system monitor, security system, and disaster recovery system ready');
+        
+        // Set database pool reference for monitoring
+        systemMonitor.setDatabasePool(dbOptimization);
+        
+        console.log('✅ All systems initialized and ready');
 
     } catch (error) {
         console.error('❌ Failed to initialize database optimization:', error.message);

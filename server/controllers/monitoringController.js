@@ -478,6 +478,33 @@ export const getMonitoringDashboard = async (req, res) => {
             cpuUsage = Math.min(Math.max(loadAverage[0] * 100, 0), 100);
         }
 
+        // Get load balancer stats
+        const loadBalancerStats = global.loadBalancer ? global.loadBalancer.getStats() : {
+            totalRequests: 0,
+            activeRequests: 0,
+            completedRequests: 0,
+            failedRequests: 0,
+            averageResponseTime: 0,
+            circuitBreaker: { isOpen: false },
+            queueSizes: { critical: 0, high: 0, normal: 0, low: 0 },
+            totalQueueSize: 0
+        };
+
+        // Get database connection stats
+        let dbConnectionStats = { active: 0, idle: 0, total: 0 };
+        if (global.dbOptimization && global.dbOptimization.pool) {
+            const pool = global.dbOptimization.pool;
+            dbConnectionStats = {
+                active: pool._allConnections?.length || 0,
+                idle: pool._freeConnections?.length || 0,
+                total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
+            };
+        }
+
+        // Get system monitor alerts
+        const alerts = global.systemMonitor ? global.systemMonitor.getAlerts() : [];
+        const healthStatus = global.systemMonitor ? global.systemMonitor.getHealthStatus() : { status: 'unknown', issues: [] };
+
         const metrics = {
             system: {
                 cpu: {
@@ -501,7 +528,13 @@ export const getMonitoringDashboard = async (req, res) => {
                 cpu: process.cpuUsage(),
                 version: process.version,
                 pid: process.pid
-            }
+            },
+            loadBalancer: loadBalancerStats,
+            database: {
+                connections: dbConnectionStats
+            },
+            health: healthStatus,
+            alerts: alerts.slice(0, 10) // Last 10 alerts
         };
 
         res.json({ success: true, data: metrics });
