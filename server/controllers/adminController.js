@@ -1,29 +1,38 @@
+/**
+ * Admin Controller
+ * Handles admin profile and password operations
+ */
+
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+import { createLogger } from '../utils/logger.js';
 
 import dotenv from 'dotenv';
-import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
-
 dotenv.config();
 
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const logger = createLogger('Admin');
 
 // Update profile for admin
 export const updateAdminProfile = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { nama, username, email } = req.body;
+    const userId = req.user.id;
+
+    log.requestStart('UpdateProfile', { nama, username, email, userId });
+
     try {
-        const { nama, username, email } = req.body;
-        const userId = req.user.id;
-
-        console.log('📝 Admin profile update request:', { nama, username, email, userId });
-
         // Validate required fields
         if (!nama || !username) {
-            return res.status(400).json({ error: 'Nama dan username wajib diisi' });
+            log.validationFail('nama/username', null, 'Required fields missing');
+            return sendValidationError(res, 'Nama dan username wajib diisi', { fields: ['nama', 'username'] });
         }
 
         // Validate email format if provided
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return res.status(400).json({ error: 'Format email tidak valid' });
+            log.validationFail('email', email, 'Invalid format');
+            return sendValidationError(res, 'Format email tidak valid', { field: 'email' });
         }
 
         // Check if username is already taken by another user
@@ -33,7 +42,8 @@ export const updateAdminProfile = async (req, res) => {
         );
 
         if (existingUser.length > 0) {
-            return res.status(400).json({ error: 'Username sudah digunakan oleh user lain' });
+            log.warn('UpdateProfile failed - username taken', { username });
+            return sendDuplicateError(res, 'Username sudah digunakan oleh user lain');
         }
 
         // Update profile in users table
@@ -47,7 +57,7 @@ export const updateAdminProfile = async (req, res) => {
             [nama, username, email || null, getMySQLDateTimeWIB(), userId]
         );
 
-        console.log('✅ Admin profile update result:', updateResult);
+        log.debug('Profile update result', { affectedRows: updateResult.affectedRows });
 
         // Get updated user data
         const [updatedUser] = await global.dbPool.execute(
@@ -56,34 +66,36 @@ export const updateAdminProfile = async (req, res) => {
         );
 
         if (updatedUser.length === 0) {
-            return res.status(404).json({ error: 'Data admin tidak ditemukan setelah update' });
+            log.warn('UpdateProfile - user not found after update', { userId });
+            return sendNotFoundError(res, 'Data admin tidak ditemukan setelah update');
         }
 
-        console.log('✅ Admin profile updated successfully:', updatedUser[0]);
-
-        res.json({
-            success: true,
-            message: 'Profil berhasil diperbarui',
-            data: updatedUser[0]
-        });
+        log.success('UpdateProfile', { userId, username, nama });
+        return sendSuccessResponse(res, updatedUser[0], 'Profil berhasil diperbarui');
     } catch (error) {
-        return sendDatabaseError(res, error, 'Internal server error');
+        log.dbError('updateProfile', error, { userId });
+        return sendDatabaseError(res, error, 'Gagal mengupdate profil admin');
     }
 };
 
 // Change password for admin
 export const changeAdminPassword = async (req, res) => {
-    try {
-        const { newPassword } = req.body;
-        const userId = req.user.id;
+    const log = logger.withRequest(req, res);
+    const { newPassword } = req.body;
+    const userId = req.user.id;
 
+    log.requestStart('ChangePassword', { userId });
+
+    try {
         // Validate required fields
         if (!newPassword) {
-            return res.status(400).json({ error: 'Password baru wajib diisi' });
+            log.validationFail('newPassword', null, 'Required field missing');
+            return sendValidationError(res, 'Password baru wajib diisi', { field: 'newPassword' });
         }
 
         if (newPassword.length < 6) {
-            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+            log.validationFail('newPassword', null, 'Password too short');
+            return sendValidationError(res, 'Password baru minimal 6 karakter', { minLength: 6 });
         }
 
         // Hash new password
@@ -95,11 +107,10 @@ export const changeAdminPassword = async (req, res) => {
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
 
-        res.json({
-            success: true,
-            message: 'Password berhasil diubah'
-        });
+        log.success('ChangePassword', { userId });
+        return sendSuccessResponse(res, null, 'Password berhasil diubah');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('changePassword', error, { userId });
+        return sendDatabaseError(res, error, 'Gagal mengubah password');
     }
 };
