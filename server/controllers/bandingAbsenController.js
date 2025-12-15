@@ -1,21 +1,21 @@
 /**
  * Banding Absen Controller
  * Attendance appeal report endpoints
- * Migrated from server_modern.js - EXACT CODE COPY
  */
 
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
-// ================================================
-// BANDING ABSEN ENDPOINTS
-// ================================================
+const logger = createLogger('BandingAbsen');
 
 // Get banding absen history report
 export const getBandingAbsenReport = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id, status } = req.query;
-        console.log('📊 Getting banding absen report:', { startDate, endDate, kelas_id, status });
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id, status } = req.query;
+    
+    log.requestStart('GetReport', { startDate, endDate, kelas_id, status });
 
+    try {
         let query = `
             SELECT 
                 pba.id_banding,
@@ -65,19 +65,22 @@ export const getBandingAbsenReport = async (req, res) => {
         query += ' ORDER BY pba.tanggal_pengajuan DESC';
 
         const [rows] = await global.dbPool.execute(query, params);
-        console.log(`✅ Banding absen report retrieved: ${rows.length} records`);
+        log.success('GetReport', { count: rows.length, filters: { startDate, endDate, kelas_id, status } });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { startDate, endDate, kelas_id, status });
+        return sendDatabaseError(res, error, 'Gagal mengambil laporan banding absen');
     }
 };
 
 // Download banding absen report as CSV
 export const downloadBandingAbsen = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id, status } = req.query;
-        console.log('📊 Downloading banding absen report:', { startDate, endDate, kelas_id, status });
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id, status } = req.query;
+    
+    log.requestStart('Download', { startDate, endDate, kelas_id, status });
 
+    try {
         let query = `
             SELECT 
                 DATE_FORMAT(pba.tanggal_pengajuan, '%d/%m/%Y') as tanggal_pengajuan,
@@ -138,21 +141,20 @@ export const downloadBandingAbsen = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="riwayat-banding-absen-${startDate || 'all'}-${endDate || 'all'}.csv"`);
         res.send(csvContent);
 
-        console.log(`✅ Banding absen report downloaded successfully: ${rows.length} records`);
+        log.success('Download', { count: rows.length, filename: `riwayat-banding-absen-${startDate || 'all'}-${endDate || 'all'}.csv` });
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('download', error, { startDate, endDate, kelas_id, status });
+        return sendDatabaseError(res, error, 'Gagal mengunduh laporan banding absen');
     }
 };
 
-// ================================================
-// COMPATIBILITY ENDPOINTS FOR SCHEDULE MANAGEMENT
-// ================================================
-
 // Get subjects (alias for /api/admin/mapel)
 export const getSubjects = async (req, res) => {
-    try {
-        console.log('📚 Getting subjects for schedule management');
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetSubjects');
 
+    try {
         const query = `
             SELECT 
                 id_mapel as id, 
@@ -165,18 +167,21 @@ export const getSubjects = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query);
-        console.log(`✅ Subjects retrieved: ${rows.length} items`);
+        log.success('GetSubjects', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data mata pelajaran');
     }
 };
 
 // Get classes (alias for /api/admin/kelas)
 export const getClasses = async (req, res) => {
-    try {
-        console.log('🏫 Getting classes for schedule management');
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetClasses');
 
+    try {
         const query = `
             SELECT id_kelas as id, nama_kelas, tingkat, status
             FROM kelas 
@@ -184,9 +189,10 @@ export const getClasses = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query);
-        console.log(`✅ Classes retrieved: ${rows.length} items`);
+        log.success('GetClasses', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data kelas');
     }
 };
