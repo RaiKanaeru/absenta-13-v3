@@ -5,7 +5,10 @@
  */
 
 import { getWIBTime, formatWIBDate, getMySQLDateWIB } from '../utils/timeUtils.js';
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Dashboard');
 
 // ================================================
 // DASHBOARD ENDPOINTS
@@ -16,6 +19,11 @@ import { sendDatabaseError } from '../utils/errorHandler.js';
  * GET /api/dashboard/stats
  */
 export const getStats = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const startTime = Date.now();
+    
+    log.requestStart('GetStats', { role: req.user.role, userId: req.user.id });
+
     try {
         const stats = {};
 
@@ -103,12 +111,12 @@ export const getStats = async (req, res) => {
             stats.absensiMingguIni = absensiMingguIni[0].count;
         }
 
-        console.log(`📊 Dashboard stats retrieved for ${req.user.role}: ${req.user.username}`);
-        res.json({ success: true, data: stats });
+        log.timed('GetStats', startTime, { role: req.user.role, stats });
+        return sendSuccessResponse(res, stats, 'Statistik dashboard berhasil diambil');
 
     } catch (error) {
-        console.error('❌ Dashboard stats error:', error);
-        res.status(500).json({ error: 'Failed to retrieve dashboard statistics' });
+        log.dbError('getStats', error, { role: req.user.role });
+        return sendDatabaseError(res, error, 'Gagal mengambil statistik dashboard');
     }
 };
 
@@ -117,8 +125,13 @@ export const getStats = async (req, res) => {
  * GET /api/dashboard/chart
  */
 export const getChart = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { period = '7days' } = req.query;
+    const startTime = Date.now();
+    
+    log.requestStart('GetChart', { role: req.user.role, period });
+
     try {
-        const { period = '7days' } = req.query;
         let chartData = [];
 
         if (req.user.role === 'admin') {
@@ -159,12 +172,12 @@ export const getChart = async (req, res) => {
             }));
         }
 
-        console.log(`📈 Chart data retrieved for ${req.user.role}: ${req.user.username}`);
-        res.json({ success: true, data: chartData });
+        log.timed('GetChart', startTime, { role: req.user.role, dataPoints: chartData.length });
+        return sendSuccessResponse(res, chartData, 'Data chart berhasil diambil');
 
     } catch (error) {
-        console.error('❌ Chart data error:', error);
-        res.status(500).json({ error: 'Failed to retrieve chart data' });
+        log.dbError('getChart', error, { role: req.user.role });
+        return sendDatabaseError(res, error, 'Gagal mengambil data chart');
     }
 };
 
@@ -173,6 +186,11 @@ export const getChart = async (req, res) => {
  * GET /api/admin/live-summary
  */
 export const getLiveSummary = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const startTime = Date.now();
+    
+    log.requestStart('GetLiveSummary');
+
     try {
         const wibNow = getWIBTime();
         const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -233,11 +251,15 @@ export const getLiveSummary = async (req, res) => {
             current_day: currentDayWIB
         };
 
-        console.log(`📊 Live summary retrieved: ${liveSummary.ongoing_classes.length} ongoing classes`);
+        log.timed('GetLiveSummary', startTime, { 
+            ongoingClasses: liveSummary.ongoing_classes.length,
+            attendancePercentage: liveSummary.overall_attendance_percentage 
+        });
+        
         res.json(liveSummary);
 
     } catch (error) {
-        console.error('❌ Live summary error:', error);
-        res.status(500).json({ error: 'Failed to retrieve live summary' });
+        log.dbError('getLiveSummary', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil live summary');
     }
 };

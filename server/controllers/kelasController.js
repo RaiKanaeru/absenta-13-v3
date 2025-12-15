@@ -1,13 +1,23 @@
+/**
+ * Kelas Controller
+ * CRUD operations for class management
+ */
+
 import dotenv from 'dotenv';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
 
+const logger = createLogger('Kelas');
+
 // Get Active Kelas (Public - for dropdowns)
 export const getActiveKelas = async (req, res) => {
-    try {
-        console.log('📋 Getting classes for dropdown');
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetActive');
 
+    try {
         const query = `
             SELECT id_kelas as id, nama_kelas, tingkat, status
             FROM kelas 
@@ -16,18 +26,21 @@ export const getActiveKelas = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query);
-        console.log(`✅ Found ${rows.length} active classes`);
+        log.success('GetActive', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data kelas');
     }
 };
 
 // Get All Kelas (Admin)
 export const getKelas = async (req, res) => {
-    try {
-        console.log('📋 Getting classes for admin dashboard');
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetAll');
 
+    try {
         const query = `
             SELECT id_kelas as id, nama_kelas, tingkat, status
             FROM kelas 
@@ -35,21 +48,25 @@ export const getKelas = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query);
-        console.log(`✅ Classes retrieved: ${rows.length} items`);
+        log.success('GetAll', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data kelas');
     }
 };
 
 // Create Kelas
 export const createKelas = async (req, res) => {
-    try {
-        const { nama_kelas } = req.body;
-        console.log('➕ Adding class:', { nama_kelas });
+    const log = logger.withRequest(req, res);
+    const { nama_kelas } = req.body;
+    
+    log.requestStart('Create', { nama_kelas });
 
+    try {
         if (!nama_kelas) {
-            return res.status(400).json({ error: 'Nama kelas wajib diisi' });
+            log.validationFail('nama_kelas', null, 'Required field missing');
+            return sendValidationError(res, 'Nama kelas wajib diisi', { field: 'nama_kelas' });
         }
 
         // Extract tingkat from nama_kelas (contoh: "X IPA 1" -> tingkat = "X")
@@ -61,27 +78,29 @@ export const createKelas = async (req, res) => {
         `;
 
         const [result] = await global.dbPool.execute(insertQuery, [nama_kelas, tingkat]);
-        console.log('✅ Class added successfully:', result.insertId);
-        res.json({ message: 'Kelas berhasil ditambahkan', id: result.insertId });
+        log.success('Create', { id: result.insertId, nama_kelas, tingkat });
+        return sendSuccessResponse(res, { id: result.insertId }, 'Kelas berhasil ditambahkan', 201);
     } catch (error) {
-        console.error('❌ Error adding class:', error);
+        log.dbError('insert', error, { nama_kelas });
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(409).json({ error: 'Nama kelas sudah ada' });
-        } else {
-            res.status(500).json({ error: 'Internal server error' });
+            return sendDuplicateError(res, 'Nama kelas sudah ada');
         }
+        return sendDatabaseError(res, error, 'Gagal menambahkan kelas');
     }
 };
 
 // Update Kelas
 export const updateKelas = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { nama_kelas } = req.body;
-        console.log('📝 Updating class:', { id, nama_kelas });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { nama_kelas } = req.body;
+    
+    log.requestStart('Update', { id, nama_kelas });
 
+    try {
         if (!nama_kelas) {
-            return res.status(400).json({ error: 'Nama kelas wajib diisi' });
+            log.validationFail('nama_kelas', null, 'Required field missing');
+            return sendValidationError(res, 'Nama kelas wajib diisi', { field: 'nama_kelas' });
         }
 
         // Extract tingkat from nama_kelas
@@ -96,34 +115,40 @@ export const updateKelas = async (req, res) => {
         const [result] = await global.dbPool.execute(updateQuery, [nama_kelas, tingkat, id]);
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Kelas tidak ditemukan' });
+            log.warn('Update failed - not found', { id });
+            return sendNotFoundError(res, 'Kelas tidak ditemukan');
         }
 
-        console.log('✅ Class updated successfully');
-        res.json({ message: 'Kelas berhasil diupdate' });
+        log.success('Update', { id, nama_kelas, tingkat });
+        return sendSuccessResponse(res, null, 'Kelas berhasil diupdate');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('update', error, { id, nama_kelas });
+        return sendDatabaseError(res, error, 'Gagal mengupdate kelas');
     }
 };
 
 // Delete Kelas
 export const deleteKelas = async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log('🗑️ Deleting class:', { id });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('Delete', { id });
 
+    try {
         const [result] = await global.dbPool.execute(
             'DELETE FROM kelas WHERE id_kelas = ?',
             [id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Kelas tidak ditemukan' });
+            log.warn('Delete failed - not found', { id });
+            return sendNotFoundError(res, 'Kelas tidak ditemukan');
         }
 
-        console.log('✅ Class deleted successfully');
-        res.json({ message: 'Kelas berhasil dihapus' });
+        log.success('Delete', { id, affectedRows: result.affectedRows });
+        return sendSuccessResponse(res, null, 'Kelas berhasil dihapus');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('delete', error, { id });
+        return sendDatabaseError(res, error, 'Gagal menghapus kelas');
     }
 };

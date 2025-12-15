@@ -1,21 +1,21 @@
 /**
  * Ruang Controller
  * CRUD operations for classroom/room management
- * Migrated from server_modern.js
  */
 
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
-// ================================================
-// RUANG CRUD ENDPOINTS
-// ================================================
+const logger = createLogger('Ruang');
 
 // Get all rooms
 export const getRuang = async (req, res) => {
-    try {
-        console.log('🏢 Getting rooms for admin');
+    const log = logger.withRequest(req, res);
+    const { search } = req.query;
+    
+    log.requestStart('GetAll', { search: search || null });
 
-        const { search } = req.query;
+    try {
         let query = `
             SELECT 
                 id_ruang as id,
@@ -38,49 +38,63 @@ export const getRuang = async (req, res) => {
         query += ` ORDER BY kode_ruang`;
 
         const [rows] = await global.dbPool.execute(query, params);
-        console.log(`✅ Rooms retrieved: ${rows.length} items`);
+        log.success('GetAll', { count: rows.length, hasSearch: !!search });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { search });
+        return sendDatabaseError(res, error, 'Gagal mengambil data ruang');
     }
 };
 
 // Get single room
 export const getRuangById = async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log(`🏢 Getting room ${id}`);
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('GetById', { id });
 
+    try {
         const [rows] = await global.dbPool.execute(
             'SELECT * FROM ruang_kelas WHERE id_ruang = ?',
             [id]
         );
 
         if (rows.length === 0) {
-            return res.status(404).json({ error: 'Ruang tidak ditemukan' });
+            log.warn('GetById failed - not found', { id });
+            return sendNotFoundError(res, 'Ruang tidak ditemukan');
         }
 
+        log.success('GetById', { id });
         res.json(rows[0]);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { id });
+        return sendDatabaseError(res, error, 'Gagal mengambil data ruang');
     }
 };
 
 // Create new room
 export const createRuang = async (req, res) => {
-    try {
-        const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
-        console.log('➕ Creating room:', { kode_ruang, nama_ruang, lokasi, kapasitas, status });
+    const log = logger.withRequest(req, res);
+    const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
+    
+    log.requestStart('Create', { kode_ruang, nama_ruang });
 
+    try {
         // Validation
         if (!kode_ruang) {
-            return res.status(400).json({ error: 'Kode ruang wajib diisi' });
+            log.validationFail('kode_ruang', null, 'Required field missing');
+            return sendValidationError(res, 'Kode ruang wajib diisi', { field: 'kode_ruang' });
         }
 
         // Convert to uppercase and validate format
         const kodeUpper = kode_ruang.toUpperCase().trim();
         if (kodeUpper.length > 10) {
-            return res.status(400).json({ error: 'Kode ruang maksimal 10 karakter' });
+            log.validationFail('kode_ruang', kodeUpper, 'Exceeds max length');
+            return sendValidationError(res, 'Kode ruang maksimal 10 karakter', { 
+                field: 'kode_ruang',
+                maxLength: 10,
+                actualLength: kodeUpper.length
+            });
         }
 
         // Check for duplicate kode_ruang
@@ -90,7 +104,8 @@ export const createRuang = async (req, res) => {
         );
 
         if (existing.length > 0) {
-            return res.status(400).json({ error: 'Kode ruang sudah digunakan' });
+            log.warn('Create failed - duplicate code', { kode_ruang: kodeUpper });
+            return sendDuplicateError(res, 'Kode ruang sudah digunakan');
         }
 
         // Insert new room
@@ -100,33 +115,37 @@ export const createRuang = async (req, res) => {
             [kodeUpper, nama_ruang || null, lokasi || null, kapasitas || null, status || 'aktif']
         );
 
-        console.log(`✅ Room created with ID: ${result.insertId}`);
-        res.status(201).json({
-            success: true,
-            message: 'Ruang berhasil ditambahkan',
-            id: result.insertId
-        });
+        log.success('Create', { id: result.insertId, kode_ruang: kodeUpper });
+        return sendSuccessResponse(res, { id: result.insertId }, 'Ruang berhasil ditambahkan', 201);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('insert', error, { kode_ruang });
+        return sendDatabaseError(res, error, 'Gagal menambahkan ruang');
     }
 };
 
 // Update room
 export const updateRuang = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
-        console.log('✏️ Updating room:', { id, kode_ruang, nama_ruang, lokasi, kapasitas, status });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
+    
+    log.requestStart('Update', { id, kode_ruang });
 
+    try {
         // Validation
         if (!kode_ruang) {
-            return res.status(400).json({ error: 'Kode ruang wajib diisi' });
+            log.validationFail('kode_ruang', null, 'Required field missing');
+            return sendValidationError(res, 'Kode ruang wajib diisi', { field: 'kode_ruang' });
         }
 
         // Convert to uppercase and validate format
         const kodeUpper = kode_ruang.toUpperCase().trim();
         if (kodeUpper.length > 10) {
-            return res.status(400).json({ error: 'Kode ruang maksimal 10 karakter' });
+            log.validationFail('kode_ruang', kodeUpper, 'Exceeds max length');
+            return sendValidationError(res, 'Kode ruang maksimal 10 karakter', { 
+                field: 'kode_ruang',
+                maxLength: 10 
+            });
         }
 
         // Check for duplicate kode_ruang (excluding current room)
@@ -136,7 +155,8 @@ export const updateRuang = async (req, res) => {
         );
 
         if (existing.length > 0) {
-            return res.status(400).json({ error: 'Kode ruang sudah digunakan' });
+            log.warn('Update failed - duplicate code', { id, kode_ruang: kodeUpper });
+            return sendDuplicateError(res, 'Kode ruang sudah digunakan');
         }
 
         // Update room
@@ -148,22 +168,26 @@ export const updateRuang = async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Ruang tidak ditemukan' });
+            log.warn('Update failed - not found', { id });
+            return sendNotFoundError(res, 'Ruang tidak ditemukan');
         }
 
-        console.log(`✅ Room updated: ${result.affectedRows} rows affected`);
-        res.json({ success: true, message: 'Ruang berhasil diperbarui' });
+        log.success('Update', { id, kode_ruang: kodeUpper });
+        return sendSuccessResponse(res, null, 'Ruang berhasil diperbarui');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('update', error, { id, kode_ruang });
+        return sendDatabaseError(res, error, 'Gagal mengupdate ruang');
     }
 };
 
 // Delete room
 export const deleteRuang = async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log(`🗑️ Deleting room ${id}`);
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('Delete', { id });
 
+    try {
         // Check if room is used in jadwal
         const [jadwalUsage] = await global.dbPool.execute(
             'SELECT COUNT(*) as count FROM jadwal WHERE ruang_id = ?',
@@ -171,8 +195,10 @@ export const deleteRuang = async (req, res) => {
         );
 
         if (jadwalUsage[0].count > 0) {
-            return res.status(400).json({
-                error: 'Tidak dapat menghapus ruang yang sedang digunakan dalam jadwal'
+            log.warn('Delete failed - room in use', { id, jadwalCount: jadwalUsage[0].count });
+            return sendValidationError(res, 'Tidak dapat menghapus ruang yang sedang digunakan dalam jadwal', {
+                reason: 'in_use',
+                jadwalCount: jadwalUsage[0].count
             });
         }
 
@@ -183,12 +209,14 @@ export const deleteRuang = async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Ruang tidak ditemukan' });
+            log.warn('Delete failed - not found', { id });
+            return sendNotFoundError(res, 'Ruang tidak ditemukan');
         }
 
-        console.log(`✅ Room deleted: ${result.affectedRows} rows affected`);
-        res.json({ success: true, message: 'Ruang berhasil dihapus' });
+        log.success('Delete', { id, affectedRows: result.affectedRows });
+        return sendSuccessResponse(res, null, 'Ruang berhasil dihapus');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('delete', error, { id });
+        return sendDatabaseError(res, error, 'Gagal menghapus ruang');
     }
 };

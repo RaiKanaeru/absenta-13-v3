@@ -1,13 +1,23 @@
+/**
+ * Mapel Controller
+ * CRUD operations for subject (mata pelajaran) management
+ */
+
 import dotenv from 'dotenv';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
 
+const logger = createLogger('Mapel');
+
 // Get All Mapel
 export const getMapel = async (req, res) => {
-    try {
-        console.log('📋 Getting subjects for admin dashboard');
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetAll');
 
+    try {
         const query = `
             SELECT id_mapel as id, kode_mapel, nama_mapel, deskripsi, status
             FROM mapel 
@@ -15,21 +25,27 @@ export const getMapel = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query);
-        console.log(`✅ Subjects retrieved: ${rows.length} items`);
+        log.success('GetAll', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data mata pelajaran');
     }
 };
 
 // Create Mapel
 export const createMapel = async (req, res) => {
-    try {
-        const { kode_mapel, nama_mapel, deskripsi, status } = req.body;
-        console.log('➕ Adding subject:', { kode_mapel, nama_mapel, deskripsi, status });
+    const log = logger.withRequest(req, res);
+    const { kode_mapel, nama_mapel, deskripsi, status } = req.body;
+    
+    log.requestStart('Create', { kode_mapel, nama_mapel });
 
+    try {
         if (!kode_mapel || !nama_mapel) {
-            return res.status(400).json({ error: 'Kode dan nama mata pelajaran wajib diisi' });
+            log.validationFail('kode_mapel/nama_mapel', null, 'Required fields missing');
+            return sendValidationError(res, 'Kode dan nama mata pelajaran wajib diisi', { 
+                fields: ['kode_mapel', 'nama_mapel'] 
+            });
         }
 
         // Check if kode_mapel already exists
@@ -39,7 +55,8 @@ export const createMapel = async (req, res) => {
         );
 
         if (existing.length > 0) {
-            return res.status(409).json({ error: 'Kode mata pelajaran sudah digunakan' });
+            log.warn('Create failed - duplicate code', { kode_mapel });
+            return sendDuplicateError(res, 'Kode mata pelajaran sudah digunakan');
         }
 
         const insertQuery = `
@@ -53,27 +70,32 @@ export const createMapel = async (req, res) => {
             deskripsi || null,
             status || 'aktif'
         ]);
-        console.log('✅ Subject added successfully:', result.insertId);
-        res.json({ message: 'Mata pelajaran berhasil ditambahkan', id: result.insertId });
+        
+        log.success('Create', { id: result.insertId, kode_mapel, nama_mapel });
+        return sendSuccessResponse(res, { id: result.insertId }, 'Mata pelajaran berhasil ditambahkan', 201);
     } catch (error) {
-        console.error('❌ Error adding subject:', error);
+        log.dbError('insert', error, { kode_mapel, nama_mapel });
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(409).json({ error: 'Kode mata pelajaran sudah digunakan' });
-        } else {
-            res.status(500).json({ error: 'Internal server error' });
+            return sendDuplicateError(res, 'Kode mata pelajaran sudah digunakan');
         }
+        return sendDatabaseError(res, error, 'Gagal menambahkan mata pelajaran');
     }
 };
 
 // Update Mapel
 export const updateMapel = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { kode_mapel, nama_mapel, deskripsi, status } = req.body;
-        console.log('📝 Updating subject:', { id, kode_mapel, nama_mapel, deskripsi, status });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { kode_mapel, nama_mapel, deskripsi, status } = req.body;
+    
+    log.requestStart('Update', { id, kode_mapel, nama_mapel });
 
+    try {
         if (!kode_mapel || !nama_mapel) {
-            return res.status(400).json({ error: 'Kode dan nama mata pelajaran wajib diisi' });
+            log.validationFail('kode_mapel/nama_mapel', null, 'Required fields missing');
+            return sendValidationError(res, 'Kode dan nama mata pelajaran wajib diisi', { 
+                fields: ['kode_mapel', 'nama_mapel'] 
+            });
         }
 
         // Check if kode_mapel already exists for other records
@@ -83,7 +105,8 @@ export const updateMapel = async (req, res) => {
         );
 
         if (existing.length > 0) {
-            return res.status(409).json({ error: 'Kode mata pelajaran sudah digunakan oleh mata pelajaran lain' });
+            log.warn('Update failed - duplicate code', { id, kode_mapel });
+            return sendDuplicateError(res, 'Kode mata pelajaran sudah digunakan oleh mata pelajaran lain');
         }
 
         const updateQuery = `
@@ -101,34 +124,40 @@ export const updateMapel = async (req, res) => {
         ]);
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Mata pelajaran tidak ditemukan' });
+            log.warn('Update failed - not found', { id });
+            return sendNotFoundError(res, 'Mata pelajaran tidak ditemukan');
         }
 
-        console.log('✅ Subject updated successfully');
-        res.json({ message: 'Mata pelajaran berhasil diupdate' });
+        log.success('Update', { id, kode_mapel, nama_mapel });
+        return sendSuccessResponse(res, null, 'Mata pelajaran berhasil diupdate');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('update', error, { id, kode_mapel });
+        return sendDatabaseError(res, error, 'Gagal mengupdate mata pelajaran');
     }
 };
 
 // Delete Mapel
 export const deleteMapel = async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log('🗑️ Deleting subject:', { id });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('Delete', { id });
 
+    try {
         const [result] = await global.dbPool.execute(
             'DELETE FROM mapel WHERE id_mapel = ?',
             [id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Mata pelajaran tidak ditemukan' });
+            log.warn('Delete failed - not found', { id });
+            return sendNotFoundError(res, 'Mata pelajaran tidak ditemukan');
         }
 
-        console.log('✅ Subject deleted successfully');
-        res.json({ message: 'Mata pelajaran berhasil dihapus' });
+        log.success('Delete', { id, affectedRows: result.affectedRows });
+        return sendSuccessResponse(res, null, 'Mata pelajaran berhasil dihapus');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('delete', error, { id });
+        return sendDatabaseError(res, error, 'Gagal menghapus mata pelajaran');
     }
 };
