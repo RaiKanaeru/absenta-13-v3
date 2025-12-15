@@ -1,21 +1,25 @@
 /**
  * Guru Reports Controller
  * Handles teacher-specific attendance reports
- * Migrated from server_modern.js
  */
 
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('GuruReports');
 
 // Get presensi siswa SMK 13 untuk laporan guru
 export const getPresensiSiswaSmkn13 = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    const guruId = req.user.guru_id;
+
+    log.requestStart('GetPresensiSiswaSmkn13', { startDate, endDate, kelas_id, guruId });
+
     try {
-        const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.guru_id;
-
-        console.log('📊 Fetching presensi siswa SMKN 13:', { startDate, endDate, kelas_id, guruId });
-
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
+            return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
         let query = `
@@ -57,30 +61,32 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
 
         const [rows] = await global.dbPool.execute(query, params);
 
-        console.log(`✅ Presensi siswa SMKN 13 fetched: ${rows.length} records`);
+        log.success('GetPresensiSiswaSmkn13', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil data presensi siswa');
     }
 };
 
 // Get rekap ketidakhadiran untuk laporan guru
 export const getRekapKetidakhadiran = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id, reportType } = req.query;
+    const guruId = req.user.guru_id;
+
+    log.requestStart('GetRekapKetidakhadiran', { startDate, endDate, kelas_id, reportType, guruId });
+
     try {
-        const { startDate, endDate, kelas_id, reportType } = req.query;
-        const guruId = req.user.guru_id;
-
-        console.log('📊 Fetching rekap ketidakhadiran:', { startDate, endDate, kelas_id, reportType, guruId });
-
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
+            return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
         let query;
         let params;
 
         if (reportType === 'bulanan') {
-            // Laporan bulanan - grup berdasarkan bulan dan kelas
             query = `
         SELECT 
           DATE_FORMAT(a.tanggal, '%Y-%m') as periode,
@@ -111,7 +117,6 @@ export const getRekapKetidakhadiran = async (req, res) => {
         ORDER BY periode DESC, k.nama_kelas
       `;
         } else {
-            // Laporan tahunan - grup berdasarkan tahun dan kelas
             query = `
         SELECT 
           YEAR(a.tanggal) as periode,
@@ -145,33 +150,37 @@ export const getRekapKetidakhadiran = async (req, res) => {
 
         const [rows] = await global.dbPool.execute(query, params);
 
-        console.log(`✅ Rekap ketidakhadiran fetched: ${rows.length} records`);
+        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { startDate, endDate, kelas_id, reportType, guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil rekap ketidakhadiran');
     }
 };
-
-// ================================================
-// ADDITIONAL GURU REPORTS - Migrated from server_modern.js Batch 17B
-// ================================================
 
 /**
  * Get teacher's classes
  * GET /api/guru/classes
  */
 export const getGuruClasses = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const guruId = req.user.guru_id;
+    
+    log.requestStart('GetGuruClasses', { guruId });
+
     try {
-        const guruId = req.user.guru_id;
         const [rows] = await global.dbPool.execute(
             `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
              FROM jadwal j JOIN kelas k ON j.kelas_id = k.id_kelas 
              WHERE j.guru_id = ? AND j.status = 'aktif' ORDER BY k.nama_kelas`,
             [guruId]
         );
+        
+        log.success('GetGuruClasses', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil data kelas guru');
     }
 };
 
@@ -180,12 +189,16 @@ export const getGuruClasses = async (req, res) => {
  * GET /api/guru/attendance-summary
  */
 export const getAttendanceSummary = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    const guruId = req.user.guru_id;
+    
+    log.requestStart('GetAttendanceSummary', { startDate, endDate, kelas_id, guruId });
+
     try {
-        const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.guru_id;
-        
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
         let query = `
@@ -213,9 +226,12 @@ export const getAttendanceSummary = async (req, res) => {
 
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
         const [rows] = await global.dbPool.execute(query, params);
+        
+        log.success('GetAttendanceSummary', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil summary kehadiran');
     }
 };
 
@@ -224,17 +240,30 @@ export const getAttendanceSummary = async (req, res) => {
  * GET /api/guru/jadwal-pertemuan
  */
 export const getJadwalPertemuan = async (req, res) => {
-    try {
-        const { kelas_id, startDate, endDate } = req.query;
-        const guruId = req.user.guru_id;
+    const log = logger.withRequest(req, res);
+    const { kelas_id, startDate, endDate } = req.query;
+    const guruId = req.user.guru_id;
 
-        if (!kelas_id) return res.status(400).json({ error: 'Kelas ID wajib diisi' });
-        if (!startDate || !endDate) return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+    log.requestStart('GetJadwalPertemuan', { kelas_id, startDate, endDate, guruId });
+
+    try {
+        if (!kelas_id) {
+            log.validationFail('kelas_id', null, 'Required field missing');
+            return sendValidationError(res, 'Kelas ID wajib diisi', { field: 'kelas_id' });
+        }
+        if (!startDate || !endDate) {
+            log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
+        }
 
         const start = new Date(startDate);
         const end = new Date(endDate);
         const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
-        if (diffDays > 62) return res.status(400).json({ error: 'Rentang tanggal maksimal 62 hari' });
+        
+        if (diffDays > 62) {
+            log.validationFail('dateRange', { diffDays }, 'Exceeds max 62 days');
+            return sendValidationError(res, 'Rentang tanggal maksimal 62 hari', { maxDays: 62, requestedDays: diffDays });
+        }
 
         const [jadwalData] = await global.dbPool.execute(`
             SELECT j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai,
@@ -266,6 +295,8 @@ export const getJadwalPertemuan = async (req, res) => {
             }
         }
 
+        log.success('GetJadwalPertemuan', { totalPertemuan: pertemuanDates.length, guruId });
+        
         res.json({
             success: true,
             data: {
@@ -279,7 +310,8 @@ export const getJadwalPertemuan = async (req, res) => {
             }
         });
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { kelas_id, startDate, endDate, guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil jadwal pertemuan');
     }
 };
 
@@ -288,12 +320,21 @@ export const getJadwalPertemuan = async (req, res) => {
  * GET /api/guru/laporan-kehadiran-siswa
  */
 export const getLaporanKehadiranSiswa = async (req, res) => {
-    try {
-        const { kelas_id, startDate, endDate } = req.query;
-        const guruId = req.user.guru_id;
+    const log = logger.withRequest(req, res);
+    const { kelas_id, startDate, endDate } = req.query;
+    const guruId = req.user.guru_id;
 
-        if (!kelas_id) return res.status(400).json({ error: 'Kelas ID wajib diisi' });
-        if (!startDate || !endDate) return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+    log.requestStart('GetLaporanKehadiranSiswa', { kelas_id, startDate, endDate, guruId });
+
+    try {
+        if (!kelas_id) {
+            log.validationFail('kelas_id', null, 'Required field missing');
+            return sendValidationError(res, 'Kelas ID wajib diisi', { field: 'kelas_id' });
+        }
+        if (!startDate || !endDate) {
+            log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
+        }
 
         const [siswaData] = await global.dbPool.execute(
             `SELECT s.id_siswa, s.nis, s.nama, k.nama_kelas
@@ -331,8 +372,10 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
             };
         });
 
+        log.success('GetLaporanKehadiranSiswa', { siswaCount: result.length, guruId });
         res.json({ success: true, data: result, periode: { startDate, endDate } });
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { kelas_id, startDate, endDate, guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil laporan kehadiran siswa');
     }
 };

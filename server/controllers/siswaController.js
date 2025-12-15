@@ -1,10 +1,18 @@
+/**
+ * Siswa Controller
+ * CRUD operations for student management with account creation
+ */
+
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+import { createLogger } from '../utils/logger.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
 
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const logger = createLogger('Siswa');
 
 // Validasi payload siswa untuk Create/Update
 async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId = null, excludeUserId = null } = {}) {
@@ -18,7 +26,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         } else if (!/^\d{8,15}$/.test(nis)) {
             errors.push('NIS harus berupa angka 8-15 digit');
         } else {
-            // Cek unik NIS (hanya jika NIS berubah atau untuk create)
             try {
                 let sql = 'SELECT id FROM siswa WHERE nis = ?';
                 const params = [nis];
@@ -31,7 +38,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                     errors.push('NIS sudah digunakan');
                 }
             } catch (error) {
-                console.error('Error checking NIS uniqueness:', error);
                 errors.push('Gagal memvalidasi NIS');
             }
         }
@@ -51,7 +57,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         } else if (!/^[a-z0-9._-]{4,30}$/.test(username)) {
             errors.push('Username harus 4-30 karakter, hanya huruf kecil, angka, titik, underscore, dan strip');
         } else {
-            // Cek unik username
             try {
                 let sql = 'SELECT id FROM users WHERE username = ?';
                 const params = [username];
@@ -64,7 +69,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                     errors.push('Username sudah digunakan');
                 }
             } catch (error) {
-                console.error('Error checking username uniqueness:', error);
                 errors.push('Gagal memvalidasi username');
             }
         }
@@ -75,7 +79,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             errors.push('Format email tidak valid');
         } else {
-            // Cek unik email
             try {
                 let sql = 'SELECT id FROM users WHERE email = ?';
                 const params = [email];
@@ -88,7 +91,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                     errors.push('Email sudah digunakan');
                 }
             } catch (error) {
-                console.error('Error checking email uniqueness:', error);
                 errors.push('Gagal memvalidasi email');
             }
         }
@@ -108,7 +110,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                     errors.push('Kelas tidak ditemukan atau tidak aktif');
                 }
             } catch (error) {
-                console.error('Error checking kelas existence:', error);
                 errors.push('Gagal memvalidasi kelas');
             }
         }
@@ -134,7 +135,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         if (!/^[0-9]{10,15}$/.test(nomor_telepon_siswa)) {
             errors.push('Nomor telepon siswa harus berupa angka 10-15 digit');
         } else {
-            // Cek unik no telp siswa
             try {
                 let sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ?';
                 const params = [nomor_telepon_siswa];
@@ -147,7 +147,6 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                     errors.push('Nomor telepon siswa sudah digunakan');
                 }
             } catch (error) {
-                 console.error('Error checking student phone uniqueness:', error);
                  errors.push('Gagal memvalidasi nomor telepon siswa');
             }
         }
@@ -169,13 +168,13 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
 
 // Get All Siswa
 export const getSiswa = async (req, res) => {
-    console.log('📥 getSiswa endpoint hit:', req.originalUrl);
-    try {
-        const { page = 1, limit = 10, search = '' } = req.query;
-        const offset = (page - 1) * limit;
-        
-        console.log('📊 Query params:', { page, limit, search, offset });
+    const log = logger.withRequest(req, res);
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (page - 1) * limit;
+    
+    log.requestStart('GetAll', { page, limit, search: search || null });
 
+    try {
         let query = `
             SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status
             FROM siswa s
@@ -193,14 +192,11 @@ export const getSiswa = async (req, res) => {
 
         query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
         params.push(Number(limit), Number(offset));
-        
-        console.log('🔍 Executing query with params:', params);
 
-        // Menggunakan .query() karena .execute() (prepared statements) memiliki masalah dengan LIMIT/OFFSET pada beberapa versi MySQL/driver
         const [rows] = await global.dbPool.query(query, params);
         const [countResult] = await global.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
-        
-        console.log('✅ Query successful, rows:', rows.length);
+
+        log.success('GetAll', { count: rows.length, total: countResult[0].total, page });
 
         res.json({
             success: true,
@@ -213,30 +209,25 @@ export const getSiswa = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Get siswa error:', error.message);
-        console.error('❌ Full error:', error);
-        res.status(500).json({ 
-            error: 'Failed to retrieve student data',
-            details: error.message,
-            code: error.code || 'UNKNOWN'
-        });
+        log.dbError('query', error, { page, limit, search });
+        return sendDatabaseError(res, error, 'Gagal mengambil data siswa');
     }
 };
 
-
 // Create Siswa
 export const createSiswa = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat, status = 'aktif' } = req.body;
+    
+    log.requestStart('Create', { nis, nama, username, kelas_id });
+    
     const connection = await global.dbPool.getConnection();
     try {
-        const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat, status = 'aktif' } = req.body;
-
         // Validasi payload
         const validation = await validateSiswaPayload(req.body, { isUpdate: false });
         if (!validation.isValid) {
-            return res.status(400).json({
-                error: 'Data tidak valid',
-                details: validation.errors
-            });
+            log.validationFail('payload', null, validation.errors.join(', '));
+            return sendValidationError(res, 'Data tidak valid', { details: validation.errors });
         }
 
         // Hash password
@@ -271,8 +262,8 @@ export const createSiswa = async (req, res) => {
 
             await connection.commit();
 
-            console.log(`✅ New siswa created: ${nama} (${nis})`);
-            res.json({ success: true, message: 'Siswa berhasil ditambahkan' });
+            log.success('Create', { userId: userResult.insertId, nis, nama });
+            return sendSuccessResponse(res, { id: userResult.insertId }, 'Siswa berhasil ditambahkan', 201);
 
         } catch (error) {
             await connection.rollback();
@@ -280,16 +271,12 @@ export const createSiswa = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Create siswa error:', error);
+        log.dbError('insert', error, { nis, nama });
 
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(400).json({ error: 'NIS, Username, atau Email sudah digunakan' });
-        } else {
-            res.status(500).json({ 
-                error: 'Gagal membuat akun siswa',
-                details: error.message
-            });
+            return sendDuplicateError(res, 'NIS, Username, atau Email sudah digunakan');
         }
+        return sendDatabaseError(res, error, 'Gagal membuat akun siswa');
     } finally {
         connection.release();
     }
@@ -297,13 +284,14 @@ export const createSiswa = async (req, res) => {
 
 // Update Siswa
 export const updateSiswa = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat, status } = req.body;
+
+    log.requestStart('Update', { id, nis, nama, username });
+
     const connection = await global.dbPool.getConnection();
     try {
-        const { id } = req.params;
-        const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat, status } = req.body;
-
-        console.log('📝 Updating siswa:', { id, nis, nama, username });
-
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
             'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = ?',
@@ -311,7 +299,8 @@ export const updateSiswa = async (req, res) => {
         );
 
         if (existingSiswa.length === 0) {
-            return res.status(404).json({ error: 'Siswa tidak ditemukan' });
+            log.warn('Update failed - not found', { id });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
         const siswa = existingSiswa[0];
@@ -324,10 +313,8 @@ export const updateSiswa = async (req, res) => {
         });
 
         if (!validation.isValid) {
-            return res.status(400).json({
-                error: 'Data tidak valid',
-                details: validation.errors
-            });
+            log.validationFail('payload', null, validation.errors.join(', '));
+            return sendValidationError(res, 'Data tidak valid', { details: validation.errors });
         }
 
         // Start transaction
@@ -379,8 +366,8 @@ export const updateSiswa = async (req, res) => {
             }
 
             await connection.commit();
-            console.log(`✅ Siswa updated: ${nama || siswa.nama}`);
-            res.json({ success: true, message: 'Data siswa berhasil diperbarui' });
+            log.success('Update', { id, nama: nama || siswa.nama });
+            return sendSuccessResponse(res, null, 'Data siswa berhasil diperbarui');
 
         } catch (error) {
             await connection.rollback();
@@ -388,16 +375,12 @@ export const updateSiswa = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Update siswa error:', error);
+        log.dbError('update', error, { id, nis, nama });
         
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(400).json({ error: 'NIS, Username, atau Nomor Telepon sudah digunakan' });
-        } else {
-            res.status(500).json({
-                error: 'Gagal memperbarui data siswa',
-                details: error.message
-            });
+            return sendDuplicateError(res, 'NIS, Username, atau Nomor Telepon sudah digunakan');
         }
+        return sendDatabaseError(res, error, 'Gagal memperbarui data siswa');
     } finally {
         connection.release();
     }
@@ -405,10 +388,13 @@ export const updateSiswa = async (req, res) => {
 
 // Delete Siswa
 export const deleteSiswa = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+
+    log.requestStart('Delete', { id });
+
     const connection = await global.dbPool.getConnection();
     try {
-        const { id } = req.params;
-
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
             'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = ?',
@@ -416,7 +402,8 @@ export const deleteSiswa = async (req, res) => {
         );
 
         if (existingSiswa.length === 0) {
-            return res.status(404).json({ error: 'Siswa tidak ditemukan' });
+            log.warn('Delete failed - not found', { id });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
         const siswa = existingSiswa[0];
@@ -434,8 +421,8 @@ export const deleteSiswa = async (req, res) => {
             }
 
             await connection.commit();
-            console.log(`✅ Siswa deleted: ${siswa.nama}`);
-            res.json({ success: true, message: 'Siswa berhasil dihapus' });
+            log.success('Delete', { id, nama: siswa.nama });
+            return sendSuccessResponse(res, null, 'Siswa berhasil dihapus');
 
         } catch (error) {
             await connection.rollback();
@@ -443,48 +430,44 @@ export const deleteSiswa = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Delete siswa error:', error);
+        log.dbError('delete', error, { id });
 
         if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            res.status(409).json({ error: 'Tidak dapat menghapus siswa karena memiliki data terkait (absensi/jurnal)' });
-        } else {
-            res.status(500).json({ error: 'Gagal menghapus siswa' });
+            return sendValidationError(res, 'Tidak dapat menghapus siswa karena memiliki data terkait (absensi/jurnal)', { reason: 'has_references' });
         }
+        return sendDatabaseError(res, error, 'Gagal menghapus siswa');
     } finally {
         connection.release();
     }
 };
 
-// ================================================
-// PROFILE UPDATE FUNCTIONS (Migrated from server_modern.js)
-// ================================================
-
-import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
-
 // Update profile for siswa (self-service)
 export const updateProfile = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { nama, username, email, alamat, telepon_orangtua, nomor_telepon_siswa, jenis_kelamin } = req.body;
+    const userId = req.user.id;
+
+    log.requestStart('UpdateProfile', { userId, nama, username });
+
     try {
-        const { nama, username, email, alamat, telepon_orangtua, nomor_telepon_siswa, jenis_kelamin } = req.body;
-        const userId = req.user.id;
-
-        console.log('📝 Updating siswa profile:', { nama, username, email, alamat, telepon_orangtua, nomor_telepon_siswa, jenis_kelamin });
-
         // Validate required fields
         if (!nama || !username) {
-            return res.status(400).json({ error: 'Nama dan username wajib diisi' });
+            log.validationFail('nama/username', null, 'Required fields missing');
+            return sendValidationError(res, 'Nama dan username wajib diisi', { fields: ['nama', 'username'] });
         }
 
-        // Check if username is already taken by another user in users table
+        // Check if username is already taken by another user
         const [existingUser] = await global.dbPool.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
 
         if (existingUser.length > 0) {
-            return res.status(400).json({ error: 'Username sudah digunakan oleh user lain' });
+            log.warn('UpdateProfile failed - username taken', { username });
+            return sendDuplicateError(res, 'Username sudah digunakan oleh user lain');
         }
 
-        // Check if nomor_telepon_siswa is already taken by another student (if provided)
+        // Check if nomor_telepon_siswa is already taken
         if (nomor_telepon_siswa && nomor_telepon_siswa.trim()) {
             const [existingPhone] = await global.dbPool.execute(
                 'SELECT user_id FROM siswa WHERE nomor_telepon_siswa = ? AND user_id != ?',
@@ -492,7 +475,8 @@ export const updateProfile = async (req, res) => {
             );
 
             if (existingPhone.length > 0) {
-                return res.status(400).json({ error: 'Nomor telepon siswa sudah digunakan oleh siswa lain' });
+                log.warn('UpdateProfile failed - phone taken', { nomor_telepon_siswa });
+                return sendDuplicateError(res, 'Nomor telepon siswa sudah digunakan oleh siswa lain');
             }
         }
 
@@ -501,7 +485,7 @@ export const updateProfile = async (req, res) => {
         await connection.beginTransaction();
 
         try {
-            // Update profile in users table (username, email)
+            // Update profile in users table
             await connection.execute(
                 `UPDATE users SET 
                     nama = ?, 
@@ -527,7 +511,7 @@ export const updateProfile = async (req, res) => {
 
             await connection.commit();
 
-            // Get updated user data with kelas info
+            // Get updated user data
             const [updatedUser] = await global.dbPool.execute(
                 `SELECT u.id, u.username, u.nama, u.email, u.role, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa,
                         s.nis, k.nama_kelas as kelas, s.jenis_kelamin, u.created_at, u.updated_at
@@ -538,13 +522,8 @@ export const updateProfile = async (req, res) => {
                 [userId]
             );
 
-            console.log('✅ Siswa profile updated successfully');
-
-            res.json({
-                success: true,
-                message: 'Profil berhasil diperbarui',
-                data: updatedUser[0]
-            });
+            log.success('UpdateProfile', { userId });
+            return sendSuccessResponse(res, updatedUser[0], 'Profil berhasil diperbarui');
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -552,23 +531,29 @@ export const updateProfile = async (req, res) => {
             connection.release();
         }
     } catch (error) {
+        log.dbError('updateProfile', error, { userId });
         return sendDatabaseError(res, error, 'Gagal mengupdate profil');
     }
 };
 
 // Change password for siswa (self-service)
 export const changePassword = async (req, res) => {
-    try {
-        const { newPassword } = req.body;
-        const userId = req.user.id;
+    const log = logger.withRequest(req, res);
+    const { newPassword } = req.body;
+    const userId = req.user.id;
 
+    log.requestStart('ChangePassword', { userId });
+
+    try {
         // Validate required fields
         if (!newPassword) {
-            return res.status(400).json({ error: 'Password baru wajib diisi' });
+            log.validationFail('newPassword', null, 'Required field missing');
+            return sendValidationError(res, 'Password baru wajib diisi', { field: 'newPassword' });
         }
 
         if (newPassword.length < 6) {
-            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+            log.validationFail('newPassword', null, 'Password too short');
+            return sendValidationError(res, 'Password baru minimal 6 karakter', { minLength: 6 });
         }
 
         // Hash new password
@@ -580,11 +565,10 @@ export const changePassword = async (req, res) => {
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
 
-        res.json({
-            success: true,
-            message: 'Password berhasil diubah'
-        });
+        log.success('ChangePassword', { userId });
+        return sendSuccessResponse(res, null, 'Password berhasil diubah');
     } catch (error) {
+        log.dbError('changePassword', error, { userId });
         return sendDatabaseError(res, error, 'Gagal mengubah password');
     }
 };

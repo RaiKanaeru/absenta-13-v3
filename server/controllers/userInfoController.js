@@ -1,22 +1,21 @@
 /**
  * User Info Controller
  * Self-service info endpoints for siswa perwakilan, guru, admin
- * Migrated from server_modern.js - EXACT CODE COPY
  */
 
 import { getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
+import { sendDatabaseError, sendNotFoundError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
-
-// ================================================
-// SISWA PERWAKILAN ENDPOINTS
-// ================================================
+const logger = createLogger('UserInfo');
 
 // Get siswa perwakilan info
 export const getSiswaPerwakilanInfo = async (req, res) => {
-    try {
-        console.log('📋 Getting siswa perwakilan info for user:', req.user.id);
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetSiswaPerwakilanInfo', { userId: req.user.id });
 
+    try {
         const [siswaData] = await global.dbPool.execute(
             `SELECT u.id, u.username, u.nama, u.email, u.role, s.id_siswa, s.nis, s.kelas_id, 
                     k.nama_kelas, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa, s.jenis_kelamin, s.jabatan, 
@@ -29,11 +28,12 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
         );
 
         if (siswaData.length === 0) {
-            return res.status(404).json({ error: 'Data siswa perwakilan tidak ditemukan' });
+            log.warn('Siswa perwakilan not found', { userId: req.user.id });
+            return sendNotFoundError(res, 'Data siswa perwakilan tidak ditemukan');
         }
 
         const info = siswaData[0];
-        console.log('✅ Siswa perwakilan info retrieved:', info);
+        log.success('GetSiswaPerwakilanInfo', { siswaId: info.id_siswa, nama: info.nama });
 
         res.json({
             success: true,
@@ -56,16 +56,18 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error getting siswa perwakilan info:', error);
-        res.status(500).json({ error: 'Gagal memuat informasi siswa perwakilan' });
+        log.dbError('query', error, { userId: req.user.id });
+        return sendDatabaseError(res, error, 'Gagal memuat informasi siswa perwakilan');
     }
 };
 
 // Get guru info
 export const getGuruInfo = async (req, res) => {
-    try {
-        console.log('📋 Getting guru info for user:', req.user.id);
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetGuruInfo', { userId: req.user.id });
 
+    try {
         const [guruData] = await global.dbPool.execute(
             `SELECT u.id, u.username, u.nama, u.email, u.role, g.id_guru, g.nip, g.mapel_id, 
                     m.nama_mapel, g.alamat, g.no_telp, g.jenis_kelamin, g.status, 
@@ -78,11 +80,12 @@ export const getGuruInfo = async (req, res) => {
         );
 
         if (guruData.length === 0) {
-            return res.status(404).json({ error: 'Data guru tidak ditemukan' });
+            log.warn('Guru not found', { userId: req.user.id });
+            return sendNotFoundError(res, 'Data guru tidak ditemukan');
         }
 
         const info = guruData[0];
-        console.log('✅ Guru info retrieved:', info);
+        log.success('GetGuruInfo', { guruId: info.id_guru, nama: info.nama });
 
         res.json({
             success: true,
@@ -104,16 +107,18 @@ export const getGuruInfo = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error getting guru info:', error);
-        res.status(500).json({ error: 'Gagal memuat informasi guru' });
+        log.dbError('query', error, { userId: req.user.id });
+        return sendDatabaseError(res, error, 'Gagal memuat informasi guru');
     }
 };
 
 // Get admin info
 export const getAdminInfo = async (req, res) => {
-    try {
-        console.log('📋 Getting admin info for user:', req.user.id);
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetAdminInfo', { userId: req.user.id });
 
+    try {
         const [adminData] = await global.dbPool.execute(
             `SELECT id, username, nama, email, role, created_at, updated_at
              FROM users
@@ -122,11 +127,12 @@ export const getAdminInfo = async (req, res) => {
         );
 
         if (adminData.length === 0) {
-            return res.status(404).json({ error: 'Data admin tidak ditemukan' });
+            log.warn('Admin not found', { userId: req.user.id });
+            return sendNotFoundError(res, 'Data admin tidak ditemukan');
         }
 
         const info = adminData[0];
-        console.log('✅ Admin info retrieved:', info);
+        log.success('GetAdminInfo', { adminId: info.id, nama: info.nama });
 
         res.json({
             success: true,
@@ -140,23 +146,25 @@ export const getAdminInfo = async (req, res) => {
         });
 
     } catch (error) {
+        log.dbError('query', error, { userId: req.user.id });
         return sendDatabaseError(res, error, 'Gagal memuat informasi admin');
     }
 };
 
 // Get jadwal hari ini untuk siswa
 export const getSiswaJadwalHariIni = async (req, res) => {
-    try {
-        const { siswa_id } = req.params;
-        console.log('📅 Getting jadwal hari ini for siswa:', siswa_id);
+    const log = logger.withRequest(req, res);
+    const { siswa_id } = req.params;
+    
+    log.requestStart('GetSiswaJadwalHariIni', { siswaId: siswa_id });
 
-        // FIX: Get current day in Indonesian using WIB timezone
+    try {
         const wibTime = getWIBTime();
         const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const currentDay = dayNames[wibTime.getDay()];
         const todayWIB = getMySQLDateWIB();
 
-        console.log('📅 Current day (WIB):', currentDay, 'Date:', todayWIB);
+        log.debug('Date context', { currentDay, todayWIB });
 
         // Get siswa's class
         const [siswaData] = await global.dbPool.execute(
@@ -165,7 +173,8 @@ export const getSiswaJadwalHariIni = async (req, res) => {
         );
 
         if (siswaData.length === 0) {
-            return res.status(404).json({ error: 'Siswa tidak ditemukan' });
+            log.warn('Siswa not found', { siswaId: siswa_id });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
         const kelasId = siswaData[0].kelas_id;
@@ -223,23 +232,24 @@ export const getSiswaJadwalHariIni = async (req, res) => {
             ORDER BY j.jam_ke
         `, [todayWIB, todayWIB, kelasId, currentDay]);
 
-        console.log('✅ Jadwal retrieved:', jadwalData.length, 'items');
-
+        log.success('GetSiswaJadwalHariIni', { siswaId: siswa_id, kelasId, count: jadwalData.length });
         res.json(jadwalData);
 
     } catch (error) {
-        console.error('❌ Error getting jadwal hari ini:', error);
-        res.status(500).json({ error: 'Gagal memuat jadwal hari ini' });
+        log.dbError('query', error, { siswaId: siswa_id });
+        return sendDatabaseError(res, error, 'Gagal memuat jadwal hari ini');
     }
 };
 
 // Get jadwal dengan rentang tanggal untuk siswa (7 hari terakhir)
 export const getSiswaJadwalRentang = async (req, res) => {
-    try {
-        const { siswa_id } = req.params;
-        const { tanggal } = req.query;
-        console.log('📅 Getting jadwal rentang for siswa:', siswa_id, 'tanggal:', tanggal);
+    const log = logger.withRequest(req, res);
+    const { siswa_id } = req.params;
+    const { tanggal } = req.query;
+    
+    log.requestStart('GetSiswaJadwalRentang', { siswaId: siswa_id, tanggal });
 
+    try {
         // Get siswa's class
         const [siswaData] = await global.dbPool.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
@@ -247,7 +257,8 @@ export const getSiswaJadwalRentang = async (req, res) => {
         );
 
         if (siswaData.length === 0) {
-            return res.status(404).json({ error: 'Siswa tidak ditemukan' });
+            log.warn('Siswa not found', { siswaId: siswa_id });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
         const kelasId = siswaData[0].kelas_id;
@@ -258,11 +269,13 @@ export const getSiswaJadwalRentang = async (req, res) => {
         const targetDate = tanggal ? new Date(tanggal) : today;
 
         if (targetDate > today) {
-            return res.status(400).json({ error: 'Tidak dapat melihat jadwal untuk tanggal masa depan' });
+            log.validationFail('tanggal', tanggal, 'Future date not allowed');
+            return sendValidationError(res, 'Tidak dapat melihat jadwal untuk tanggal masa depan');
         }
 
         if (targetDate < sevenDaysAgo) {
-            return res.status(400).json({ error: 'Tidak dapat melihat jadwal lebih dari 7 hari yang lalu' });
+            log.validationFail('tanggal', tanggal, 'Date more than 7 days ago');
+            return sendValidationError(res, 'Tidak dapat melihat jadwal lebih dari 7 hari yang lalu');
         }
 
         // Get day name for the target date
@@ -270,7 +283,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
         const targetDay = dayNames[targetDate.getDay()];
         const targetDateStr = targetDate.toISOString().split('T')[0];
 
-        console.log('📅 Target day:', targetDay, 'Target date:', targetDateStr);
+        log.debug('Target date context', { targetDay, targetDateStr });
 
         // Get schedule for the target date with multi-guru support
         const [jadwalData] = await global.dbPool.execute(`
@@ -326,7 +339,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
             ORDER BY j.jam_ke
         `, [targetDateStr, targetDateStr, targetDateStr, kelasId, targetDay]);
 
-        console.log('✅ Jadwal rentang retrieved:', jadwalData.length, 'items for date:', targetDateStr);
+        log.success('GetSiswaJadwalRentang', { siswaId: siswa_id, targetDateStr, count: jadwalData.length });
 
         res.json({
             success: true,
@@ -336,7 +349,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error getting jadwal rentang:', error);
-        res.status(500).json({ error: 'Gagal memuat jadwal rentang' });
+        log.dbError('query', error, { siswaId: siswa_id, tanggal });
+        return sendDatabaseError(res, error, 'Gagal memuat jadwal rentang');
     }
 };
