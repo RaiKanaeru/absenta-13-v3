@@ -1,20 +1,21 @@
 /**
  * Teacher Data Controller
  * Handles CRUD operations for Teacher Data (Profile + User Account Sync)
- * Migrated from server_modern.js
  */
 
 import bcrypt from 'bcrypt';
-
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const logger = createLogger('TeacherData');
 
 // Get teachers data for admin dashboard
 export const getTeachersData = async (req, res) => {
-    try {
-        console.log('📋 Getting teachers data for admin dashboard');
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetAll');
 
+    try {
         const query = `
             SELECT g.id, g.nip, g.nama, g.email, g.mata_pelajaran, 
                    g.alamat, g.no_telp as telepon, g.jenis_kelamin, 
@@ -24,23 +25,26 @@ export const getTeachersData = async (req, res) => {
         `;
 
         const [results] = await global.dbPool.execute(query);
-        console.log(`✅ Teachers data retrieved: ${results.length} items`);
+        log.success('GetAll', { count: results.length });
         res.json(results);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data guru');
     }
 };
 
 // Add teacher data
 export const addTeacherData = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = req.body;
+    
+    log.requestStart('Create', { nip, nama, mata_pelajaran });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = req.body;
-        console.log('➕ Adding teacher data:', { nip, nama, mata_pelajaran });
-
         if (!nip || !nama || !jenis_kelamin) {
-            return res.status(400).json({ error: 'NIP, nama, dan jenis kelamin wajib diisi' });
+            log.validationFail('required_fields', null, 'NIP, nama, jenis_kelamin required');
+            return sendValidationError(res, 'NIP, nama, dan jenis kelamin wajib diisi', { fields: ['nip', 'nama', 'jenis_kelamin'] });
         }
 
         // Check if NIP already exists
@@ -50,7 +54,8 @@ export const addTeacherData = async (req, res) => {
         );
 
         if (existing.length > 0) {
-            return res.status(409).json({ error: 'NIP sudah terdaftar' });
+            log.warn('Create failed - NIP exists', { nip });
+            return sendDuplicateError(res, 'NIP sudah terdaftar');
         }
 
         // Start transaction
@@ -78,19 +83,18 @@ export const addTeacherData = async (req, res) => {
             ]);
 
             await connection.commit();
-            console.log('✅ Teacher data added successfully:', result.insertId);
-            res.json({ message: 'Data guru berhasil ditambahkan', id: result.insertId });
+            log.success('Create', { guruId: result.insertId, nip, nama });
+            return sendSuccessResponse(res, { id: result.insertId }, 'Data guru berhasil ditambahkan', 201);
         } catch (error) {
             await connection.rollback();
             throw error;
         }
     } catch (error) {
-        console.error('❌ Error adding teacher data:', error);
+        log.dbError('insert', error, { nip, nama });
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(409).json({ error: 'NIP sudah terdaftar' });
-        } else {
-            res.status(500).json({ error: 'Internal server error' });
+            return sendDuplicateError(res, 'NIP sudah terdaftar');
         }
+        return sendDatabaseError(res, error, 'Gagal menambahkan data guru');
     } finally {
         connection.release();
     }
@@ -98,15 +102,17 @@ export const addTeacherData = async (req, res) => {
 
 // Update teacher data
 export const updateTeacherData = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = req.body;
+    
+    log.requestStart('Update', { id, nip, nama });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { id } = req.params;
-        const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = req.body;
-        console.log('📝 Updating teacher data:', { id, nip, nama });
-
         if (!nip || !nama || !jenis_kelamin) {
-            return res.status(400).json({ error: 'NIP, nama, dan jenis kelamin wajib diisi' });
+            log.validationFail('required_fields', null, 'NIP, nama, jenis_kelamin required');
+            return sendValidationError(res, 'NIP, nama, dan jenis kelamin wajib diisi', { fields: ['nip', 'nama', 'jenis_kelamin'] });
         }
 
         // Check if NIP already exists for other records
@@ -116,7 +122,8 @@ export const updateTeacherData = async (req, res) => {
         );
 
         if (existing.length > 0) {
-            return res.status(409).json({ error: 'NIP sudah digunakan oleh guru lain' });
+            log.warn('Update failed - NIP taken by other', { nip, id });
+            return sendDuplicateError(res, 'NIP sudah digunakan oleh guru lain');
         }
 
         await connection.beginTransaction();
@@ -149,18 +156,20 @@ export const updateTeacherData = async (req, res) => {
             ]);
 
             if (result.affectedRows === 0) {
-                return res.status(404).json({ error: 'Data guru tidak ditemukan' });
+                log.warn('Update failed - not found', { id });
+                return sendNotFoundError(res, 'Data guru tidak ditemukan');
             }
 
             await connection.commit();
-            console.log('✅ Teacher data updated successfully');
-            res.json({ message: 'Data guru berhasil diupdate' });
+            log.success('Update', { id, nip, nama });
+            return sendSuccessResponse(res, null, 'Data guru berhasil diupdate');
         } catch (error) {
             await connection.rollback();
             throw error;
         }
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('update', error, { id, nip, nama });
+        return sendDatabaseError(res, error, 'Gagal mengupdate data guru');
     } finally {
         connection.release();
     }
@@ -168,12 +177,13 @@ export const updateTeacherData = async (req, res) => {
 
 // Delete teacher data
 export const deleteTeacherData = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('Delete', { id });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { id } = req.params;
-        console.log('🗑️ Deleting teacher data:', { id });
-
         await connection.beginTransaction();
 
         try {
@@ -184,7 +194,8 @@ export const deleteTeacherData = async (req, res) => {
             );
 
             if (guruData.length === 0) {
-                return res.status(404).json({ error: 'Data guru tidak ditemukan' });
+                log.warn('Delete failed - not found', { id });
+                return sendNotFoundError(res, 'Data guru tidak ditemukan');
             }
 
             // Delete guru data first (foreign key constraint)
@@ -194,12 +205,11 @@ export const deleteTeacherData = async (req, res) => {
             );
 
             if (result.affectedRows === 0) {
-                // Should be unreachable given select above, but safe
                 await connection.rollback();
-                return res.status(404).json({ error: 'Data guru tidak ditemukan' });
+                return sendNotFoundError(res, 'Data guru tidak ditemukan');
             }
 
-            // Delete from users table (CASCADE should handle this, but let's be explicit)
+            // Delete from users table
             if (guruData[0].user_id) {
                 await global.dbPool.execute(
                     'DELETE FROM users WHERE id = ?',
@@ -207,18 +217,16 @@ export const deleteTeacherData = async (req, res) => {
                 );
             }
 
-            // Commit transaction
             await connection.commit();
-
-            console.log('✅ Teacher data deleted successfully');
-            res.json({ message: 'Data guru berhasil dihapus' });
+            log.success('Delete', { id });
+            return sendSuccessResponse(res, null, 'Data guru berhasil dihapus');
         } catch (error) {
-            // Rollback transaction on error
             await connection.rollback();
             throw error;
         }
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('delete', error, { id });
+        return sendDatabaseError(res, error, 'Gagal menghapus data guru');
     } finally {
         connection.release();
     }

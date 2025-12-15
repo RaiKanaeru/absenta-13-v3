@@ -1,21 +1,22 @@
 /**
  * Student Data Controller
  * Handles CRUD operations for Student Data (Profile + User Account Sync) and Promotion
- * Migrated from server_modern.js
  */
 
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
-
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+import { createLogger } from '../utils/logger.js';
 
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const logger = createLogger('StudentData');
 
 // Get students data for admin dashboard
 export const getStudentsData = async (req, res) => {
-    try {
-        console.log('📋 Getting students data for admin dashboard');
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetAll');
 
+    try {
         const query = `
             SELECT 
                 s.id_siswa as id_siswa,
@@ -35,26 +36,28 @@ export const getStudentsData = async (req, res) => {
         `;
 
         const [results] = await global.dbPool.execute(query);
-        console.log(`✅ Students data retrieved: ${results.length} items`);
+        log.success('GetAll', { count: results.length });
         res.json(results);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error);
+        return sendDatabaseError(res, error, 'Gagal mengambil data siswa');
     }
 };
 
 // Add student data
 export const addStudentData = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, nomor_telepon_siswa, status } = req.body;
+    
+    log.requestStart('Create', { nis, nama, kelas_id });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, nomor_telepon_siswa, status } = req.body;
-        console.log('➕ Adding student data:', { nis, nama, kelas_id });
-
         if (!nis || !nama || !kelas_id || !jenis_kelamin) {
-            return res.status(400).json({ error: 'NIS, nama, kelas, dan jenis kelamin wajib diisi' });
+            log.validationFail('required_fields', null, 'NIS, nama, kelas_id, jenis_kelamin required');
+            return sendValidationError(res, 'NIS, nama, kelas, dan jenis kelamin wajib diisi', { fields: ['nis', 'nama', 'kelas_id', 'jenis_kelamin'] });
         }
 
-        // Start transaction
         await connection.beginTransaction();
 
         // Check if NIS already exists
@@ -65,7 +68,8 @@ export const addStudentData = async (req, res) => {
 
         if (existing.length > 0) {
             await connection.rollback();
-            return res.status(409).json({ error: 'NIS sudah terdaftar' });
+            log.warn('Create failed - NIS exists', { nis });
+            return sendDuplicateError(res, 'NIS sudah terdaftar');
         }
 
         // Generate username from NIS
@@ -82,11 +86,11 @@ export const addStudentData = async (req, res) => {
         `;
 
         const [userResult] = await connection.execute(userInsertQuery, [
-            username, dummyPassword, email, nama, createdAtWIB // nama will be used for the nama field
+            username, dummyPassword, email, nama, createdAtWIB
         ]);
 
         const userId = userResult.insertId;
-        console.log('✅ User created with ID:', userId);
+        log.debug('User created', { userId });
 
         // Get next id_siswa
         const [maxIdResult] = await connection.execute(
@@ -101,43 +105,29 @@ export const addStudentData = async (req, res) => {
         `;
 
         const [studentResult] = await connection.execute(studentInsertQuery, [
-            nextIdSiswa, // id (primary key)
-            nextIdSiswa, // id_siswa
-            userId,      // user_id (foreign key)
-            username,    // username
-            nis,         // nis
-            nama,        // nama
-            kelas_id,    // kelas_id
-            jenis_kelamin, // jenis_kelamin
-            alamat || null, // alamat
-            telepon_orangtua || null, // telepon_orangtua
-            nomor_telepon_siswa || null, // nomor_telepon_siswa
-            status || 'aktif', // status
-            createdAtWIB // created_at
+            nextIdSiswa, nextIdSiswa, userId, username, nis, nama, kelas_id, jenis_kelamin,
+            alamat || null, telepon_orangtua || null, nomor_telepon_siswa || null,
+            status || 'aktif', createdAtWIB
         ]);
 
-        // Commit transaction
         await connection.commit();
 
-        console.log('✅ Student data added successfully:', studentResult.insertId);
-        res.json({
-            message: 'Data siswa berhasil ditambahkan',
+        log.success('Create', { siswaId: studentResult.insertId, userId, nis, nama });
+        return sendSuccessResponse(res, {
             id: studentResult.insertId,
             userId: userId,
             username: username
-        });
+        }, 'Data siswa berhasil ditambahkan', 201);
     } catch (error) {
-        // Rollback transaction on error
         await connection.rollback();
-        console.error('❌ Error adding student data:', error);
+        log.dbError('insert', error, { nis, nama });
 
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(409).json({ error: 'NIS atau username sudah terdaftar' });
+            return sendDuplicateError(res, 'NIS atau username sudah terdaftar');
         } else if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-            res.status(400).json({ error: 'Kelas tidak ditemukan' });
-        } else {
-            res.status(500).json({ error: 'Internal server error' });
+            return sendValidationError(res, 'Kelas tidak ditemukan', { field: 'kelas_id' });
         }
+        return sendDatabaseError(res, error, 'Gagal menambahkan data siswa');
     } finally {
         connection.release();
     }
@@ -145,20 +135,23 @@ export const addStudentData = async (req, res) => {
 
 // Update student data
 export const updateStudentData = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, status, nomor_telepon_siswa } = req.body;
+    
+    log.requestStart('Update', { id, nis, nama });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { id } = req.params;
-        const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, status, nomor_telepon_siswa } = req.body;
-        console.log('📝 Updating student data:', { id, nis, nama });
-
         if (!nis || !nama || !kelas_id || !jenis_kelamin) {
-            return res.status(400).json({ error: 'NIS, nama, kelas, dan jenis kelamin wajib diisi' });
+            log.validationFail('required_fields', null, 'NIS, nama, kelas_id, jenis_kelamin required');
+            return sendValidationError(res, 'NIS, nama, kelas, dan jenis kelamin wajib diisi', { fields: ['nis', 'nama', 'kelas_id', 'jenis_kelamin'] });
         }
 
         // Validasi nomor telepon jika diisi
         if (nomor_telepon_siswa && !/^[0-9]{10,15}$/.test(nomor_telepon_siswa)) {
-            return res.status(400).json({ error: 'Nomor telepon harus berupa angka 10-15 digit' });
+            log.validationFail('nomor_telepon_siswa', nomor_telepon_siswa, 'Invalid phone format');
+            return sendValidationError(res, 'Nomor telepon harus berupa angka 10-15 digit', { field: 'nomor_telepon_siswa' });
         }
 
         // Cek unik nomor telepon jika diisi
@@ -168,11 +161,11 @@ export const updateStudentData = async (req, res) => {
                 [nomor_telepon_siswa, id]
             );
             if (existingPhone.length > 0) {
-                return res.status(400).json({ error: 'Nomor telepon siswa sudah digunakan' });
+                log.warn('Update failed - phone taken', { nomor_telepon_siswa });
+                return sendDuplicateError(res, 'Nomor telepon siswa sudah digunakan');
             }
         }
 
-        // Start transaction
         await connection.beginTransaction();
 
         // Check if student exists
@@ -183,7 +176,8 @@ export const updateStudentData = async (req, res) => {
 
         if (studentExists.length === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: 'Data siswa tidak ditemukan' });
+            log.warn('Update failed - not found', { id });
+            return sendNotFoundError(res, 'Data siswa tidak ditemukan');
         }
 
         // Check if NIS already exists for other records
@@ -194,11 +188,11 @@ export const updateStudentData = async (req, res) => {
 
         if (existing.length > 0) {
             await connection.rollback();
-            return res.status(409).json({ error: 'NIS sudah digunakan oleh siswa lain' });
+            log.warn('Update failed - NIS taken by other', { nis, id });
+            return sendDuplicateError(res, 'NIS sudah digunakan oleh siswa lain');
         }
 
         // Update siswa table
-        // FIX: Use WIB timezone for updated_at
         const updatedAtWIB = getMySQLDateTimeWIB();
         const updateQuery = `
             UPDATE siswa 
@@ -214,30 +208,26 @@ export const updateStudentData = async (req, res) => {
 
         if (result.affectedRows === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: 'Data siswa tidak ditemukan' });
+            return sendNotFoundError(res, 'Data siswa tidak ditemukan');
         }
 
-        // Update users table with nama (since siswa is a view)
+        // Update users table with nama
         await connection.execute(
             'UPDATE users SET nama = ?, updated_at = ? WHERE id = ?',
             [nama, updatedAtWIB, studentExists[0].user_id]
         );
 
-        // Commit transaction
         await connection.commit();
-
-        console.log('✅ Student data updated successfully');
-        res.json({ message: 'Data siswa berhasil diupdate' });
+        log.success('Update', { id, nis, nama });
+        return sendSuccessResponse(res, null, 'Data siswa berhasil diupdate');
     } catch (error) {
-        // Rollback transaction on error
         await connection.rollback();
-        console.error('❌ Error updating student data:', error);
+        log.dbError('update', error, { id, nis, nama });
 
         if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-            res.status(400).json({ error: 'Kelas tidak ditemukan' });
-        } else {
-            res.status(500).json({ error: 'Internal server error' });
+            return sendValidationError(res, 'Kelas tidak ditemukan', { field: 'kelas_id' });
         }
+        return sendDatabaseError(res, error, 'Gagal mengupdate data siswa');
     } finally {
         connection.release();
     }
@@ -245,13 +235,13 @@ export const updateStudentData = async (req, res) => {
 
 // Delete student data
 export const deleteStudentData = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('Delete', { id });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { id } = req.params;
-        console.log('🗑️ Deleting student data:', { id });
-
-        // Start transaction
         await connection.beginTransaction();
 
         // Get user_id before deleting
@@ -262,7 +252,8 @@ export const deleteStudentData = async (req, res) => {
 
         if (studentData.length === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: 'Data siswa tidak ditemukan' });
+            log.warn('Delete failed - not found', { id });
+            return sendNotFoundError(res, 'Data siswa tidak ditemukan');
         }
 
         const userId = studentData[0].user_id;
@@ -275,10 +266,10 @@ export const deleteStudentData = async (req, res) => {
 
         if (studentResult.affectedRows === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: 'Data siswa tidak ditemukan' });
+            return sendNotFoundError(res, 'Data siswa tidak ditemukan');
         }
 
-        // Delete from users table (CASCADE should handle this, but let's be explicit)
+        // Delete from users table
         if (userId) {
             await connection.execute(
                 'DELETE FROM users WHERE id = ?',
@@ -286,15 +277,13 @@ export const deleteStudentData = async (req, res) => {
             );
         }
 
-        // Commit transaction
         await connection.commit();
-
-        console.log('✅ Student data deleted successfully');
-        res.json({ message: 'Data siswa berhasil dihapus' });
+        log.success('Delete', { id });
+        return sendSuccessResponse(res, null, 'Data siswa berhasil dihapus');
     } catch (error) {
-        // Rollback transaction on error
         await connection.rollback();
-        return sendDatabaseError(res, error);
+        log.dbError('delete', error, { id });
+        return sendDatabaseError(res, error, 'Gagal menghapus data siswa');
     } finally {
         connection.release();
     }
@@ -302,32 +291,35 @@ export const deleteStudentData = async (req, res) => {
 
 // Student promotion (naik kelas)
 export const promoteStudents = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { fromClassId, toClassId, studentIds } = req.body;
+    
+    log.requestStart('PromoteStudents', { fromClassId, toClassId, studentCount: studentIds?.length });
+
     const connection = await global.dbPool.getConnection();
-
     try {
-        const { fromClassId, toClassId, studentIds } = req.body;
-        console.log('🎓 Student promotion request:', { fromClassId, toClassId, studentIds });
-
         // Validasi input yang lebih ketat
         if (!fromClassId || !toClassId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
-            return res.status(400).json({
-                error: 'fromClassId, toClassId, dan studentIds wajib diisi',
+            log.validationFail('required_fields', null, 'fromClassId, toClassId, studentIds required');
+            return sendValidationError(res, 'fromClassId, toClassId, dan studentIds wajib diisi', {
                 details: 'studentIds harus berupa array yang tidak kosong'
             });
         }
 
         // Validasi tipe data
         if (typeof fromClassId !== 'string' && typeof fromClassId !== 'number') {
-            return res.status(400).json({ error: 'fromClassId harus berupa string atau number' });
+            log.validationFail('fromClassId', fromClassId, 'Invalid type');
+            return sendValidationError(res, 'fromClassId harus berupa string atau number', { field: 'fromClassId' });
         }
         if (typeof toClassId !== 'string' && typeof toClassId !== 'number') {
-            return res.status(400).json({ error: 'toClassId harus berupa string atau number' });
+            log.validationFail('toClassId', toClassId, 'Invalid type');
+            return sendValidationError(res, 'toClassId harus berupa string atau number', { field: 'toClassId' });
         }
         if (!studentIds.every(id => typeof id === 'number' && Number.isInteger(id) && id > 0)) {
-            return res.status(400).json({ error: 'Semua studentIds harus berupa integer positif' });
+            log.validationFail('studentIds', null, 'Invalid student IDs');
+            return sendValidationError(res, 'Semua studentIds harus berupa integer positif', { field: 'studentIds' });
         }
 
-        // Start transaction
         await connection.beginTransaction();
 
         // Verify classes exist and get detailed info
@@ -343,33 +335,32 @@ export const promoteStudents = async (req, res) => {
 
         if (fromClass.length === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: 'Kelas asal tidak ditemukan atau tidak aktif' });
+            log.warn('Promote failed - fromClass not found', { fromClassId });
+            return sendNotFoundError(res, 'Kelas asal tidak ditemukan atau tidak aktif');
         }
 
         if (toClass.length === 0) {
             await connection.rollback();
-            return res.status(404).json({ error: 'Kelas tujuan tidak ditemukan atau tidak aktif' });
+            log.warn('Promote failed - toClass not found', { toClassId });
+            return sendNotFoundError(res, 'Kelas tujuan tidak ditemukan atau tidak aktif');
         }
 
         // Validasi aturan bisnis: kelas XII tidak bisa dinaikkan
         if (fromClass[0].tingkat === 'XII') {
             await connection.rollback();
-            return res.status(400).json({
-                error: 'Kelas XII tidak dapat dinaikkan',
+            log.validationFail('tingkat', 'XII', 'Cannot promote from XII');
+            return sendValidationError(res, 'Kelas XII tidak dapat dinaikkan', {
                 details: 'Siswa kelas XII sudah lulus dan tidak dapat dipromosikan'
             });
         }
 
         // Validasi tingkat promosi (X->XI, XI->XII)
-        const validPromotions = {
-            'X': 'XI',
-            'XI': 'XII'
-        };
+        const validPromotions = { 'X': 'XI', 'XI': 'XII' };
 
         if (validPromotions[fromClass[0].tingkat] !== toClass[0].tingkat) {
             await connection.rollback();
-            return res.status(400).json({
-                error: 'Promosi tidak valid',
+            log.validationFail('promotion_path', null, 'Invalid promotion path');
+            return sendValidationError(res, 'Promosi tidak valid', {
                 details: `Kelas ${fromClass[0].tingkat} hanya bisa dinaikkan ke kelas ${validPromotions[fromClass[0].tingkat]}`
             });
         }
@@ -384,8 +375,8 @@ export const promoteStudents = async (req, res) => {
 
         if (students.length !== studentIds.length) {
             await connection.rollback();
-            return res.status(400).json({
-                error: 'Beberapa siswa tidak ditemukan atau tidak berada di kelas asal',
+            log.warn('Promote failed - students mismatch', { found: students.length, requested: studentIds.length });
+            return sendValidationError(res, 'Beberapa siswa tidak ditemukan atau tidak berada di kelas asal', {
                 details: `Ditemukan ${students.length} siswa dari ${studentIds.length} yang diminta`
             });
         }
@@ -397,19 +388,23 @@ export const promoteStudents = async (req, res) => {
             [toClassId, ...studentIds]
         );
 
-        // Commit transaction
         await connection.commit();
 
-        console.log(`✅ Promoted ${updateResult.affectedRows} students from ${fromClass[0].nama_kelas} to ${toClass[0].nama_kelas}`);
-        res.json({
-            message: 'Siswa berhasil dinaikkan kelas',
+        log.success('PromoteStudents', {
             promotedCount: updateResult.affectedRows,
             fromClass: fromClass[0].nama_kelas,
             toClass: toClass[0].nama_kelas
         });
+        
+        return sendSuccessResponse(res, {
+            promotedCount: updateResult.affectedRows,
+            fromClass: fromClass[0].nama_kelas,
+            toClass: toClass[0].nama_kelas
+        }, 'Siswa berhasil dinaikkan kelas');
     } catch (error) {
         await connection.rollback();
-        return sendDatabaseError(res, error);
+        log.dbError('promote', error, { fromClassId, toClassId });
+        return sendDatabaseError(res, error, 'Gagal mempromosikan siswa');
     } finally {
         connection.release();
     }
