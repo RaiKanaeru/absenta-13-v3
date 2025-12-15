@@ -1,14 +1,15 @@
 /**
  * Letterhead Controller
  * Handles all letterhead/KOP related operations
- * Migrated from server_modern.js
  */
 
 import path from 'path';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
-
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { promises as fs } from 'fs';
 import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Letterhead');
 
 // ================================================
 // HELPER FUNCTIONS
@@ -18,16 +19,16 @@ async function getLetterheadGlobal() {
     try {
         return await getLetterhead({ reportKey: null });
     } catch (error) {
-        console.error('❌ Error getting global letterhead:', error);
+        console.error('Error getting global letterhead:', error);
         return null;
     }
 }
 
-async function getLetterheadForReport(reportKey) {
+async function getLetterheadForReportKey(reportKey) {
     try {
         return await getLetterhead({ reportKey });
     } catch (error) {
-        console.error('❌ Error getting report letterhead:', error);
+        console.error('Error getting report letterhead:', error);
         return null;
     }
 }
@@ -41,10 +42,15 @@ async function getLetterheadForReport(reportKey) {
  * GET /api/admin/report-letterhead
  */
 export const getReportLetterhead = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetReportLetterhead', {});
+
     try {
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
-        res.json({ success: true, data: letterhead });
+        log.success('GetReportLetterhead', { found: !!letterhead });
+        return sendSuccessResponse(res, letterhead);
     } catch (error) {
+        log.dbError('query', error);
         return sendDatabaseError(res, error, 'Gagal memuat konfigurasi kop laporan');
     }
 };
@@ -54,24 +60,28 @@ export const getReportLetterhead = async (req, res) => {
  * PUT /api/admin/report-letterhead
  */
 export const updateReportLetterhead = async (req, res) => {
-    try {
-        const letterhead = req.body;
+    const log = logger.withRequest(req, res);
+    const letterhead = req.body;
+    
+    log.requestStart('UpdateReportLetterhead', {});
 
+    try {
         const validation = validateLetterhead(letterhead);
         if (!validation.isValid) {
-            return res.status(400).json({
-                error: 'Konfigurasi kop laporan tidak valid',
-                details: validation.errors
-            });
+            log.validationFail('letterhead', null, validation.errors.join(', '));
+            return sendValidationError(res, 'Konfigurasi kop laporan tidak valid', { details: validation.errors });
         }
 
         const success = await setLetterheadForReport(REPORT_KEYS.LAPORAN_GURU, letterhead);
         if (!success) {
-            return res.status(500).json({ error: 'Gagal menyimpan konfigurasi kop laporan' });
+            log.error('UpdateReportLetterhead failed');
+            return sendErrorResponse(res, null, 'Gagal menyimpan konfigurasi kop laporan');
         }
 
-        res.json({ success: true, message: 'Konfigurasi kop laporan berhasil disimpan', data: letterhead });
+        log.success('UpdateReportLetterhead', {});
+        return sendSuccessResponse(res, letterhead, 'Konfigurasi kop laporan berhasil disimpan');
     } catch (error) {
+        log.dbError('update', error);
         return sendDatabaseError(res, error, 'Gagal memperbarui konfigurasi kop laporan');
     }
 };
@@ -85,11 +95,17 @@ export const updateReportLetterhead = async (req, res) => {
  * GET /api/admin/letterhead
  */
 export const getLetterheadConfig = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { reportKey } = req.query;
+    
+    log.requestStart('GetLetterheadConfig', { reportKey });
+
     try {
-        const { reportKey } = req.query;
         const letterhead = await getLetterhead({ reportKey });
-        res.json({ success: true, data: letterhead });
+        log.success('GetLetterheadConfig', { found: !!letterhead });
+        return sendSuccessResponse(res, letterhead);
     } catch (error) {
+        log.dbError('query', error);
         return sendDatabaseError(res, error, 'Gagal memuat konfigurasi KOP');
     }
 };
@@ -99,10 +115,15 @@ export const getLetterheadConfig = async (req, res) => {
  * GET /api/admin/letterhead/all
  */
 export const getAllLetterheadConfigs = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetAllLetterheads', {});
+
     try {
         const letterheads = await getAllLetterheads();
-        res.json({ success: true, data: letterheads });
+        log.success('GetAllLetterheads', { count: letterheads?.length || 0 });
+        return sendSuccessResponse(res, letterheads);
     } catch (error) {
+        log.dbError('query', error);
         return sendDatabaseError(res, error, 'Gagal memuat daftar KOP');
     }
 };
@@ -112,16 +133,23 @@ export const getAllLetterheadConfigs = async (req, res) => {
  * PUT /api/admin/letterhead/global
  */
 export const setGlobalLetterhead = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const letterhead = req.body;
+    
+    log.requestStart('SetGlobalLetterhead', {});
+
     try {
-        const letterhead = req.body;
         const success = await setLetterheadGlobal(letterhead);
 
         if (!success) {
-            return res.status(500).json({ error: 'Gagal menyimpan konfigurasi KOP global' });
+            log.error('SetGlobalLetterhead failed');
+            return sendErrorResponse(res, null, 'Gagal menyimpan konfigurasi KOP global');
         }
 
-        res.json({ success: true, message: 'Konfigurasi KOP global berhasil disimpan', data: letterhead });
+        log.success('SetGlobalLetterhead', {});
+        return sendSuccessResponse(res, letterhead, 'Konfigurasi KOP global berhasil disimpan');
     } catch (error) {
+        log.dbError('update', error);
         return sendDatabaseError(res, error, 'Gagal memperbarui konfigurasi KOP global');
     }
 };
@@ -131,21 +159,28 @@ export const setGlobalLetterhead = async (req, res) => {
  * PUT /api/admin/letterhead/report/:reportKey
  */
 export const setReportLetterhead = async (req, res) => {
-    try {
-        const { reportKey } = req.params;
-        const letterhead = req.body;
+    const log = logger.withRequest(req, res);
+    const { reportKey } = req.params;
+    const letterhead = req.body;
 
+    log.requestStart('SetReportLetterhead', { reportKey });
+
+    try {
         if (!reportKey) {
-            return res.status(400).json({ error: 'Kode laporan wajib diisi' });
+            log.validationFail('reportKey', null, 'Required');
+            return sendValidationError(res, 'Kode laporan wajib diisi', { field: 'reportKey' });
         }
 
         const success = await setLetterheadForReport(reportKey, letterhead);
         if (!success) {
-            return res.status(500).json({ error: 'Gagal menyimpan konfigurasi KOP untuk laporan' });
+            log.error('SetReportLetterhead failed', { reportKey });
+            return sendErrorResponse(res, null, 'Gagal menyimpan konfigurasi KOP untuk laporan');
         }
 
-        res.json({ success: true, message: `Konfigurasi KOP untuk ${reportKey} berhasil disimpan`, data: letterhead });
+        log.success('SetReportLetterhead', { reportKey });
+        return sendSuccessResponse(res, letterhead, `Konfigurasi KOP untuk ${reportKey} berhasil disimpan`);
     } catch (error) {
+        log.dbError('update', error, { reportKey });
         return sendDatabaseError(res, error, 'Gagal memperbarui konfigurasi KOP laporan');
     }
 };
@@ -155,33 +190,32 @@ export const setReportLetterhead = async (req, res) => {
  * POST /api/admin/letterhead/upload
  */
 export const uploadLogo = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('UploadLogo', { logoType: req.body?.logoType });
+
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'File logo wajib diupload' });
+            log.validationFail('file', null, 'No file uploaded');
+            return sendValidationError(res, 'File logo wajib diupload', { field: 'file' });
         }
 
         const logoUrl = `/uploads/letterheads/${req.file.filename}`;
 
-        console.log('✅ Logo uploaded successfully:', {
+        log.success('UploadLogo', {
             filename: req.file.filename,
-            url: logoUrl,
             size: req.file.size,
-            mimetype: req.file.mimetype,
             logoType: req.body.logoType
         });
 
-        res.json({
-            success: true,
-            message: 'Logo berhasil diupload',
-            data: {
-                url: logoUrl,
-                filename: req.file.filename,
-                size: req.file.size,
-                mimetype: req.file.mimetype,
-                logoType: req.body.logoType
-            }
-        });
+        return sendSuccessResponse(res, {
+            url: logoUrl,
+            filename: req.file.filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            logoType: req.body.logoType
+        }, 'Logo berhasil diupload');
     } catch (error) {
+        log.error('UploadLogo failed', { error: error.message });
         return sendDatabaseError(res, error, 'Gagal mengupload logo');
     }
 };
@@ -191,24 +225,29 @@ export const uploadLogo = async (req, res) => {
  * DELETE /api/admin/letterhead/delete-file
  */
 export const deleteFile = async (req, res) => {
-    try {
-        const { fileUrl } = req.body;
+    const log = logger.withRequest(req, res);
+    const { fileUrl } = req.body;
+    
+    log.requestStart('DeleteFile', { fileUrl });
 
+    try {
         if (!fileUrl || !fileUrl.startsWith('/uploads/letterheads/')) {
-            return res.status(400).json({ error: 'URL file tidak valid' });
+            log.validationFail('fileUrl', fileUrl, 'Invalid URL');
+            return sendValidationError(res, 'URL file tidak valid', { field: 'fileUrl' });
         }
 
         const filePath = path.join('public', fileUrl);
 
         try {
             await fs.unlink(filePath);
-            console.log('✅ Physical file deleted:', filePath);
-            res.json({ success: true, message: 'File berhasil dihapus' });
+            log.success('DeleteFile', { filePath });
+            return sendSuccessResponse(res, null, 'File berhasil dihapus');
         } catch (fileError) {
-            console.warn('⚠️ Could not delete physical file:', fileError.message);
-            res.status(404).json({ error: 'File tidak ditemukan' });
+            log.warn('DeleteFile - file not found', { filePath, error: fileError.message });
+            return sendNotFoundError(res, 'File tidak ditemukan');
         }
     } catch (error) {
+        log.error('DeleteFile failed', { error: error.message });
         return sendDatabaseError(res, error, 'Gagal menghapus file');
     }
 };
@@ -218,26 +257,29 @@ export const deleteFile = async (req, res) => {
  * DELETE /api/admin/letterhead/logo/:logoType
  */
 export const deleteLogo = async (req, res) => {
-    try {
-        const { logoType } = req.params;
-        const { scope, reportKey } = req.query;
+    const log = logger.withRequest(req, res);
+    const { logoType } = req.params;
+    const { scope, reportKey } = req.query;
 
+    log.requestStart('DeleteLogo', { logoType, scope, reportKey });
+
+    try {
         if (!logoType || !['logo', 'logoLeft', 'logoRight'].includes(logoType)) {
-            return res.status(400).json({
-                error: 'Tipe logo tidak valid. Gunakan: logo, logoLeft, atau logoRight'
-            });
+            log.validationFail('logoType', logoType, 'Invalid type');
+            return sendValidationError(res, 'Tipe logo tidak valid. Gunakan: logo, logoLeft, atau logoRight', { field: 'logoType' });
         }
 
         // Get current letterhead config
         let currentConfig;
         if (scope === 'report' && reportKey) {
-            currentConfig = await getLetterheadForReport(reportKey);
+            currentConfig = await getLetterheadForReportKey(reportKey);
         } else {
             currentConfig = await getLetterheadGlobal();
         }
 
         if (!currentConfig) {
-            return res.status(404).json({ error: 'Konfigurasi letterhead tidak ditemukan' });
+            log.warn('DeleteLogo - config not found', { scope, reportKey });
+            return sendNotFoundError(res, 'Konfigurasi letterhead tidak ditemukan');
         }
 
         // Clear the specified logo and delete physical file
@@ -260,9 +302,9 @@ export const deleteLogo = async (req, res) => {
             try {
                 const filePath = path.join('public', fileToDelete);
                 await fs.unlink(filePath);
-                console.log('✅ Physical file deleted:', filePath);
+                log.debug('Physical file deleted', { filePath });
             } catch (fileError) {
-                console.warn('⚠️ Could not delete physical file:', fileError.message);
+                log.warn('Could not delete physical file', { error: fileError.message });
             }
         }
 
@@ -275,11 +317,14 @@ export const deleteLogo = async (req, res) => {
         }
 
         if (!success) {
-            return res.status(500).json({ error: 'Gagal menghapus logo' });
+            log.error('DeleteLogo - save failed', { logoType });
+            return sendErrorResponse(res, null, 'Gagal menghapus logo');
         }
 
-        res.json({ success: true, message: `Logo ${logoType} berhasil dihapus`, data: updateData });
+        log.success('DeleteLogo', { logoType });
+        return sendSuccessResponse(res, updateData, `Logo ${logoType} berhasil dihapus`);
     } catch (error) {
+        log.dbError('deleteLogo', error, { logoType });
         return sendDatabaseError(res, error, 'Gagal menghapus logo');
     }
 };
@@ -289,16 +334,23 @@ export const deleteLogo = async (req, res) => {
  * DELETE /api/admin/letterhead/:id
  */
 export const deleteLetterheadConfig = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    
+    log.requestStart('DeleteLetterhead', { id });
+
     try {
-        const { id } = req.params;
         const success = await deleteLetterhead(parseInt(id));
 
         if (!success) {
-            return res.status(404).json({ error: 'Konfigurasi KOP tidak ditemukan' });
+            log.warn('DeleteLetterhead - not found', { id });
+            return sendNotFoundError(res, 'Konfigurasi KOP tidak ditemukan');
         }
 
-        res.json({ success: true, message: 'Konfigurasi KOP berhasil dihapus' });
+        log.success('DeleteLetterhead', { id });
+        return sendSuccessResponse(res, null, 'Konfigurasi KOP berhasil dihapus');
     } catch (error) {
+        log.dbError('delete', error, { id });
         return sendDatabaseError(res, error, 'Gagal menghapus konfigurasi KOP');
     }
 };
@@ -308,20 +360,18 @@ export const deleteLetterheadConfig = async (req, res) => {
  * POST /api/admin/letterhead/init-defaults
  */
 export const initializeDefaults = async (req, res) => {
-    try {
-        console.log('📝 Initializing default letterhead...');
+    const log = logger.withRequest(req, res);
+    log.requestStart('InitDefaults', {});
 
+    try {
         // Check if letterhead already exists
         const [existingRows] = await global.dbPool.execute(
             'SELECT id FROM kop_laporan WHERE cakupan = "global" AND kode_laporan IS NULL AND aktif = 1 LIMIT 1'
         );
 
         if (existingRows.length > 0) {
-            console.log('ℹ️ Letterhead sudah ada, tidak perlu inisialisasi');
-            return res.json({
-                success: true,
-                message: 'Letterhead sudah ada di database'
-            });
+            log.info('Letterhead already exists, skipping init');
+            return sendSuccessResponse(res, null, 'Letterhead sudah ada di database');
         }
 
         // Insert default letterhead matched with SMKN 13 Bandung
@@ -334,11 +384,11 @@ export const initializeDefaults = async (req, res) => {
         ]);
 
         const query = `
-      INSERT INTO kop_laporan (
-        cakupan, kode_laporan, aktif, perataan, baris_teks, 
-        logo_tengah_url, logo_kiri_url, logo_kanan_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+            INSERT INTO kop_laporan (
+                cakupan, kode_laporan, aktif, perataan, baris_teks, 
+                logo_tengah_url, logo_kiri_url, logo_kanan_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
         const params = [
             'global',
@@ -353,18 +403,11 @@ export const initializeDefaults = async (req, res) => {
 
         await global.dbPool.execute(query, params);
 
-        console.log('✅ Letterhead default berhasil diinisialisasi');
-        res.json({
-            success: true,
-            message: 'Letterhead default berhasil diinisialisasi'
-        });
+        log.success('InitDefaults', {});
+        return sendSuccessResponse(res, null, 'Letterhead default berhasil diinisialisasi');
 
     } catch (error) {
-        console.error('❌ Error initializing letterhead:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error menginisialisasi letterhead default',
-            error: error.message
-        });
+        log.dbError('initDefaults', error);
+        return sendErrorResponse(res, error, 'Error menginisialisasi letterhead default');
     }
 };
