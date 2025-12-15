@@ -15,7 +15,10 @@ import {
     getKelasInfo
 } from '../services/export/templateExcelService.js';
 import { TAHUN_PELAJARAN } from '../config/exportConfig.js';
-import { sendErrorResponse, sendValidationError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('TemplateExport');
 
 // ================================================
 // REKAP KELAS GASAL EXPORT
@@ -26,20 +29,23 @@ import { sendErrorResponse, sendValidationError } from '../utils/errorHandler.js
  * GET /api/admin/export/rekap-kelas-gasal?kelas_id=123
  */
 export const downloadRekapKelasGasal = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { kelas_id, tahun_ajaran } = req.query;
+    
+    log.requestStart('RekapKelasGasal', { kelas_id, tahun_ajaran });
+
     try {
-        const { kelas_id, tahun_ajaran } = req.query;
-        
         if (!kelas_id) {
-            return sendValidationError(res, 'Parameter kelas_id wajib diisi');
+            log.validationFail('kelas_id', null, 'Required');
+            return sendValidationError(res, 'Parameter kelas_id wajib diisi', { field: 'kelas_id' });
         }
         
         const tahunAjaran = tahun_ajaran || TAHUN_PELAJARAN;
         
-        console.log(`📊 Generating rekap kelas gasal for kelas_id: ${kelas_id}`);
-        
         // Get class info
         const kelasInfo = await getKelasInfo(global.dbPool, kelas_id);
         if (!kelasInfo) {
+            log.warn('RekapKelasGasal - kelas not found', { kelas_id });
             return sendValidationError(res, `Kelas dengan ID ${kelas_id} tidak ditemukan`);
         }
         
@@ -49,7 +55,7 @@ export const downloadRekapKelasGasal = async (req, res) => {
         // Fetch rekap data
         const siswaData = await fetchRekapSiswaByKelas(global.dbPool, kelas_id, 'gasal', tahunAjaran);
         
-        console.log(`📄 Found ${siswaData.length} students for export`);
+        log.debug('Fetched data for export', { studentCount: siswaData.length, kelas: kelasInfo.nama_kelas });
         
         // Generate Excel
         const buffer = await exportRekapKelasGasal({
@@ -68,10 +74,10 @@ export const downloadRekapKelasGasal = async (req, res) => {
         
         res.send(buffer);
         
-        console.log(`✅ Rekap kelas gasal exported: ${filename}`);
+        log.success('RekapKelasGasal', { filename, studentCount: siswaData.length });
         
     } catch (error) {
-        console.error('❌ Error exporting rekap kelas gasal:', error);
+        log.error('RekapKelasGasal failed', { error: error.message, kelas_id });
         return sendErrorResponse(res, error, 'Gagal mengexport rekap kelas');
     }
 };
@@ -85,16 +91,17 @@ export const downloadRekapKelasGasal = async (req, res) => {
  * GET /api/admin/export/rekap-guru-tahunan
  */
 export const downloadRekapGuruTahunan = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { tahun_ajaran } = req.query;
+    const tahunAjaran = tahun_ajaran || TAHUN_PELAJARAN;
+    
+    log.requestStart('RekapGuruTahunan', { tahunAjaran });
+
     try {
-        const { tahun_ajaran } = req.query;
-        const tahunAjaran = tahun_ajaran || TAHUN_PELAJARAN;
-        
-        console.log(`📊 Generating rekap guru tahunan for ${tahunAjaran}`);
-        
         // Fetch rekap data
         const guruData = await fetchRekapGuru(global.dbPool, tahunAjaran);
         
-        console.log(`📄 Found ${guruData.length} teachers for export`);
+        log.debug('Fetched guru data', { guruCount: guruData.length });
         
         // Generate Excel
         const buffer = await exportRekapGuruTahunan({
@@ -111,10 +118,10 @@ export const downloadRekapGuruTahunan = async (req, res) => {
         
         res.send(buffer);
         
-        console.log(`✅ Rekap guru tahunan exported: ${filename}`);
+        log.success('RekapGuruTahunan', { filename, guruCount: guruData.length });
         
     } catch (error) {
-        console.error('❌ Error exporting rekap guru tahunan:', error);
+        log.error('RekapGuruTahunan failed', { error: error.message });
         return sendErrorResponse(res, error, 'Gagal mengexport rekap guru');
     }
 };
@@ -128,13 +135,15 @@ export const downloadRekapGuruTahunan = async (req, res) => {
  * GET /api/admin/export/rekap-guru-mingguan
  */
 export const downloadRekapGuruMingguan = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('RekapGuruMingguan', {});
+
     try {
-        console.log(`📊 Generating rekap guru mingguan`);
-        
         // Fetch guru jadwal data
         const guruData = await fetchGuruJadwalMingguan(global.dbPool);
         
-        console.log(`📄 Found ${guruData.length} teachers for export`);
+        log.debug('Fetched guru jadwal data', { guruCount: guruData.length });
         
         // Generate Excel
         const buffer = await exportRekapGuruMingguan({
@@ -151,10 +160,10 @@ export const downloadRekapGuruMingguan = async (req, res) => {
         
         res.send(buffer);
         
-        console.log(`✅ Rekap guru mingguan exported: ${filename}`);
+        log.success('RekapGuruMingguan', { filename, guruCount: guruData.length });
         
     } catch (error) {
-        console.error('❌ Error exporting rekap guru mingguan:', error);
+        log.error('RekapGuruMingguan failed', { error: error.message });
         return sendErrorResponse(res, error, 'Gagal mengexport rekap guru mingguan');
     }
 };
@@ -168,14 +177,16 @@ export const downloadRekapGuruMingguan = async (req, res) => {
  * GET /api/admin/export/jadwal-pelajaran
  */
 export const downloadJadwalPelajaran = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('JadwalPelajaran', {});
+
     try {
-        console.log(`📊 Generating jadwal pelajaran matrix export (Complex)`);
-        
         // Fetch jadwal data from DB
         const { fetchJadwalForExport } = await import('../services/export/templateExcelService.js');
         const jadwalData = await fetchJadwalForExport(global.dbPool);
         
-        console.log(`📄 Found ${jadwalData.length} jadwal items for export`);
+        log.debug('Fetched jadwal data', { jadwalCount: jadwalData.length });
         
         // Generate Excel matrix with colors
         const buffer = await exportJadwalPelajaranComplex({
@@ -192,10 +203,10 @@ export const downloadJadwalPelajaran = async (req, res) => {
         
         res.send(buffer);
         
-        console.log(`✅ Jadwal pelajaran matrix exported: ${filename}`);
+        log.success('JadwalPelajaran', { filename, jadwalCount: jadwalData.length });
         
     } catch (error) {
-        console.error('❌ Error exporting jadwal pelajaran:', error);
+        log.error('JadwalPelajaran export failed', { error: error.message });
         return sendErrorResponse(res, error, 'Gagal mengexport jadwal pelajaran');
     }
 };
@@ -209,42 +220,49 @@ export const downloadJadwalPelajaran = async (req, res) => {
  * GET /api/admin/export/templates
  */
 export const getExportTemplates = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    
+    log.requestStart('GetTemplates', {});
+
     try {
-        res.json({
-            success: true,
-            data: [
-                {
-                    id: 'rekap-kelas-gasal',
-                    name: 'Rekap Ketidakhadiran Kelas (Semester Gasal)',
-                    description: 'Rekap ketidakhadiran siswa per kelas untuk semester Juli-Desember',
-                    endpoint: '/api/admin/export/rekap-kelas-gasal',
-                    params: ['kelas_id', 'tahun_ajaran (optional)']
-                },
-                {
-                    id: 'rekap-guru-tahunan',
-                    name: 'Rekap Ketidakhadiran Guru (Tahunan)',
-                    description: 'Rekap ketidakhadiran guru untuk satu tahun ajaran',
-                    endpoint: '/api/admin/export/rekap-guru-tahunan',
-                    params: ['tahun_ajaran (optional)']
-                },
-                {
-                    id: 'rekap-guru-mingguan',
-                    name: 'Rekap Jadwal Guru (Mingguan)',
-                    description: 'Rekap guru yang mengajar per hari (Senin-Jumat)',
-                    endpoint: '/api/admin/export/rekap-guru-mingguan',
-                    params: []
-                },
-                {
-                    id: 'jadwal-pelajaran',
-                    name: 'Jadwal Pelajaran',
-                    description: 'Export jadwal pelajaran dengan warna per mapel',
-                    endpoint: '/api/admin/export/jadwal-pelajaran',
-                    params: []
-                }
-            ],
+        const templates = [
+            {
+                id: 'rekap-kelas-gasal',
+                name: 'Rekap Ketidakhadiran Kelas (Semester Gasal)',
+                description: 'Rekap ketidakhadiran siswa per kelas untuk semester Juli-Desember',
+                endpoint: '/api/admin/export/rekap-kelas-gasal',
+                params: ['kelas_id', 'tahun_ajaran (optional)']
+            },
+            {
+                id: 'rekap-guru-tahunan',
+                name: 'Rekap Ketidakhadiran Guru (Tahunan)',
+                description: 'Rekap ketidakhadiran guru untuk satu tahun ajaran',
+                endpoint: '/api/admin/export/rekap-guru-tahunan',
+                params: ['tahun_ajaran (optional)']
+            },
+            {
+                id: 'rekap-guru-mingguan',
+                name: 'Rekap Jadwal Guru (Mingguan)',
+                description: 'Rekap guru yang mengajar per hari (Senin-Jumat)',
+                endpoint: '/api/admin/export/rekap-guru-mingguan',
+                params: []
+            },
+            {
+                id: 'jadwal-pelajaran',
+                name: 'Jadwal Pelajaran',
+                description: 'Export jadwal pelajaran dengan warna per mapel',
+                endpoint: '/api/admin/export/jadwal-pelajaran',
+                params: []
+            }
+        ];
+        
+        log.success('GetTemplates', { count: templates.length });
+        return sendSuccessResponse(res, {
+            templates,
             tahunAjaranDefault: TAHUN_PELAJARAN
         });
     } catch (error) {
+        log.error('GetTemplates failed', { error: error.message });
         return sendErrorResponse(res, error);
     }
 };
@@ -256,4 +274,3 @@ export default {
     downloadJadwalPelajaran,
     getExportTemplates
 };
-

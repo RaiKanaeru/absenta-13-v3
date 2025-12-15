@@ -1,14 +1,15 @@
 /**
  * Banding Absen Siswa Guru Controller
  * Attendance appeal endpoints for students and teachers
- * Migrated from server_modern.js - EXACT CODE COPY
  * 
  * NOTE: /api/siswa/:siswaId/status-kehadiran NOT included - already in absensiController.js
  */
 
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
 
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+const logger = createLogger('BandingAbsenSiswaGuru');
 
 // ================================================
 // SISWA BANDING ENDPOINTS
@@ -16,10 +17,12 @@ import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFound
 
 // Get banding absen for siswa (class view)
 export const getSiswaBandingAbsen = async (req, res) => {
-    try {
-        const { siswaId } = req.params;
-        console.log('📋 Getting banding absen for siswa:', siswaId);
+    const log = logger.withRequest(req, res);
+    const { siswaId } = req.params;
+    
+    log.requestStart('GetSiswaBanding', { siswaId });
 
+    try {
         const query = `
             SELECT 
                 ba.id_banding,
@@ -51,41 +54,42 @@ export const getSiswaBandingAbsen = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query, [siswaId]);
-        console.log(`✅ Banding absen retrieved: ${rows.length} items`);
+        log.success('GetSiswaBanding', { count: rows.length, siswaId });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { siswaId });
+        return sendDatabaseError(res, error, 'Gagal mengambil data banding absen');
     }
 };
 
 // Submit banding absen (single student only)
 export const submitSiswaBandingAbsen = async (req, res) => {
-    try {
-        const { siswaId } = req.params;
-        const { jadwal_id, tanggal_absen, status_asli, status_diajukan, alasan_banding } = req.body;
-        console.log('📝 Submitting banding absen:', { siswaId, jadwal_id, tanggal_absen, status_asli, status_diajukan });
+    const log = logger.withRequest(req, res);
+    const { siswaId } = req.params;
+    const { jadwal_id, tanggal_absen, status_asli, status_diajukan, alasan_banding } = req.body;
+    
+    log.requestStart('SubmitBanding', { siswaId, jadwal_id, tanggal_absen, status_asli, status_diajukan });
 
+    try {
         if (!jadwal_id || !tanggal_absen || !status_asli || !status_diajukan || !alasan_banding) {
-            return res.status(400).json({ error: 'Semua field wajib diisi' });
+            log.validationFail('required_fields', null, 'All fields required');
+            return sendValidationError(res, 'Semua field wajib diisi', { fields: ['jadwal_id', 'tanggal_absen', 'status_asli', 'status_diajukan', 'alasan_banding'] });
         }
 
         if (req.body.siswa_banding || Array.isArray(req.body.siswa_banding)) {
-            return res.status(400).json({
-                error: 'Mode kelas tidak diperbolehkan',
-                message: 'Gunakan endpoint per-siswa untuk banding absen individual'
-            });
+            log.validationFail('mode', 'class_mode', 'Class mode not allowed');
+            return sendValidationError(res, 'Mode kelas tidak diperbolehkan. Gunakan endpoint per-siswa untuk banding absen individual');
         }
 
         if (status_asli === status_diajukan) {
-            return res.status(400).json({ error: 'Status asli dan status yang diajukan tidak boleh sama' });
+            log.validationFail('status', null, 'Same status');
+            return sendValidationError(res, 'Status asli dan status yang diajukan tidak boleh sama');
         }
 
         const validStatuses = ['hadir', 'izin', 'sakit', 'alpa', 'dispen'];
         if (!validStatuses.includes(status_asli) || !validStatuses.includes(status_diajukan)) {
-            return res.status(400).json({
-                error: 'Status tidak valid',
-                message: `Status harus salah satu dari: ${validStatuses.join(', ')}`
-            });
+            log.validationFail('status', { status_asli, status_diajukan }, 'Invalid status');
+            return sendValidationError(res, `Status harus salah satu dari: ${validStatuses.join(', ')}`);
         }
 
         const [existing] = await global.dbPool.execute(
@@ -95,10 +99,11 @@ export const submitSiswaBandingAbsen = async (req, res) => {
 
         if (existing.length > 0) {
             const existingStatus = existing[0].status_banding;
+            log.warn('SubmitBanding - already exists', { siswaId, jadwal_id, existingStatus });
             if (existingStatus === 'pending') {
-                return res.status(400).json({ error: 'Banding untuk jadwal dan tanggal ini sudah pernah diajukan dan sedang diproses' });
+                return sendDuplicateError(res, 'Banding untuk jadwal dan tanggal ini sudah pernah diajukan dan sedang diproses');
             } else {
-                return res.status(400).json({ error: `Banding untuk jadwal dan tanggal ini sudah pernah diajukan dan ${existingStatus}` });
+                return sendDuplicateError(res, `Banding untuk jadwal dan tanggal ini sudah pernah diajukan dan ${existingStatus}`);
             }
         }
 
@@ -109,26 +114,30 @@ export const submitSiswaBandingAbsen = async (req, res) => {
             [siswaId, jadwal_id, tanggal_absen, status_asli, status_diajukan, alasan_banding]
         );
 
-        console.log('✅ Banding absen submitted successfully');
-        res.json({ message: 'Banding absen berhasil dikirim', id: result.insertId });
+        log.success('SubmitBanding', { siswaId, bandingId: result.insertId });
+        return sendSuccessResponse(res, { id: result.insertId }, 'Banding absen berhasil dikirim', 201);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('insert', error, { siswaId });
+        return sendDatabaseError(res, error, 'Gagal mengajukan banding absen');
     }
 };
 
 // Get daftar siswa untuk banding absen
 export const getDaftarSiswa = async (req, res) => {
-    try {
-        const { siswaId } = req.params;
-        console.log('📋 Getting daftar siswa untuk banding absen:', { siswaId });
+    const log = logger.withRequest(req, res);
+    const { siswaId } = req.params;
+    
+    log.requestStart('GetDaftarSiswa', { siswaId });
 
+    try {
         const [siswaData] = await global.dbPool.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ? AND status = "aktif"',
             [siswaId]
         );
 
         if (siswaData.length === 0) {
-            return res.status(404).json({ error: 'Siswa tidak ditemukan' });
+            log.warn('GetDaftarSiswa - siswa not found', { siswaId });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
         const kelasId = siswaData[0].kelas_id;
@@ -142,10 +151,11 @@ export const getDaftarSiswa = async (req, res) => {
             ORDER BY s.nama ASC
         `, [kelasId]);
 
-        console.log(`✅ Daftar siswa retrieved: ${rows.length} students`);
+        log.success('GetDaftarSiswa', { count: rows.length, kelasId });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { siswaId });
+        return sendDatabaseError(res, error, 'Gagal mengambil daftar siswa');
     }
 };
 
@@ -155,11 +165,13 @@ export const getDaftarSiswa = async (req, res) => {
 
 // Get banding absen for teacher to process
 export const getGuruBandingAbsen = async (req, res) => {
-    try {
-        const { guruId } = req.params;
-        const { page = 1, limit = 5, filter_pending = 'false' } = req.query;
-        console.log('📋 Getting banding absen for guru:', guruId);
+    const log = logger.withRequest(req, res);
+    const { guruId } = req.params;
+    const { page = 1, limit = 5, filter_pending = 'false' } = req.query;
+    
+    log.requestStart('GetGuruBanding', { guruId, page, limit, filter_pending });
 
+    try {
         const offset = (parseInt(page) - 1) * parseInt(limit);
         const isFilterPending = filter_pending === 'true';
 
@@ -197,28 +209,31 @@ export const getGuruBandingAbsen = async (req, res) => {
         const [rows] = await global.dbPool.execute(mainQuery, [guruId, parseInt(limit), offset]);
         const totalPages = Math.ceil(totalRecords / parseInt(limit));
 
-        console.log(`✅ Banding absen for guru retrieved: ${rows.length} items`);
+        log.success('GetGuruBanding', { count: rows.length, totalRecords, totalPending, guruId });
         res.json({
             data: rows,
             pagination: { currentPage: parseInt(page), totalPages, totalRecords, totalPending, limit: parseInt(limit) },
             totalPages, totalPending, totalAll: totalRecords
         });
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { guruId });
+        return sendDatabaseError(res, error, 'Gagal mengambil data banding absen');
     }
 };
 
 // Process banding absen by teacher
 export const respondBandingAbsen = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { bandingId } = req.params;
+    const { status_banding, catatan_guru, diproses_oleh } = req.body;
+    const guruId = diproses_oleh || req.user.guru_id || req.user.id;
+
+    log.requestStart('RespondBanding', { bandingId, status_banding, guruId });
+
     try {
-        const { bandingId } = req.params;
-        const { status_banding, catatan_guru, diproses_oleh } = req.body;
-        const guruId = diproses_oleh || req.user.guru_id || req.user.id;
-
-        console.log('📝 Guru processing banding absen:', { bandingId, status_banding, guruId });
-
         if (!status_banding || !['disetujui', 'ditolak'].includes(status_banding)) {
-            return res.status(400).json({ error: 'Status harus disetujui atau ditolak' });
+            log.validationFail('status_banding', status_banding, 'Invalid status');
+            return sendValidationError(res, 'Status harus disetujui atau ditolak', { field: 'status_banding' });
         }
 
         const tanggalKeputusanWIB = getMySQLDateTimeWIB();
@@ -231,29 +246,30 @@ export const respondBandingAbsen = async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Banding absen tidak ditemukan' });
+            log.warn('RespondBanding - not found', { bandingId });
+            return sendNotFoundError(res, 'Banding absen tidak ditemukan');
         }
 
-        console.log('✅ Banding absen response submitted successfully');
-        res.json({
-            message: `Banding absen berhasil ${status_banding === 'disetujui' ? 'disetujui' : 'ditolak'}`,
-            id: bandingId
-        });
+        log.success('RespondBanding', { bandingId, status_banding });
+        return sendSuccessResponse(res, { id: bandingId }, `Banding absen berhasil ${status_banding === 'disetujui' ? 'disetujui' : 'ditolak'}`);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('update', error, { bandingId });
+        return sendDatabaseError(res, error, 'Gagal memproses banding absen');
     }
 };
 
 // Get riwayat banding absen untuk laporan
 export const getGuruBandingAbsenHistory = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id, status } = req.query;
+    const guruId = req.user.guru_id;
+
+    log.requestStart('GetBandingHistory', { startDate, endDate, kelas_id, status, guruId });
+
     try {
-        const { startDate, endDate, kelas_id, status } = req.query;
-        const guruId = req.user.guru_id;
-
-        console.log('📊 Fetching banding absen history:', { startDate, endDate, kelas_id, status, guruId });
-
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
         let query = `
@@ -280,9 +296,10 @@ export const getGuruBandingAbsenHistory = async (req, res) => {
         query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;
 
         const [rows] = await global.dbPool.execute(query, params);
-        console.log(`✅ Banding absen history fetched: ${rows.length} records`);
+        log.success('GetBandingHistory', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('query', error, { guruId, startDate, endDate });
+        return sendDatabaseError(res, error, 'Gagal mengambil riwayat banding absen');
     }
 };
