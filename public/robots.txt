@@ -1,9 +1,6 @@
 # Sitemap location
 Sitemap: https://absenta13.my.id/sitemap.xml
 
-# Crawl delay (in seconds)
-Crawl-delay: 1
-
 # Google
 User-agent: Googlebot
 Allow: /
@@ -18,15 +15,13 @@ Disallow: /api/
 Disallow: /admin/
 Disallow: /uploads/
 
-# Twitter
+# Social Media Bots
 User-agent: Twitterbot
 Allow: /
 
-# Facebook
 User-agent: facebookexternalhit
 Allow: /
 
-# LinkedIn
 User-agent: LinkedInBot
 Allow: /
 
@@ -36,8 +31,6 @@ Allow: /
 Disallow: /api/
 Disallow: /admin/
 Disallow: /uploads/
-Disallow: /*.json$
-Disallow: /*?*
 
 # Block bad bots
 User-agent: AhrefsBot
