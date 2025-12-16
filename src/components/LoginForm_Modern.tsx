@@ -35,7 +35,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center p-4">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -51,9 +51,9 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
         {/* Login Card */}
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-center text-xl text-gray-800">
+            <h2 className="font-semibold leading-none tracking-tight text-center text-xl text-gray-800">
               Masuk ke Sistem
-            </CardTitle>
+            </h2>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,6 +108,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors"
                     disabled={isLoading}
+                    aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -142,6 +143,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
           <p>&copy; 2025 ABSENTA. Sistem Absensi Guru Modern.</p>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
