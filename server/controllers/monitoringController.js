@@ -753,3 +753,79 @@ export const getSystemLogs = async (req, res) => {
         return sendDatabaseError(res, error);
     }
 };
+
+// ================================================
+// DDOS PROTECTION ENDPOINTS
+// ================================================
+
+/**
+ * Get DDoS protection stats
+ * GET /api/admin/ddos-stats
+ */
+export const getDDoSStats = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetDDoSStats', {});
+
+    try {
+        if (!global.ddosProtection) {
+            return res.json({
+                enabled: false,
+                message: 'DDoS Protection tidak diaktifkan'
+            });
+        }
+
+        const stats = global.ddosProtection.getStats();
+        log.success('GetDDoSStats', { 
+            totalRequests: stats.totalRequests,
+            blockedRequests: stats.blockedRequests,
+            activeBlocks: stats.activeBlocks
+        });
+        
+        return sendSuccessResponse(res, {
+            enabled: true,
+            ...stats
+        });
+    } catch (error) {
+        log.error('GetDDoSStats failed', { error: error.message });
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Unblock IP from DDoS protection
+ * POST /api/admin/ddos-unblock
+ */
+export const unblockDDoSIP = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { ip } = req.body;
+    
+    log.requestStart('UnblockDDoSIP', { ip });
+
+    try {
+        if (!ip) {
+            return sendValidationError(res, 'IP address diperlukan');
+        }
+
+        if (!global.ddosProtection) {
+            return res.json({
+                success: false,
+                message: 'DDoS Protection tidak diaktifkan'
+            });
+        }
+
+        const result = global.ddosProtection.unblockIP(ip);
+        
+        if (result) {
+            log.success('UnblockDDoSIP', { ip });
+            return sendSuccessResponse(res, null, `IP ${ip} berhasil di-unblock`);
+        } else {
+            return res.json({
+                success: false,
+                message: `IP ${ip} tidak dalam daftar blokir`
+            });
+        }
+    } catch (error) {
+        log.error('UnblockDDoSIP failed', { error: error.message });
+        return sendDatabaseError(res, error);
+    }
+};

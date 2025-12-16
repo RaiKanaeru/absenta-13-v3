@@ -27,6 +27,7 @@ import SystemMonitor from './server/services/system/monitoring-system.js';
 import SecuritySystem from './server/services/system/security-system.js';
 import DisasterRecoverySystem from './server/services/system/disaster-recovery-system.js';
 import PerformanceOptimizer from './server/services/system/performance-optimizer.js';
+import DDoSProtection from './server/utils/ddos-protection.js';
 import AdmZip from 'adm-zip';
 import os from 'os';
 import rateLimit from 'express-rate-limit';
@@ -202,6 +203,19 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// DDoS Protection middleware - enhanced anti-spam/DDoS
+let ddosProtection = null;
+if (process.env.ENABLE_DDOS_PROTECTION !== 'false') {
+    ddosProtection = new DDoSProtection({
+        maxRequestsPerWindow: process.env.NODE_ENV === 'production' ? 100 : 500,
+        maxRequestsPerSecond: process.env.NODE_ENV === 'production' ? 10 : 50,
+        spikeThreshold: process.env.NODE_ENV === 'production' ? 5 : 20,
+        blockDurationMs: 300000 // 5 minutes
+    });
+    app.use(ddosProtection.middleware());
+    console.log('🛡️ DDoS Protection middleware enabled');
+}
+
 // Serve static files from public directory
 app.use('/uploads', express.static(`${uploadDir}`));
 
@@ -218,6 +232,7 @@ let cacheSystem = null;
 let loadBalancer = null;
 let systemMonitor = null;
 let securitySystem = null;
+let ddosStats = null;
 let disasterRecoverySystem = null;
 let performanceOptimizer = null;
 
@@ -416,6 +431,7 @@ async function initializeDatabase() {
         global.systemMonitor = systemMonitor;
         global.securitySystem = securitySystem;
         global.disasterRecoverySystem = disasterRecoverySystem;
+        global.ddosProtection = ddosProtection;
         global.testAlerts = [];
         
         // Set database pool reference for monitoring

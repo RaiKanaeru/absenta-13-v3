@@ -32,7 +32,10 @@ import {
     getQueueStats,
     getSystemPerformance,
     getMonitoringDashboard,
-    getSystemLogs
+    getSystemLogs,
+    // DDoS Protection endpoints
+    getDDoSStats,
+    unblockDDoSIP
 } from '../controllers/monitoringController.js';
 
 const router = express.Router();
@@ -68,5 +71,11 @@ router.get('/queue-stats', authenticateToken, requireRole(['admin']), getQueueSt
 router.get('/system-performance', authenticateToken, requireRole(['admin']), getSystemPerformance);
 router.get('/monitoring-dashboard', authenticateToken, requireRole(['admin']), getMonitoringDashboard);
 router.get('/logs', authenticateToken, requireRole(['admin']), getSystemLogs);
+
+// ================================================
+// DDOS PROTECTION ENDPOINTS
+// ================================================
+router.get('/ddos-stats', authenticateToken, requireRole(['admin']), getDDoSStats);
+router.post('/ddos-unblock', authenticateToken, requireRole(['admin']), unblockDDoSIP);
 
 export default router;
