@@ -1,10 +1,12 @@
 /**
  * Monitoring Controller
  * Handles system monitoring, security, and performance endpoints
- * Migrated from server_modern.js - Batch 17C
  */
 
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Monitoring');
 
 // ================================================
 // SECURITY ENDPOINTS
@@ -15,10 +17,15 @@ import { sendDatabaseError } from '../utils/errorHandler.js';
  * GET /api/admin/security-stats
  */
 export const getSecurityStats = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSecurityStats', {});
+
     try {
         const stats = global.securitySystem.getSecurityStats();
-        res.json({ success: true, data: stats });
+        log.success('GetSecurityStats', { blockedIPs: stats?.blockedIPs?.length || 0 });
+        return sendSuccessResponse(res, stats);
     } catch (error) {
+        log.error('GetSecurityStats failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -28,11 +35,17 @@ export const getSecurityStats = async (req, res) => {
  * GET /api/admin/security-events
  */
 export const getSecurityEvents = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { limit = 100, type = null } = req.query;
+    
+    log.requestStart('GetSecurityEvents', { limit, type });
+
     try {
-        const { limit = 100, type = null } = req.query;
         const events = global.securitySystem.getSecurityEvents(parseInt(limit), type);
-        res.json({ success: true, data: events });
+        log.success('GetSecurityEvents', { count: events?.length || 0 });
+        return sendSuccessResponse(res, events);
     } catch (error) {
+        log.error('GetSecurityEvents failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -42,10 +55,15 @@ export const getSecurityEvents = async (req, res) => {
  * GET /api/admin/blocked-ips
  */
 export const getBlockedIPs = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetBlockedIPs', {});
+
     try {
         const blockedIPs = global.securitySystem.getBlockedIPs();
-        res.json({ success: true, data: blockedIPs });
+        log.success('GetBlockedIPs', { count: blockedIPs?.length || 0 });
+        return sendSuccessResponse(res, blockedIPs);
     } catch (error) {
+        log.error('GetBlockedIPs failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -55,12 +73,21 @@ export const getBlockedIPs = async (req, res) => {
  * POST /api/admin/block-ip
  */
 export const blockIP = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { ip, reason } = req.body;
+    
+    log.requestStart('BlockIP', { ip, reason });
+
     try {
-        const { ip, reason } = req.body;
-        if (!ip) return res.status(400).json({ error: 'IP address is required' });
+        if (!ip) {
+            log.validationFail('ip', null, 'Required');
+            return sendValidationError(res, 'IP address is required', { field: 'ip' });
+        }
         global.securitySystem.blockIP(ip, reason || 'Manual block by admin');
-        res.json({ success: true, message: `IP ${ip} blocked successfully` });
+        log.success('BlockIP', { ip });
+        return sendSuccessResponse(res, null, `IP ${ip} blocked successfully`);
     } catch (error) {
+        log.error('BlockIP failed', { error: error.message, ip });
         return sendDatabaseError(res, error);
     }
 };
@@ -70,12 +97,21 @@ export const blockIP = async (req, res) => {
  * POST /api/admin/unblock-ip
  */
 export const unblockIP = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { ip } = req.body;
+    
+    log.requestStart('UnblockIP', { ip });
+
     try {
-        const { ip } = req.body;
-        if (!ip) return res.status(400).json({ error: 'IP address is required' });
+        if (!ip) {
+            log.validationFail('ip', null, 'Required');
+            return sendValidationError(res, 'IP address is required', { field: 'ip' });
+        }
         global.securitySystem.unblockIP(ip);
-        res.json({ success: true, message: `IP ${ip} unblocked successfully` });
+        log.success('UnblockIP', { ip });
+        return sendSuccessResponse(res, null, `IP ${ip} unblocked successfully`);
     } catch (error) {
+        log.error('UnblockIP failed', { error: error.message, ip });
         return sendDatabaseError(res, error);
     }
 };
@@ -85,10 +121,15 @@ export const unblockIP = async (req, res) => {
  * POST /api/admin/clear-security-events
  */
 export const clearSecurityEvents = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('ClearSecurityEvents', {});
+
     try {
         global.securitySystem.clearSecurityEvents();
-        res.json({ success: true, message: 'Security events cleared successfully' });
+        log.success('ClearSecurityEvents', {});
+        return sendSuccessResponse(res, null, 'Security events cleared successfully');
     } catch (error) {
+        log.error('ClearSecurityEvents failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -102,10 +143,15 @@ export const clearSecurityEvents = async (req, res) => {
  * GET /api/admin/system-metrics
  */
 export const getSystemMetrics = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSystemMetrics', {});
+
     try {
         const metrics = global.systemMonitor.getMetrics();
-        res.json({ success: true, data: metrics });
+        log.success('GetSystemMetrics', {});
+        return sendSuccessResponse(res, metrics);
     } catch (error) {
+        log.error('GetSystemMetrics failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -115,10 +161,15 @@ export const getSystemMetrics = async (req, res) => {
  * GET /api/admin/system-alerts
  */
 export const getSystemAlerts = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSystemAlerts', {});
+
     try {
         const alerts = global.systemMonitor.getAlerts();
-        res.json({ success: true, data: alerts });
+        log.success('GetSystemAlerts', { count: alerts?.length || 0 });
+        return sendSuccessResponse(res, alerts);
     } catch (error) {
+        log.error('GetSystemAlerts failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -128,10 +179,15 @@ export const getSystemAlerts = async (req, res) => {
  * GET /api/admin/performance-history
  */
 export const getPerformanceHistory = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetPerformanceHistory', {});
+
     try {
         const history = global.systemMonitor.getPerformanceHistory();
-        res.json({ success: true, data: history });
+        log.success('GetPerformanceHistory', { dataPoints: history?.length || 0 });
+        return sendSuccessResponse(res, history);
     } catch (error) {
+        log.error('GetPerformanceHistory failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -141,10 +197,15 @@ export const getPerformanceHistory = async (req, res) => {
  * POST /api/admin/clear-alerts
  */
 export const clearAlerts = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('ClearAlerts', {});
+
     try {
         global.systemMonitor.clearAlerts();
-        res.json({ success: true, message: 'Alerts cleared successfully' });
+        log.success('ClearAlerts', {});
+        return sendSuccessResponse(res, null, 'Alerts cleared successfully');
     } catch (error) {
+        log.error('ClearAlerts failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -154,10 +215,15 @@ export const clearAlerts = async (req, res) => {
  * GET /api/admin/load-balancer-stats
  */
 export const getLoadBalancerStats = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetLoadBalancerStats', {});
+
     try {
         const stats = global.loadBalancer ? global.loadBalancer.getStats() : null;
-        res.json({ success: true, data: stats });
+        log.success('GetLoadBalancerStats', { available: !!global.loadBalancer });
+        return sendSuccessResponse(res, stats);
     } catch (error) {
+        log.error('GetLoadBalancerStats failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -167,14 +233,20 @@ export const getLoadBalancerStats = async (req, res) => {
  * POST /api/admin/populate-cache
  */
 export const populateCache = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('PopulateCache', {});
+
     try {
         if (global.cacheSystem) {
             await global.cacheSystem.warmUp();
-            res.json({ success: true, message: 'Cache populated successfully' });
+            log.success('PopulateCache', {});
+            return sendSuccessResponse(res, null, 'Cache populated successfully');
         } else {
-            res.json({ success: false, message: 'Cache system not available' });
+            log.warn('PopulateCache - cache system not available');
+            return res.json({ success: false, message: 'Cache system not available' });
         }
     } catch (error) {
+        log.error('PopulateCache failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -184,14 +256,20 @@ export const populateCache = async (req, res) => {
  * POST /api/admin/clear-cache
  */
 export const clearCache = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('ClearCache', {});
+
     try {
         if (global.cacheSystem) {
             global.cacheSystem.clear();
-            res.json({ success: true, message: 'Cache cleared successfully' });
+            log.success('ClearCache', {});
+            return sendSuccessResponse(res, null, 'Cache cleared successfully');
         } else {
-            res.json({ success: false, message: 'Cache system not available' });
+            log.warn('ClearCache - cache system not available');
+            return res.json({ success: false, message: 'Cache system not available' });
         }
     } catch (error) {
+        log.error('ClearCache failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -201,10 +279,15 @@ export const clearCache = async (req, res) => {
  * GET /api/admin/performance-metrics
  */
 export const getPerformanceMetrics = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetPerformanceMetrics', {});
+
     try {
         const metrics = global.performanceOptimizer ? global.performanceOptimizer.getMetrics() : null;
-        res.json({ success: true, data: metrics });
+        log.success('GetPerformanceMetrics', { available: !!global.performanceOptimizer });
+        return sendSuccessResponse(res, metrics);
     } catch (error) {
+        log.error('GetPerformanceMetrics failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -214,14 +297,20 @@ export const getPerformanceMetrics = async (req, res) => {
  * POST /api/admin/clear-performance-cache
  */
 export const clearPerformanceCache = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('ClearPerformanceCache', {});
+
     try {
         if (global.performanceOptimizer) {
             global.performanceOptimizer.clearCache();
-            res.json({ success: true, message: 'Performance cache cleared successfully' });
+            log.success('ClearPerformanceCache', {});
+            return sendSuccessResponse(res, null, 'Performance cache cleared successfully');
         } else {
-            res.json({ success: false, message: 'Performance optimizer not available' });
+            log.warn('ClearPerformanceCache - optimizer not available');
+            return res.json({ success: false, message: 'Performance optimizer not available' });
         }
     } catch (error) {
+        log.error('ClearPerformanceCache failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -231,15 +320,22 @@ export const clearPerformanceCache = async (req, res) => {
  * POST /api/admin/toggle-load-balancer
  */
 export const toggleLoadBalancer = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { enabled } = req.body;
+    
+    log.requestStart('ToggleLoadBalancer', { enabled });
+
     try {
-        const { enabled } = req.body;
         if (global.loadBalancer) {
             global.loadBalancer.setEnabled(enabled);
-            res.json({ success: true, message: `Load balancer ${enabled ? 'enabled' : 'disabled'}` });
+            log.success('ToggleLoadBalancer', { enabled });
+            return sendSuccessResponse(res, null, `Load balancer ${enabled ? 'enabled' : 'disabled'}`);
         } else {
-            res.json({ success: false, message: 'Load balancer not available' });
+            log.warn('ToggleLoadBalancer - not available');
+            return res.json({ success: false, message: 'Load balancer not available' });
         }
     } catch (error) {
+        log.error('ToggleLoadBalancer failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -249,10 +345,15 @@ export const toggleLoadBalancer = async (req, res) => {
  * GET /api/admin/circuit-breaker-status
  */
 export const getCircuitBreakerStatus = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetCircuitBreakerStatus', {});
+
     try {
         const status = global.circuitBreaker ? global.circuitBreaker.getStatus() : null;
-        res.json({ success: true, data: status });
+        log.success('GetCircuitBreakerStatus', { available: !!global.circuitBreaker });
+        return sendSuccessResponse(res, status);
     } catch (error) {
+        log.error('GetCircuitBreakerStatus failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -262,14 +363,20 @@ export const getCircuitBreakerStatus = async (req, res) => {
  * POST /api/admin/reset-circuit-breaker
  */
 export const resetCircuitBreaker = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('ResetCircuitBreaker', {});
+
     try {
         if (global.circuitBreaker) {
             global.circuitBreaker.reset();
-            res.json({ success: true, message: 'Circuit breaker reset successfully' });
+            log.success('ResetCircuitBreaker', {});
+            return sendSuccessResponse(res, null, 'Circuit breaker reset successfully');
         } else {
-            res.json({ success: false, message: 'Circuit breaker not available' });
+            log.warn('ResetCircuitBreaker - not available');
+            return res.json({ success: false, message: 'Circuit breaker not available' });
         }
     } catch (error) {
+        log.error('ResetCircuitBreaker failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -279,15 +386,22 @@ export const resetCircuitBreaker = async (req, res) => {
  * POST /api/admin/resolve-alert/:alertId
  */
 export const resolveAlert = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { alertId } = req.params;
+    
+    log.requestStart('ResolveAlert', { alertId });
+
     try {
-        const { alertId } = req.params;
         if (global.systemMonitor) {
             global.systemMonitor.resolveAlert(alertId);
-            res.json({ success: true, message: `Alert ${alertId} resolved` });
+            log.success('ResolveAlert', { alertId });
+            return sendSuccessResponse(res, null, `Alert ${alertId} resolved`);
         } else {
-            res.json({ success: false, message: 'System monitor not available' });
+            log.warn('ResolveAlert - system monitor not available');
+            return res.json({ success: false, message: 'System monitor not available' });
         }
     } catch (error) {
+        log.error('ResolveAlert failed', { error: error.message, alertId });
         return sendDatabaseError(res, error);
     }
 };
@@ -297,14 +411,20 @@ export const resolveAlert = async (req, res) => {
  * POST /api/admin/test-alert
  */
 export const testAlert = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('TestAlert', {});
+
     try {
         if (global.systemMonitor) {
             global.systemMonitor.createTestAlert();
-            res.json({ success: true, message: 'Test alert created' });
+            log.success('TestAlert', {});
+            return sendSuccessResponse(res, null, 'Test alert created');
         } else {
-            res.json({ success: false, message: 'System monitor not available' });
+            log.warn('TestAlert - system monitor not available');
+            return res.json({ success: false, message: 'System monitor not available' });
         }
     } catch (error) {
+        log.error('TestAlert failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -314,20 +434,28 @@ export const testAlert = async (req, res) => {
  * GET /api/admin/queue-stats
  */
 export const getQueueStats = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetQueueStats', {});
+
     try {
         const stats = global.downloadQueue ? await global.downloadQueue.getQueueStats() : null;
-        res.json({ success: true, data: stats });
+        log.success('GetQueueStats', { available: !!global.downloadQueue });
+        return sendSuccessResponse(res, stats);
     } catch (error) {
+        log.error('GetQueueStats failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
+
 /**
  * Get system performance
  * GET /api/admin/system-performance
  */
 export const getSystemPerformance = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSystemPerformance', {});
+
     try {
-        console.log('📊 Getting system performance data...');
         // Get load balancer stats
         const loadBalancerStats = global.loadBalancer ? global.loadBalancer.getStats() : {
             totalRequests: 0,
@@ -378,6 +506,15 @@ export const getSystemPerformance = async (req, res) => {
         global.lastCpuUsage = cpuUsageData;
         global.lastCpuTime = Date.now();
 
+        // Helper to format bytes
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
         const systemMetrics = {
             uptime: uptime,
             memory: {
@@ -410,15 +547,6 @@ export const getSystemPerformance = async (req, res) => {
             }
         };
 
-        // Helper to format bytes
-        function formatBytes(bytes) {
-            if (!bytes || bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
         // Get Redis stats
         let redisStats = { connected: false, error: 'Redis not available' };
         if (global.redis && global.redis.isOpen) {
@@ -430,18 +558,16 @@ export const getSystemPerformance = async (req, res) => {
             }
         }
 
-        res.json({
-            success: true,
-            data: {
-                loadBalancer: loadBalancerStats,
-                queryOptimizer: queryOptimizerStats,
-                redis: redisStats,
-                system: systemMetrics
-            }
+        log.success('GetSystemPerformance', { cpuUsage: cpuUsagePercent.toFixed(2), memoryPercent: systemMetrics.memory.systemPercentage.toFixed(2) });
+        return sendSuccessResponse(res, {
+            loadBalancer: loadBalancerStats,
+            queryOptimizer: queryOptimizerStats,
+            redis: redisStats,
+            system: systemMetrics
         });
     } catch (error) {
-        console.error('❌ Error getting system performance:', error);
-        res.status(500).json({ error: 'Internal server error', message: error.message });
+        log.error('GetSystemPerformance failed', { error: error.message });
+        return res.status(500).json({ error: 'Internal server error', message: error.message });
     }
 };
 
@@ -450,6 +576,9 @@ export const getSystemPerformance = async (req, res) => {
  * GET /api/admin/monitoring-dashboard
  */
 export const getMonitoringDashboard = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetMonitoringDashboard', {});
+
     try {
         const os = await import('os');
         const totalMemory = os.totalmem();
@@ -508,7 +637,6 @@ export const getMonitoringDashboard = async (req, res) => {
 
         // Structure response to match frontend expectations
         const responseData = {
-            // metrics wrapper for frontend compatibility
             metrics: {
                 system: {
                     memory: {
@@ -522,7 +650,7 @@ export const getMonitoringDashboard = async (req, res) => {
                     },
                     disk: {
                         used: 0,
-                        total: 40 * 1024 * 1024 * 1024, // 40GB
+                        total: 40 * 1024 * 1024 * 1024,
                         percentage: 0
                     },
                     uptime: process.uptime()
@@ -558,7 +686,6 @@ export const getMonitoringDashboard = async (req, res) => {
                     }
                 }
             },
-            // Direct system access for uptime display
             system: {
                 uptime: process.uptime(),
                 memory: {
@@ -576,11 +703,8 @@ export const getMonitoringDashboard = async (req, res) => {
                 platform: os.platform(),
                 hostname: os.hostname()
             },
-            // Health status
             health: healthStatus,
-            // Load balancer stats
             loadBalancer: loadBalancerStats,
-            // Alerts
             alerts: alerts.slice(0, 10),
             alertStats: {
                 total: alerts.length,
@@ -595,10 +719,11 @@ export const getMonitoringDashboard = async (req, res) => {
             }
         };
 
-        res.json({ success: true, data: responseData });
+        log.success('GetMonitoringDashboard', { alertCount: alerts.length, uptime: process.uptime() });
+        return sendSuccessResponse(res, responseData);
     } catch (error) {
-        console.error('❌ Error getting monitoring dashboard:', error);
-        res.status(500).json({ error: 'Internal server error', message: error.message });
+        log.error('GetMonitoringDashboard failed', { error: error.message });
+        return res.status(500).json({ error: 'Internal server error', message: error.message });
     }
 };
 
@@ -607,16 +732,20 @@ export const getMonitoringDashboard = async (req, res) => {
  * GET /api/admin/logs
  */
 export const getSystemLogs = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSystemLogs', {});
+
     try {
-        console.log('📝 Retrieving system logs...');
-        // For now, return sample log data (migrated from server_modern.js)
+        // For now, return sample log data
         const logs = [
             { timestamp: new Date().toISOString(), level: 'INFO', message: 'Sistem berjalan normal', user: 'admin' },
             { timestamp: new Date(Date.now() - 60000).toISOString(), level: 'INFO', message: 'Database backup otomatis berhasil', user: 'system' },
             { timestamp: new Date(Date.now() - 120000).toISOString(), level: 'WARNING', message: 'Tingkat kehadiran rendah hari ini', user: 'system' }
         ];
+        log.success('GetSystemLogs', { count: logs.length });
         res.json({ logs });
     } catch (error) {
+        log.error('GetSystemLogs failed', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };

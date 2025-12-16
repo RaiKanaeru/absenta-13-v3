@@ -1,13 +1,14 @@
 /**
  * Reports Controller
  * Handles analytics dashboard and attendance reports (CSV/Excel)
- * Migrated from server_modern.js
  */
 
 import { getMySQLDateWIB, getWIBTime } from '../utils/timeUtils.js';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
-
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Reports');
 
 // ================================================
 // REPORTS & ANALYTICS ENDPOINTS
@@ -15,36 +16,36 @@ import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadServic
 
 // Update permission request status (Deprecated but kept for compatibility)
 export const updatePermissionStatus = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { status } = req.body;
 
+    log.requestStart('UpdatePermissionStatus', { id, status });
+
+    try {
         if (!status || !['disetujui', 'ditolak'].includes(status)) {
-            return res.status(400).json({ error: 'Status harus disetujui atau ditolak' });
+            log.validationFail('status', status, 'Invalid status');
+            return sendValidationError(res, 'Status harus disetujui atau ditolak', { field: 'status' });
         }
 
-        console.log(`🔄 Updating permission request ${id} to ${status}...`);
-
         // Endpoint deprecated - pengajuan izin sudah dihapus
+        log.warn('Deprecated endpoint called', { id });
         return res.status(410).json({
             error: 'Endpoint deprecated',
             message: 'Pengajuan izin sudah dihapus dari sistem'
         });
-
-        /* Unreachable code kept for reference as per original file
-        console.log(`✅ Permission request ${id} updated to ${status}`);
-        res.json({ message: `Pengajuan berhasil ${status}` });
-        */
     } catch (error) {
+        log.dbError('updatePermission', error, { id });
         return sendDatabaseError(res, error);
     }
 };
 
 // Get analytics data for dashboard
 export const getAnalyticsDashboard = async (req, res) => {
-    try {
-        console.log('📊 Getting analytics dashboard data...');
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetAnalyticsDashboard', {});
 
+    try {
         // Get current WIB date components
         const todayWIB = getMySQLDateWIB();
         const wibNow = getWIBTime();
@@ -168,18 +169,20 @@ export const getAnalyticsDashboard = async (req, res) => {
             totalStudents: totalStudents
         };
 
-        console.log(`✅ Analytics data retrieved successfully`);
+        log.success('GetAnalyticsDashboard', { totalStudents, notificationCount: notifications.length });
         res.json(analyticsData);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('analytics', error);
+        return sendDatabaseError(res, error, 'Gagal memuat data analytics');
     }
 };
 
 // Get live teacher attendance
 export const getLiveTeacherAttendance = async (req, res) => {
-    try {
-        console.log('📊 Getting live teacher attendance...');
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetLiveTeacherAttendance', {});
 
+    try {
         const todayWIB = getMySQLDateWIB();
         const wibNow = getWIBTime();
         const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -232,19 +235,20 @@ export const getLiveTeacherAttendance = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query, [todayWIB, currentDayWIB]);
-        console.log(`✅ Live teacher attendance retrieved: ${rows.length} records`);
+        log.success('GetLiveTeacherAttendance', { count: rows.length, day: currentDayWIB });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('liveTeacher', error);
+        return sendDatabaseError(res, error, 'Gagal memuat data kehadiran guru');
     }
 };
 
 // Get live student attendance
 export const getLiveStudentAttendance = async (req, res) => {
-    try {
-        console.log('📊 Getting live student attendance...');
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetLiveStudentAttendance', {});
 
-        // FIX: Get today's date in WIB timezone
+    try {
         const todayWIB = getMySQLDateWIB();
 
         const query = `
@@ -289,21 +293,25 @@ export const getLiveStudentAttendance = async (req, res) => {
         `;
 
         const [rows] = await global.dbPool.execute(query, [todayWIB]);
-        console.log(`✅ Live student attendance retrieved: ${rows.length} records`);
+        log.success('GetLiveStudentAttendance', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('liveStudent', error);
+        return sendDatabaseError(res, error, 'Gagal memuat data kehadiran siswa');
     }
 };
 
 // Get teacher attendance report
 export const getTeacherAttendanceReport = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        console.log('📊 Getting teacher attendance report:', { startDate, endDate, kelas_id });
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    
+    log.requestStart('GetTeacherReport', { startDate, endDate, kelas_id });
 
+    try {
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
         let query = `
@@ -341,21 +349,25 @@ export const getTeacherAttendanceReport = async (req, res) => {
         query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
 
         const [rows] = await global.dbPool.execute(query, params);
-        console.log(`✅ Teacher attendance report retrieved: ${rows.length} records`);
+        log.success('GetTeacherReport', { count: rows.length, startDate, endDate });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('teacherReport', error);
+        return sendDatabaseError(res, error, 'Gagal memuat laporan kehadiran guru');
     }
 };
 
 // Download teacher attendance report as Excel (CSV)
 export const downloadTeacherAttendanceReport = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        console.log('📊 Downloading teacher attendance report:', { startDate, endDate, kelas_id });
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    
+    log.requestStart('DownloadTeacherReport', { startDate, endDate, kelas_id });
 
+    try {
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
         }
 
         let query = `
@@ -406,20 +418,24 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-guru-${startDate}-${endDate}.csv"`);
         res.send(csvContent);
 
-        console.log(`✅ Teacher attendance report downloaded successfully: ${rows.length} records`);
+        log.success('DownloadTeacherReport', { recordCount: rows.length, filename: `laporan-kehadiran-guru-${startDate}-${endDate}.csv` });
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('downloadTeacher', error);
+        return sendDatabaseError(res, error, 'Gagal mengunduh laporan kehadiran guru');
     }
 };
 
 // Get student attendance report
 export const getStudentAttendanceReport = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        console.log('📊 Getting student attendance report:', { startDate, endDate, kelas_id });
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    
+    log.requestStart('GetStudentReport', { startDate, endDate, kelas_id });
 
+    try {
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
         }
 
         let query = `
@@ -452,21 +468,25 @@ export const getStudentAttendanceReport = async (req, res) => {
         query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
 
         const [rows] = await global.dbPool.execute(query, params);
-        console.log(`✅ Student attendance report retrieved: ${rows.length} records`);
+        log.success('GetStudentReport', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('studentReport', error);
+        return sendDatabaseError(res, error, 'Gagal memuat laporan kehadiran siswa');
     }
 };
 
 // Download student attendance report as CSV
 export const downloadStudentAttendanceReport = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        console.log('📊 Downloading student attendance report:', { startDate, endDate, kelas_id });
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    
+    log.requestStart('DownloadStudentReport', { startDate, endDate, kelas_id });
 
+    try {
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
         }
 
         let query = `
@@ -512,18 +532,24 @@ export const downloadStudentAttendanceReport = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-siswa-${startDate}-${endDate}.csv"`);
         res.send(csvContent);
 
-        console.log(`✅ Student attendance report downloaded successfully: ${rows.length} records`);
+        log.success('DownloadStudentReport', { recordCount: rows.length });
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('downloadStudent', error);
+        return sendDatabaseError(res, error, 'Gagal mengunduh laporan kehadiran siswa');
     }
 };
 
 // Get student attendance summary
 export const getStudentAttendanceSummary = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
+    
+    log.requestStart('GetStudentSummary', { startDate, endDate, kelas_id });
+
     try {
-        const { startDate, endDate, kelas_id } = req.query;
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
         }
 
         let query = `
@@ -555,20 +581,26 @@ export const getStudentAttendanceSummary = async (req, res) => {
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
 
         const [rows] = await global.dbPool.execute(query, params);
+        log.success('GetStudentSummary', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('studentSummary', error);
+        return sendDatabaseError(res, error, 'Gagal memuat ringkasan kehadiran siswa');
     }
 };
 
 // Download student attendance summary as styled Excel
 export const downloadStudentAttendanceExcel = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate, kelas_id } = req.query;
 
+    log.requestStart('DownloadStudentExcel', { startDate, endDate, kelas_id });
+
+    try {
         // Validasi input
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
         }
 
         // Validasi format tanggal
@@ -576,21 +608,22 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
         const endDateObj = new Date(endDate);
 
         if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
-            return res.status(400).json({ error: 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD' });
+            log.validationFail('dateFormat', { startDate, endDate }, 'Invalid format');
+            return sendValidationError(res, 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD');
         }
 
         // Validasi rentang tanggal
         if (startDateObj > endDateObj) {
-            return res.status(400).json({ error: 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai' });
+            log.validationFail('dateRange', null, 'Start after end');
+            return sendValidationError(res, 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai');
         }
 
         // Validasi batas rentang (maksimal 1 tahun)
         const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
         if (daysDiff > 366) {
-            return res.status(400).json({ error: 'Rentang tanggal tidak boleh lebih dari 366 hari' });
+            log.validationFail('dateRange', daysDiff, 'Range exceeds 366 days');
+            return sendValidationError(res, 'Rentang tanggal tidak boleh lebih dari 366 hari');
         }
-
-        console.log(`📊 Generating student attendance excel for period: ${startDate} to ${endDate}, class: ${kelas_id || 'all'}`);
 
         let query = `
             SELECT 
@@ -623,7 +656,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
 
         const [rows] = await global.dbPool.execute(query, params);
 
-        console.log(`📊 Found ${rows.length} students for export`);
+        log.debug('Building Excel export', { studentCount: rows.length });
 
         // Build schema-aligned rows
         const exportRows = rows.map((r, idx) => ({
@@ -639,7 +672,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
             presentase: Number(r.presentase) / 100 || 0 // Convert to decimal for percentage format
         }));
 
-        // Dynamic imports for backend utilities to avoid circular dependencies
+        // Dynamic imports for backend utilities
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
         const studentSchemaModule = await import('../../backend/export/schemas/student-summary.js');
         const studentSchema = studentSchemaModule.default;
@@ -668,27 +701,29 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Student attendance excel generated successfully for ${exportRows.length} students`);
+        log.success('DownloadStudentExcel', { studentCount: exportRows.length, filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx` });
     } catch (error) {
-        console.error('❌ Error downloading student attendance summary excel:', error);
-        console.error('Stack trace:', error.stack);
+        log.error('DownloadStudentExcel failed', { error: error.message, stack: error.stack });
 
         if (!res.headersSent) {
-            res.status(500).json({
-                error: 'Gagal membuat file Excel',
-                details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-            });
+            return sendErrorResponse(res, error, 'Gagal membuat file Excel');
         }
     }
 };
 
 // Teacher attendance summary
 export const getTeacherAttendanceSummary = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { startDate, endDate } = req.query;
+    
+    log.requestStart('GetTeacherSummary', { startDate, endDate });
+
     try {
-        const { startDate, endDate } = req.query;
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+            log.validationFail('dates', null, 'Date range required');
+            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
         }
+        
         let query = `
             SELECT 
                 g.id_guru as guru_id,
@@ -709,9 +744,12 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         `;
         const params = [startDate, endDate];
         query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
+        
         const [rows] = await global.dbPool.execute(query, params);
+        log.success('GetTeacherSummary', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('teacherSummary', error);
+        return sendDatabaseError(res, error, 'Gagal memuat ringkasan kehadiran guru');
     }
 };
