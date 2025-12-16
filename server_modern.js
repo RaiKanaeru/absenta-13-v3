@@ -182,6 +182,45 @@ app.use((req, res, next) => {
     next();
 });
 
+// Security Headers middleware (CSP, HSTS, COOP, COEP) for PageSpeed optimization
+app.use((req, res, next) => {
+    // HSTS - Force HTTPS
+    res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    
+    // Content Security Policy
+    res.header('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://static.cloudflareinsights.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: blob: https:",
+        "connect-src 'self' https://api.absenta13.my.id https://www.google-analytics.com https://static.cloudflareinsights.com",
+        "frame-ancestors 'self'",
+        "base-uri 'self'",
+        "form-action 'self'"
+    ].join('; '));
+    
+    // Cross-Origin-Opener-Policy
+    res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    
+    // X-Content-Type-Options
+    res.header('X-Content-Type-Options', 'nosniff');
+    
+    // X-Frame-Options
+    res.header('X-Frame-Options', 'SAMEORIGIN');
+    
+    // X-XSS-Protection
+    res.header('X-XSS-Protection', '1; mode=block');
+    
+    // Referrer-Policy
+    res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    
+    // Permissions-Policy
+    res.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    
+    next();
+});
+
 // Standard CORS middleware (backup)
 app.use(cors(corsOptions));
 
