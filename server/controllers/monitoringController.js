@@ -327,7 +327,11 @@ export const toggleLoadBalancer = async (req, res) => {
 
     try {
         if (global.loadBalancer) {
-            global.loadBalancer.setEnabled(enabled);
+            if (enabled) {
+                await global.loadBalancer.enable();
+            } else {
+                await global.loadBalancer.disable();
+            }
             log.success('ToggleLoadBalancer', { enabled });
             return sendSuccessResponse(res, null, `Load balancer ${enabled ? 'enabled' : 'disabled'}`);
         } else {
