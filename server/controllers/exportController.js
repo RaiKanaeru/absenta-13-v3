@@ -6,6 +6,9 @@
 
 import ExcelJS from 'exceljs';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Export');
 
 import { buildExcel } from '../../backend/export/excelBuilder.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';

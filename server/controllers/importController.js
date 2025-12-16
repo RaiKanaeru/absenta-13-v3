@@ -6,7 +6,10 @@
 
 import ExcelJS from 'exceljs';
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Import');
 import {
     sheetToJsonByHeader,
     mapKelasByName,
@@ -117,8 +120,8 @@ const importMapel = async (req, res) => {
 
         res.json({ success: true, inserted_or_updated: valid.length, invalid: errors.length, errors });
     } catch (err) {
-        console.error('❌ Import mapel error:', err);
-        res.status(500).json({ error: 'Gagal impor mapel' });
+        logger.error('Import mapel failed', err);
+        return sendDatabaseError(res, err, 'Gagal impor mapel');
     }
 };
 
@@ -1416,7 +1419,7 @@ const importGuru = async (req, res) => {
                         successCount++;
                     }
                 } catch (insertError) {
-                    console.error(`❌ Error processing guru data ${v.nama}:`, insertError);
+                    logger.error('Error processing guru data', insertError, { nama: v.nama });
                     throw insertError;
                 }
             }

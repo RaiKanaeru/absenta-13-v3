@@ -8,6 +8,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import AdmZip from 'adm-zip';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Backup');
 
 // ================================================
 // HELPER FUNCTIONS

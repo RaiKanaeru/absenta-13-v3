@@ -23,6 +23,10 @@ import {
     formatWIBTimeWithSeconds,
     getDaysDifferenceWIB
 } from '../utils/timeUtils.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Absensi');
 
 // ===========================
 // CONSTANTS
@@ -46,9 +50,6 @@ const STUDENT_EDIT_DAYS_LIMIT = 7;
 
 /**
  * Validates if a date is within the allowed edit range
- * @param {string} targetDate - Date to validate (YYYY-MM-DD)
- * @param {number} maxDaysAgo - Maximum days in the past allowed
- * @returns {{ valid: boolean, error: string | null }}
  */
 function validateDateRange(targetDate, maxDaysAgo) {
     const todayStr = getMySQLDateWIB();
@@ -67,10 +68,6 @@ function validateDateRange(targetDate, maxDaysAgo) {
 
 /**
  * Maps attendance status based on additional flags
- * @param {string} status - Original status
- * @param {boolean} terlambat - Is late flag
- * @param {boolean} ada_tugas - Has task flag
- * @returns {{ finalStatus: string, isLate: number, hasTask: number }}
  */
 function mapAttendanceStatus(status, terlambat = false, ada_tugas = false) {
     let finalStatus = status;
@@ -79,10 +76,8 @@ function mapAttendanceStatus(status, terlambat = false, ada_tugas = false) {
 
     if (terlambat && status === 'Hadir') {
         isLate = 1;
-        // Status remains 'Hadir' but marked as late
     } else if (ada_tugas && ['Alpa', 'Sakit', 'Izin', 'Tidak Hadir'].includes(status)) {
         hasTask = 1;
-        // Status remains original but marked with task
     }
 
     return { finalStatus, isLate, hasTask };
@@ -90,9 +85,6 @@ function mapAttendanceStatus(status, terlambat = false, ada_tugas = false) {
 
 /**
  * Parses attendance data from request body
- * Handles both old format (string) and new format (object with status, terlambat, ada_tugas)
- * @param {string|object} attendanceData - Attendance data from request
- * @returns {{ status: string, terlambat: boolean, ada_tugas: boolean } | null}
  */
 function parseAttendanceData(attendanceData) {
     if (typeof attendanceData === 'string') {
@@ -112,12 +104,8 @@ function parseAttendanceData(attendanceData) {
 
 /**
  * Gets the primary or first teacher for a multi-guru schedule
- * @param {object} connection - Database connection
- * @param {number} jadwalId - Schedule ID
- * @returns {Promise<number|null>} - Guru ID or null
  */
 async function getPrimaryTeacherForSchedule(connection, jadwalId) {
-    // Try to get primary teacher
     const [guruDetails] = await connection.execute(
         'SELECT guru_id FROM jadwal_guru WHERE jadwal_id = ? AND is_primary = 1 LIMIT 1',
         [jadwalId]
@@ -127,7 +115,6 @@ async function getPrimaryTeacherForSchedule(connection, jadwalId) {
         return guruDetails[0].guru_id;
     }
 
-    // Fallback: get any teacher
     const [anyGuruDetails] = await connection.execute(
         'SELECT guru_id FROM jadwal_guru WHERE jadwal_id = ? LIMIT 1',
         [jadwalId]
@@ -144,28 +131,27 @@ async function getPrimaryTeacherForSchedule(connection, jadwalId) {
 /**
  * Get students for a specific schedule with today's attendance
  * @route GET /api/schedule/:id/students
- * @access Teacher, Admin
  */
 export async function getStudentsForSchedule(req, res) {
-    try {
-        const { id } = req.params;
-        console.log(`👥 Getting students for schedule ID: ${id}`);
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    log.requestStart('GetStudentsForSchedule', { scheduleId: id });
 
-        // Get schedule details
+    try {
         const [scheduleData] = await global.dbPool.execute(
             'SELECT kelas_id, is_multi_guru FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
             [id]
         );
 
         if (scheduleData.length === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('Schedule not found', { scheduleId: id });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
         const kelasId = scheduleData[0].kelas_id;
         const isMultiGuru = scheduleData[0].is_multi_guru === 1;
         const currentDate = getMySQLDateWIB();
 
-        // Build dynamic query based on multi-guru status
         const multiGuruSelect = isMultiGuru
             ? `GROUP_CONCAT(
                 CONCAT(
@@ -221,9 +207,10 @@ export async function getStudentsForSchedule(req, res) {
 
         const [students] = await global.dbPool.execute(query, params);
 
-        console.log(`✅ Found ${students.length} students for schedule ${id} (class ${kelasId})`);
+        log.success('GetStudentsForSchedule', { scheduleId: id, count: students.length, kelasId });
         res.json(students);
     } catch (error) {
+        log.dbError('getStudentsForSchedule', error, { scheduleId: id });
         return sendDatabaseError(res, error);
     }
 }
@@ -231,37 +218,36 @@ export async function getStudentsForSchedule(req, res) {
 /**
  * Get students for a specific schedule by date (for editing past attendance)
  * @route GET /api/schedule/:id/students-by-date?tanggal=YYYY-MM-DD
- * @access Teacher, Admin
  */
 export async function getStudentsForScheduleByDate(req, res) {
-    try {
-        const { id } = req.params;
-        const { tanggal } = req.query;
-        console.log(`👥 Getting students for schedule ID: ${id} on date: ${tanggal}`);
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { tanggal } = req.query;
+    log.requestStart('GetStudentsForScheduleByDate', { scheduleId: id, tanggal });
 
-        // Validate date range
+    try {
         const today = getWIBTime();
         const thirtyDaysAgo = new Date(today.getTime() - (TEACHER_EDIT_DAYS_LIMIT * 24 * 60 * 60 * 1000));
         const targetDate = tanggal ? new Date(tanggal) : today;
 
         if (targetDate > today) {
-            return res.status(400).json({ error: 'Tidak dapat melihat absen untuk tanggal masa depan' });
+            log.validationFail('tanggal', tanggal, 'Future date not allowed');
+            return sendValidationError(res, 'Tidak dapat melihat absen untuk tanggal masa depan');
         }
 
         if (targetDate < thirtyDaysAgo) {
-            return res.status(400).json({ 
-                error: `Tidak dapat melihat absen lebih dari ${TEACHER_EDIT_DAYS_LIMIT} hari yang lalu` 
-            });
+            log.validationFail('tanggal', tanggal, 'Date too old');
+            return sendValidationError(res, `Tidak dapat melihat absen lebih dari ${TEACHER_EDIT_DAYS_LIMIT} hari yang lalu`);
         }
 
-        // Get schedule details
         const [scheduleData] = await global.dbPool.execute(
             'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
             [id]
         );
 
         if (scheduleData.length === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('Schedule not found', { scheduleId: id });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
         const kelasId = scheduleData[0].kelas_id;
@@ -289,80 +275,69 @@ export async function getStudentsForScheduleByDate(req, res) {
             [id, targetDateStr, kelasId]
         );
 
-        console.log(`✅ Found ${students.length} students for schedule ${id} on date ${targetDateStr}`);
+        log.success('GetStudentsForScheduleByDate', { scheduleId: id, tanggal: targetDateStr, count: students.length });
         res.json(students);
     } catch (error) {
+        log.dbError('getStudentsForScheduleByDate', error, { scheduleId: id });
         return sendDatabaseError(res, error);
     }
 }
 
 /**
  * Submit attendance for a schedule (by teacher)
- * Handles multi-guru auto-assignment for team teaching schedules
  * @route POST /api/attendance/submit
- * @access Teacher, Admin
  */
 export async function submitStudentAttendance(req, res) {
-    try {
-        const { scheduleId, attendance, notes = {}, guruId, tanggal_absen } = req.body;
+    const log = logger.withRequest(req, res);
+    const { scheduleId, attendance, notes = {}, guruId, tanggal_absen } = req.body;
+    log.requestStart('SubmitStudentAttendance', { scheduleId, guruId, studentCount: Object.keys(attendance || {}).length });
 
-        // Validate required fields
+    try {
         if (!scheduleId || !attendance || !guruId) {
-            return res.status(400).json({ error: 'Data absensi tidak lengkap' });
+            log.validationFail('required_fields', null, 'Missing scheduleId, attendance, or guruId');
+            return sendValidationError(res, 'Data absensi tidak lengkap');
         }
 
-        console.log(`📝 Submitting attendance for schedule ${scheduleId} by teacher ${guruId}`);
-
-        // Verify schedule exists
         const [scheduleData] = await global.dbPool.execute(
             'SELECT kelas_id, mapel_id, is_multi_guru FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
             [scheduleId]
         );
 
         if (scheduleData.length === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('Schedule not found', { scheduleId });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
         const isMultiGuru = scheduleData[0].is_multi_guru === 1;
-
-        // Validate date range
         const targetDate = tanggal_absen || getMySQLDateWIB();
         const dateValidation = validateDateRange(targetDate, TEACHER_EDIT_DAYS_LIMIT);
 
         if (!dateValidation.valid) {
-            return res.status(400).json({ error: dateValidation.error });
+            log.validationFail('tanggal', targetDate, dateValidation.error);
+            return sendValidationError(res, dateValidation.error);
         }
 
-        // Process attendance records
         const attendanceEntries = Object.entries(attendance);
         const currentTime = formatWIBTimeWithSeconds();
         const processedStudents = [];
 
         for (const [studentId, attendanceData] of attendanceEntries) {
-            // Parse attendance data
             const parsed = parseAttendanceData(attendanceData);
             if (!parsed) {
-                return res.status(400).json({
-                    error: `Format data absensi tidak valid untuk siswa ${studentId}`
-                });
+                log.validationFail('attendance_data', studentId, 'Invalid format');
+                return sendValidationError(res, `Format data absensi tidak valid untuk siswa ${studentId}`);
             }
 
             const { status, terlambat, ada_tugas } = parsed;
 
-            // Validate status
             if (!VALID_STUDENT_STATUSES.includes(status)) {
-                return res.status(400).json({
-                    error: `Status tidak valid: ${status}. Status yang diperbolehkan: ${VALID_STUDENT_STATUSES.join(', ')}`
-                });
+                log.validationFail('status', status, 'Invalid status');
+                return sendValidationError(res, `Status tidak valid: ${status}. Status yang diperbolehkan: ${VALID_STUDENT_STATUSES.join(', ')}`);
             }
 
-            // Map status with flags
             const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
-
-            // Clear note if status is Hadir
             const note = status === 'Hadir' ? '' : (notes[studentId] || '');
 
-            // Upsert attendance record
             const [existingAttendance] = await global.dbPool.execute(
                 'SELECT id FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND guru_pengabsen_id = ? AND tanggal = ?',
                 [studentId, scheduleId, guruId, targetDate]
@@ -389,12 +364,11 @@ export async function submitStudentAttendance(req, res) {
             processedStudents.push({ studentId, status: finalStatus });
         }
 
-        // Handle Multi-Guru auto-assignment
         if (isMultiGuru) {
             await syncMultiGuruAttendance(scheduleId, guruId, attendance, notes, targetDate, currentTime);
         }
 
-        console.log(`✅ Attendance submitted successfully for ${processedStudents.length} students`);
+        log.success('SubmitStudentAttendance', { scheduleId, processed: processedStudents.length, date: targetDate });
         res.json({
             message: 'Absensi berhasil disimpan',
             processed: processedStudents.length,
@@ -403,10 +377,8 @@ export async function submitStudentAttendance(req, res) {
             isMultiGuru
         });
     } catch (error) {
-        console.error('❌ Error submitting attendance:', error);
-        res.status(500).json({
-            error: 'Internal server error: ' + error.message
-        });
+        log.dbError('submitStudentAttendance', error, { scheduleId });
+        return sendDatabaseError(res, error, 'Gagal menyimpan absensi');
     }
 }
 
@@ -415,7 +387,7 @@ export async function submitStudentAttendance(req, res) {
  * @private
  */
 async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, notes, targetDate, currentTime) {
-    console.log(`🔄 Syncing attendance to other teachers in multi-guru schedule...`);
+    logger.debug('Multi-guru sync started', { scheduleId, primaryGuruId });
 
     const [allTeachers] = await global.dbPool.execute(
         'SELECT guru_id FROM jadwal_guru WHERE jadwal_id = ? AND guru_id != ?',
@@ -424,7 +396,7 @@ async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, no
 
     if (allTeachers.length === 0) return;
 
-    console.log(`👥 Found ${allTeachers.length} other teachers to sync`);
+    logger.debug('Syncing to other teachers', { count: allTeachers.length });
 
     for (const teacher of allTeachers) {
         const otherGuruId = teacher.guru_id;
@@ -461,7 +433,7 @@ async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, no
         }
     }
 
-    console.log(`✅ Multi-guru sync completed for ${allTeachers.length} teachers`);
+    logger.debug('Multi-guru sync completed', { syncedTeachers: allTeachers.length });
 }
 
 // ===========================
@@ -470,50 +442,49 @@ async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, no
 // ===========================
 
 /**
- * Submit teacher attendance (by class representative/siswa perwakilan)
- * Supports multi-guru schedules and date range editing (up to 7 days)
+ * Submit teacher attendance (by class representative)
  * @route POST /api/siswa/submit-kehadiran-guru
- * @access Siswa (Class Representative)
  */
 export async function submitTeacherAttendance(req, res) {
-    try {
-        const { siswa_id, kehadiran_data, tanggal_absen } = req.body;
-        console.log('📝 Submitting kehadiran guru for siswa:', siswa_id);
+    const log = logger.withRequest(req, res);
+    const { siswa_id, kehadiran_data, tanggal_absen } = req.body;
+    log.requestStart('SubmitTeacherAttendance', { siswa_id, entryCount: Object.keys(kehadiran_data || {}).length });
 
-        // Validation
+    try {
         if (!siswa_id) {
-            return res.status(400).json({ error: 'siswa_id is required' });
+            log.validationFail('siswa_id', null, 'Required');
+            return sendValidationError(res, 'siswa_id is required');
         }
 
         if (!kehadiran_data || typeof kehadiran_data !== 'object') {
-            return res.status(400).json({ error: 'kehadiran_data is required and must be an object' });
+            log.validationFail('kehadiran_data', null, 'Required object');
+            return sendValidationError(res, 'kehadiran_data is required and must be an object');
         }
 
-        // Validate date range
         const targetDate = tanggal_absen || getMySQLDateWIB();
         const dateValidation = validateDateRange(targetDate, STUDENT_EDIT_DAYS_LIMIT);
 
         if (!dateValidation.valid) {
-            return res.status(400).json({ error: dateValidation.error });
+            log.validationFail('tanggal', targetDate, dateValidation.error);
+            return sendValidationError(res, dateValidation.error);
         }
 
         if (!global.dbPool) {
+            log.error('Database not available', null);
             return res.status(503).json({ error: 'Database connection not available' });
         }
 
-        // Get connection for transaction
         const connection = await global.dbPool.getConnection();
 
         try {
             await connection.beginTransaction();
 
-            // Process each attendance entry
             for (const [key, data] of Object.entries(kehadiran_data)) {
                 await processTeacherAttendanceEntry(connection, key, data, siswa_id, targetDate);
             }
 
             await connection.commit();
-            console.log('✅ Kehadiran guru submitted successfully');
+            log.success('SubmitTeacherAttendance', { siswa_id, targetDate, entries: Object.keys(kehadiran_data).length });
 
             res.json({
                 success: true,
@@ -526,6 +497,7 @@ export async function submitTeacherAttendance(req, res) {
             connection.release();
         }
     } catch (error) {
+        log.dbError('submitTeacherAttendance', error, { siswa_id });
         return sendDatabaseError(res, error, 'Gagal menyimpan data kehadiran guru');
     }
 }
@@ -539,7 +511,6 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
 
     let jadwalId, guru_id;
 
-    // Check if this is a multi-guru key (format: "jadwalId-guruId")
     if (key.includes('-')) {
         [jadwalId, guru_id] = key.split('-');
         guru_id = parseInt(guru_id);
@@ -549,7 +520,6 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
         if (specific_guru_id) {
             guru_id = specific_guru_id;
         } else {
-            // Get guru_id from jadwal table
             const [jadwalDetails] = await connection.execute(
                 'SELECT guru_id FROM jadwal WHERE id_jadwal = ?',
                 [jadwalId]
@@ -561,14 +531,12 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
 
             guru_id = jadwalDetails[0].guru_id;
 
-            // If guru_id is NULL (multi-guru system), get the primary teacher
             if (!guru_id) {
                 guru_id = await getPrimaryTeacherForSchedule(connection, jadwalId);
             }
         }
     }
 
-    // Get jadwal details
     const [jadwalDetails] = await connection.execute(
         'SELECT kelas_id, jam_ke, is_absenable, jenis_aktivitas FROM jadwal WHERE id_jadwal = ?',
         [jadwalId]
@@ -580,21 +548,17 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
 
     const { kelas_id, jam_ke, is_absenable, jenis_aktivitas } = jadwalDetails[0];
 
-    // Skip non-absenable schedules
     if (!is_absenable) {
-        console.log(`⚠️ Skipping non-absenable schedule ${jadwalId} (${jenis_aktivitas})`);
+        logger.debug('Skipping non-absenable schedule', { jadwalId, jenis_aktivitas });
         return;
     }
 
-    // Validate guru_id
     if (!guru_id) {
         throw new Error(`Guru ID tidak ditemukan untuk jadwal ${jadwalId}`);
     }
 
-    // Map status
     const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
 
-    // Upsert record
     const [existingRecord] = await connection.execute(
         'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?',
         [jadwalId, guru_id, targetDate]
@@ -609,7 +573,6 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
             WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?`,
             [finalStatus, keterangan || null, siswa_id, waktuCatatWIB, isLate, hasTask, jadwalId, guru_id, targetDate]
         );
-        console.log(`✅ Updated attendance for jadwal ${jadwalId}, guru ${guru_id}`);
     } else {
         await connection.execute(`
             INSERT INTO absensi_guru 
@@ -617,50 +580,48 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [jadwalId, guru_id, kelas_id, siswa_id, targetDate, jam_ke, finalStatus, keterangan || null, waktuCatatWIB, isLate, hasTask]
         );
-        console.log(`✅ Inserted attendance for jadwal ${jadwalId}, guru ${guru_id}`);
     }
 }
 
 /**
  * Update single teacher status (real-time save by class representative)
  * @route POST /api/siswa/update-status-guru
- * @access Siswa (Class Representative)
  */
 export async function updateTeacherStatus(req, res) {
-    try {
-        const { jadwal_id, guru_id, status, keterangan, tanggal_absen, ada_tugas } = req.body;
-        const siswa_id = req.user.siswa_id;
+    const log = logger.withRequest(req, res);
+    const { jadwal_id, guru_id, status, keterangan, tanggal_absen, ada_tugas } = req.body;
+    const siswa_id = req.user.siswa_id;
+    log.requestStart('UpdateTeacherStatus', { jadwal_id, guru_id, status });
 
-        // Validate input
+    try {
         if (!jadwal_id || !guru_id || !status || !tanggal_absen) {
-            return res.status(400).json({ 
-                error: 'Jadwal ID, guru ID, status, dan tanggal absen wajib diisi' 
-            });
+            log.validationFail('required_fields', null, 'Missing jadwal_id, guru_id, status, or tanggal_absen');
+            return sendValidationError(res, 'Jadwal ID, guru ID, status, dan tanggal absen wajib diisi');
         }
 
-        // Validate status
         if (!VALID_TEACHER_STATUSES.includes(status)) {
-            return res.status(400).json({ error: 'Status tidak valid' });
+            log.validationFail('status', status, 'Invalid teacher status');
+            return sendValidationError(res, 'Status tidak valid');
         }
 
         if (!global.dbPool) {
+            log.error('Database not available', null);
             return res.status(503).json({ error: 'Database connection not available' });
         }
 
-        // Get jadwal info
         const [jadwalRows] = await global.dbPool.execute(
             'SELECT kelas_id, jam_ke FROM jadwal WHERE id_jadwal = ? LIMIT 1',
             [jadwal_id]
         );
 
         if (jadwalRows.length === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('Schedule not found', { jadwal_id });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
         const { kelas_id, jam_ke } = jadwalRows[0];
         const waktuCatatWIB = getMySQLDateTimeWIB();
 
-        // Upsert absensi_guru
         const [existing] = await global.dbPool.execute(
             'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?',
             [jadwal_id, guru_id, tanggal_absen]
@@ -673,7 +634,7 @@ export async function updateTeacherStatus(req, res) {
                 WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?`,
                 [status, keterangan || null, siswa_id, waktuCatatWIB, ada_tugas ? 1 : 0, jadwal_id, guru_id, tanggal_absen]
             );
-            console.log('✅ Updated absensi_guru:', { jadwal_id, guru_id, status });
+            log.debug('Updated teacher status', { jadwal_id, guru_id, status });
         } else {
             await global.dbPool.execute(`
                 INSERT INTO absensi_guru 
@@ -681,11 +642,13 @@ export async function updateTeacherStatus(req, res) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [jadwal_id, guru_id, kelas_id, siswa_id, tanggal_absen, jam_ke, status, keterangan || null, waktuCatatWIB, ada_tugas ? 1 : 0]
             );
-            console.log('✅ Inserted absensi_guru:', { jadwal_id, guru_id, status });
+            log.debug('Inserted teacher status', { jadwal_id, guru_id, status });
         }
 
+        log.success('UpdateTeacherStatus', { jadwal_id, guru_id, status });
         res.json({ success: true, message: 'Status kehadiran guru berhasil diperbarui' });
     } catch (error) {
+        log.dbError('updateTeacherStatus', error, { jadwal_id, guru_id });
         return sendDatabaseError(res, error);
     }
 }
@@ -697,33 +660,31 @@ export async function updateTeacherStatus(req, res) {
 /**
  * Get class attendance history (for class representative)
  * @route GET /api/siswa/:siswa_id/riwayat-kehadiran
- * @access Siswa
  */
 export async function getClassAttendanceHistory(req, res) {
-    try {
-        const { siswa_id } = req.params;
-        console.log('📊 Getting riwayat kehadiran kelas for siswa:', siswa_id);
+    const log = logger.withRequest(req, res);
+    const { siswa_id } = req.params;
+    log.requestStart('GetClassAttendanceHistory', { siswa_id });
 
-        // Get siswa's class
+    try {
         const [siswaData] = await global.dbPool.execute(
             'SELECT kelas_id, nama FROM siswa WHERE id_siswa = ?',
             [siswa_id]
         );
 
         if (siswaData.length === 0) {
-            return res.status(404).json({ error: 'Siswa tidak ditemukan' });
+            log.warn('Student not found', { siswa_id });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
         const kelasId = siswaData[0].kelas_id;
 
-        // Get total students in class
         const [totalSiswaResult] = await global.dbPool.execute(
             'SELECT COUNT(*) as total FROM siswa WHERE kelas_id = ?',
             [kelasId]
         );
         const totalSiswa = totalSiswaResult[0].total;
 
-        // Get attendance history with multi-guru support
         const [riwayatData] = await global.dbPool.execute(`
             SELECT 
                 ag.tanggal,
@@ -764,14 +725,13 @@ export async function getClassAttendanceHistory(req, res) {
             [kelasId, kelasId]
         );
 
-        // Group by date and calculate statistics
         const groupedData = groupAttendanceByDate(riwayatData, totalSiswa);
 
-        console.log('✅ Riwayat kehadiran kelas retrieved:', Object.keys(groupedData).length, 'days');
+        log.success('GetClassAttendanceHistory', { siswa_id, days: Object.keys(groupedData).length });
         res.json(Object.values(groupedData));
     } catch (error) {
-        console.error('❌ Error getting riwayat kehadiran:', error);
-        res.status(500).json({ error: 'Gagal memuat riwayat kehadiran' });
+        log.dbError('getClassAttendanceHistory', error, { siswa_id });
+        return sendDatabaseError(res, error, 'Gagal memuat riwayat kehadiran');
     }
 }
 
@@ -788,7 +748,6 @@ function groupAttendanceByDate(riwayatData, totalSiswa) {
             groupedData[dateKey] = { tanggal: dateKey, jadwal: [] };
         }
 
-        // Parse student attendance data
         const siswaStats = parseStudentAttendanceStats(row.siswa_data);
 
         groupedData[dateKey].jadwal.push({
@@ -863,18 +822,18 @@ function parseStudentAttendanceStats(siswaDataStr) {
 
 /**
  * Get student's own attendance status for a specific date and schedule
- * @route GET /api/siswa/:siswaId/status-kehadiran?tanggal=YYYY-MM-DD&jadwal_id=XX
- * @access Siswa
+ * @route GET /api/siswa/:siswaId/status-kehadiran
  */
 export async function getStudentAttendanceStatus(req, res) {
+    const log = logger.withRequest(req, res);
+    const { siswaId } = req.params;
+    const { tanggal, jadwal_id } = req.query;
+    log.requestStart('GetStudentAttendanceStatus', { siswaId, tanggal, jadwal_id });
+
     try {
-        const { siswaId } = req.params;
-        const { tanggal, jadwal_id } = req.query;
-
-        console.log('📊 Getting status kehadiran siswa:', { siswaId, tanggal, jadwal_id });
-
         if (!tanggal || !jadwal_id) {
-            return res.status(400).json({ error: 'Tanggal dan jadwal_id wajib diisi' });
+            log.validationFail('params', { tanggal, jadwal_id }, 'Missing required params');
+            return sendValidationError(res, 'Tanggal dan jadwal_id wajib diisi');
         }
 
         const [rows] = await global.dbPool.execute(`
@@ -895,6 +854,7 @@ export async function getStudentAttendanceStatus(req, res) {
         );
 
         if (rows.length === 0) {
+            log.debug('No attendance data found', { siswaId, tanggal, jadwal_id });
             return res.json({
                 status: 'alpa',
                 message: 'Tidak ada data kehadiran untuk siswa pada tanggal dan jadwal tersebut'
@@ -902,7 +862,7 @@ export async function getStudentAttendanceStatus(req, res) {
         }
 
         const statusData = rows[0];
-        console.log('✅ Status kehadiran siswa retrieved');
+        log.success('GetStudentAttendanceStatus', { siswaId, status: statusData.status });
 
         res.json({
             status: statusData.status || 'alpa',
@@ -912,6 +872,7 @@ export async function getStudentAttendanceStatus(req, res) {
             nama_guru: statusData.nama_guru
         });
     } catch (error) {
+        log.dbError('getStudentAttendanceStatus', error, { siswaId });
         return sendDatabaseError(res, error);
     }
 }
@@ -925,32 +886,32 @@ export async function getStudentAttendanceStatus(req, res) {
  * POST /api/absensi
  */
 export async function recordTeacherAttendanceSimple(req, res) {
-    try {
-        const { jadwal_id, guru_id, status, keterangan, terlambat, ada_tugas } = req.body;
+    const log = logger.withRequest(req, res);
+    const { jadwal_id, guru_id, status, keterangan, terlambat, ada_tugas } = req.body;
+    log.requestStart('RecordTeacherAttendanceSimple', { jadwal_id, guru_id, status });
 
-        // Check if attendance already recorded for today
+    try {
         const todayWIB = getMySQLDateWIB();
         const [existing] = await global.dbPool.execute(
-            `SELECT * FROM absensi_guru 
-             WHERE jadwal_id = ? AND tanggal = ?`,
+            `SELECT * FROM absensi_guru WHERE jadwal_id = ? AND tanggal = ?`,
             [jadwal_id, todayWIB]
         );
 
         if (existing.length > 0) {
-            return res.status(400).json({ error: 'Absensi untuk jadwal ini sudah dicatat hari ini' });
+            log.validationFail('duplicate', { jadwal_id, tanggal: todayWIB }, 'Already recorded');
+            return sendValidationError(res, 'Absensi untuk jadwal ini sudah dicatat hari ini');
         }
 
-        // Get jadwal details
         const [jadwalData] = await global.dbPool.execute(
             'SELECT * FROM jadwal WHERE id_jadwal = ?',
             [jadwal_id]
         );
 
         if (jadwalData.length === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('Schedule not found', { jadwal_id });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
-        // Map status based on flags
         let finalStatus = status;
         let isLate = 0;
         let hasTask = 0;
@@ -963,19 +924,18 @@ export async function recordTeacherAttendanceSimple(req, res) {
             finalStatus = status;
         }
 
-        // Record attendance
         await global.dbPool.execute(
             `INSERT INTO absensi_guru (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, jam_ke, status, keterangan, terlambat, ada_tugas)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [jadwal_id, guru_id, req.user.kelas_id, req.user.siswa_id, todayWIB, jadwalData[0].jam_ke, finalStatus, keterangan, isLate, hasTask]
         );
 
-        console.log(`✅ Attendance recorded by ${req.user.nama} for guru_id: ${guru_id}, status: ${finalStatus}`);
+        log.success('RecordTeacherAttendanceSimple', { jadwal_id, guru_id, status: finalStatus });
         res.json({ success: true, message: 'Absensi berhasil dicatat' });
 
     } catch (error) {
-        console.error('❌ Record attendance error:', error);
-        res.status(500).json({ error: 'Failed to record attendance' });
+        log.dbError('recordTeacherAttendanceSimple', error, { jadwal_id, guru_id });
+        return sendDatabaseError(res, error, 'Gagal mencatat absensi');
     }
 }
 
@@ -984,9 +944,11 @@ export async function recordTeacherAttendanceSimple(req, res) {
  * GET /api/absensi/history
  */
 export async function getAbsensiHistory(req, res) {
-    try {
-        const { date_start, date_end, limit = 50 } = req.query;
+    const log = logger.withRequest(req, res);
+    const { date_start, date_end, limit = 50 } = req.query;
+    log.requestStart('GetAbsensiHistory', { date_start, date_end, limit, role: req.user.role });
 
+    try {
         let query = `
             SELECT ag.*, j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
                    COALESCE(g.nama, 'Sistem') as nama_guru, k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
@@ -1002,7 +964,6 @@ export async function getAbsensiHistory(req, res) {
         let params = [];
         let whereConditions = [];
 
-        // Filter by user role
         if (req.user.role === 'guru') {
             whereConditions.push('ag.guru_id = ?');
             params.push(req.user.guru_id);
@@ -1011,7 +972,6 @@ export async function getAbsensiHistory(req, res) {
             params.push(req.user.kelas_id);
         }
 
-        // Date filters
         if (date_start) {
             whereConditions.push('ag.tanggal >= ?');
             params.push(date_start);
@@ -1021,7 +981,6 @@ export async function getAbsensiHistory(req, res) {
             params.push(date_end);
         }
 
-        // For siswa role, always limit to last 7 days maximum
         if (req.user.role === 'siswa') {
             const todayWIB = getMySQLDateWIB();
             const sevenDaysAgoWIB = new Date(new Date(todayWIB).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -1033,17 +992,16 @@ export async function getAbsensiHistory(req, res) {
             query += ' WHERE ' + whereConditions.join(' AND ');
         }
 
-        // Add sorting and limit
         query += ' ORDER BY ag.tanggal DESC, ag.waktu_catat DESC LIMIT ?';
         params.push(parseInt(limit));
 
         const [rows] = await global.dbPool.execute(query, params);
 
-        console.log(`📊 Attendance history retrieved for ${req.user.role}: ${req.user.username}, count: ${rows.length}`);
+        log.success('GetAbsensiHistory', { count: rows.length, role: req.user.role });
         res.json({ success: true, data: rows });
 
     } catch (error) {
-        console.error('❌ Get attendance history error:', error);
-        res.status(500).json({ error: 'Failed to retrieve attendance history' });
+        log.dbError('getAbsensiHistory', error, { role: req.user.role });
+        return sendDatabaseError(res, error, 'Gagal memuat riwayat absensi');
     }
 }
