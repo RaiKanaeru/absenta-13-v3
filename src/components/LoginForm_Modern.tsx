@@ -106,7 +106,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100"
                     disabled={isLoading}
                     aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
                   >
