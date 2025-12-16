@@ -1,11 +1,13 @@
 /**
  * Template Controller
  * Handles Excel template generation for admin imports
- * Migrated from server_modern.js - Batch 16
  */
 
 import ExcelJS from 'exceljs';
-import { sendErrorResponse, sendDatabaseError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Template');
 
 // ================================================
 // TEMPLATE GENERATORS - Excel templates for admin imports
@@ -16,6 +18,9 @@ import { sendErrorResponse, sendDatabaseError } from '../utils/errorHandler.js';
  * GET /api/admin/templates/mapel
  */
 const getMapelTemplate = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetMapelTemplate', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('mapel');
@@ -27,20 +32,15 @@ const getMapelTemplate = async (req, res) => {
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        // Add example row
-        ws.addRow({
-            kode_mapel: 'BING-02',
-            nama_mapel: 'Bahasa Inggris Wajib',
-            deskripsi: 'Contoh deskripsi',
-            status: 'aktif'
-        });
+        ws.addRow({ kode_mapel: 'BING-02', nama_mapel: 'Bahasa Inggris Wajib', deskripsi: 'Contoh deskripsi', status: 'aktif' });
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template-mapel.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetMapelTemplate', {});
     } catch (error) {
-        console.error('❌ Error generating mapel template:', error);
+        log.dbError('generateMapelTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template mapel' });
     }
 };
@@ -50,6 +50,9 @@ const getMapelTemplate = async (req, res) => {
  * GET /api/admin/templates/kelas
  */
 const getKelasTemplate = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetKelasTemplate', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('kelas');
@@ -60,19 +63,15 @@ const getKelasTemplate = async (req, res) => {
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        // Add example row
-        ws.addRow({
-            nama_kelas: 'X IPA 3',
-            tingkat: 'X',
-            status: 'aktif'
-        });
+        ws.addRow({ nama_kelas: 'X IPA 3', tingkat: 'X', status: 'aktif' });
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template-kelas.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetKelasTemplate', {});
     } catch (error) {
-        console.error('❌ Error generating kelas template:', error);
+        log.dbError('generateKelasTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template kelas' });
     }
 };
@@ -82,6 +81,9 @@ const getKelasTemplate = async (req, res) => {
  * GET /api/admin/templates/ruang
  */
 const getRuangTemplate = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetRuangTemplate', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('ruang');
@@ -93,20 +95,15 @@ const getRuangTemplate = async (req, res) => {
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        // Add example row
-        ws.addRow({
-            nama_ruang: 'Lab Komputer 1',
-            kapasitas: 40,
-            lokasi: 'Gedung A Lt. 2',
-            status: 'aktif'
-        });
+        ws.addRow({ nama_ruang: 'Lab Komputer 1', kapasitas: 40, lokasi: 'Gedung A Lt. 2', status: 'aktif' });
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template-ruang.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetRuangTemplate', {});
     } catch (error) {
-        console.error('❌ Error generating ruang template:', error);
+        log.dbError('generateRuangTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template ruang' });
     }
 };
@@ -116,6 +113,9 @@ const getRuangTemplate = async (req, res) => {
  * GET /api/admin/templates/jadwal
  */
 const getJadwalTemplate = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetJadwalTemplate', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('jadwal');
@@ -131,19 +131,8 @@ const getJadwalTemplate = async (req, res) => {
             { header: 'ruang', key: 'ruang', width: 20 },
         ];
         
-        // Add example row
-        ws.addRow({
-            hari: 'Senin',
-            jam_ke: 1,
-            jam_mulai: '07:00',
-            jam_selesai: '07:45',
-            kelas: 'X IPA 1',
-            mapel: 'Matematika Wajib',
-            guru: 'Budi Santoso',
-            ruang: 'Ruang 101'
-        });
+        ws.addRow({ hari: 'Senin', jam_ke: 1, jam_mulai: '07:00', jam_selesai: '07:45', kelas: 'X IPA 1', mapel: 'Matematika Wajib', guru: 'Budi Santoso', ruang: 'Ruang 101' });
         
-        // Add instructions sheet
         const instruksi = workbook.addWorksheet('Instruksi');
         instruksi.columns = [{ header: 'Petunjuk Pengisian', key: 'petunjuk', width: 60 }];
         instruksi.addRow({ petunjuk: '1. Hari: Senin, Selasa, Rabu, Kamis, Jumat, Sabtu' });
@@ -158,8 +147,9 @@ const getJadwalTemplate = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename="template-jadwal.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetJadwalTemplate', {});
     } catch (error) {
-        console.error('❌ Error generating jadwal template:', error);
+        log.dbError('generateJadwalTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template jadwal' });
     }
 };
@@ -169,6 +159,9 @@ const getJadwalTemplate = async (req, res) => {
  * GET /api/admin/templates/guru
  */
 const getGuruTemplate = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetGuruTemplate', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const ws = workbook.addWorksheet('guru');
@@ -184,19 +177,8 @@ const getGuruTemplate = async (req, res) => {
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        // Add example row
-        ws.addRow({
-            nip: '198501012010011001',
-            nama: 'Dr. Budi Santoso, M.Pd.',
-            jenis_kelamin: 'L',
-            email: 'budi.santoso@school.id',
-            alamat: 'Jl. Pendidikan No. 123',
-            no_telepon: '08123456789',
-            jabatan: 'Guru Matematika',
-            status: 'aktif'
-        });
+        ws.addRow({ nip: '198501012010011001', nama: 'Dr. Budi Santoso, M.Pd.', jenis_kelamin: 'L', email: 'budi.santoso@school.id', alamat: 'Jl. Pendidikan No. 123', no_telepon: '08123456789', jabatan: 'Guru Matematika', status: 'aktif' });
         
-        // Add instructions sheet
         const instruksi = workbook.addWorksheet('Instruksi');
         instruksi.columns = [{ header: 'Petunjuk Pengisian', key: 'petunjuk', width: 60 }];
         instruksi.addRow({ petunjuk: '1. nip: Nomor Induk Pegawai (wajib, harus unik)' });
@@ -212,8 +194,9 @@ const getGuruTemplate = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename="template-guru.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetGuruTemplate', {});
     } catch (error) {
-        console.error('❌ Error generating guru template:', error);
+        log.dbError('generateGuruTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template guru' });
     }
 };
@@ -240,7 +223,7 @@ const addKelasReferenceSheet = async (workbook, sheetName = 'Ref Kelas') => {
             kelasSheet.addRow({ id: k.id_kelas, nama: k.nama_kelas, tingkat: k.tingkat || '', status: k.status });
         });
     } catch (dbError) {
-        console.error('❌ Error fetching kelas data:', dbError);
+        logger.warn('Kelas reference fallback used', { error: dbError.message });
         kelasSheet.addRow({ id: 1, nama: 'X IPA 1', tingkat: 'X', status: 'aktif' });
         kelasSheet.addRow({ id: 2, nama: 'X IPA 2', tingkat: 'X', status: 'aktif' });
         kelasSheet.addRow({ id: 3, nama: 'XI IPA 1', tingkat: 'XI', status: 'aktif' });
@@ -250,9 +233,11 @@ const addKelasReferenceSheet = async (workbook, sheetName = 'Ref Kelas') => {
 
 /**
  * Student Account Template - Basic
- * GET /api/admin/student-account/template-basic
  */
 const getStudentAccountTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetStudentAccountTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -289,17 +274,20 @@ const getStudentAccountTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-akun-siswa-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetStudentAccountTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating student account template:', error);
+        log.dbError('generateStudentAccountTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Student Account Template - Friendly
- * GET /api/admin/student-account/template-friendly
  */
 const getStudentAccountTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetStudentAccountTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -324,17 +312,20 @@ const getStudentAccountTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-akun-siswa-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetStudentAccountTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating student account friendly template:', error);
+        log.dbError('generateStudentAccountFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Teacher Account Template - Basic
- * GET /api/admin/teacher-account/template-basic
  */
 const getTeacherAccountTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetTeacherAccountTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -365,17 +356,20 @@ const getTeacherAccountTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-akun-guru-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetTeacherAccountTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating teacher account template:', error);
+        log.dbError('generateTeacherAccountTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Teacher Account Template - Friendly
- * GET /api/admin/teacher-account/template-friendly
  */
 const getTeacherAccountTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetTeacherAccountTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -396,17 +390,20 @@ const getTeacherAccountTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-akun-guru-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetTeacherAccountTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating teacher account friendly template:', error);
+        log.dbError('generateTeacherAccountFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Siswa Data Template - Basic (no account)
- * GET /api/admin/siswa/template-basic
  */
 const getSiswaTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSiswaTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -429,17 +426,20 @@ const getSiswaTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-data-siswa-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetSiswaTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating siswa template:', error);
+        log.dbError('generateSiswaTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Siswa Data Template - Friendly (no account)
- * GET /api/admin/siswa/template-friendly
  */
 const getSiswaTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetSiswaTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -469,17 +469,20 @@ const getSiswaTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-data-siswa-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetSiswaTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating siswa friendly template:', error);
+        log.dbError('generateSiswaFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Guru Data Template - Basic (no account)
- * GET /api/admin/guru/template-basic
  */
 const getGuruTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetGuruTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -500,17 +503,20 @@ const getGuruTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-data-guru-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetGuruTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating guru template:', error);
+        log.dbError('generateGuruTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Guru Data Template - Friendly (no account)
- * GET /api/admin/guru/template-friendly
  */
 const getGuruTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetGuruTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
 
@@ -538,17 +544,20 @@ const getGuruTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-data-guru-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetGuruTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating guru friendly template:', error);
+        log.dbError('generateGuruFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Mapel Template - Basic
- * GET /api/admin/mapel/template-basic
  */
 const getMapelTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetMapelTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Mapel');
@@ -562,17 +571,20 @@ const getMapelTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-mapel-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetMapelTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating mapel basic template:', error);
+        log.dbError('generateMapelBasicTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Mapel Template - Friendly
- * GET /api/admin/mapel/template-friendly
  */
 const getMapelTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetMapelTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Mapel');
@@ -586,17 +598,20 @@ const getMapelTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-mapel-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetMapelTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating mapel friendly template:', error);
+        log.dbError('generateMapelFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Kelas Template - Basic
- * GET /api/admin/kelas/template-basic
  */
 const getKelasTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetKelasTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Kelas');
@@ -610,17 +625,20 @@ const getKelasTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-kelas-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetKelasTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating kelas basic template:', error);
+        log.dbError('generateKelasBasicTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Kelas Template - Friendly
- * GET /api/admin/kelas/template-friendly
  */
 const getKelasTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetKelasTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Kelas');
@@ -634,17 +652,20 @@ const getKelasTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-kelas-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetKelasTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating kelas friendly template:', error);
+        log.dbError('generateKelasFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Ruang Template - Basic
- * GET /api/admin/ruang/template-basic
  */
 const getRuangTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetRuangTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Ruang');
@@ -659,17 +680,20 @@ const getRuangTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-ruang-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetRuangTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating ruang basic template:', error);
+        log.dbError('generateRuangBasicTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Ruang Template - Friendly
- * GET /api/admin/ruang/template-friendly
  */
 const getRuangTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetRuangTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Ruang');
@@ -684,8 +708,9 @@ const getRuangTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-ruang-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetRuangTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating ruang friendly template:', error);
+        log.dbError('generateRuangFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
@@ -715,15 +740,17 @@ const addJadwalReferenceSheets = async (workbook) => {
         ruangSheet.addRow(['ID', 'Kode Ruang', 'Nama Ruang']);
         ruang.forEach(r => ruangSheet.addRow([r.id_ruang, r.kode_ruang, r.nama_ruang]));
     } catch (error) {
-        console.error('Error adding reference sheets:', error);
+        logger.warn('Jadwal reference sheets failed', { error: error.message });
     }
 };
 
 /**
  * Jadwal Template - Basic
- * GET /api/admin/jadwal/template-basic
  */
 const getJadwalTemplateBasic = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetJadwalTemplateBasic', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Jadwal');
@@ -746,17 +773,20 @@ const getJadwalTemplateBasic = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-jadwal-basic.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetJadwalTemplateBasic', {});
     } catch (error) {
-        console.error('❌ Error generating jadwal basic template:', error);
+        log.dbError('generateJadwalBasicTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
 
 /**
  * Jadwal Template - Friendly
- * GET /api/admin/jadwal/template-friendly
  */
 const getJadwalTemplateFriendly = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetJadwalTemplateFriendly', {});
+
     try {
         const workbook = new ExcelJS.Workbook();
         const inputSheet = workbook.addWorksheet('Data Jadwal');
@@ -778,8 +808,9 @@ const getJadwalTemplateFriendly = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename=template-jadwal-friendly.xlsx');
         await workbook.xlsx.write(res);
         res.end();
+        log.success('GetJadwalTemplateFriendly', {});
     } catch (error) {
-        console.error('❌ Error generating jadwal friendly template:', error);
+        log.dbError('generateJadwalFriendlyTemplate', error);
         res.status(500).json({ error: 'Gagal membuat template' });
     }
 };
@@ -810,4 +841,3 @@ export {
     getJadwalTemplateBasic,
     getJadwalTemplateFriendly
 };
-
