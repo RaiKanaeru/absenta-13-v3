@@ -1,8 +1,16 @@
-import dotenv from 'dotenv';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+/**
+ * Jadwal Controller
+ * Handles schedule management, multi-guru support, and daily schedule queries
+ */
 
+import dotenv from 'dotenv';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getDayNameWIB } from '../utils/timeUtils.js';
+import { createLogger } from '../utils/logger.js';
+
 dotenv.config();
+
+const logger = createLogger('Jadwal');
 
 // ================================================
 // HELPER FUNCTIONS
@@ -49,25 +57,13 @@ function buildJadwalQuery(role = 'admin', guruId = null) {
     const baseQuery = `
         SELECT 
             j.id_jadwal as id,
-            j.kelas_id,
-            j.mapel_id, 
-            j.guru_id,
-            j.ruang_id,
-            j.hari,
-            j.jam_ke,
-            j.jam_mulai,
-            j.jam_selesai,
-            j.status,
-            j.jenis_aktivitas,
-            j.is_absenable,
-            j.keterangan_khusus,
-            j.is_multi_guru,
+            j.kelas_id, j.mapel_id, j.guru_id, j.ruang_id,
+            j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.status,
+            j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru,
             k.nama_kelas,
             COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
             COALESCE(g.nama, 'Sistem') as nama_guru,
-            rk.kode_ruang,
-            rk.nama_ruang,
-            rk.lokasi,
+            rk.kode_ruang, rk.nama_ruang, rk.lokasi,
             GROUP_CONCAT(CONCAT(jg2.guru_id, ':', g2.nama) ORDER BY jg2.is_primary DESC SEPARATOR '||') as guru_list
         FROM jadwal j
         JOIN kelas k ON j.kelas_id = k.id_kelas
@@ -91,66 +87,55 @@ function buildJadwalQuery(role = 'admin', guruId = null) {
         GROUP BY j.id_jadwal
         ORDER BY 
             FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'),
-            j.jam_ke, 
-            k.nama_kelas
+            j.jam_ke, k.nama_kelas
     `;
 
-    return {
-        query: baseQuery + whereClause + orderBy,
-        params
-    };
+    return { query: baseQuery + whereClause + orderBy, params };
 }
 
 // Validate teacher schedule conflicts
 async function validateScheduleConflicts(guruIds, hari, jam_mulai, jam_selesai, excludeJadwalId = null) {
-    try {
-        for (const guruId of guruIds) {
-            const conflictQuery = `
-                SELECT j.id_jadwal, j.hari, j.jam_mulai, j.jam_selesai, j.keterangan_khusus, 
-                       COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                       k.nama_kelas
-                FROM jadwal j
-                LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-                JOIN kelas k ON j.kelas_id = k.id_kelas
-                WHERE j.guru_id = ? 
-                AND j.hari = ? 
-                AND j.status = 'aktif'
-                AND (
-                    (j.jam_mulai < ? AND j.jam_selesai > ?) OR
-                    (j.jam_mulai < ? AND j.jam_selesai > ?) OR
-                    (j.jam_mulai >= ? AND j.jam_selesai <= ?)
-                )
-                ${excludeJadwalId ? 'AND j.id_jadwal != ?' : ''}
-            `;
+    for (const guruId of guruIds) {
+        const conflictQuery = `
+            SELECT j.id_jadwal, j.hari, j.jam_mulai, j.jam_selesai, j.keterangan_khusus, 
+                   COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                   k.nama_kelas
+            FROM jadwal j
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+            JOIN kelas k ON j.kelas_id = k.id_kelas
+            WHERE j.guru_id = ? AND j.hari = ? AND j.status = 'aktif'
+            AND (
+                (j.jam_mulai < ? AND j.jam_selesai > ?) OR
+                (j.jam_mulai < ? AND j.jam_selesai > ?) OR
+                (j.jam_mulai >= ? AND j.jam_selesai <= ?)
+            )
+            ${excludeJadwalId ? 'AND j.id_jadwal != ?' : ''}
+        `;
 
-            const params = excludeJadwalId
-                ? [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai, excludeJadwalId]
-                : [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai];
+        const params = excludeJadwalId
+            ? [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai, excludeJadwalId]
+            : [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai];
 
-            const [conflicts] = await global.dbPool.execute(conflictQuery, params);
+        const [conflicts] = await global.dbPool.execute(conflictQuery, params);
 
-            if (conflicts.length > 0) {
-                const conflict = conflicts[0];
-                return {
-                    hasConflict: true,
-                    guruId: guruId,
-                    conflict: {
-                        jadwal_id: conflict.id_jadwal,
-                        hari: conflict.hari,
-                        jam_mulai: conflict.jam_mulai,
-                        jam_selesai: conflict.jam_selesai,
-                        mata_pelajaran: conflict.nama_mapel,
-                        kelas: conflict.nama_kelas
-                    }
-                };
-            }
+        if (conflicts.length > 0) {
+            const conflict = conflicts[0];
+            return {
+                hasConflict: true,
+                guruId: guruId,
+                conflict: {
+                    jadwal_id: conflict.id_jadwal,
+                    hari: conflict.hari,
+                    jam_mulai: conflict.jam_mulai,
+                    jam_selesai: conflict.jam_selesai,
+                    mata_pelajaran: conflict.nama_mapel,
+                    kelas: conflict.nama_kelas
+                }
+            };
         }
-
-        return { hasConflict: false };
-    } catch (error) {
-        console.error('Error validating schedule conflicts:', error);
-        throw error;
     }
+
+    return { hasConflict: false };
 }
 
 // ================================================
@@ -159,59 +144,50 @@ async function validateScheduleConflicts(guruIds, hari, jam_mulai, jam_selesai, 
 
 // Get All Jadwal
 export const getJadwal = async (req, res) => {
-    try {
-        console.log('📅 Getting schedules for admin dashboard');
+    const log = logger.withRequest(req, res);
+    log.requestStart('GetJadwal', {});
 
+    try {
         const { query, params } = buildJadwalQuery('admin');
         const [rows] = await global.dbPool.execute(query, params);
 
-        console.log(`✅ Schedules retrieved: ${rows.length} items`);
+        log.success('GetJadwal', { count: rows.length });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('getJadwal', error);
+        return sendDatabaseError(res, error, 'Gagal memuat jadwal');
     }
 };
 
 // Create Jadwal
 export const createJadwal = async (req, res) => {
-    try {
-        const {
-            kelas_id,
-            mapel_id,
-            guru_id,
-            guru_ids,
-            ruang_id,
-            hari,
-            jam_ke,
-            jam_mulai,
-            jam_selesai,
-            jenis_aktivitas = 'pelajaran',
-            is_absenable = true,
-            keterangan_khusus = null
-        } = req.body;
+    const log = logger.withRequest(req, res);
+    const {
+        kelas_id, mapel_id, guru_id, guru_ids, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+        jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
+    } = req.body;
 
+    log.requestStart('CreateJadwal', { kelas_id, mapel_id, hari, jam_ke });
+
+    try {
         // Validasi format jam 24 jam
         const timeValidation = validateTimeLogic(jam_mulai, jam_selesai);
         if (!timeValidation.valid) {
-            return res.status(400).json({ error: timeValidation.error });
+            log.validationFail('time', { jam_mulai, jam_selesai }, timeValidation.error);
+            return sendValidationError(res, timeValidation.error);
         }
 
         const finalGuruIds = guru_ids && guru_ids.length > 0 ? guru_ids : (guru_id ? [guru_id] : []);
 
-        console.log('🔍 Debug Multi-Guru:', {
-            finalGuruIds,
-            guru_ids_from_request: req.body.guru_ids,
-            guru_id_from_request: req.body.guru_id
-        });
+        log.debug('Multi-Guru validation', { finalGuruIds, guru_ids_original: guru_ids });
 
         // Validasi guru_ids sebelum insert (untuk aktivitas pelajaran)
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
             const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
 
             if (validGuruIds.length === 0) {
-                return res.status(400).json({
-                    error: 'Tidak ada guru yang valid dipilih'
-                });
+                log.validationFail('guru_ids', finalGuruIds, 'No valid guru selected');
+                return sendValidationError(res, 'Tidak ada guru yang valid dipilih');
             }
 
             // Validasi apakah guru_ids benar-benar ada di database
@@ -224,35 +200,29 @@ export const createJadwal = async (req, res) => {
             if (existingGurus.length !== validGuruIds.length) {
                 const existingIds = existingGurus.map(g => g.id_guru);
                 const invalidIds = validGuruIds.filter(id => !existingIds.includes(id));
-                console.log('❌ Guru tidak ditemukan:', invalidIds);
-                return res.status(400).json({
-                    error: `Guru dengan ID ${invalidIds.join(', ')} tidak ditemukan di database`
-                });
+                log.validationFail('guru_ids', invalidIds, 'Guru not found');
+                return sendValidationError(res, `Guru dengan ID ${invalidIds.join(', ')} tidak ditemukan di database`);
             }
-
-            console.log('✅ Validasi guru berhasil:', existingGurus.map(g => `${g.id_guru}:${g.nama}`));
         }
-
-        console.log('➕ Adding schedule:', {
-            kelas_id, mapel_id, guru_ids: finalGuruIds, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable
-        });
 
         // Validation berbeda untuk aktivitas khusus
         if (jenis_aktivitas === 'pelajaran') {
             if (!kelas_id || !mapel_id || !hari || !jam_ke || !jam_mulai || !jam_selesai) {
-                return res.status(400).json({ error: 'Semua field wajib diisi untuk jadwal pelajaran' });
+                log.validationFail('required_fields', null, 'Missing required fields');
+                return sendValidationError(res, 'Semua field wajib diisi untuk jadwal pelajaran');
             }
             if (finalGuruIds.length === 0) {
-                return res.status(400).json({ error: 'Minimal satu guru harus dipilih untuk jadwal pelajaran' });
+                log.validationFail('guru', null, 'Guru required');
+                return sendValidationError(res, 'Minimal satu guru harus dipilih untuk jadwal pelajaran');
             }
         } else {
             if (!kelas_id || !hari || !jam_mulai || !jam_selesai) {
-                return res.status(400).json({ error: 'Kelas, hari, dan waktu wajib diisi' });
+                log.validationFail('required_fields', null, 'Missing required fields');
+                return sendValidationError(res, 'Kelas, hari, dan waktu wajib diisi');
             }
         }
 
         const finalMapelId = jenis_aktivitas === 'pelajaran' ? mapel_id : null;
-
         let primaryGuruId = null;
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
             const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
@@ -272,9 +242,8 @@ export const createJadwal = async (req, res) => {
 
             for (const conflict of classConflicts) {
                 if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
-                    return res.status(400).json({
-                        error: `Kelas sudah memiliki jadwal pelajaran pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`
-                    });
+                    log.validationFail('class_conflict', { hari, jam_mulai, jam_selesai }, 'Class already scheduled');
+                    return sendValidationError(res, `Kelas sudah memiliki jadwal pelajaran pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                 }
             }
 
@@ -284,9 +253,8 @@ export const createJadwal = async (req, res) => {
 
                 if (conflictValidation.hasConflict) {
                     const { guruId, conflict } = conflictValidation;
-                    return res.status(400).json({
-                        error: `Guru dengan ID ${guruId} sudah memiliki jadwal bentrok: ${conflict.mata_pelajaran} di ${conflict.kelas} pada ${conflict.hari} ${conflict.jam_mulai}-${conflict.jam_selesai}`
-                    });
+                    log.validationFail('teacher_conflict', { guruId, conflict }, 'Teacher schedule conflict');
+                    return sendValidationError(res, `Guru dengan ID ${guruId} sudah memiliki jadwal bentrok: ${conflict.mata_pelajaran} di ${conflict.kelas} pada ${conflict.hari} ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                 }
             }
 
@@ -300,29 +268,11 @@ export const createJadwal = async (req, res) => {
 
                 for (const conflict of roomConflicts) {
                     if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
-                        return res.status(400).json({
-                            error: `Ruang sudah digunakan pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`
-                        });
+                        log.validationFail('room_conflict', { ruang_id, hari }, 'Room already in use');
+                        return sendValidationError(res, `Ruang sudah digunakan pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                     }
                 }
             }
-        }
-
-        // Validasi final primaryGuruId sebelum insert
-        if (jenis_aktivitas === 'pelajaran' && primaryGuruId) {
-            const [guruCheck] = await global.dbPool.execute(
-                'SELECT id_guru, nama FROM guru WHERE id_guru = ?',
-                [primaryGuruId]
-            );
-
-            if (guruCheck.length === 0) {
-                console.log('❌ Primary guru tidak ditemukan:', primaryGuruId);
-                return res.status(400).json({
-                    error: `Guru utama dengan ID ${primaryGuruId} tidak ditemukan di database`
-                });
-            }
-
-            console.log('✅ Primary guru valid:', guruCheck[0]);
         }
 
         // Insert jadwal dengan guru utama
@@ -337,75 +287,58 @@ export const createJadwal = async (req, res) => {
         // Insert semua guru ke jadwal_guru
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
             const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
-            console.log('📝 Inserting jadwal_guru:', { jadwalId, validGuruIds });
-
             for (let i = 0; i < validGuruIds.length; i++) {
-                try {
-                    await global.dbPool.execute(
-                        'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
-                        [jadwalId, validGuruIds[i], i === 0 ? 1 : 0]
-                    );
-                    console.log(`✅ Guru ${validGuruIds[i]} added to jadwal_guru (primary: ${i === 0})`);
-                } catch (error) {
-                    console.error(`❌ Error inserting guru ${validGuruIds[i]} to jadwal_guru:`, error);
-                    throw error;
-                }
+                await global.dbPool.execute(
+                    'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
+                    [jadwalId, validGuruIds[i], i === 0 ? 1 : 0]
+                );
             }
         }
 
-        console.log('✅ Schedule added successfully');
-        res.json({
-            message: 'Jadwal berhasil ditambahkan',
-            id: jadwalId
-        });
+        log.success('CreateJadwal', { jadwalId, hari, jam_ke, guruCount: finalGuruIds.length });
+        return sendSuccessResponse(res, { id: jadwalId }, 'Jadwal berhasil ditambahkan', 201);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('createJadwal', error);
+        return sendDatabaseError(res, error, 'Gagal menambahkan jadwal');
     }
 };
 
 // Update Jadwal
 export const updateJadwal = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            kelas_id,
-            mapel_id,
-            guru_id,
-            guru_ids,
-            ruang_id,
-            hari,
-            jam_ke,
-            jam_mulai,
-            jam_selesai,
-            jenis_aktivitas = 'pelajaran',
-            is_absenable = true,
-            keterangan_khusus = null
-        } = req.body;
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const {
+        kelas_id, mapel_id, guru_id, guru_ids, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+        jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
+    } = req.body;
 
+    log.requestStart('UpdateJadwal', { id, kelas_id, hari, jam_ke });
+
+    try {
         // Validasi format jam 24 jam
         const timeValidation = validateTimeLogic(jam_mulai, jam_selesai);
         if (!timeValidation.valid) {
-            return res.status(400).json({ error: timeValidation.error });
+            log.validationFail('time', { jam_mulai, jam_selesai }, timeValidation.error);
+            return sendValidationError(res, timeValidation.error);
         }
 
         const finalGuruIds = guru_ids && guru_ids.length > 0 ? guru_ids : (guru_id ? [guru_id] : []);
         const isMultiGuru = finalGuruIds.length > 1;
 
-        console.log('✏️ Updating schedule:', {
-            id, kelas_id, mapel_id, guru_id, guru_ids, finalGuruIds, isMultiGuru, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable
-        });
-
         // Validation berbeda untuk aktivitas khusus
         if (jenis_aktivitas === 'pelajaran') {
             if (!kelas_id || !mapel_id || !hari || !jam_ke || !jam_mulai || !jam_selesai) {
-                return res.status(400).json({ error: 'Semua field wajib diisi untuk jadwal pelajaran' });
+                log.validationFail('required_fields', null, 'Missing required fields');
+                return sendValidationError(res, 'Semua field wajib diisi untuk jadwal pelajaran');
             }
             if (finalGuruIds.length === 0) {
-                return res.status(400).json({ error: 'Minimal satu guru harus dipilih untuk jadwal pelajaran' });
+                log.validationFail('guru', null, 'Guru required');
+                return sendValidationError(res, 'Minimal satu guru harus dipilih untuk jadwal pelajaran');
             }
         } else {
             if (!kelas_id || !hari || !jam_mulai || !jam_selesai) {
-                return res.status(400).json({ error: 'Kelas, hari, dan waktu wajib diisi' });
+                log.validationFail('required_fields', null, 'Missing required fields');
+                return sendValidationError(res, 'Kelas, hari, dan waktu wajib diisi');
             }
         }
 
@@ -423,9 +356,8 @@ export const updateJadwal = async (req, res) => {
 
             for (const conflict of classConflicts) {
                 if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
-                    return res.status(400).json({
-                        error: `Kelas sudah memiliki jadwal pelajaran pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`
-                    });
+                    log.validationFail('class_conflict', { hari }, 'Class already scheduled');
+                    return sendValidationError(res, `Kelas sudah memiliki jadwal pelajaran pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                 }
             }
 
@@ -435,13 +367,12 @@ export const updateJadwal = async (req, res) => {
 
                 if (conflictValidation.hasConflict) {
                     const { guruId, conflict } = conflictValidation;
-                    return res.status(400).json({
-                        error: `Guru dengan ID ${guruId} sudah memiliki jadwal bentrok: ${conflict.mata_pelajaran} di ${conflict.kelas} pada ${conflict.hari} ${conflict.jam_mulai}-${conflict.jam_selesai}`
-                    });
+                    log.validationFail('teacher_conflict', { guruId }, 'Teacher conflict');
+                    return sendValidationError(res, `Guru dengan ID ${guruId} sudah memiliki jadwal bentrok: ${conflict.mata_pelajaran} di ${conflict.kelas} pada ${conflict.hari} ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                 }
             }
 
-            // Check room conflicts (if ruang_id provided)
+            // Check room conflicts
             if (ruang_id) {
                 const [roomConflicts] = await global.dbPool.execute(
                     `SELECT id_jadwal, jam_mulai, jam_selesai FROM jadwal 
@@ -451,9 +382,8 @@ export const updateJadwal = async (req, res) => {
 
                 for (const conflict of roomConflicts) {
                     if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
-                        return res.status(400).json({
-                            error: `Ruang sudah digunakan pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`
-                        });
+                        log.validationFail('room_conflict', { ruang_id }, 'Room conflict');
+                        return sendValidationError(res, `Ruang sudah digunakan pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                     }
                 }
             }
@@ -467,59 +397,55 @@ export const updateJadwal = async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('UpdateJadwal - not found', { id });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
         // Update jadwal_guru table untuk multi-guru schedules
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
-            console.log('🔄 Updating jadwal_guru table for multi-guru schedule...');
-
             // Hapus relasi lama
-            await global.dbPool.execute(
-                'DELETE FROM jadwal_guru WHERE jadwal_id = ?',
-                [id]
-            );
+            await global.dbPool.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
 
             // Tambahkan relasi baru
             for (let i = 0; i < finalGuruIds.length; i++) {
-                const guruId = finalGuruIds[i];
-                const isPrimary = i === 0;
-
                 await global.dbPool.execute(
                     'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
-                    [id, guruId, isPrimary ? 1 : 0]
+                    [id, finalGuruIds[i], i === 0 ? 1 : 0]
                 );
-
-                console.log(`✅ Added guru ${guruId} to schedule ${id} (primary: ${isPrimary})`);
             }
         }
 
-        console.log('✅ Schedule updated successfully');
-        res.json({ message: 'Jadwal berhasil diperbarui' });
+        log.success('UpdateJadwal', { id, hari, jam_ke });
+        return sendSuccessResponse(res, null, 'Jadwal berhasil diperbarui');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('updateJadwal', error, { id });
+        return sendDatabaseError(res, error, 'Gagal memperbarui jadwal');
     }
 };
 
 // Delete Jadwal
 export const deleteJadwal = async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log('🗑️ Deleting schedule:', { id });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
 
+    log.requestStart('DeleteJadwal', { id });
+
+    try {
         const [result] = await global.dbPool.execute(
             'DELETE FROM jadwal WHERE id_jadwal = ?',
             [id]
         );
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Jadwal tidak ditemukan' });
+            log.warn('DeleteJadwal - not found', { id });
+            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
-        console.log('✅ Schedule deleted successfully');
-        res.json({ message: 'Jadwal berhasil dihapus' });
+        log.success('DeleteJadwal', { id });
+        return sendSuccessResponse(res, null, 'Jadwal berhasil dihapus');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('deleteJadwal', error, { id });
+        return sendDatabaseError(res, error, 'Gagal menghapus jadwal');
     }
 };
 
@@ -529,10 +455,12 @@ export const deleteJadwal = async (req, res) => {
 
 // Get teachers in a schedule
 export const getJadwalGuru = async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log('👥 Getting teachers for schedule:', { id });
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
 
+    log.requestStart('GetJadwalGuru', { id });
+
+    try {
         const [rows] = await global.dbPool.execute(`
             SELECT jg.id, jg.guru_id, jg.is_primary, g.nama, g.nip, g.mata_pelajaran
             FROM jadwal_guru jg
@@ -541,21 +469,23 @@ export const getJadwalGuru = async (req, res) => {
             ORDER BY jg.is_primary DESC, g.nama ASC
         `, [id]);
 
-        console.log(`✅ Found ${rows.length} teachers for schedule ${id}`);
+        log.success('GetJadwalGuru', { count: rows.length, jadwalId: id });
         res.json(rows);
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('getJadwalGuru', error, { id });
+        return sendDatabaseError(res, error, 'Gagal memuat guru jadwal');
     }
 };
 
 // Add teacher to schedule
 export const addJadwalGuru = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { guru_id } = req.body;
+    const jadwal_id = req.params.id;
+
+    log.requestStart('AddJadwalGuru', { jadwal_id, guru_id });
+
     try {
-        const { guru_id } = req.body;
-        const jadwal_id = req.params.id;
-
-        console.log('➕ Adding teacher to schedule:', { jadwal_id, guru_id });
-
         // Check if guru already in jadwal
         const [exists] = await global.dbPool.execute(
             'SELECT id FROM jadwal_guru WHERE jadwal_id = ? AND guru_id = ?',
@@ -563,7 +493,8 @@ export const addJadwalGuru = async (req, res) => {
         );
 
         if (exists.length > 0) {
-            return res.status(400).json({ error: 'Guru sudah ditambahkan ke jadwal ini' });
+            log.validationFail('guru_id', guru_id, 'Already in schedule');
+            return sendDuplicateError(res, 'Guru sudah ditambahkan ke jadwal ini');
         }
 
         // Insert guru
@@ -585,20 +516,22 @@ export const addJadwalGuru = async (req, res) => {
             );
         }
 
-        console.log('✅ Teacher added to schedule successfully');
-        res.json({ success: true });
+        log.success('AddJadwalGuru', { jadwal_id, guru_id });
+        return sendSuccessResponse(res, null, 'Guru berhasil ditambahkan ke jadwal');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('addJadwalGuru', error, { jadwal_id, guru_id });
+        return sendDatabaseError(res, error, 'Gagal menambahkan guru ke jadwal');
     }
 };
 
 // Remove teacher from schedule
 export const removeJadwalGuru = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id: jadwal_id, guruId } = req.params;
+
+    log.requestStart('RemoveJadwalGuru', { jadwal_id, guruId });
+
     try {
-        const { id: jadwal_id, guruId } = req.params;
-
-        console.log('➖ Removing teacher from schedule:', { jadwal_id, guruId });
-
         // Check if primary guru
         const [guru] = await global.dbPool.execute(
             'SELECT is_primary FROM jadwal_guru WHERE jadwal_id = ? AND guru_id = ?',
@@ -612,7 +545,8 @@ export const removeJadwalGuru = async (req, res) => {
             );
 
             if (count[0].count === 1) {
-                return res.status(400).json({ error: 'Tidak bisa menghapus guru terakhir' });
+                log.validationFail('primary_guru', guruId, 'Cannot remove last guru');
+                return sendValidationError(res, 'Tidak bisa menghapus guru terakhir');
             }
         }
 
@@ -635,10 +569,11 @@ export const removeJadwalGuru = async (req, res) => {
             );
         }
 
-        console.log('✅ Teacher removed from schedule successfully');
-        res.json({ success: true });
+        log.success('RemoveJadwalGuru', { jadwal_id, guruId });
+        return sendSuccessResponse(res, null, 'Guru berhasil dihapus dari jadwal');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('removeJadwalGuru', error, { jadwal_id, guruId });
+        return sendDatabaseError(res, error, 'Gagal menghapus guru dari jadwal');
     }
 };
 
@@ -648,8 +583,12 @@ export const removeJadwalGuru = async (req, res) => {
 
 // Get today's schedule for guru or siswa
 export const getJadwalToday = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const todayDayName = getDayNameWIB();
+
+    log.requestStart('GetJadwalToday', { role: req.user.role, day: todayDayName });
+
     try {
-        const todayDayName = getDayNameWIB();
         let query = '';
         let params = [];
 
@@ -677,11 +616,11 @@ export const getJadwalToday = async (req, res) => {
 
         const [rows] = await global.dbPool.execute(query, params);
 
-        console.log(`📅 Today's schedule retrieved for ${req.user.role}: ${req.user.username}`);
-        res.json({ success: true, data: rows });
+        log.success('GetJadwalToday', { count: rows.length, role: req.user.role, day: todayDayName });
+        return sendSuccessResponse(res, rows);
 
     } catch (error) {
-        console.error('❌ Get today schedule error:', error);
-        res.status(500).json({ error: 'Failed to retrieve today schedule' });
+        log.dbError('getJadwalToday', error, { role: req.user.role });
+        return sendDatabaseError(res, error, 'Gagal memuat jadwal hari ini');
     }
 };
