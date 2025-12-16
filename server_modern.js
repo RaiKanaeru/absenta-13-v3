@@ -213,7 +213,6 @@ if (process.env.ENABLE_DDOS_PROTECTION !== 'false') {
         blockDurationMs: 300000 // 5 minutes
     });
     app.use(ddosProtection.middleware());
-    console.log('🛡️ DDoS Protection middleware enabled');
 }
 
 // Serve static files from public directory

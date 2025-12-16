@@ -79,7 +79,8 @@ class DDoSProtection extends EventEmitter {
         // Start cleanup interval
         this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
         
-        console.log('🛡️ DDoS Protection system initialized');
+        // Silent initialization - no console output
+        this.initialized = true;
     }
     
     // ================================================
@@ -414,7 +415,10 @@ class DDoSProtection extends EventEmitter {
         
         this.emit('ipBlocked', { ip, reason, permanent, tempBlockCount });
         
-        console.log(`🚫 IP ${ip} blocked (${permanent ? 'permanent' : 'temporary'}) - Reason: ${reason}`);
+        // Silent block - logged internally only
+        if (process.env.DEBUG_DDOS === 'true') {
+            console.log(`[DDoS] IP ${ip} blocked (${permanent ? 'permanent' : 'temporary'}) - Reason: ${reason}`);
+        }
     }
     
     isBlocked(ip) {
@@ -541,7 +545,8 @@ class DDoSProtection extends EventEmitter {
         if (this.cleanupInterval) {
             clearInterval(this.cleanupInterval);
         }
-        console.log('🛡️ DDoS Protection system stopped');
+        // Silent stop
+        this.initialized = false;
     }
 }
 
