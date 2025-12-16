@@ -1,11 +1,17 @@
-import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+/**
+ * Guru Controller
+ * Handles all guru/teacher management and self-service operations
+ */
 
+import bcrypt from 'bcrypt';
+import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import dotenv from 'dotenv';
-import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+import { getMySQLDateTimeWIB, getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
+import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
 
+const logger = createLogger('Guru');
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 
 // Validasi payload guru untuk Create/Update
@@ -13,11 +19,7 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
     const errors = [];
     const { nip, nama, username, email, mapel_id, status, password } = body;
 
-    console.log('🔍 Validating guru payload:', { isUpdate, excludeGuruId, excludeUserId, body });
-    // console.log('🔍 Database pool status:', global.dbPool ? 'Available' : 'Not available');
-
     try {
-
         // Validasi NIP (wajib)
         if (!isUpdate || nip !== undefined) {
             if (!nip || typeof nip !== 'string') {
@@ -26,24 +28,15 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
                 errors.push('NIP harus berupa angka 10-20 digit');
             } else {
                 // Cek unik NIP
-                try {
-                    // console.log('🔍 Checking NIP uniqueness for:', nip);
-                    let sql = 'SELECT id FROM guru WHERE nip = ?';
-                    const params = [nip];
-                    if (isUpdate && excludeGuruId) {
-                        sql += ' AND id != ?';
-                        params.push(excludeGuruId);
-                    }
-                    // console.log('🔍 NIP query:', sql, params);
-                    const [existingNip] = await global.dbPool.execute(sql, params);
-                    // console.log('🔍 NIP query result:', existingNip);
-                    if (existingNip.length > 0) {
-                        errors.push('NIP sudah digunakan');
-                    }
-                } catch (error) {
-                    console.error('Error checking NIP uniqueness:', error);
-                    // Jangan tambahkan error ke array, biarkan validasi gagal dengan error yang lebih jelas
-                    throw new Error('Gagal memvalidasi NIP: ' + error.message);
+                let sql = 'SELECT id FROM guru WHERE nip = ?';
+                const params = [nip];
+                if (isUpdate && excludeGuruId) {
+                    sql += ' AND id != ?';
+                    params.push(excludeGuruId);
+                }
+                const [existingNip] = await global.dbPool.execute(sql, params);
+                if (existingNip.length > 0) {
+                    errors.push('NIP sudah digunakan');
                 }
             }
         }
@@ -63,20 +56,15 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
                 errors.push('Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip');
             } else {
                 // Cek unik username di users
-                try {
-                    let sql = 'SELECT id FROM users WHERE username = ?';
-                    const params = [username];
-                    if (isUpdate && excludeUserId) {
-                        sql += ' AND id != ?';
-                        params.push(excludeUserId);
-                    }
-                    const [existingUsers] = await global.dbPool.execute(sql, params);
-                    if (existingUsers.length > 0) {
-                        errors.push('Username sudah digunakan');
-                    }
-                } catch (error) {
-                    console.error('Error checking username uniqueness:', error);
-                    throw new Error('Gagal memvalidasi username: ' + error.message);
+                let sql = 'SELECT id FROM users WHERE username = ?';
+                const params = [username];
+                if (isUpdate && excludeUserId) {
+                    sql += ' AND id != ?';
+                    params.push(excludeUserId);
+                }
+                const [existingUsers] = await global.dbPool.execute(sql, params);
+                if (existingUsers.length > 0) {
+                    errors.push('Username sudah digunakan');
                 }
             }
         }
@@ -87,20 +75,15 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
                 errors.push('Format email tidak valid');
             } else {
                 // Cek unik email di users
-                try {
-                    let sql = 'SELECT id FROM users WHERE email = ?';
-                    const params = [email];
-                    if (isUpdate && excludeUserId) {
-                        sql += ' AND id != ?';
-                        params.push(excludeUserId);
-                    }
-                    const [existingUsers] = await global.dbPool.execute(sql, params);
-                    if (existingUsers.length > 0) {
-                        errors.push('Email sudah digunakan');
-                    }
-                } catch (error) {
-                    console.error('Error checking email uniqueness:', error);
-                    throw new Error('Gagal memvalidasi email: ' + error.message);
+                let sql = 'SELECT id FROM users WHERE email = ?';
+                const params = [email];
+                if (isUpdate && excludeUserId) {
+                    sql += ' AND id != ?';
+                    params.push(excludeUserId);
+                }
+                const [existingUsers] = await global.dbPool.execute(sql, params);
+                if (existingUsers.length > 0) {
+                    errors.push('Email sudah digunakan');
                 }
             }
         }
@@ -110,21 +93,15 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
             if (!Number.isInteger(Number(mapel_id)) || Number(mapel_id) <= 0) {
                 errors.push('ID mata pelajaran harus berupa angka positif');
             } else {
-                try {
-                    const [existingMapel] = await global.dbPool.execute(
-                        'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
-                        [mapel_id]
-                    );
-                    if (existingMapel.length === 0) {
-                        errors.push('Mata pelajaran tidak ditemukan atau tidak aktif');
-                    }
-                } catch (error) {
-                    console.error('Error checking mapel existence:', error);
-                    throw new Error('Gagal memvalidasi mata pelajaran: ' + error.message);
+                const [existingMapel] = await global.dbPool.execute(
+                    'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
+                    [mapel_id]
+                );
+                if (existingMapel.length === 0) {
+                    errors.push('Mata pelajaran tidak ditemukan atau tidak aktif');
                 }
             }
         }
-
 
         // Validasi status
         if (status !== undefined && status !== null && status !== '') {
@@ -141,20 +118,20 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
             errors.push('Password minimal 6 karakter');
         }
 
-        return {
-            isValid: errors.length === 0,
-            errors
-        };
+        return { isValid: errors.length === 0, errors };
     } catch (error) {
-        console.error('❌ Validation function error:', error);
         throw new Error('Gagal memvalidasi data: ' + error.message);
     }
 }
 
 // Get All Guru
 export const getGuru = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { page = 1, limit = 10, search = '' } = req.query;
+    
+    log.requestStart('GetGuru', { page, limit, search: search ? '***' : '' });
+
     try {
-        const { page = 1, limit = 10, search = '' } = req.query;
         const offset = (page - 1) * limit;
 
         let query = `
@@ -179,9 +156,8 @@ export const getGuru = async (req, res) => {
         const [rows] = await global.dbPool.query(query, params);
         const [countResult] = await global.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
-        res.json({
-            success: true,
-            data: rows,
+        log.success('GetGuru', { count: rows.length, total: countResult[0].total });
+        return sendSuccessResponse(res, rows, 'Data guru berhasil dimuat', 200, {
             pagination: {
                 current_page: parseInt(page),
                 per_page: parseInt(limit),
@@ -190,64 +166,53 @@ export const getGuru = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('❌ Get guru error:', error);
-        res.status(500).json({ error: 'Failed to retrieve teacher data' });
+        log.dbError('getGuru', error);
+        return sendDatabaseError(res, error, 'Gagal memuat data guru');
     }
 };
 
 // Create Guru
 export const createGuru = async (req, res) => {
-    console.log('🔍 Creating new guru with data:', req.body);
+    const log = logger.withRequest(req, res);
+    const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat, status = 'aktif' } = req.body;
+    
+    log.requestStart('CreateGuru', { nip, nama, username });
 
     const connection = await global.dbPool.getConnection();
-    // console.log('✅ Database connection acquired');
 
     try {
-        const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat, status = 'aktif' } = req.body;
-
         // Validasi payload
-        // console.log('🔍 Validating guru payload...');
         const validation = await validateGuruPayload(req.body, { isUpdate: false });
         
         if (!validation.isValid) {
-            // console.log('❌ Validation failed:', validation.errors);
-            return res.status(400).json({
-                error: 'Data tidak valid',
-                details: validation.errors
-            });
+            log.validationFail('payload', null, validation.errors.join(', '));
+            connection.release();
+            return sendValidationError(res, 'Data tidak valid', { details: validation.errors });
         }
-
-        // console.log('✅ Validation passed');
 
         // Hash password
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Start transaction
-        // console.log('🔄 Starting database transaction...');
         await connection.beginTransaction();
 
         try {
             // Create user account
-            // console.log('🔄 Creating user account...');
             const [userResult] = await connection.execute(
                 'INSERT INTO users (username, password, role, nama, email, status) VALUES (?, ?, "guru", ?, ?, ?)',
                 [username, hashedPassword, nama, email || null, status]
             );
-            // console.log('✅ User account created with ID:', userResult.insertId);
 
             // Create guru record
-            // console.log('🔄 Creating guru record...');
             const mapelIdValue = (mapel_id && mapel_id > 0) ? mapel_id : null;
             
             await connection.execute(
                 'INSERT INTO guru (id_guru, nip, nama, username, email, no_telp, jenis_kelamin, alamat, mapel_id, user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [userResult.insertId, nip, nama, username, email || null, no_telp || null, jenis_kelamin || null, alamat || null, mapelIdValue, userResult.insertId, status]
             );
-            // console.log('✅ Guru record created');
 
             await connection.commit();
-            console.log(`✅ New guru created: ${nama} (${nip})`);
-            res.json({ success: true, message: 'Guru berhasil ditambahkan' });
+            log.success('CreateGuru', { nama, nip, userId: userResult.insertId });
+            return sendSuccessResponse(res, { id: userResult.insertId }, 'Guru berhasil ditambahkan', 201);
 
         } catch (error) {
             await connection.rollback();
@@ -255,17 +220,14 @@ export const createGuru = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Create guru error:', error);
+        log.dbError('createGuru', error, { nip, nama });
         
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(400).json({ error: 'NIP atau username sudah digunakan' });
+            return sendDuplicateError(res, 'NIP atau username sudah digunakan');
         } else if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-            res.status(400).json({ error: 'Mata pelajaran tidak ditemukan' });
+            return sendValidationError(res, 'Mata pelajaran tidak ditemukan');
         } else {
-            res.status(500).json({
-                error: 'Gagal membuat akun guru',
-                details: error.message
-            });
+            return sendDatabaseError(res, error, 'Gagal membuat akun guru');
         }
     } finally {
         connection.release();
@@ -274,14 +236,15 @@ export const createGuru = async (req, res) => {
 
 // Update Guru
 export const updateGuru = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+    const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat, status } = req.body;
+
+    log.requestStart('UpdateGuru', { id, nip, nama, username });
+
     const connection = await global.dbPool.getConnection();
 
     try {
-        const { id } = req.params;
-        const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat, status } = req.body;
-
-        console.log('📝 Updating guru:', { id, nip, nama, username, email });
-
         // Cek apakah guru ada
         const [existingGuru] = await connection.execute(
             'SELECT g.*, u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
@@ -289,35 +252,26 @@ export const updateGuru = async (req, res) => {
         );
 
         if (existingGuru.length === 0) {
-            return res.status(404).json({ error: 'Guru tidak ditemukan' });
+            connection.release();
+            log.warn('UpdateGuru - guru not found', { id });
+            return sendNotFoundError(res, 'Guru tidak ditemukan');
         }
 
         const guru = existingGuru[0];
 
         // Validasi payload
-        try {
-            const validation = await validateGuruPayload(req.body, {
-                isUpdate: true,
-                excludeGuruId: guru.id,
-                excludeUserId: guru.user_id
-            });
+        const validation = await validateGuruPayload(req.body, {
+            isUpdate: true,
+            excludeGuruId: guru.id,
+            excludeUserId: guru.user_id
+        });
 
-            if (!validation.isValid) {
-                return res.status(400).json({
-                    error: 'Data tidak valid',
-                    details: validation.errors
-                });
-            }
-
-        } catch (validationError) {
-            console.error('❌ Validation error:', validationError);
-            return res.status(400).json({
-                error: 'Gagal memvalidasi data',
-                details: validationError.message
-            });
+        if (!validation.isValid) {
+            connection.release();
+            log.validationFail('payload', null, validation.errors.join(', '));
+            return sendValidationError(res, 'Data tidak valid', { details: validation.errors });
         }
 
-        // Start transaction
         await connection.beginTransaction();
 
         try {
@@ -337,7 +291,6 @@ export const updateGuru = async (req, res) => {
 
             if (updateFields.length > 0) {
                 updateValues.push(id);
-                // console.log('🔄 Updating guru with fields:', updateFields);
                 await connection.execute(
                     `UPDATE guru SET ${updateFields.join(', ')} WHERE id = ?`,
                     updateValues
@@ -360,7 +313,6 @@ export const updateGuru = async (req, res) => {
 
             if (userUpdateFields.length > 0 && guru.user_id) {
                 userUpdateValues.push(guru.user_id);
-                // console.log('🔄 Updating users with fields:', userUpdateFields);
                 await connection.execute(
                     `UPDATE users SET ${userUpdateFields.join(', ')} WHERE id = ?`,
                     userUpdateValues
@@ -368,8 +320,8 @@ export const updateGuru = async (req, res) => {
             }
 
             await connection.commit();
-            console.log(`✅ Guru updated: ${nama || guru.nama} (${nip || guru.nip})`);
-            res.json({ success: true, message: 'Guru berhasil diperbarui' });
+            log.success('UpdateGuru', { id, nama: nama || guru.nama });
+            return sendSuccessResponse(res, null, 'Guru berhasil diperbarui');
 
         } catch (error) {
             await connection.rollback();
@@ -377,17 +329,14 @@ export const updateGuru = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Update guru error:', error);
+        log.dbError('updateGuru', error, { id });
         
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(400).json({ error: 'NIP atau username sudah digunakan' });
+            return sendDuplicateError(res, 'NIP atau username sudah digunakan');
         } else if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-            res.status(400).json({ error: 'Referensi data tidak valid' });
+            return sendValidationError(res, 'Referensi data tidak valid');
         } else {
-            res.status(500).json({
-                error: 'Gagal memperbarui guru',
-                details: error.message
-            });
+            return sendDatabaseError(res, error, 'Gagal memperbarui guru');
         }
     } finally {
         connection.release();
@@ -396,11 +345,14 @@ export const updateGuru = async (req, res) => {
 
 // Delete Guru
 export const deleteGuru = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { id } = req.params;
+
+    log.requestStart('DeleteGuru', { id });
+
     const connection = await global.dbPool.getConnection();
 
     try {
-        const { id } = req.params;
-
         // Cek apakah guru ada
         const [existingGuru] = await connection.execute(
             'SELECT g.*, u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
@@ -408,16 +360,17 @@ export const deleteGuru = async (req, res) => {
         );
 
         if (existingGuru.length === 0) {
-            return res.status(404).json({ error: 'Guru tidak ditemukan' });
+            connection.release();
+            log.warn('DeleteGuru - guru not found', { id });
+            return sendNotFoundError(res, 'Guru tidak ditemukan');
         }
 
         const guru = existingGuru[0];
 
-        // Start transaction
         await connection.beginTransaction();
 
         try {
-            // Delete guru record (akan cascade ke users karena FK constraint)
+            // Delete guru record
             await connection.execute('DELETE FROM guru WHERE id = ?', [id]);
 
             // Delete user record jika masih ada
@@ -426,8 +379,8 @@ export const deleteGuru = async (req, res) => {
             }
 
             await connection.commit();
-            console.log(`✅ Guru deleted: ${guru.nama} (${guru.nip})`);
-            res.json({ success: true, message: 'Guru berhasil dihapus' });
+            log.success('DeleteGuru', { id, nama: guru.nama, nip: guru.nip });
+            return sendSuccessResponse(res, null, 'Guru berhasil dihapus');
 
         } catch (error) {
             await connection.rollback();
@@ -435,12 +388,12 @@ export const deleteGuru = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Delete guru error:', error);
+        log.dbError('deleteGuru', error, { id });
 
         if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            res.status(409).json({ error: 'Tidak dapat menghapus guru karena masih memiliki relasi dengan data lain' });
+            return res.status(409).json({ error: 'Tidak dapat menghapus guru karena masih memiliki relasi dengan data lain' });
         } else {
-            res.status(500).json({ error: 'Gagal menghapus guru' });
+            return sendDatabaseError(res, error, 'Gagal menghapus guru');
         }
     } finally {
         connection.release();
@@ -448,56 +401,48 @@ export const deleteGuru = async (req, res) => {
 };
 
 // ================================================
-// PROFILE UPDATE FUNCTIONS (Migrated from server_modern.js)
+// PROFILE UPDATE FUNCTIONS
 // ================================================
 
 // Update profile for guru (self-service)
 export const updateProfile = async (req, res) => {
-    try {
-        const { nama, username, email, alamat, no_telepon, jenis_kelamin, mata_pelajaran, jabatan } = req.body;
-        const userId = req.user.id;
+    const log = logger.withRequest(req, res);
+    const { nama, username, email, alamat, no_telepon, jenis_kelamin, mata_pelajaran, jabatan } = req.body;
+    const userId = req.user.id;
 
+    log.requestStart('UpdateProfile', { userId, username });
+
+    try {
         // Validate required fields
         if (!nama || !username) {
-            return res.status(400).json({ error: 'Nama dan username wajib diisi' });
+            log.validationFail('required_fields', null, 'Nama and username required');
+            return sendValidationError(res, 'Nama dan username wajib diisi');
         }
 
-        // Check if username is already taken by another user in users table
+        // Check if username is already taken by another user
         const [existingUser] = await global.dbPool.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
 
         if (existingUser.length > 0) {
-            return res.status(400).json({ error: 'Username sudah digunakan oleh user lain' });
+            log.validationFail('username', username, 'Already taken');
+            return sendDuplicateError(res, 'Username sudah digunakan oleh user lain');
         }
 
-        // Start transaction
         const connection = await global.dbPool.getConnection();
         await connection.beginTransaction();
 
         try {
-            // Update profile in users table (username, email)
+            // Update profile in users table
             await connection.execute(
-                `UPDATE users SET 
-                    nama = ?, 
-                    username = ?, 
-                    email = ?,
-                    updated_at = ?
-                WHERE id = ?`,
+                `UPDATE users SET nama = ?, username = ?, email = ?, updated_at = ? WHERE id = ?`,
                 [nama, username, email || null, getMySQLDateTimeWIB(), userId]
             );
 
             // Update additional profile data in guru table
             await connection.execute(
-                `UPDATE guru SET 
-                    nama = ?, 
-                    alamat = ?, 
-                    no_telp = ?,
-                    jenis_kelamin = ?,
-                    mata_pelajaran = ?,
-                    updated_at = ?
-                WHERE user_id = ?`,
+                `UPDATE guru SET nama = ?, alamat = ?, no_telp = ?, jenis_kelamin = ?, mata_pelajaran = ?, updated_at = ? WHERE user_id = ?`,
                 [nama, alamat || null, no_telepon || null, jenis_kelamin || null, mata_pelajaran || null, getMySQLDateTimeWIB(), userId]
             );
 
@@ -507,17 +452,12 @@ export const updateProfile = async (req, res) => {
             const [updatedUser] = await global.dbPool.execute(
                 `SELECT u.id, u.username, u.nama, u.email, u.role, g.alamat, g.no_telp as no_telepon, 
                         g.nip, g.jenis_kelamin, g.mata_pelajaran, u.created_at, u.updated_at 
-                 FROM users u 
-                 LEFT JOIN guru g ON u.id = g.user_id 
-                 WHERE u.id = ?`,
+                 FROM users u LEFT JOIN guru g ON u.id = g.user_id WHERE u.id = ?`,
                 [userId]
             );
 
-            res.json({
-                success: true,
-                message: 'Profil berhasil diperbarui',
-                data: updatedUser[0]
-            });
+            log.success('UpdateProfile', { userId });
+            return sendSuccessResponse(res, updatedUser[0], 'Profil berhasil diperbarui');
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -525,68 +465,58 @@ export const updateProfile = async (req, res) => {
             connection.release();
         }
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('updateProfile', error, { userId });
+        return sendDatabaseError(res, error, 'Gagal memperbarui profil');
     }
 };
 
 // Change password for guru (self-service)
 export const changePassword = async (req, res) => {
-    try {
-        const { newPassword } = req.body;
-        const userId = req.user.id;
+    const log = logger.withRequest(req, res);
+    const { newPassword } = req.body;
+    const userId = req.user.id;
 
-        // Validate required fields
+    log.requestStart('ChangePassword', { userId });
+
+    try {
         if (!newPassword) {
-            return res.status(400).json({ error: 'Password baru wajib diisi' });
+            log.validationFail('newPassword', null, 'Required');
+            return sendValidationError(res, 'Password baru wajib diisi');
         }
 
         if (newPassword.length < 6) {
-            return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
+            log.validationFail('newPassword', null, 'Too short');
+            return sendValidationError(res, 'Password baru minimal 6 karakter');
         }
 
-        // Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-        // Update password in users table
         await global.dbPool.execute(
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
 
-        res.json({
-            success: true,
-            message: 'Password berhasil diubah'
-        });
+        log.success('ChangePassword', { userId });
+        return sendSuccessResponse(res, null, 'Password berhasil diubah');
     } catch (error) {
-        return sendDatabaseError(res, error);
+        log.dbError('changePassword', error, { userId });
+        return sendDatabaseError(res, error, 'Gagal mengubah password');
     }
 };
 
 // ================================================
 // GURU SELF-SERVICE ENDPOINTS
-// Migrated from server_modern.js - EXACT CODE COPY
 // ================================================
-
-import { getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
 
 // Helper function to build jadwal query
 const buildJadwalQuery = (role = 'admin', guruId = null) => {
     let query = `
         SELECT 
-            j.id_jadwal,
-            j.hari,
-            j.jam_ke,
-            j.jam_mulai,
-            j.jam_selesai,
-            j.jenis_aktivitas,
-            j.is_absenable,
-            j.keterangan_khusus,
-            j.is_multi_guru,
-            j.status,
+            j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai,
+            j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru, j.status,
             COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
             COALESCE(m.kode_mapel, '') as kode_mapel,
-            k.id_kelas,
-            k.nama_kelas,
+            k.id_kelas, k.nama_kelas,
             COALESCE(r.kode_ruang, '') as kode_ruang,
             COALESCE(r.nama_ruang, '') as nama_ruang,
             COALESCE(g.id_guru, 0) as guru_id,
@@ -612,42 +542,44 @@ const buildJadwalQuery = (role = 'admin', guruId = null) => {
 
 // Get teacher schedule
 export const getGuruJadwal = async (req, res) => {
+    const log = logger.withRequest(req, res);
     const guruId = req.user.guru_id;
-    console.log(`📅 Getting schedule for authenticated guru_id: ${guruId} (user_id: ${req.user.id})`);
+
+    log.requestStart('GetGuruJadwal', { guruId });
 
     if (!guruId) {
-        return res.status(400).json({ error: 'guru_id tidak ditemukan pada token pengguna' });
+        log.validationFail('guru_id', null, 'Not found in token');
+        return sendValidationError(res, 'guru_id tidak ditemukan pada token pengguna');
     }
 
     try {
         const { query, params } = buildJadwalQuery('guru', guruId);
         const [jadwal] = await global.dbPool.execute(query, params);
 
-        console.log(`✅ Found ${jadwal.length} schedule entries for guru_id: ${guruId}`);
-        res.json({ success: true, data: jadwal });
+        log.success('GetGuruJadwal', { count: jadwal.length, guruId });
+        return sendSuccessResponse(res, jadwal);
     } catch (error) {
-        console.error('❌ Error fetching teacher schedule:', error);
-        res.status(500).json({ error: 'Gagal memuat jadwal guru.' });
+        log.dbError('getJadwal', error, { guruId });
+        return sendDatabaseError(res, error, 'Gagal memuat jadwal guru');
     }
 };
 
 // Get teacher attendance history
 export const getGuruHistory = async (req, res) => {
+    const log = logger.withRequest(req, res);
     const guruId = req.user.guru_id;
-    console.log(`📊 Fetching teacher attendance history for guru_id: ${guruId} (user_id: ${req.user.id})`);
+
+    log.requestStart('GetGuruHistory', { guruId });
 
     if (!guruId) {
-        return res.status(400).json({ error: 'guru_id tidak ditemukan pada token pengguna' });
+        log.validationFail('guru_id', null, 'Not found in token');
+        return sendValidationError(res, 'guru_id tidak ditemukan pada token pengguna');
     }
 
     try {
         const [history] = await global.dbPool.execute(`
-            SELECT 
-                ag.tanggal, 
-                ag.status, 
-                ag.keterangan, 
-                k.nama_kelas, 
-                COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel
+            SELECT ag.tanggal, ag.status, ag.keterangan, k.nama_kelas, 
+                   COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel
             FROM absensi_guru ag
             JOIN jadwal j ON ag.jadwal_id = j.id_jadwal
             JOIN kelas k ON j.kelas_id = k.id_kelas
@@ -657,25 +589,28 @@ export const getGuruHistory = async (req, res) => {
             LIMIT 50
         `, [guruId]);
 
-        console.log(`✅ Found ${history.length} attendance history records for guru_id ${guruId}`);
-        res.json({ success: true, data: history });
+        log.success('GetGuruHistory', { count: history.length, guruId });
+        return sendSuccessResponse(res, history);
     } catch (error) {
-        console.error('❌ Error fetching teacher attendance history:', error);
-        res.status(500).json({ error: 'Gagal memuat riwayat absensi.' });
+        log.dbError('getHistory', error, { guruId });
+        return sendDatabaseError(res, error, 'Gagal memuat riwayat absensi');
     }
 };
 
 // Get student attendance history for teacher
 export const getGuruStudentAttendanceHistory = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const guruId = req.user.guru_id;
+    const { page = 1, limit = 5 } = req.query;
+
+    log.requestStart('GetStudentHistory', { guruId, page, limit });
+
+    if (!guruId) {
+        log.validationFail('guru_id', null, 'Not found in token');
+        return sendValidationError(res, 'guru_id tidak ditemukan pada token pengguna');
+    }
+
     try {
-        const guruId = req.user.guru_id;
-        const { page = 1, limit = 5 } = req.query;
-        console.log(`📊 Fetching student attendance history for guru_id: ${guruId} with pagination:`, { page, limit });
-
-        if (!guruId) {
-            return res.status(400).json({ error: 'guru_id tidak ditemukan pada token pengguna' });
-        }
-
         const todayWIB = getMySQLDateWIB();
         const thirtyDaysAgoWIB = new Date(new Date(todayWIB).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -683,58 +618,40 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             SELECT COUNT(DISTINCT DATE(absensi.waktu_absen)) as total_days
             FROM absensi_siswa absensi
             INNER JOIN jadwal ON absensi.jadwal_id = jadwal.id_jadwal
-            WHERE jadwal.guru_id = ? 
-                AND absensi.waktu_absen >= ?
+            WHERE jadwal.guru_id = ? AND absensi.waktu_absen >= ?
         `;
 
         const [countResult] = await global.dbPool.execute(countQuery, [guruId, thirtyDaysAgoWIB]);
         const totalDays = countResult[0].total_days;
         const totalPages = Math.ceil(totalDays / parseInt(limit));
-
         const offset = (parseInt(page) - 1) * parseInt(limit);
 
         const datesQuery = `
             SELECT DISTINCT DATE(absensi.waktu_absen) as tanggal
             FROM absensi_siswa absensi
             INNER JOIN jadwal ON absensi.jadwal_id = jadwal.id_jadwal
-            WHERE jadwal.guru_id = ? 
-                AND absensi.waktu_absen >= ?
-            ORDER BY tanggal DESC
-            LIMIT ? OFFSET ?
+            WHERE jadwal.guru_id = ? AND absensi.waktu_absen >= ?
+            ORDER BY tanggal DESC LIMIT ? OFFSET ?
         `;
 
         const [datesResult] = await global.dbPool.execute(datesQuery, [guruId, thirtyDaysAgoWIB, parseInt(limit), offset]);
         const dates = datesResult.map(row => row.tanggal);
 
         if (dates.length === 0) {
-            return res.json({
-                success: true,
-                data: [],
-                totalDays,
-                totalPages,
-                currentPage: parseInt(page)
+            log.success('GetStudentHistory', { count: 0, guruId });
+            return sendSuccessResponse(res, [], 'Data riwayat kosong', 200, {
+                totalDays, totalPages, currentPage: parseInt(page),
+                pagination: { currentPage: parseInt(page), totalPages, totalDays, limit: parseInt(limit) }
             });
         }
 
         const datePlaceholders = dates.map(() => '?').join(',');
         const query = `
-            SELECT 
-                DATE(absensi.waktu_absen) as tanggal,
-                jadwal.jam_ke,
-                jadwal.jam_mulai,
-                jadwal.jam_selesai,
-                mapel.nama_mapel,
-                kelas.nama_kelas,
-                siswa.nama as nama_siswa,
-                siswa.nis,
-                absensi.status as status_kehadiran,
-                absensi.keterangan,
-                absensi.waktu_absen,
-                guru_absen.status as status_guru,
-                guru_absen.keterangan as keterangan_guru,
-                ruang.kode_ruang,
-                ruang.nama_ruang,
-                ruang.lokasi
+            SELECT DATE(absensi.waktu_absen) as tanggal, jadwal.jam_ke, jadwal.jam_mulai, jadwal.jam_selesai,
+                   mapel.nama_mapel, kelas.nama_kelas, siswa.nama as nama_siswa, siswa.nis,
+                   absensi.status as status_kehadiran, absensi.keterangan, absensi.waktu_absen,
+                   guru_absen.status as status_guru, guru_absen.keterangan as keterangan_guru,
+                   ruang.kode_ruang, ruang.nama_ruang, ruang.lokasi
             FROM absensi_siswa absensi
             INNER JOIN jadwal ON absensi.jadwal_id = jadwal.id_jadwal
             LEFT JOIN mapel ON jadwal.mapel_id = mapel.id_mapel
@@ -743,65 +660,58 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             LEFT JOIN ruang_kelas ruang ON jadwal.ruang_id = ruang.id_ruang
             LEFT JOIN absensi_guru guru_absen ON jadwal.id_jadwal = guru_absen.jadwal_id 
                 AND DATE(guru_absen.tanggal) = DATE(absensi.waktu_absen)
-            WHERE jadwal.guru_id = ? 
-                AND DATE(absensi.waktu_absen) IN (${datePlaceholders})
+            WHERE jadwal.guru_id = ? AND DATE(absensi.waktu_absen) IN (${datePlaceholders})
             ORDER BY absensi.waktu_absen DESC, jadwal.jam_ke ASC
         `;
 
         const [history] = await global.dbPool.execute(query, [guruId, ...dates]);
 
-        console.log(`✅ Found ${history.length} student attendance records for guru_id ${guruId} (${dates.length} days)`);
-
-        res.json({
-            success: true,
-            data: history,
-            totalDays,
-            totalPages,
-            currentPage: parseInt(page),
-            pagination: {
-                currentPage: parseInt(page),
-                totalPages,
-                totalDays,
-                limit: parseInt(limit)
-            }
+        log.success('GetStudentHistory', { count: history.length, totalDays, guruId });
+        return sendSuccessResponse(res, history, 'Riwayat absensi siswa', 200, {
+            totalDays, totalPages, currentPage: parseInt(page),
+            pagination: { currentPage: parseInt(page), totalPages, totalDays, limit: parseInt(limit) }
         });
     } catch (error) {
-        console.error('❌ Error fetching student attendance history:', error);
-        res.status(500).json({ error: 'Gagal memuat riwayat absensi siswa.' });
+        log.dbError('getStudentHistory', error, { guruId });
+        return sendDatabaseError(res, error, 'Gagal memuat riwayat absensi siswa');
     }
 };
 
 // Test endpoint for debugging
 export const guruTest = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('GuruTest', {});
+
     try {
-        console.log('🧪 Test endpoint called');
-        res.json({ success: true, message: 'Test endpoint working', user: req.user });
+        log.success('GuruTest', { user: req.user?.id });
+        return sendSuccessResponse(res, { user: req.user }, 'Test endpoint working');
     } catch (error) {
-        console.error('❌ Test endpoint error:', error);
-        res.status(500).json({ error: 'Test endpoint error' });
+        log.error('GuruTest failed', { error: error.message });
+        return sendDatabaseError(res, error, 'Test endpoint error');
     }
 };
 
 // Simple student attendance endpoint
 export const getGuruStudentAttendanceSimple = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const guruId = req.user.guru_id;
+
+    log.requestStart('SimpleAttendance', { guruId });
+
+    if (!guruId) {
+        log.validationFail('guru_id', null, 'Not found');
+        return sendValidationError(res, 'guru_id tidak ditemukan');
+    }
+
     try {
-        const guruId = req.user.guru_id;
-        console.log(`📊 Simple endpoint called for guru_id: ${guruId}`);
-
-        if (!guruId) {
-            return res.status(400).json({ error: 'guru_id tidak ditemukan' });
-        }
-
         const [result] = await global.dbPool.execute(`
-            SELECT COUNT(*) as total
-            FROM jadwal j
-            WHERE j.guru_id = ?
+            SELECT COUNT(*) as total FROM jadwal j WHERE j.guru_id = ?
         `, [guruId]);
 
-        console.log(`✅ Simple query result:`, result);
-        res.json({ success: true, data: result, message: 'Simple endpoint working' });
+        log.success('SimpleAttendance', { total: result[0].total, guruId });
+        return sendSuccessResponse(res, result, 'Simple endpoint working');
     } catch (error) {
-        console.error('❌ Simple endpoint error:', error);
-        res.status(500).json({ error: 'Simple endpoint error' });
+        log.dbError('simpleAttendance', error, { guruId });
+        return sendDatabaseError(res, error, 'Simple endpoint error');
     }
 };
