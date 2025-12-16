@@ -818,7 +818,8 @@ const importStudentAccount = async (req, res) => {
             conn.release();
         }
     } catch (err) {
-        return sendDatabaseError(res, error, 'Terjadi kesalahan saat memproses file');
+        logger.error('Import student account failed', err);
+        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
     }
 };
 
@@ -1069,7 +1070,8 @@ const importTeacherAccount = async (req, res) => {
             conn.release();
         }
     } catch (err) {
-        return sendDatabaseError(res, error, 'Terjadi kesalahan saat memproses file');
+        logger.error('Import teacher account failed', err);
+        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
     }
 };
 
@@ -1260,7 +1262,8 @@ const importSiswa = async (req, res) => {
             conn.release();
         }
     } catch (err) {
-        return sendDatabaseError(res, error, 'Terjadi kesalahan saat memproses file');
+        logger.error('Import siswa failed', err);
+        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
     }
 };
 
@@ -1442,7 +1445,8 @@ const importGuru = async (req, res) => {
             conn.release();
         }
     } catch (err) {
-        return sendDatabaseError(res, error, 'Terjadi kesalahan saat memproses file');
+        logger.error('Import guru failed', err);
+        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
     }
 };
 
