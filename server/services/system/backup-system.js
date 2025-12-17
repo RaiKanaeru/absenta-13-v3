@@ -1714,73 +1714,102 @@ class BackupSystem {
             
             const files = await fs.readdir(this.backupDir);
             const backups = [];
+            const seenIds = new Set();
+            
+            // Sort files to prefer .zip over directories if naming is same
+            // actually, we just process and dedupe
             
             for (const file of files) {
-                // Handle different backup types
-                if (file.startsWith('scheduled_')) {
-                    // Handle scheduled backups (directories)
+                try {
                     const filePath = path.join(this.backupDir, file);
                     const stats = await fs.stat(filePath);
                     
-                    if (stats.isDirectory()) {
+                    // Handle Scheduled Backups (Directories)
+                    if (file.startsWith('scheduled_') && stats.isDirectory()) {
                         // Check if backup_info.json exists
                         const infoPath = path.join(filePath, 'backup_info.json');
+                        let backupData = null;
+                        
                         try {
                             const infoData = await fs.readFile(infoPath, 'utf8');
                             const backupInfo = JSON.parse(infoData);
-                            
-                            // Calculate total size of backup directory
-                            let totalSize = 0;
-                            const dirFiles = await fs.readdir(filePath);
-                            for (const dirFile of dirFiles) {
-                                const dirFilePath = path.join(filePath, dirFile);
-                                const dirStats = await fs.stat(dirFilePath);
-                                if (dirStats.isFile()) {
-                                    totalSize += dirStats.size;
-                                }
-                            }
-                            
-                            backups.push({
+                            backupData = {
                                 id: backupInfo.id,
                                 filename: `${backupInfo.name} (${backupInfo.type})`,
-                                size: totalSize,
                                 created: new Date(backupInfo.created),
-                                modified: stats.mtime,
                                 type: backupInfo.type,
-                                backupType: backupInfo.type,
                                 semester: backupInfo.semester,
                                 year: backupInfo.year
-                            });
+                            };
                         } catch (infoError) {
-                            // If no backup_info.json, create basic info
-                            backups.push({
+                            backupData = {
                                 id: file,
                                 filename: file,
-                                size: 0,
                                 created: stats.birthtime,
-                                modified: stats.mtime,
-                                type: 'scheduled',
-                                backupType: 'scheduled'
-                            });
+                                type: 'scheduled'
+                            };
+                        }
+
+                        if (!seenIds.has(backupData.id)) {
+                             // Calculate size
+                             let totalSize = 0;
+                             try {
+                                 const dirFiles = await fs.readdir(filePath);
+                                 for (const dirFile of dirFiles) {
+                                     const dirStats = await fs.stat(path.join(filePath, dirFile));
+                                     if (dirStats.isFile()) totalSize += dirStats.size;
+                                 }
+                             } catch(e) {}
+
+                             backups.push({
+                                 ...backupData,
+                                 size: totalSize,
+                                 modified: stats.mtime,
+                                 backupType: backupData.type
+                             });
+                             seenIds.add(backupData.id);
+                        }
+                    } 
+                    // Handle Semester & Date Backups (Zip or Folder)
+                    else if (file.startsWith('semester_backup_') || file.startsWith('date_backup_')) {
+                        const isZip = file.endsWith('.zip');
+                        const id = file.replace(/\.zip$/, '');
+                        
+                        // If we already have this ID (e.g. from zip or folder processed first), skip OR update if better?
+                        // Simple logic: If we have zip, keep it. If we have folder, keep it unless we find zip?
+                        // Since we iterate randomly, let's just accept first found, but prefer zip if we want strictly compressed?
+                        // Let's just avoid duplicates.
+                        
+                        if (!seenIds.has(id)) {
+                             const backupType = file.startsWith('semester_backup_') ? 'semester' : 'date';
+                             let size = stats.size;
+                             
+                             // accurate size for folder?
+                             if (stats.isDirectory()) {
+                                 try {
+                                     const dirFiles = await fs.readdir(filePath);
+                                     size = 0;
+                                     for (const f of dirFiles) {
+                                         const s = await fs.stat(path.join(filePath, f));
+                                         if (s.isFile()) size += s.size;
+                                     }
+                                 } catch(e) {}
+                             }
+
+                             backups.push({
+                                 id: id,
+                                 filename: file, // Show actual filename (zip or folder name)
+                                 size: size,
+                                 created: stats.birthtime,
+                                 modified: stats.mtime,
+                                 type: backupType,
+                                 backupType: backupType
+                             });
+                             seenIds.add(id);
                         }
                     }
-                } else if ((file.startsWith('semester_backup_') || file.startsWith('date_backup_')) && file.endsWith('.zip')) {
-                    // Handle compressed backups
-                    const filePath = path.join(this.backupDir, file);
-                    const stats = await fs.stat(filePath);
-                    
-                    // Determine backup type
-                    const backupType = file.startsWith('semester_backup_') ? 'semester' : 'date';
-                    
-                    backups.push({
-                        id: file.replace('.zip', ''),
-                        filename: file,
-                        size: stats.size,
-                        created: stats.birthtime,
-                        modified: stats.mtime,
-                        type: backupType,
-                        backupType: backupType
-                    });
+                } catch (e) {
+                    console.warn(`⚠️ Error processing backup file ${file}:`, e.message);
                 }
             }
             

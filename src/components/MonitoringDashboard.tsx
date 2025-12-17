@@ -330,30 +330,7 @@ const MonitoringDashboard: React.FC = () => {
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Refresh
                     </Button>
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                                <Bell className="h-4 w-4 mr-2" />
-                                <span className="hidden sm:inline">Test Alert</span>
-                                <span className="sm:hidden">Test</span>
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="w-[95vw] max-w-md sm:w-full">
-                            <DialogHeader>
-                                <DialogTitle>Send Test Alert</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <Button onClick={() => testAlert('memory', 'warning')} className="w-full">
-                                        Test Memory Alert
-                                    </Button>
-                                    <Button onClick={() => testAlert('cpu', 'critical')} className="w-full">
-                                        Test CPU Alert
-                                    </Button>
-                                </div>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+
                 </div>
             </div>
 

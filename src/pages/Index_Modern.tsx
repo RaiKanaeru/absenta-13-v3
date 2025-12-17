@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { LoginForm } from "@/components/LoginForm_Modern";
-import { AdminDashboard } from "@/components/AdminDashboard_Modern";
-import { TeacherDashboard } from "@/components/TeacherDashboard_Modern";
-import { StudentDashboard } from "@/components/StudentDashboard_Modern";
+import { RefreshCw } from "lucide-react"; // Import spinner icon
+
+// Lazy load dashboard components to reduce initial bundle size
+const AdminDashboard = lazy(() => import("@/components/AdminDashboard_Modern").then(module => ({ default: module.AdminDashboard })));
+const TeacherDashboard = lazy(() => import("@/components/TeacherDashboard_Modern").then(module => ({ default: module.TeacherDashboard })));
+const StudentDashboard = lazy(() => import("@/components/StudentDashboard_Modern").then(module => ({ default: module.StudentDashboard })));
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/config/api";
 
@@ -25,6 +28,16 @@ interface UserData {
   kelas?: string;
   kelas_id?: number;
 }
+
+// Loading Fallback Component
+const LoadingFallback = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+    <div className="flex flex-col items-center gap-2">
+      <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+      <p className="text-gray-500 font-medium">Memuat Dashboard...</p>
+    </div>
+  </div>
+);
 
 // Utility function to get token with mobile fallback
 const getToken = () => {
@@ -337,9 +350,11 @@ const Index = () => {
     switch (userData.role) {
       case 'admin':
         return (
-          <AdminDashboard 
-            onLogout={handleLogout}
-          />
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminDashboard 
+              onLogout={handleLogout}
+            />
+          </Suspense>
         );
         
       case 'guru':
@@ -349,10 +364,12 @@ const Index = () => {
           return null;
         }
         return (
-          <TeacherDashboard 
-            userData={userData as UserData & { guru_id: number; nip: string; mapel: string }}
-            onLogout={handleLogout}
-          />
+          <Suspense fallback={<LoadingFallback />}>
+            <TeacherDashboard 
+              userData={userData as UserData & { guru_id: number; nip: string; mapel: string }}
+              onLogout={handleLogout}
+            />
+          </Suspense>
         );
         
       case 'siswa':
@@ -362,10 +379,12 @@ const Index = () => {
           return null;
         }
         return (
-          <StudentDashboard 
-            userData={userData as UserData & { siswa_id: number; nis: string; kelas: string; kelas_id: number }}
-            onLogout={handleLogout}
-          />
+          <Suspense fallback={<LoadingFallback />}>
+            <StudentDashboard 
+              userData={userData as UserData & { siswa_id: number; nis: string; kelas: string; kelas_id: number }}
+              onLogout={handleLogout}
+            />
+          </Suspense>
         );
         
       default:

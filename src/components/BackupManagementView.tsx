@@ -668,41 +668,7 @@ const BackupManagementView: React.FC = () => {
         return formatDateTime24(dateString, true);
     };
 
-    const checkBackupStatus = async () => {
-        try {
-            console.log('🔍 Checking backup system status...');
-            
-            // Check database status
-            const token = localStorage.getItem('token');
-            const dbStatus = await apiCall('/api/admin/database-status', {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
-            
-            // Check backup directory status
-            const backupDirStatus = await apiCall('/api/admin/backup-directory-status', {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
-            
-            console.log('📊 Database Status:', dbStatus.status);
-            console.log('📁 Backup Directory Status:', backupDirStatus.data);
-            
-            toast({
-                title: "Debug Info",
-                description: `Backup System: ${dbStatus.status.backupSystem ? 'Ready' : 'Not Ready'}, Files: ${backupDirStatus.data.totalFiles}`,
-            });
-        } catch (error) {
-            console.error('Error checking backup status:', error);
-            toast({
-                title: "Debug Error",
-                description: error.message || "Gagal memeriksa status backup",
-                variant: "destructive"
-            });
-        }
-    };
+
 
     return (
         <div className="space-y-6">
@@ -771,10 +737,7 @@ const BackupManagementView: React.FC = () => {
                             <span className="hidden sm:inline">{loadingStates.backups ? 'Memuat...' : 'Refresh'}</span>
                             <span className="sm:hidden">{loadingStates.backups ? '...' : '↻'}</span>
                         </Button>
-                        <Button onClick={checkBackupStatus} variant="outline" size="sm" title="Debug Backup System" className="flex-1 sm:flex-none">
-                            <Settings className="h-4 w-4 mr-2" />
-                            <span className="hidden sm:inline">Debug</span>
-                        </Button>
+
                     </div>
                     <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                         <DialogTrigger asChild>

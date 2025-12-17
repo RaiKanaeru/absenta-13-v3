@@ -365,53 +365,48 @@ const getBackupList = async (req, res) => {
  */
 const getBackups = async (req, res) => {
     try {
-        const backupDir = path.join(process.cwd(), 'backups');
-        const backups = [];
+        console.log('📂 Fetching backups via BackupSystem...');
 
-        try {
-            const backupFolders = await fs.readdir(backupDir);
-
-            for (const folder of backupFolders) {
-                const folderPath = path.join(backupDir, folder);
-                const stats = await fs.stat(folderPath);
-
-                if (stats.isDirectory()) {
-                    const files = await fs.readdir(folderPath);
-                    const sqlFiles = files.filter(file => file.endsWith('.sql'));
-                    const zipFiles = files.filter(file => file.endsWith('.zip'));
-
-                    if (sqlFiles.length > 0 || zipFiles.length > 0) {
-                        backups.push({
-                            id: folder,
-                            name: folder,
-                            type: 'scheduled',
-                            date: stats.mtime,
-                            files: {
-                                sql: sqlFiles,
-                                zip: zipFiles
-                            },
-                            size: await getFolderSize(folderPath)
-                        });
-                    }
-                }
-            }
-        } catch (error) {
-            console.log('No backup directory found or empty');
+        if (global.backupSystem) {
+            const backups = await global.backupSystem.listBackups();
+            console.log(`✅ BackupSystem returned ${backups.length} backups`);
+            
+            return res.status(200).json({
+                ok: true,
+                backups: backups || []
+            });
         }
 
-        // Sort by date (newest first)
-        backups.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        res.json({
-            success: true,
-            data: backups
-        });
+        // Fallback or Error if system not initialized
+        console.warn('⚠️ BackupSystem not initialized, trying fallback listing...');
+        const backupDir = process.env.BACKUP_DIR || path.join(process.cwd(), 'backups');
+        
+        try {
+            await fs.access(backupDir);
+            const files = await fs.readdir(backupDir);
+            // Basic fallback list
+            const backups = files.map(f => ({
+                id: f,
+                filename: f,
+                created: new Date(), // Approximate
+                type: 'unknown',
+                size: 0
+            }));
+            
+            res.status(200).json({
+                ok: true,
+                backups
+            });
+        } catch (e) {
+            res.status(200).json({ ok: true, backups: [] });
+        }
 
     } catch (error) {
         console.error('❌ Error getting backups:', error);
         res.status(500).json({
-            error: 'Internal server error',
-            message: 'Gagal mendapatkan daftar backup'
+            ok: false,
+            message: 'Gagal mendapatkan daftar backup',
+            error: error.message
         });
     }
 };
