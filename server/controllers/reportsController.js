@@ -854,3 +854,135 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
         return sendDatabaseError(res, error, 'Gagal memuat rekap ketidakhadiran guru');
     }
 };
+
+// Get rekap ketidakhadiran siswa (Per siswa per bulan/periode)
+export const getRekapKetidakhadiranSiswa = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
+    
+    log.requestStart('GetRekapKetidakhadiranSiswa', { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir });
+
+    try {
+        if (!kelas_id) {
+            log.validationFail('kelas_id', null, 'Required field missing');
+            return sendValidationError(res, 'Kelas wajib dipilih', { field: 'kelas_id' });
+        }
+
+        let startDate, endDate;
+        const selectedYear = parseInt(tahun);
+
+        if (tanggal_awal && tanggal_akhir) {
+            startDate = tanggal_awal;
+            endDate = tanggal_akhir;
+        } else if (bulan) {
+            // Specific month
+            const monthIndex = parseInt(bulan); // 1-12
+            let targetYear = selectedYear;
+            // Logic: if month is Jul-Dec (7-12), use selectedYear.
+            // If month is Jan-Jun (1-6), use selectedYear + 1.
+            if (monthIndex <= 6) {
+                targetYear = selectedYear + 1;
+            }
+            startDate = `${targetYear}-${bulan.padStart(2, '0')}-01`;
+            endDate = new Date(targetYear, monthIndex, 0).toISOString().split('T')[0];
+        } else {
+            // Annual (July - June)
+            startDate = `${selectedYear}-07-01`;
+            endDate = `${selectedYear + 1}-06-30`;
+        }
+
+        // Fetch rekap data per siswa per bulan
+        const query = `
+            SELECT 
+                a.siswa_id,
+                MONTH(a.tanggal) as bulan,
+                YEAR(a.tanggal) as tahun_absen,
+                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir') THEN 1 ELSE 0 END) as total_ketidakhadiran,
+                GROUP_CONCAT(CONCAT(a.tanggal, ':', a.status) SEPARATOR ';') as detail_string
+            FROM absensi_siswa a
+            JOIN siswa s ON a.siswa_id = s.id_siswa
+            WHERE s.kelas_id = ? 
+              AND a.tanggal BETWEEN ? AND ?
+            GROUP BY a.siswa_id, YEAR(a.tanggal), MONTH(a.tanggal)
+            ORDER BY a.siswa_id, YEAR(a.tanggal), MONTH(a.tanggal)
+        `;
+
+        const [rows] = await global.dbPool.execute(query, [kelas_id, startDate, endDate]);
+
+        // Helper for effective days
+        const hariEfektifMap = {
+            7: 21, 8: 21, 9: 21, 10: 22, 11: 21, 12: 18,
+            1: 21, 2: 20, 3: 22, 4: 20, 5: 20, 6: 18
+        };
+
+        const result = rows.map(row => {
+            const effectiveDays = hariEfektifMap[row.bulan] || 20;
+            const absences = parseInt(row.total_ketidakhadiran) || 0;
+            const presencePk = Math.max(0, effectiveDays - absences);
+            
+            let details = [];
+            if (row.detail_string) {
+                details = row.detail_string.split(';').map(item => {
+                    const [date, status] = item.split(':');
+                    return { tanggal: date, status: status };
+                }); // .filter(d => ['Sakit', 'Izin', 'Alpa'].includes(d.status));
+            }
+
+            return {
+                siswa_id: row.siswa_id,
+                bulan: row.bulan,
+                tahun: row.tahun_absen,
+                total_hari_efektif: effectiveDays,
+                total_ketidakhadiran: absences,
+                persentase_ketidakhadiran: ((absences / effectiveDays) * 100).toFixed(2),
+                persentase_kehadiran: ((presencePk / effectiveDays) * 100).toFixed(2),
+                detail_ketidakhadiran: details
+            };
+        });
+
+        // If filtering by date range, aggregate results for same student
+        if (req.query.tanggal_awal && req.query.tanggal_akhir) {
+            const aggregated = {};
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            // Rough calc for effective days in range
+            const diffDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1); 
+
+            result.forEach(r => {
+                if (!aggregated[r.siswa_id]) {
+                    aggregated[r.siswa_id] = {
+                        siswa_id: r.siswa_id,
+                        bulan: 0,
+                        tahun: 0,
+                        total_hari_efektif: diffDays, 
+                        total_ketidakhadiran: 0,
+                        detail_ketidakhadiran: []
+                    };
+                }
+                aggregated[r.siswa_id].total_ketidakhadiran += r.total_ketidakhadiran;
+                aggregated[r.siswa_id].detail_ketidakhadiran.push(...r.detail_ketidakhadiran);
+            });
+            
+            const finalResult = Object.values(aggregated).map((item) => {
+                // Determine effective days more accurately if possible, or use count of weekdays? 
+                // For now, use the passed range length (diffDays) or a fixed assumption? 
+                // Let's use diffDays but maybe exclude weekends if we want to be fancy. 
+                // For now diffDays is enough to unblock.
+                const effDays = item.total_hari_efektif;
+                item.persentase_ketidakhadiran = ((item.total_ketidakhadiran / effDays) * 100).toFixed(2);
+                item.persentase_kehadiran = (100 - parseFloat(item.persentase_ketidakhadiran)).toFixed(2);
+                return item;
+            });
+            
+            log.success('GetRekapKetidakhadiranSiswa', { count: finalResult.length, mode: 'range' });
+            return res.json(finalResult);
+        }
+
+        log.success('GetRekapKetidakhadiranSiswa', { count: result.length });
+        res.json(result);
+
+    } catch (error) {
+        log.dbError('rekapSiswa', error, { kelas_id });
+        return sendDatabaseError(res, error, 'Gagal memuat rekap ketidakhadiran siswa');
+    }
+};

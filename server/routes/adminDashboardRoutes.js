@@ -7,8 +7,12 @@
 import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import * as adminDashboardController from '../controllers/adminDashboardController.js';
+import * as reportsController from '../controllers/reportsController.js';
 
 const router = Router();
+
+// Reports
+router.get('/rekap-ketidakhadiran', authenticateToken, requireRole(['admin']), reportsController.getRekapKetidakhadiranSiswa);
 
 // Teacher Account CRUD - Admin only
 router.get('/teachers', authenticateToken, requireRole(['admin']), adminDashboardController.getTeachers);
