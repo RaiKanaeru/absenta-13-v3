@@ -16,56 +16,52 @@ interface LoginFormProps {
 const CAPTCHA_THRESHOLD = 2; // Show captcha after 2 failed attempts
 const STORAGE_KEY = 'absenta_login_attempts';
 
+// Helper to get/set failed attempts
+const getFailedAttempts = (): { count: number; timestamp: number } => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const data = JSON.parse(stored);
+      // Reset if older than 15 minutes
+      if (Date.now() - data.timestamp < 15 * 60 * 1000) {
+        return data;
+      }
+    }
+  } catch (e) { /* ignore parse errors */ }
+  return { count: 0, timestamp: Date.now() };
+};
+
+const incrementFailedAttempts = (): number => {
+  const current = getFailedAttempts();
+  const newCount = current.count + 1;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    count: newCount,
+    timestamp: Date.now()
+  }));
+  console.log(`[hCaptcha] Failed attempt #${newCount}/${CAPTCHA_THRESHOLD}`);
+  return newCount;
+};
+
+const clearFailedAttempts = () => {
+  localStorage.removeItem(STORAGE_KEY);
+};
+
 export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lastSubmitTime, setLastSubmitTime] = useState(0);
   const captchaRef = useRef<HCaptcha>(null);
 
-  // Load failed attempts from storage on mount
+  // Load initial state from storage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        const now = Date.now();
-        // Reset if older than 15 minutes
-        if (now - data.timestamp < 15 * 60 * 1000) {
-          setFailedAttempts(data.count);
-          if (data.count >= CAPTCHA_THRESHOLD) {
-            setShowCaptcha(true);
-          }
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
-    } catch (e) {
-      localStorage.removeItem(STORAGE_KEY);
+    const data = getFailedAttempts();
+    if (data.count >= CAPTCHA_THRESHOLD) {
+      setShowCaptcha(true);
+      console.log(`[hCaptcha] Loaded ${data.count} failed attempts, showing captcha`);
     }
   }, []);
-
-  // Track failed attempts when error appears AFTER a submit
-  useEffect(() => {
-    if (error && lastSubmitTime > 0) {
-      const newCount = failedAttempts + 1;
-      setFailedAttempts(newCount);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        count: newCount,
-        timestamp: Date.now()
-      }));
-      console.log(`[hCaptcha] Failed attempt #${newCount}/${CAPTCHA_THRESHOLD}`);
-      if (newCount >= CAPTCHA_THRESHOLD) {
-        setShowCaptcha(true);
-        console.log('[hCaptcha] Threshold reached, showing captcha');
-      }
-      // Reset submit time to prevent double counting
-      setLastSubmitTime(0);
-    }
-  }, [error, lastSubmitTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,13 +69,20 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     
     // If captcha is required but not solved, don't proceed
     if (showCaptcha && !captchaToken) {
+      console.log('[hCaptcha] Captcha required but not solved');
       return;
     }
     
-    // Mark that we're submitting (for error tracking)
-    setLastSubmitTime(Date.now());
-    
-    await onLogin(credentials);
+    try {
+      await onLogin(credentials);
+      // If login succeeds, clear failed attempts
+      clearFailedAttempts();
+      setShowCaptcha(false);
+      console.log('[hCaptcha] Login success, cleared failed attempts');
+    } catch (err) {
+      // This won't catch if onLogin doesn't throw
+      // So we also check via useEffect below
+    }
     
     // Reset captcha after attempt
     if (captchaRef.current) {
@@ -88,6 +91,24 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     }
   };
 
+  // Watch for error changes - increment counter when error appears
+  const prevErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Only count if error is new (not same as previous)
+    if (error && error !== prevErrorRef.current) {
+      const newCount = incrementFailedAttempts();
+      if (newCount >= CAPTCHA_THRESHOLD) {
+        setShowCaptcha(true);
+        console.log('[hCaptcha] Threshold reached, showing captcha');
+      }
+    } else if (!error && prevErrorRef.current) {
+      // Error cleared - login was successful
+      clearFailedAttempts();
+      setShowCaptcha(false);
+    }
+    prevErrorRef.current = error;
+  }, [error]);
+
   const handleInputChange = (field: string, value: string) => {
     setCredentials(prev => ({ ...prev, [field]: value }));
   };
@@ -95,11 +116,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const onCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
     console.log('[hCaptcha] Verified successfully');
-  };
-
-  const onCaptchaError = () => {
-    console.log('[hCaptcha] Error loading captcha');
-    setCaptchaToken(null);
   };
 
   // Check if form is ready to submit
