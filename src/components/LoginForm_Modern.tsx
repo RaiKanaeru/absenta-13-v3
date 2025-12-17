@@ -273,7 +273,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                   </div>
                   <div className="flex justify-center p-4 bg-slate-50 rounded-xl border border-slate-200">
                     <HCaptcha
-                      sitekey="10000000-ffff-ffff-ffff-000000000001"
+                      sitekey="6ad030ba-63dc-4238-9bf4-0b2eeee81af8"
                       onVerify={onCaptchaVerify}
                       ref={captchaRef}
                       theme="light"
