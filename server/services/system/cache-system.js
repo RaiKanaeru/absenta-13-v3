@@ -218,6 +218,25 @@ class CacheSystem {
     }
 
     /**
+     * Clear all cache
+     */
+    async clear() {
+        if (!this.isConnected) {
+            return false;
+        }
+
+        try {
+            await this.redis.flushdb();
+            console.log('✅ All cache cleared (FLUSHDB)');
+            this.resetCacheStatistics();
+            return true;
+        } catch (error) {
+            console.error('❌ Cache clear error:', error);
+            return false;
+        }
+    }
+
+    /**
      * Delete multiple keys with pattern
      */
     async deletePattern(pattern, category = 'default') {

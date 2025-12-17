@@ -251,8 +251,9 @@ CREATE TABLE IF NOT EXISTS presensi (
       });
       const result = await response.json();
       
-      if (result.success && Array.isArray(result.data)) {
-        setAvailableBackups(result.data);
+      // Support both new (ok/backups) and old (success/data) formats
+      if ((result.ok || result.success) && (Array.isArray(result.backups) || Array.isArray(result.data))) {
+        setAvailableBackups(result.backups || result.data);
       } else {
         setAvailableBackups([]);
       }

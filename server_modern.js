@@ -235,7 +235,7 @@ app.use(requestIdMiddleware);  // Add request ID tracking for debugging
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+    max: process.env.NODE_ENV === 'production' ? 2000 : 5000,
     message: 'Terlalu banyak request, coba lagi nanti.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -246,9 +246,9 @@ app.use('/api/', limiter);
 let ddosProtection = null;
 if (process.env.ENABLE_DDOS_PROTECTION !== 'false') {
     ddosProtection = new DDoSProtection({
-        maxRequestsPerWindow: process.env.NODE_ENV === 'production' ? 100 : 500,
-        maxRequestsPerSecond: process.env.NODE_ENV === 'production' ? 10 : 50,
-        spikeThreshold: process.env.NODE_ENV === 'production' ? 5 : 20,
+        maxRequestsPerWindow: process.env.NODE_ENV === 'production' ? 2000 : 5000,
+        maxRequestsPerSecond: process.env.NODE_ENV === 'production' ? 100 : 200,
+        spikeThreshold: process.env.NODE_ENV === 'production' ? 50 : 100,
         blockDurationMs: 300000 // 5 minutes
     });
     app.use(ddosProtection.middleware());
@@ -343,7 +343,7 @@ async function initializeDatabase() {
             rateLimiting: {
                 enabled: true,
                 windowMs: 60000, // 1 minute
-                maxRequests: 100,
+                maxRequests: 1000,
                 skipSuccessfulRequests: false,
                 skipFailedRequests: false
             },
