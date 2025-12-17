@@ -661,19 +661,19 @@ export const getMonitoringDashboard = async (req, res) => {
                 },
                 application: {
                     requests: {
-                        total: loadBalancerStats.totalRequests || 0,
-                        active: loadBalancerStats.activeRequests || 0,
-                        completed: loadBalancerStats.completedRequests || 0,
-                        failed: loadBalancerStats.failedRequests || 0
+                        total: systemMonitorMetrics?.application?.requests?.total || 0,
+                        active: systemMonitorMetrics?.application?.requests?.active || 0,
+                        completed: systemMonitorMetrics?.application?.requests?.completed || 0,
+                        failed: systemMonitorMetrics?.application?.requests?.failed || 0
                     },
                     responseTime: {
-                        average: loadBalancerStats.averageResponseTime || 0,
+                        average: systemMonitorMetrics?.application?.responseTime?.average || 0,
                         min: systemMonitorMetrics?.application?.responseTime?.min || 0,
                         max: systemMonitorMetrics?.application?.responseTime?.max || 0
                     },
                     errors: {
-                        count: loadBalancerStats.failedRequests || 0,
-                        lastError: null
+                        count: systemMonitorMetrics?.application?.requests?.failed || 0,
+                        lastError: systemMonitorMetrics?.application?.errors?.lastError || null
                     }
                 },
                 database: {

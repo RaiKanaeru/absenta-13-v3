@@ -753,3 +753,104 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         return sendDatabaseError(res, error, 'Gagal memuat ringkasan kehadiran guru');
     }
 };
+// Get rekap ketidakhadiran guru (Pivot per bulan)
+export const getRekapKetidakhadiranGuru = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { year, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
+    
+    // Support both 'year' and 'tahun' params
+    const selectedYear = parseInt(year || tahun);
+    
+    log.requestStart('GetRekapKetidakhadiranGuru', { selectedYear, bulan, tanggal_awal, tanggal_akhir });
+
+    try {
+        let query = '';
+        let params = [];
+        const isAnnual = !tanggal_awal && !tanggal_akhir && selectedYear;
+
+        if (isAnnual) {
+            // Annual Report based on Academic Year (July - June)
+            const startDate = `${selectedYear}-07-01`;
+            const endDate = `${selectedYear + 1}-06-30`;
+
+            query = `
+                SELECT 
+                    g.id_guru as id,
+                    g.nama as nama_guru,
+                    g.nip,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
+                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
+                    COUNT(ag.id_absensi) as total_ketidakhadiran,
+                    
+                    /* Calculate totals */
+                    (SELECT COUNT(*) FROM jadwal j WHERE j.guru_id = g.id_guru AND j.status = 'aktif') * 20 as total_hari_efektif_est,
+                    
+                    0 as total_kehadiran /* To be calculated or fetched if needed */
+                FROM guru g
+                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                    AND ag.tanggal BETWEEN ? AND ?
+                    AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
+                WHERE g.status = 'aktif'
+                GROUP BY g.id_guru, g.nama, g.nip
+                ORDER BY g.nama
+            `;
+            params = [startDate, endDate];
+        } else {
+            // Monthly or Date Range Report
+            const start = tanggal_awal || `${selectedYear}-${bulan.padStart(2, '0')}-01`;
+            const end = tanggal_akhir || new Date(selectedYear, parseInt(bulan), 0).toISOString().split('T')[0];
+
+            query = `
+                SELECT 
+                    g.id_guru as id,
+                    g.nama as nama_guru,
+                    g.nip,
+                    COALESCE(COUNT(ag.id_absensi), 0) as total_ketidakhadiran
+                FROM guru g
+                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                    AND ag.tanggal BETWEEN ? AND ?
+                    AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
+                WHERE g.status = 'aktif'
+                GROUP BY g.id_guru, g.nama, g.nip
+                ORDER BY g.nama
+            `;
+            params = [start, end];
+        }
+
+        const [rows] = await global.dbPool.execute(query, params);
+
+        // Post-processing for percentages (since we can't easily get total effective days dynamically in SQL without a calendar table)
+        // Default assumption: ~240 effective days/year or ~20 days/month
+        const effectiveDays = isAnnual ? 240 : 20;
+
+        const processedRows = rows.map(row => {
+            const absences = parseInt(row.total_ketidakhadiran) || 0;
+            const presence = Math.max(0, effectiveDays - absences);
+            
+            return {
+                ...row,
+                total_hari_efektif: effectiveDays,
+                total_kehadiran: presence,
+                persentase_ketidakhadiran: ((absences / effectiveDays) * 100).toFixed(2),
+                persentase_kehadiran: ((presence / effectiveDays) * 100).toFixed(2)
+            };
+        });
+
+        log.success('GetRekapKetidakhadiranGuru', { count: processedRows.length });
+        res.json(processedRows);
+
+    } catch (error) {
+        log.dbError('rekapGuru', error);
+        return sendDatabaseError(res, error, 'Gagal memuat rekap ketidakhadiran guru');
+    }
+};

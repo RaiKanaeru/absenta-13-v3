@@ -37,6 +37,7 @@
     "deploy:start": "pm2 start ecosystem.config.js --env production"
   },
   "dependencies": {
+    "@hcaptcha/react-hcaptcha": "^1.17.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

@@ -334,6 +334,13 @@ class LoadBalancer extends EventEmitter {
     }
     
     /**
+     * Set system monitor
+     */
+    setSystemMonitor(monitor) {
+        this.systemMonitor = monitor;
+    }
+
+    /**
      * Record successful request
      */
     recordSuccess(requestData, result) {
@@ -366,6 +373,11 @@ class LoadBalancer extends EventEmitter {
         if (this.circuitBreaker.successCount >= 5) {
             this.resetCircuitBreaker();
         }
+
+        // Report to system monitor if available
+        if (this.systemMonitor) {
+            this.systemMonitor.recordRequest(responseTime, true);
+        }
     }
     
     /**
@@ -393,6 +405,11 @@ class LoadBalancer extends EventEmitter {
         
         if (this.circuitBreaker.failureCount >= this.options.circuitBreakerThreshold) {
             this.tripCircuitBreaker();
+        }
+
+        // Report to system monitor if available
+        if (this.systemMonitor) {
+            this.systemMonitor.recordRequest(responseTime, false);
         }
     }
     

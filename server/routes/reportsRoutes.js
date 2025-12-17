@@ -17,7 +17,8 @@ import {
     downloadStudentAttendanceReport,
     getStudentAttendanceSummary,
     downloadStudentAttendanceExcel,
-    getTeacherAttendanceSummary
+    getTeacherAttendanceSummary,
+    getRekapKetidakhadiranGuru
 } from '../controllers/reportsController.js';
 
 const router = express.Router();
@@ -49,6 +50,7 @@ router.get('/teacher-attendance-report', getTeacherAttendanceReport);
 router.get('/download-teacher-attendance', downloadTeacherAttendanceReport);
 router.get('/download-teacher-attendance-excel', downloadTeacherAttendanceReport); // Alias for frontend compatibility
 router.get('/teacher-attendance-summary', getTeacherAttendanceSummary);
+router.get('/rekap-ketidakhadiran-guru', getRekapKetidakhadiranGuru);
 
 // Student Attendance
 router.get('/student-attendance-report', getStudentAttendanceReport);

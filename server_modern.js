@@ -232,6 +232,19 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 app.use(requestIdMiddleware);  // Add request ID tracking for debugging
 
+// Real-time Request Monitoring Middleware
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const success = res.statusCode < 400;
+        if (global.systemMonitor) {
+            global.systemMonitor.recordRequest(duration, success);
+        }
+    });
+    next();
+});
+
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -337,6 +350,7 @@ async function initializeDatabase() {
         });
         systemMonitor.start();
         console.log('✅ System monitor initialized and started');
+
 
         // Initialize security system
         securitySystem = new SecuritySystem({
@@ -459,6 +473,36 @@ async function initializeDatabase() {
 
         // Get connection pool for use in endpoints
         global.dbPool = dbOptimization.pool;  // Use the actual pool, not the class instance
+        
+        // Wrap database pool to monitor all queries
+        if (global.dbPool) {
+            const originalExecute = global.dbPool.execute.bind(global.dbPool);
+            global.dbPool.execute = async function(sql, params) {
+                 const start = Date.now();
+                 try {
+                    const result = await originalExecute(sql, params);
+                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, true);
+                    return result;
+                 } catch (err) {
+                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, false);
+                    throw err;
+                 }
+            };
+
+            const originalQuery = global.dbPool.query.bind(global.dbPool);
+            global.dbPool.query = async function(sql, params) {
+                 const start = Date.now();
+                 try {
+                    const result = await originalQuery(sql, params);
+                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, true);
+                    return result;
+                 } catch (err) {
+                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, false);
+                    throw err;
+                 }
+            };
+            console.log('✅ Database pool wrapped for monitoring');
+        }
         global.dbOptimization = dbOptimization;  // Keep reference to full class for methods like getPoolStats()
         global.queryOptimizer = queryOptimizer;
         global.performanceOptimizer = performanceOptimizer;
@@ -627,6 +671,14 @@ app.use('/api/admin', adminRoutes);
 // CRUD ENDPOINTS - ADMIN ONLY
 // ================================================
 
+// BACKUP, TEMPLATE, IMPORT, MONITORING ROUTES
+// Must be defined BEFORE entity CRUD routes to avoid "template-basic" being caught as ":id"
+app.use('/api/admin', backupRoutes); // Backup endpoints
+app.use('/api/admin', templateRoutes); // Template download endpoints
+app.use('/api/admin', importRoutes); // Import Excel endpoints
+app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
+app.use('/api/admin/export', templateExportRoutes); // Template-based Excel export
+
 // SISWA CRUD
 // SISWA CRUD (Modularized)
 app.use('/api/admin/siswa', siswaRoutes);
@@ -671,12 +723,6 @@ app.use('/api/admin', letterheadRoutes); // All letterhead endpoints
 app.use('/api/dashboard', dashboardRoutes); // Dashboard stats and chart
 app.use('/api/admin', dashboardRoutes); // Alias: /api/admin/live-summary
 
-// BACKUP, TEMPLATE, IMPORT, MONITORING ROUTES
-app.use('/api/admin', backupRoutes); // Backup endpoints
-app.use('/api/admin', templateRoutes); // Template download endpoints
-app.use('/api/admin', importRoutes); // Import Excel endpoints
-app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
-app.use('/api/admin/export', templateExportRoutes); // Template-based Excel export
 
 // Route Aliases for Frontend Compatibility
 app.use('/api/admin/classes', kelasRoutes); // Alias: /api/admin/classes -> kelas

@@ -313,6 +313,13 @@ class QueryOptimizer {
     }
     
     /**
+     * Set system monitor
+     */
+    setSystemMonitor(monitor) {
+        this.systemMonitor = monitor;
+    }
+
+    /**
      * Record query statistics
      */
     recordQueryStats(queryName, executionTime, success) {
@@ -339,6 +346,11 @@ class QueryOptimizer {
             stats.successCount++;
         } else {
             stats.failureCount++;
+        }
+
+        // Report to system monitor if available
+        if (this.systemMonitor) {
+            this.systemMonitor.recordQuery(executionTime, success);
         }
     }
     
