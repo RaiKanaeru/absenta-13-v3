@@ -23,10 +23,10 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lastSubmitTime, setLastSubmitTime] = useState(0);
   const captchaRef = useRef<HCaptcha>(null);
-  const prevErrorRef = useRef<string | null>(null);
 
-  // Load failed attempts from storage on mount - clear if stale
+  // Load failed attempts from storage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -40,34 +40,32 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
             setShowCaptcha(true);
           }
         } else {
-          // Clear stale data
           localStorage.removeItem(STORAGE_KEY);
-          setFailedAttempts(0);
-          setShowCaptcha(false);
         }
       }
     } catch (e) {
-      // Clear corrupted data
       localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
-  // Track failed attempts only when a NEW error occurs (not on re-render)
+  // Track failed attempts when error appears AFTER a submit
   useEffect(() => {
-    // Only increment if error changed from null/different to a new error
-    if (error && error !== prevErrorRef.current) {
+    if (error && lastSubmitTime > 0) {
       const newCount = failedAttempts + 1;
       setFailedAttempts(newCount);
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         count: newCount,
         timestamp: Date.now()
       }));
+      console.log(`[hCaptcha] Failed attempt #${newCount}/${CAPTCHA_THRESHOLD}`);
       if (newCount >= CAPTCHA_THRESHOLD) {
         setShowCaptcha(true);
+        console.log('[hCaptcha] Threshold reached, showing captcha');
       }
+      // Reset submit time to prevent double counting
+      setLastSubmitTime(0);
     }
-    prevErrorRef.current = error;
-  }, [error, failedAttempts]);
+  }, [error, lastSubmitTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +75,9 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     if (showCaptcha && !captchaToken) {
       return;
     }
+    
+    // Mark that we're submitting (for error tracking)
+    setLastSubmitTime(Date.now());
     
     await onLogin(credentials);
     
@@ -93,6 +94,12 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
 
   const onCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
+    console.log('[hCaptcha] Verified successfully');
+  };
+
+  const onCaptchaError = () => {
+    console.log('[hCaptcha] Error loading captcha');
+    setCaptchaToken(null);
   };
 
   // Check if form is ready to submit
