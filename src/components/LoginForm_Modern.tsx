@@ -73,16 +73,8 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
       return;
     }
     
-    try {
-      await onLogin(credentials);
-      // If login succeeds, clear failed attempts
-      clearFailedAttempts();
-      setShowCaptcha(false);
-      console.log('[hCaptcha] Login success, cleared failed attempts');
-    } catch (err) {
-      // This won't catch if onLogin doesn't throw
-      // So we also check via useEffect below
-    }
+    // Just call onLogin - error tracking happens in useEffect
+    await onLogin(credentials);
     
     // Reset captcha after attempt
     if (captchaRef.current) {
