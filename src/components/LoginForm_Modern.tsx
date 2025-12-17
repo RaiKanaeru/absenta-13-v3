@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Lock, User, Eye, EyeOff, CheckCircle2, Sparkles, Shield, Zap, AlertTriangle } from "lucide-react";
+import { Loader2, Lock, User, Eye, EyeOff, CheckCircle2, Sparkles, Shield, Zap, AlertTriangle, Clock } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 interface LoginFormProps {
@@ -15,6 +15,7 @@ interface LoginFormProps {
 // Risk-based captcha threshold
 const CAPTCHA_THRESHOLD = 2; // Show captcha after 2 failed attempts
 const STORAGE_KEY = 'absenta_login_attempts';
+const LOCKOUT_KEY = 'absenta_lockout';
 
 // Helper to get/set failed attempts
 const getFailedAttempts = (): { count: number; timestamp: number } => {
@@ -46,12 +47,39 @@ const clearFailedAttempts = () => {
   localStorage.removeItem(STORAGE_KEY);
 };
 
+// Lockout helpers
+const getLockout = (): { lockedUntil: number } | null => {
+  try {
+    const stored = localStorage.getItem(LOCKOUT_KEY);
+    if (stored) {
+      const data = JSON.parse(stored);
+      if (data.lockedUntil > Date.now()) {
+        return data;
+      }
+      // Clear expired lockout
+      localStorage.removeItem(LOCKOUT_KEY);
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+};
+
+const setLockout = (retryAfterSeconds: number) => {
+  const lockedUntil = Date.now() + (retryAfterSeconds * 1000);
+  localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ lockedUntil }));
+  console.log(`[Lockout] Locked until ${new Date(lockedUntil).toLocaleTimeString()}`);
+};
+
+const clearLockout = () => {
+  localStorage.removeItem(LOCKOUT_KEY);
+};
+
 export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
+  const [lockoutRemaining, setLockoutRemaining] = useState<number>(0);
   const captchaRef = useRef<HCaptcha>(null);
 
   // Load initial state from storage on mount
@@ -61,10 +89,45 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
       setShowCaptcha(true);
       console.log(`[hCaptcha] Loaded ${data.count} failed attempts, showing captcha`);
     }
+    
+    // Check for existing lockout
+    const lockout = getLockout();
+    if (lockout) {
+      const remaining = Math.ceil((lockout.lockedUntil - Date.now()) / 1000);
+      setLockoutRemaining(remaining);
+    }
   }, []);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockoutRemaining > 0) {
+      const timer = setInterval(() => {
+        setLockoutRemaining(prev => {
+          if (prev <= 1) {
+            clearLockout();
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [lockoutRemaining > 0]);
+
+  // Check if form is locked out
+  const isLockedOut = lockoutRemaining > 0;
+
+  // Format countdown
+  const formatCountdown = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLockedOut) return; // Don't submit if locked out
     if (!credentials.username.trim() || !credentials.password.trim()) return;
     
     // If captcha is required but not solved, don't proceed
@@ -86,8 +149,20 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   // Watch for error changes - increment counter when error appears
   const prevErrorRef = useRef<string | null>(null);
   useEffect(() => {
-    // Only count if error is new (not same as previous)
-    if (error && error !== prevErrorRef.current) {
+    // Check if error contains lockout message (429 response)
+    if (error && error.includes('Coba lagi dalam')) {
+      // Extract retry time from error message
+      const match = error.match(/(\d+)\s*menit/);
+      if (match) {
+        const minutes = parseInt(match[1]);
+        setLockout(minutes * 60);
+        setLockoutRemaining(minutes * 60);
+        console.log(`[Lockout] Set ${minutes} minute lockout from server response`);
+      }
+    }
+    
+    // Only count if error is new (not same as previous) and not a lockout error
+    if (error && error !== prevErrorRef.current && !error.includes('Coba lagi dalam')) {
       const newCount = incrementFailedAttempts();
       if (newCount >= CAPTCHA_THRESHOLD) {
         setShowCaptcha(true);
@@ -96,7 +171,9 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     } else if (!error && prevErrorRef.current) {
       // Error cleared - login was successful
       clearFailedAttempts();
+      clearLockout();
       setShowCaptcha(false);
+      setLockoutRemaining(0);
     }
     prevErrorRef.current = error;
   }, [error]);
@@ -111,7 +188,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   };
 
   // Check if form is ready to submit
-  const isFormReady = credentials.username.trim() && credentials.password.trim() && (!showCaptcha || captchaToken);
+  const isFormReady = credentials.username.trim() && credentials.password.trim() && (!showCaptcha || captchaToken) && !isLockedOut;
 
   return (
     <div className="min-h-screen w-full flex bg-slate-50">
@@ -200,8 +277,19 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Lockout Alert */}
+              {isLockedOut && (
+                <Alert className="bg-orange-50 border-orange-200 text-orange-800 rounded-xl animate-in fade-in slide-in-from-top-2">
+                  <Clock className="h-4 w-4" />
+                  <AlertDescription className="font-medium flex items-center gap-2">
+                    <span>Terlalu banyak percobaan. Coba lagi dalam</span>
+                    <span className="font-bold text-lg bg-orange-100 px-2 py-0.5 rounded">{formatCountdown(lockoutRemaining)}</span>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Error Alert */}
-              {error && (
+              {error && !isLockedOut && (
                 <Alert variant="destructive" className="bg-red-50 border-red-100 text-red-700 rounded-xl animate-in fade-in slide-in-from-top-2">
                   <AlertDescription className="font-medium">{error}</AlertDescription>
                 </Alert>
@@ -224,8 +312,8 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     onChange={(e) => handleInputChange("username", e.target.value)}
                     onFocus={() => setFocusedField('username')}
                     onBlur={() => setFocusedField(null)}
-                    className="pl-14 h-14 bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 font-medium text-slate-800 placeholder:text-slate-400"
-                    disabled={isLoading}
+                    className="pl-14 h-14 bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 font-medium text-slate-800 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading || isLockedOut}
                     required
                   />
                 </div>
@@ -248,8 +336,8 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
-                    className="pl-14 pr-14 h-14 bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 font-medium text-slate-800 placeholder:text-slate-400"
-                    disabled={isLoading}
+                    className="pl-14 pr-14 h-14 bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 font-medium text-slate-800 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading || isLockedOut}
                     required
                   />
                   <button
