@@ -6064,7 +6064,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     return groups;
   };
 
-  // Komponen statistik kehadiran
+  // Komponen statistik kehadiran - Modern Design
   const AttendanceStats = ({ data }: { data: LiveStudentRow[] }) => {
     const total = data.length;
     const hadir = data.filter(item => item.status === 'Hadir').length;
@@ -6074,83 +6074,128 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     const dispen = data.filter(item => item.status === 'Dispen').length;
     
     const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+
+    const stats = [
+      { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
+      { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
+      { label: 'Sakit', value: sakit, color: 'sky', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
+      { label: 'Alpa', value: alpa, color: 'rose', icon: X, pct: total > 0 ? Math.round((alpa/total)*100) : 0 },
+      { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
+      { label: 'Total', value: total, color: 'slate', icon: Users, pct: presentase, pctLabel: '% Hadir' },
+    ];
+
+    const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+      emerald: { bg: 'bg-emerald-50', border: 'border-l-emerald-500', text: 'text-emerald-700', icon: 'text-emerald-500' },
+      amber: { bg: 'bg-amber-50', border: 'border-l-amber-500', text: 'text-amber-700', icon: 'text-amber-500' },
+      sky: { bg: 'bg-sky-50', border: 'border-l-sky-500', text: 'text-sky-700', icon: 'text-sky-500' },
+      rose: { bg: 'bg-rose-50', border: 'border-l-rose-500', text: 'text-rose-700', icon: 'text-rose-500' },
+      violet: { bg: 'bg-violet-50', border: 'border-l-violet-500', text: 'text-violet-700', icon: 'text-violet-500' },
+      slate: { bg: 'bg-slate-50', border: 'border-l-slate-500', text: 'text-slate-700', icon: 'text-slate-500' },
+    };
     
     return (
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-green-600">{hadir}</p>
-            <p className="text-sm text-green-600">Hadir</p>
-            <p className="text-xs text-green-500">{total > 0 ? Math.round((hadir/total)*100) : 0}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-yellow-600">{izin}</p>
-            <p className="text-sm text-yellow-600">Izin</p>
-            <p className="text-xs text-yellow-500">{total > 0 ? Math.round((izin/total)*100) : 0}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600">{sakit}</p>
-            <p className="text-sm text-blue-600">Sakit</p>
-            <p className="text-xs text-blue-500">{total > 0 ? Math.round((sakit/total)*100) : 0}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-red-600">{alpa}</p>
-            <p className="text-sm text-red-600">Alpa</p>
-            <p className="text-xs text-red-500">{total > 0 ? Math.round((alpa/total)*100) : 0}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-purple-200 bg-purple-50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-purple-600">{dispen}</p>
-            <p className="text-sm text-purple-600">Dispen</p>
-            <p className="text-xs text-purple-500">{total > 0 ? Math.round((dispen/total)*100) : 0}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-gray-200 bg-gray-50">
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-gray-600">{total}</p>
-            <p className="text-sm text-gray-600">Total</p>
-            <p className="text-xs text-gray-500">{presentase}% Hadir</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {stats.map((stat) => {
+          const colors = colorMap[stat.color];
+          const IconComponent = stat.icon;
+          return (
+            <div 
+              key={stat.label}
+              className={`${colors.bg} ${colors.border} border-l-4 rounded-lg p-4 transition-all hover:shadow-md`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <IconComponent className={`w-5 h-5 ${colors.icon}`} />
+                <span className={`text-xs font-medium ${colors.text} opacity-75`}>
+                  {stat.pct}%{stat.pctLabel || ''}
+                </span>
+              </div>
+              <p className={`text-2xl font-bold ${colors.text}`}>{stat.value}</p>
+              <p className={`text-sm ${colors.text} opacity-80`}>{stat.label}</p>
+            </div>
+          );
+        })}
       </div>
     );
   };
 
-  // Komponen progress bar kehadiran
+  // Komponen progress kehadiran - Modern Gauge Design
   const AttendanceProgress = ({ data }: { data: LiveStudentRow[] }) => {
     const total = data.length;
     const hadir = data.filter(item => item.status === 'Hadir').length;
+    const izin = data.filter(item => item.status === 'Izin').length;
+    const sakit = data.filter(item => item.status === 'Sakit').length;
+    const alpa = data.filter(item => item.status === 'Alpa').length;
     
     const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+    const circumference = 2 * Math.PI * 45; // radius 45
+    const strokeDashoffset = circumference - (presentase / 100) * circumference;
     
     return (
-      <Card className="border-green-200 bg-green-50 mb-6">
-        <CardContent className="p-6">
-          <div className="text-center mb-4">
-            <p className="text-3xl font-bold text-green-600">{presentase}%</p>
-            <p className="text-sm text-green-600">Tingkat Kehadiran Siswa Hari Ini</p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Hadir: {hadir} dari {total} siswa</span>
-              <span className="text-green-600 font-medium">{presentase}%</span>
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 mb-6 border border-emerald-100">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          {/* Circular Progress */}
+          <div className="relative">
+            <svg className="w-32 h-32 transform -rotate-90">
+              <circle
+                cx="64"
+                cy="64"
+                r="45"
+                stroke="#e5e7eb"
+                strokeWidth="10"
+                fill="none"
+              />
+              <circle
+                cx="64"
+                cy="64"
+                r="45"
+                stroke="url(#gradient)"
+                strokeWidth="10"
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                className="transition-all duration-700 ease-out"
+              />
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#10b981" />
+                  <stop offset="100%" stopColor="#14b8a6" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <span className="text-3xl font-bold text-emerald-700">{presentase}%</span>
+              </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-green-600 h-3 rounded-full transition-all duration-500 ease-out" 
-                style={{width: `${presentase}%`}}
-              ></div>
+          </div>
+          
+          {/* Stats */}
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">Tingkat Kehadiran Hari Ini</h3>
+            <p className="text-slate-600 text-sm mb-4">{hadir} dari {total} siswa hadir</p>
+            
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center">
+                <p className="text-lg font-bold text-emerald-600">{hadir}</p>
+                <p className="text-xs text-slate-500">Hadir</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-amber-600">{izin}</p>
+                <p className="text-xs text-slate-500">Izin</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-sky-600">{sakit}</p>
+                <p className="text-xs text-slate-500">Sakit</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-rose-600">{alpa}</p>
+                <p className="text-xs text-slate-500">Alpa</p>
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   };
 
@@ -7075,7 +7120,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       };
     }, [onLogout, autoRefresh]);
 
-    // Komponen statistik kehadiran guru
+    // Komponen statistik kehadiran guru - Modern Design
     const TeacherAttendanceStats = ({ data }: { data: LiveTeacherRow[] }) => {
       const total = data.length;
       const hadir = data.filter(item => item.status === 'Hadir').length;
@@ -7086,90 +7131,117 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       const belumAbsen = data.filter(item => item.status === 'Belum Absen').length;
       
       const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+
+      const stats = [
+        { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
+        { label: 'Tidak Hadir', value: tidakHadir, color: 'rose', icon: X, pct: total > 0 ? Math.round((tidakHadir/total)*100) : 0 },
+        { label: 'Sakit', value: sakit, color: 'sky', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
+        { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
+        { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
+        { label: 'Belum Absen', value: belumAbsen, color: 'slate', icon: Clock, pct: total > 0 ? Math.round((belumAbsen/total)*100) : 0 },
+        { label: 'Total', value: total, color: 'indigo', icon: GraduationCap, pct: presentase, pctLabel: '% Hadir' },
+      ];
+
+      const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+        emerald: { bg: 'bg-emerald-50', border: 'border-l-emerald-500', text: 'text-emerald-700', icon: 'text-emerald-500' },
+        rose: { bg: 'bg-rose-50', border: 'border-l-rose-500', text: 'text-rose-700', icon: 'text-rose-500' },
+        sky: { bg: 'bg-sky-50', border: 'border-l-sky-500', text: 'text-sky-700', icon: 'text-sky-500' },
+        amber: { bg: 'bg-amber-50', border: 'border-l-amber-500', text: 'text-amber-700', icon: 'text-amber-500' },
+        violet: { bg: 'bg-violet-50', border: 'border-l-violet-500', text: 'text-violet-700', icon: 'text-violet-500' },
+        slate: { bg: 'bg-slate-50', border: 'border-l-slate-500', text: 'text-slate-700', icon: 'text-slate-500' },
+        indigo: { bg: 'bg-indigo-50', border: 'border-l-indigo-500', text: 'text-indigo-700', icon: 'text-indigo-500' },
+      };
       
       return (
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6">
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{hadir}</p>
-              <p className="text-sm text-green-600">Hadir</p>
-              <p className="text-xs text-green-500">{total > 0 ? Math.round((hadir/total)*100) : 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-red-600">{tidakHadir}</p>
-              <p className="text-sm text-red-600">Tidak Hadir</p>
-              <p className="text-xs text-red-500">{total > 0 ? Math.round((tidakHadir/total)*100) : 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-600">{sakit}</p>
-              <p className="text-sm text-blue-600">Sakit</p>
-              <p className="text-xs text-blue-500">{total > 0 ? Math.round((sakit/total)*100) : 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{izin}</p>
-              <p className="text-sm text-yellow-600">Izin</p>
-              <p className="text-xs text-yellow-500">{total > 0 ? Math.round((izin/total)*100) : 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="border-purple-200 bg-purple-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-purple-600">{dispen}</p>
-              <p className="text-sm text-purple-600">Dispen</p>
-              <p className="text-xs text-purple-500">{total > 0 ? Math.round((dispen/total)*100) : 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="border-gray-200 bg-gray-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-gray-600">{belumAbsen}</p>
-              <p className="text-sm text-gray-600">Belum Absen</p>
-              <p className="text-xs text-gray-500">{total > 0 ? Math.round((belumAbsen/total)*100) : 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="border-indigo-200 bg-indigo-50">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-indigo-600">{total}</p>
-              <p className="text-sm text-indigo-600">Total</p>
-              <p className="text-xs text-indigo-500">{presentase}% Hadir</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+          {stats.map((stat) => {
+            const colors = colorMap[stat.color];
+            const IconComponent = stat.icon;
+            return (
+              <div 
+                key={stat.label}
+                className={`${colors.bg} ${colors.border} border-l-4 rounded-lg p-4 transition-all hover:shadow-md`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <IconComponent className={`w-5 h-5 ${colors.icon}`} />
+                  <span className={`text-xs font-medium ${colors.text} opacity-75`}>
+                    {stat.pct}%{stat.pctLabel || ''}
+                  </span>
+                </div>
+                <p className={`text-2xl font-bold ${colors.text}`}>{stat.value}</p>
+                <p className={`text-sm ${colors.text} opacity-80`}>{stat.label}</p>
+              </div>
+            );
+          })}
         </div>
       );
     };
 
-    // Komponen progress bar kehadiran guru
+    // Komponen progress kehadiran guru - Modern Gauge Design
     const TeacherAttendanceProgress = ({ data }: { data: LiveTeacherRow[] }) => {
       const total = data.length;
       const hadir = data.filter(item => item.status === 'Hadir').length;
+      const sakit = data.filter(item => item.status === 'Sakit').length;
+      const izin = data.filter(item => item.status === 'Izin').length;
+      const tidakHadir = data.filter(item => item.status === 'Tidak Hadir').length;
       
       const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+      const circumference = 2 * Math.PI * 45;
+      const strokeDashoffset = circumference - (presentase / 100) * circumference;
       
       return (
-        <Card className="border-indigo-200 bg-indigo-50 mb-6">
-          <CardContent className="p-6">
-            <div className="text-center mb-4">
-              <p className="text-3xl font-bold text-indigo-600">{presentase}%</p>
-              <p className="text-sm text-indigo-600">Tingkat Kehadiran Guru Hari Ini</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Hadir: {hadir} dari {total} guru</span>
-                <span className="text-indigo-600 font-medium">{presentase}%</span>
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6 border border-indigo-100">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="relative">
+              <svg className="w-32 h-32 transform -rotate-90">
+                <circle cx="64" cy="64" r="45" stroke="#e5e7eb" strokeWidth="10" fill="none" />
+                <circle
+                  cx="64" cy="64" r="45"
+                  stroke="url(#gradientTeacher)"
+                  strokeWidth="10"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  className="transition-all duration-700 ease-out"
+                />
+                <defs>
+                  <linearGradient id="gradientTeacher" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-3xl font-bold text-indigo-700">{presentase}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-indigo-600 h-3 rounded-full transition-all duration-500 ease-out" 
-                  style={{width: `${presentase}%`}}
-                ></div>
+            </div>
+            
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-slate-800 mb-1">Tingkat Kehadiran Guru Hari Ini</h3>
+              <p className="text-slate-600 text-sm mb-4">{hadir} dari {total} guru hadir</p>
+              
+              <div className="grid grid-cols-4 gap-3">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-indigo-600">{hadir}</p>
+                  <p className="text-xs text-slate-500">Hadir</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-amber-600">{izin}</p>
+                  <p className="text-xs text-slate-500">Izin</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-sky-600">{sakit}</p>
+                  <p className="text-xs text-slate-500">Sakit</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-rose-600">{tidakHadir}</p>
+                  <p className="text-xs text-slate-500">Tidak Hadir</p>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       );
     };
 
@@ -7701,54 +7773,70 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
 
     return (
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button onClick={onBack} variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali ke Menu Laporan
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <BarChart3 className="w-6 h-6 mr-2" />
-              Dasbor Analitik
-            </h1>
-            <p className="text-gray-600">Analisis dan statistik kehadiran siswa dan guru</p>
+        {/* Header - Modern */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+          <div className="flex items-center gap-4">
+            <Button onClick={onBack} variant="outline" className="bg-white">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Kembali
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+                <BarChart3 className="w-6 h-6 mr-2 text-orange-500" />
+                Dasbor Analitik
+              </h1>
+              <p className="text-slate-600">Analisis dan statistik kehadiran siswa dan guru</p>
+            </div>
+            <div className="hidden md:block text-right">
+              <p className="text-sm text-slate-500">Tanggal</p>
+              <p className="font-mono text-slate-700">{getCurrentDateWIB()}</p>
+            </div>
           </div>
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Student Attendance Chart */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Grafik Kehadiran Siswa</CardTitle>
+          {/* Student Attendance Chart - Modern */}
+          <Card className="lg:col-span-2 border-0 shadow-sm">
+            <CardHeader className="border-b bg-gradient-to-r from-emerald-50 to-teal-50">
+              <CardTitle className="text-emerald-800 flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                Kehadiran Siswa
+              </CardTitle>
               <CardDescription>Statistik kehadiran siswa per periode</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {studentAttendance && studentAttendance.length > 0 ? (
-                <div className="h-[300px]">
-                  <div className="space-y-4">
-                    {studentAttendance.map((item, index) => (
-                      <div key={`student-attendance-${item.periode}-${index}`} className="p-4 border rounded-lg">
-                        <h3 className="font-medium text-gray-900">{item.periode}</h3>
-                        <div className="mt-2 flex justify-between items-center">
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                            <span className="text-sm">Hadir: {item.hadir}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                            <span className="text-sm">Tidak Hadir: {item.tidak_hadir}</span>
-                          </div>
+                <div className="space-y-4">
+                  {studentAttendance.map((item, index) => {
+                    const total = item.hadir + item.tidak_hadir;
+                    const pct = total > 0 ? Math.round((item.hadir / total) * 100) : 0;
+                    return (
+                      <div key={`student-attendance-${item.periode}-${index}`} className="group">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-slate-700">{item.periode}</span>
+                          <span className="text-sm font-semibold text-emerald-600">{pct}%</span>
                         </div>
-                        <div className="mt-2 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full" 
-                            style={{ width: `${(item.hadir / (item.hadir + item.tidak_hadir)) * 100}%` }}
-                          ></div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-emerald-400 to-teal-500 h-3 rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex gap-4 text-xs text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                              {item.hadir}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <div className="w-2 h-2 bg-rose-400 rounded-full" />
+                              {item.tidak_hadir}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
@@ -7759,84 +7847,91 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
             </CardContent>
           </Card>
 
-          {/* Quick Actions & System Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="w-5 h-5 mr-2" />
-                Overview Sistem
+          {/* Quick Stats Card - Modern */}
+          <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-50 to-slate-100">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-slate-700 flex items-center text-lg">
+                <Activity className="w-5 h-5 mr-2 text-slate-500" />
+                Ringkasan
               </CardTitle>
-              <CardDescription>Kelola data & pantau aktivitas</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* System Overview */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-2"></div>
-                    <p className="text-xs font-medium text-green-800">Sistem Aktif</p>
-                    <p className="text-xs text-green-600">Semua layanan berjalan</p>
+                  <div className="p-3 bg-white rounded-lg border border-emerald-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-xs font-medium text-emerald-700">Sistem</span>
+                    </div>
+                    <p className="text-lg font-bold text-emerald-600">Aktif</p>
                   </div>
-                  <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-2"></div>
-                    <p className="text-xs font-medium text-blue-800">Database</p>
-                    <p className="text-xs text-blue-600">Terhubung & stabil</p>
+                  <div className="p-3 bg-white rounded-lg border border-sky-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 bg-sky-500 rounded-full animate-pulse" />
+                      <span className="text-xs font-medium text-sky-700">Database</span>
+                    </div>
+                    <p className="text-lg font-bold text-sky-600">OK</p>
                   </div>
                 </div>
 
-                
-
-                {/* System Info */}
-                <div className="pt-2 border-t">
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>Tanggal Hari Ini</span>
-                    <span className="font-mono">{getCurrentDateWIB()}</span>
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-500">Total Siswa</span>
+                    <span className="text-sm font-semibold text-slate-700">{analyticsData?.totalStudents || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>Waktu Server</span>
-                    <span className="font-mono">{formatTime24WithSeconds(new Date())}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-500">Total Guru</span>
+                    <span className="text-sm font-semibold text-slate-700">{analyticsData?.totalTeachers || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>Total Siswa</span>
-                    <span className="font-mono">{analyticsData?.totalStudents || 0}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-500">Server Time</span>
+                    <span className="text-xs font-mono text-slate-600">{formatTime24WithSeconds(new Date())}</span>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Teacher Attendance Chart */}
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle>Grafik Kehadiran Guru</CardTitle>
+          {/* Teacher Attendance Chart - Modern */}
+          <Card className="lg:col-span-3 border-0 shadow-sm">
+            <CardHeader className="border-b bg-gradient-to-r from-indigo-50 to-violet-50">
+              <CardTitle className="text-indigo-800 flex items-center">
+                <GraduationCap className="w-5 h-5 mr-2" />
+                Kehadiran Guru
+              </CardTitle>
               <CardDescription>Statistik kehadiran guru per periode</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {teacherAttendance && teacherAttendance.length > 0 ? (
-                <div className="h-[300px]">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {teacherAttendance.map((item, index) => (
-                      <div key={`teacher-attendance-${item.periode}-${index}`} className="p-4 border rounded-lg">
-                        <h3 className="font-medium text-gray-900">{item.periode}</h3>
-                        <div className="mt-2 flex justify-between items-center">
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                            <span className="text-sm">Hadir: {item.hadir}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
-                            <span className="text-sm">Tidak Hadir: {item.tidak_hadir}</span>
-                          </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {teacherAttendance.map((item, index) => {
+                    const total = item.hadir + item.tidak_hadir;
+                    const pct = total > 0 ? Math.round((item.hadir / total) * 100) : 0;
+                    return (
+                      <div key={`teacher-attendance-${item.periode}-${index}`} className="bg-slate-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-medium text-slate-700">{item.periode}</span>
+                          <span className="text-sm font-semibold text-indigo-600">{pct}%</span>
                         </div>
-                        <div className="mt-2 bg-gray-200 rounded-full h-2">
+                        <div className="bg-slate-200 rounded-full h-2 overflow-hidden mb-3">
                           <div 
-                            className="bg-purple-500 h-2 rounded-full" 
-                            style={{ width: `${(item.hadir / (item.hadir + item.tidak_hadir)) * 100}%` }}
-                          ></div>
+                            className="bg-gradient-to-r from-indigo-400 to-violet-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-indigo-500 rounded-full" />
+                            Hadir: {item.hadir}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-rose-400 rounded-full" />
+                            Tidak: {item.tidak_hadir}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
@@ -7847,81 +7942,76 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
             </CardContent>
           </Card>
 
-          {/* Top Absent Students */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Siswa Sering Alpa</CardTitle>
-              <CardDescription>5 siswa dengan tingkat alpa tertinggi</CardDescription>
+          {/* Top Absent Students - Modern List */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b bg-gradient-to-r from-rose-50 to-pink-50">
+              <CardTitle className="text-rose-800 flex items-center text-base">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Siswa Sering Alpa
+              </CardTitle>
+              <CardDescription className="text-xs">5 siswa dengan tingkat alpa tertinggi</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {topAbsentStudents && topAbsentStudents.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nama Siswa</TableHead>
-                        <TableHead>Kelas</TableHead>
-                        <TableHead className="text-right">Total Alpa</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topAbsentStudents.map((student, index) => (
-                        <TableRow key={`top-absent-student-${student.nama}-${index}`}>
-                          <TableCell className="font-medium">{student.nama}</TableCell>
-                          <TableCell>{student.nama_kelas}</TableCell>
-                          <TableCell className="text-right">
-                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                              {student.total_alpa}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-3">
+                  {topAbsentStudents.map((student, index) => (
+                    <div key={`top-absent-student-${student.nama}-${index}`} 
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
+                        ${index === 0 ? 'bg-rose-500' : index === 1 ? 'bg-rose-400' : 'bg-rose-300'}`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-700 truncate">{student.nama}</p>
+                        <p className="text-xs text-slate-500">{student.nama_kelas}</p>
+                      </div>
+                      <span className="bg-rose-100 text-rose-700 px-2 py-1 rounded-full text-xs font-semibold">
+                        {student.total_alpa}x
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Tidak ada data siswa alpa</p>
+                <div className="text-center py-6 text-gray-500">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Tidak ada data siswa alpa</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Top Absent Teachers */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Guru Sering Tidak Hadir</CardTitle>
-              <CardDescription>5 guru dengan tingkat tidak hadir tertinggi</CardDescription>
+          {/* Top Absent Teachers - Modern List */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b bg-gradient-to-r from-amber-50 to-orange-50">
+              <CardTitle className="text-amber-800 flex items-center text-base">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Guru Sering Tidak Hadir
+              </CardTitle>
+              <CardDescription className="text-xs">5 guru dengan tingkat tidak hadir tertinggi</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {topAbsentTeachers && topAbsentTeachers.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nama Guru</TableHead>
-                        <TableHead className="text-right">Total Tidak Hadir</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topAbsentTeachers.map((teacher, index) => (
-                        <TableRow key={`top-absent-teacher-${teacher.nama}-${index}`}>
-                          <TableCell className="font-medium">{teacher.nama}</TableCell>
-                          <TableCell className="text-right">
-                            <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
-                              {teacher.total_tidak_hadir}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-3">
+                  {topAbsentTeachers.map((teacher, index) => (
+                    <div key={`top-absent-teacher-${teacher.nama}-${index}`} 
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
+                        ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-amber-400' : 'bg-amber-300'}`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-700 truncate">{teacher.nama}</p>
+                      </div>
+                      <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-xs font-semibold">
+                        {teacher.total_tidak_hadir}x
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Tidak ada data guru tidak hadir</p>
+                <div className="text-center py-6 text-gray-500">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Tidak ada data guru tidak hadir</p>
                 </div>
               )}
             </CardContent>
