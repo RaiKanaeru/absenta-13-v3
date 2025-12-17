@@ -14,6 +14,83 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'absenta-super-secret-key-2025';
 const logger = createLogger('Auth');
 
+// ================================================
+// LOGIN RATE LIMITING (IP-based)
+// ================================================
+const loginAttempts = new Map();
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes in ms
+
+/**
+ * Check if IP is locked out from login attempts
+ */
+function checkLoginAttempts(ip) {
+    const attempts = loginAttempts.get(ip);
+    if (!attempts) return { allowed: true, count: 0 };
+    
+    // Check if lockout has expired
+    if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
+        // Reset after lockout expires
+        loginAttempts.delete(ip);
+        return { allowed: true, count: 0 };
+    }
+    
+    // Check if currently locked
+    if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
+        const remainingMs = attempts.lockedUntil - Date.now();
+        return { 
+            allowed: false, 
+            count: attempts.count,
+            remainingTime: Math.ceil(remainingMs / 1000),
+            remainingMinutes: Math.ceil(remainingMs / 60000)
+        };
+    }
+    
+    return { allowed: true, count: attempts.count };
+}
+
+/**
+ * Record a failed login attempt
+ */
+function recordFailedAttempt(ip) {
+    const attempts = loginAttempts.get(ip) || { count: 0, firstAttempt: Date.now() };
+    attempts.count += 1;
+    attempts.lastAttempt = Date.now();
+    
+    // Lock if exceeded max attempts
+    if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+        attempts.lockedUntil = Date.now() + LOCKOUT_DURATION;
+        console.log(`🔒 IP ${ip} locked for ${LOCKOUT_DURATION / 60000} minutes after ${attempts.count} failed attempts`);
+    }
+    
+    loginAttempts.set(ip, attempts);
+    return attempts;
+}
+
+/**
+ * Reset login attempts on successful login
+ */
+function resetLoginAttempts(ip) {
+    loginAttempts.delete(ip);
+}
+
+/**
+ * Cleanup expired entries (run periodically)
+ */
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, attempts] of loginAttempts.entries()) {
+        // Remove entries older than 1 hour with no lockout
+        if (!attempts.lockedUntil && now - attempts.lastAttempt > 3600000) {
+            loginAttempts.delete(ip);
+        }
+        // Remove expired lockouts
+        if (attempts.lockedUntil && now >= attempts.lockedUntil) {
+            loginAttempts.delete(ip);
+        }
+    }
+}, 60000); // Run every minute
+
 /**
  * Login user
  * POST /api/login
@@ -22,8 +99,24 @@ export const login = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { username, password } = req.body;
     const startTime = Date.now();
+    const clientIP = req.ip || req.connection?.remoteAddress || 'unknown';
     
-    log.info('Login attempt', { username, ip: req.ip });
+    log.info('Login attempt', { username, ip: clientIP });
+
+    // Check if IP is locked out
+    const lockoutCheck = checkLoginAttempts(clientIP);
+    if (!lockoutCheck.allowed) {
+        log.warn('Login blocked - IP locked out', { 
+            ip: clientIP, 
+            attempts: lockoutCheck.count,
+            remainingMinutes: lockoutCheck.remainingMinutes 
+        });
+        return res.status(429).json({ 
+            success: false,
+            error: `Terlalu banyak percobaan login. Coba lagi dalam ${lockoutCheck.remainingMinutes} menit.`,
+            retryAfter: lockoutCheck.remainingTime
+        });
+    }
 
     try {
         // Validation
@@ -41,7 +134,8 @@ export const login = async (req, res) => {
         );
 
         if (rows.length === 0) {
-            log.warn('Login failed - user not found', { username });
+            recordFailedAttempt(clientIP);
+            log.warn('Login failed - user not found', { username, ip: clientIP });
             return res.status(401).json({ 
                 success: false,
                 error: 'Username atau password salah' 
@@ -54,12 +148,31 @@ export const login = async (req, res) => {
         const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
-            log.warn('Login failed - invalid password', { username, userId: user.id });
+            const attempts = recordFailedAttempt(clientIP);
+            log.warn('Login failed - invalid password', { 
+                username, 
+                userId: user.id, 
+                ip: clientIP,
+                attemptCount: attempts.count 
+            });
+            
+            // Check if this attempt triggered lockout
+            if (attempts.lockedUntil) {
+                return res.status(429).json({ 
+                    success: false,
+                    error: `Terlalu banyak percobaan login. Coba lagi dalam ${Math.ceil(LOCKOUT_DURATION / 60000)} menit.`,
+                    retryAfter: Math.ceil(LOCKOUT_DURATION / 1000)
+                });
+            }
+            
             return res.status(401).json({ 
                 success: false,
                 error: 'Username atau password salah' 
             });
         }
+
+        // SUCCESS - Reset login attempts
+        resetLoginAttempts(clientIP);
 
         // Get additional user data based on role
         let additionalData = {};
