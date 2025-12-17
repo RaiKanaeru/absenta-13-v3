@@ -47,7 +47,7 @@ import { getApiUrl } from '@/config/api';
 import { 
   UserPlus, BookOpen, Calendar, BarChart3, LogOut, ArrowLeft, ArrowRight, Users, GraduationCap, 
   Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Bell, Menu, X,
-  TrendingUp, BookPlus, Home, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, MessageCircle, ClipboardList,
+  TrendingUp, BookPlus, Home, Clock, CheckCircle, CheckCircle2, XCircle, AlertCircle, AlertTriangle, MessageCircle, ClipboardList, Activity,
   Database, Archive, Activity, Server, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
   Printer
 } from "lucide-react";
