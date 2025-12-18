@@ -4,8 +4,7 @@
  */
 
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
-import { requireRole } from '../middleware/roleMiddleware.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
 import * as attendanceSettingsController from '../controllers/attendanceSettingsController.js';
 
 const router = express.Router();
