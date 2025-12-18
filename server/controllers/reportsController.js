@@ -52,54 +52,54 @@ export const getAnalyticsDashboard = async (req, res) => {
         const currentYear = wibNow.getFullYear();
         const currentMonth = wibNow.getMonth() + 1;
 
-        // Get student attendance statistics
+        // Get student attendance statistics (including Dispen as Hadir)
         const studentAttendanceQuery = `
             SELECT 
                 'Hari Ini' as periode,
-                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status != 'Hadir' OR a.status IS NULL THEN 1 END) as tidak_hadir
+                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND a.tanggal = ?
             UNION ALL
             SELECT 
                 'Minggu Ini' as periode,
-                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status != 'Hadir' OR a.status IS NULL THEN 1 END) as tidak_hadir
+                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
                 AND YEARWEEK(a.tanggal, 1) = YEARWEEK(?, 1)
             UNION ALL
             SELECT 
                 'Bulan Ini' as periode,
-                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status != 'Hadir' OR a.status IS NULL THEN 1 END) as tidak_hadir
+                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
                 AND YEAR(a.tanggal) = ? 
                 AND MONTH(a.tanggal) = ?
         `;
 
-        // Get teacher attendance statistics  
+        // Get teacher attendance statistics (including Dispen as Hadir)
         const teacherAttendanceQuery = `
             SELECT 
                 'Hari Ini' as periode,
-                COUNT(CASE WHEN ag.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN ag.status != 'Hadir' OR ag.status IS NULL THEN 1 END) as tidak_hadir
+                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal = ?
             UNION ALL
             SELECT 
                 'Minggu Ini' as periode,
-                COUNT(CASE WHEN ag.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN ag.status != 'Hadir' OR ag.status IS NULL THEN 1 END) as tidak_hadir
+                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                 AND YEARWEEK(ag.tanggal, 1) = YEARWEEK(?, 1)
             UNION ALL
             SELECT 
                 'Bulan Ini' as periode,
-                COUNT(CASE WHEN ag.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN ag.status != 'Hadir' OR ag.status IS NULL THEN 1 END) as tidak_hadir
+                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                 AND YEAR(ag.tanggal) = ? 
@@ -558,7 +558,7 @@ export const getStudentAttendanceSummary = async (req, res) => {
                 s.nama,
                 s.nis,
                 k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
                 COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
                 COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
                 COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
@@ -566,7 +566,7 @@ export const getStudentAttendanceSummary = async (req, res) => {
                 COALESCE(COUNT(a.id), 0) AS total,
                 CASE 
                     WHEN COUNT(a.id) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
+                    ELSE ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
                 END AS presentase
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
@@ -630,7 +630,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
                 s.nama,
                 s.nis,
                 k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
                 COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
                 COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
                 COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
@@ -638,7 +638,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
                 COALESCE(COUNT(a.id), 0) AS total,
                 CASE 
                     WHEN COUNT(a.id) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
+                    ELSE ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
                 END AS presentase
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
@@ -729,14 +729,15 @@ export const getTeacherAttendanceSummary = async (req, res) => {
                 g.id_guru as guru_id,
                 g.nama,
                 g.nip,
-                COALESCE(SUM(CASE WHEN ag.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
                 COALESCE(SUM(CASE WHEN ag.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
                 COALESCE(SUM(CASE WHEN ag.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
                 COALESCE(SUM(CASE WHEN ag.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS A,
+                COALESCE(SUM(CASE WHEN ag.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
                 COALESCE(COUNT(ag.id_absensi), 0) AS total,
                 CASE 
                     WHEN COUNT(ag.id_absensi) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN ag.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
+                    ELSE ROUND((SUM(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
                 END AS presentase
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal BETWEEN ? AND ?
@@ -892,13 +893,20 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
         }
 
         // Fetch rekap data per siswa per bulan
+        // BUG FIX: Changed COUNT(CASE...) to SUM(CASE...) - COUNT always counts all rows
+        // Only count S/I/A as absent, Dispen is considered present
         const query = `
             SELECT 
                 a.siswa_id,
                 MONTH(a.tanggal) as bulan,
                 YEAR(a.tanggal) as tahun_absen,
-                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir') THEN 1 ELSE 0 END) as total_ketidakhadiran,
-                GROUP_CONCAT(CONCAT(a.tanggal, ':', a.status) SEPARATOR ';') as detail_string
+                SUM(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 ELSE 0 END) as total_ketidakhadiran,
+                GROUP_CONCAT(
+                    CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') 
+                    THEN CONCAT(a.tanggal, ':', a.status) 
+                    ELSE NULL END 
+                    SEPARATOR ';'
+                ) as detail_string
             FROM absensi_siswa a
             JOIN siswa s ON a.siswa_id = s.id_siswa
             WHERE s.kelas_id = ? 
@@ -906,6 +914,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
             GROUP BY a.siswa_id, YEAR(a.tanggal), MONTH(a.tanggal)
             ORDER BY a.siswa_id, YEAR(a.tanggal), MONTH(a.tanggal)
         `;
+
 
         const [rows] = await global.dbPool.execute(query, [kelas_id, startDate, endDate]);
 
@@ -984,5 +993,68 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
     } catch (error) {
         log.dbError('rekapSiswa', error, { kelas_id });
         return sendDatabaseError(res, error, 'Gagal memuat rekap ketidakhadiran siswa');
+    }
+};
+
+// Get students by class (for report filters)
+export const getStudentsByClass = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { kelasId } = req.params;
+
+    log.requestStart('GetStudentsByClass', { kelasId });
+
+    try {
+        const query = `
+            SELECT id_siswa as id, nama, nis, nisn, jenis_kelamin, kelas_id 
+            FROM siswa 
+            WHERE kelas_id = ? AND status = 'aktif'
+            ORDER BY nama ASC
+        `;
+        const [rows] = await global.dbPool.execute(query, [kelasId]);
+        
+        log.success('GetStudentsByClass', { count: rows.length });
+        res.json(rows);
+    } catch (error) {
+        log.dbError('studentsByClass', error);
+        return sendDatabaseError(res, error, 'Gagal memuat data siswa');
+    }
+};
+
+// Get presensi siswa (Detailed daily log)
+export const getPresensiSiswa = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { kelas_id, bulan, tahun } = req.query;
+
+    log.requestStart('GetPresensiSiswa', { kelas_id, bulan, tahun });
+
+    try {
+        if (!kelas_id || !bulan || !tahun) {
+            log.validationFail('params', { kelas_id, bulan, tahun }, 'Missing required params');
+            return sendValidationError(res, 'Kelas, bulan, dan tahun wajib diisi');
+        }
+
+        const startDate = `${tahun}-${bulan.padStart(2, '0')}-01`;
+        const endDate = new Date(parseInt(tahun), parseInt(bulan), 0).toISOString().split('T')[0];
+
+        const query = `
+            SELECT 
+                a.siswa_id,
+                a.waktu_absen as tanggal,
+                a.status,
+                a.keterangan
+            FROM absensi_siswa a
+            JOIN siswa s ON a.siswa_id = s.id_siswa
+            WHERE s.kelas_id = ? 
+              AND DATE(a.waktu_absen) BETWEEN ? AND ?
+            ORDER BY a.waktu_absen ASC
+        `;
+
+        const [rows] = await global.dbPool.execute(query, [kelas_id, startDate, endDate]);
+
+        log.success('GetPresensiSiswa', { count: rows.length });
+        res.json(rows);
+    } catch (error) {
+        log.dbError('presensiSiswa', error);
+        return sendDatabaseError(res, error, 'Gagal memuat data presensi siswa');
     }
 };

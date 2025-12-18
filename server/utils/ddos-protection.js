@@ -19,28 +19,29 @@ import { EventEmitter } from 'events';
 // ================================================
 
 const DEFAULT_CONFIG = {
-    // Rate limiting
+    // Rate limiting - RELAXED settings
     windowMs: 60000,              // 1 minute window
-    maxRequestsPerWindow: 100,    // Max requests per window
-    maxRequestsPerSecond: 10,     // Max requests per second (burst)
+    maxRequestsPerWindow: 500,    // Relaxed: 500 requests per window (was 100)
+    maxRequestsPerSecond: 30,     // Relaxed: 30 per second (was 10)
     
-    // DDoS detection
-    spikeThreshold: 5,            // Requests per second to trigger spike alert
+    // DDoS detection - RELAXED
+    spikeThreshold: 20,           // Relaxed: 20 rps to trigger spike (was 5)
     spikeWindowMs: 5000,          // 5 second window for spike detection
-    suspiciousPatternThreshold: 3, // Suspicious patterns before action
+    suspiciousPatternThreshold: 5, // Relaxed: 5 patterns before action (was 3)
     
-    // Blocking
-    blockDurationMs: 300000,      // 5 minutes block
-    permanentBlockThreshold: 5,   // Temporary blocks before permanent
+    // Blocking - LESS STRICT
+    blockDurationMs: 120000,      // Reduced: 2 minutes block (was 5)
+    permanentBlockThreshold: 10,  // Relaxed: 10 temp blocks before permanent (was 5)
     
-    // Fingerprinting
+    // Device identification
+    useDeviceFingerprint: true,   // NEW: Use fingerprint+IP combo for identification
     fingerprintTTL: 3600000,      // 1 hour fingerprint TTL
     
     // Whitelist
     whitelistedIPs: ['127.0.0.1', '::1', 'localhost'],
     
-    // Challenge
-    challengeAfterSuspicious: 3   // Trigger challenge after X suspicious requests
+    // Challenge - RELAXED
+    challengeAfterSuspicious: 8   // Relaxed: trigger challenge after 8 suspicious (was 3)
 };
 
 // ================================================
@@ -92,6 +93,11 @@ class DDoSProtection extends EventEmitter {
             const clientIP = this.getClientIP(req);
             const fingerprint = this.generateFingerprint(req);
             
+            // Use device fingerprint + IP combo for identification (not just router IP)
+            const deviceId = this.config.useDeviceFingerprint 
+                ? `${fingerprint}:${clientIP}` 
+                : clientIP;
+            
             this.stats.totalRequests++;
             
             // Check whitelist
@@ -109,10 +115,10 @@ class DDoSProtection extends EventEmitter {
                 });
             }
             
-            // Check rate limit
-            const rateLimitResult = this.checkRateLimit(clientIP);
+            // Check rate limit using deviceId (fingerprint + IP)
+            const rateLimitResult = this.checkRateLimit(deviceId);
             if (!rateLimitResult.allowed) {
-                this.handleViolation(clientIP, 'rate_limit_exceeded', {
+                this.handleViolation(deviceId, 'rate_limit_exceeded', {
                     count: rateLimitResult.count,
                     limit: this.config.maxRequestsPerWindow
                 });
@@ -124,17 +130,17 @@ class DDoSProtection extends EventEmitter {
                 });
             }
             
-            // Check burst (requests per second)
-            const burstResult = this.checkBurst(clientIP);
+            // Check burst using deviceId
+            const burstResult = this.checkBurst(deviceId);
             if (!burstResult.allowed) {
-                this.handleViolation(clientIP, 'burst_detected', {
+                this.handleViolation(deviceId, 'burst_detected', {
                     requestsPerSecond: burstResult.rps
                 });
                 
                 return res.status(429).json({
                     error: 'Burst Detected',
                     message: 'Terlalu banyak permintaan dalam waktu singkat',
-                    retryAfter: 5
+                    retryAfter: 3
                 });
             }
             

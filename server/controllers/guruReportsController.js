@@ -32,7 +32,7 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
         k.nama_kelas,
         COALESCE(g.nama, 'Sistem') as nama_guru,
         COUNT(DISTINCT s.id_siswa) as total_siswa,
-        COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+        COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
         COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
         COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
         COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
@@ -92,7 +92,7 @@ export const getRekapKetidakhadiran = async (req, res) => {
           DATE_FORMAT(a.tanggal, '%Y-%m') as periode,
           k.nama_kelas,
           COUNT(DISTINCT s.id_siswa) as total_siswa,
-          COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+          COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
           COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
           COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
           COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
@@ -122,7 +122,7 @@ export const getRekapKetidakhadiran = async (req, res) => {
           YEAR(a.tanggal) as periode,
           k.nama_kelas,
           COUNT(DISTINCT s.id_siswa) as total_siswa,
-          COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+          COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
           COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
           COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
           COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
@@ -204,7 +204,7 @@ export const getAttendanceSummary = async (req, res) => {
         let query = `
             SELECT 
                 s.id_siswa as siswa_id, s.nama, s.nis, k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
                 COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
                 COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
                 COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
@@ -361,7 +361,7 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
             return {
                 ...s,
                 rekap: {
-                    H: riwayat.filter(r => r.status === 'Hadir').length,
+                    H: riwayat.filter(r => ['Hadir', 'Dispen'].includes(r.status)).length,
                     I: riwayat.filter(r => r.status === 'Izin').length,
                     S: riwayat.filter(r => r.status === 'Sakit').length,
                     A: riwayat.filter(r => r.status === 'Alpa').length,

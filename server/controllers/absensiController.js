@@ -794,12 +794,12 @@ function parseStudentAttendanceStats(siswaDataStr) {
 
         switch (normalizedStatus) {
             case 'hadir':
+            case 'dispen':  // Dispen is considered Hadir (present with dispensation)
                 stats.total_hadir++;
                 break;
             case 'izin':
-            case 'dispen':
                 stats.total_izin++;
-                stats.siswa_tidak_hadir.push({ nama_siswa: nama, nis: nis || '', status: normalizedStatus });
+                stats.siswa_tidak_hadir.push({ nama_siswa: nama, nis: nis || '', status: 'izin' });
                 break;
             case 'sakit':
                 stats.total_sakit++;

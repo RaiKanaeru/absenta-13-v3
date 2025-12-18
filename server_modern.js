@@ -22,10 +22,8 @@ import QueryOptimizer from './server/services/system/query-optimizer.js';
 import BackupSystem from './server/services/system/backup-system.js';
 import DownloadQueue from './server/services/system/queue-system.js';
 import CacheSystem from './server/services/system/cache-system.js';
-import LoadBalancer from './server/services/system/load-balancer.js';
 import SystemMonitor from './server/services/system/monitoring-system.js';
 import SecuritySystem from './server/services/system/security-system.js';
-import DisasterRecoverySystem from './server/services/system/disaster-recovery-system.js';
 import PerformanceOptimizer from './server/services/system/performance-optimizer.js';
 import DDoSProtection from './server/utils/ddos-protection.js';
 import AdmZip from 'adm-zip';
@@ -57,6 +55,7 @@ import importRoutes from './server/routes/importRoutes.js';
 import monitoringRoutes from './server/routes/monitoringRoutes.js';
 import jamPelajaranRoutes from './server/routes/jamPelajaranRoutes.js';
 import templateExportRoutes from './server/routes/templateExportRoutes.js';
+import attendanceSettingsRoutes from './server/routes/attendanceSettingsRoutes.js';
 import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
     getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
@@ -280,12 +279,11 @@ let queryOptimizer = null;
 let backupSystem = null;
 let downloadQueue = null;
 let cacheSystem = null;
-let loadBalancer = null;
 let systemMonitor = null;
 let securitySystem = null;
 let ddosStats = null;
-let disasterRecoverySystem = null;
 let performanceOptimizer = null;
+
 
 async function initializeDatabase() {
     console.log('🔄 Initializing optimized database connection...');
@@ -314,26 +312,6 @@ async function initializeDatabase() {
         await cacheSystem.initialize();
         console.log('✅ Cache system initialized successfully');
 
-        // Initialize load balancer with query optimizer integration
-        loadBalancer = new LoadBalancer({
-            maxConcurrentRequests: 150,
-            burstThreshold: 50,
-            circuitBreakerThreshold: 10,
-            circuitBreakerTimeout: 30000,
-            requestTimeout: 10000,
-            queryOptimizer: queryOptimizer
-        });
-        console.log('✅ Load balancer initialized successfully');
-
-        // Populate sample queries to demonstrate cache functionality
-        setTimeout(async () => {
-            try {
-                await loadBalancer.populateSampleQueries();
-                console.log('✅ Sample queries populated in load balancer');
-            } catch (error) {
-                console.error('❌ Failed to populate sample queries:', error);
-            }
-        }, 5000); // Wait 5 seconds after initialization
 
         // Initialize system monitor
         systemMonitor = new SystemMonitor({
@@ -411,47 +389,6 @@ async function initializeDatabase() {
                 maxLogFiles: 5
             }
         });
-        console.log('✅ Security system initialized');
-
-        // Initialize disaster recovery system
-        disasterRecoverySystem = new DisasterRecoverySystem({
-            backup: {
-                enabled: true,
-                schedule: '0 2 * * *', // Daily at 2 AM
-                retention: 30, // 30 days
-                compression: true,
-                encryption: true,
-                encryptionKey: 'absenta-disaster-recovery-key-2025',
-                backupDir: 'backups/disaster-recovery',
-                maxBackupSize: 100 * 1024 * 1024, // 100MB
-                parallelBackups: 3
-            },
-            verification: {
-                enabled: true,
-                checksum: true,
-                integrity: true,
-                testRestore: true,
-                verificationSchedule: '0 3 * * 0' // Weekly on Sunday at 3 AM
-            },
-            recovery: {
-                enabled: true,
-                maxRecoveryTime: 3600000, // 1 hour
-                rollbackEnabled: true,
-                notificationEnabled: true,
-                notificationChannels: ['email', 'sms']
-            },
-            monitoring: {
-                enabled: true,
-                healthCheckInterval: 300000, // 5 minutes
-                alertThresholds: {
-                    backupFailure: 1,
-                    verificationFailure: 1,
-                    recoveryTime: 1800000 // 30 minutes
-                }
-            }
-        });
-        await disasterRecoverySystem.start();
-        console.log('✅ Disaster recovery system initialized and started');
 
         // Initialize performance optimizer
         performanceOptimizer = new PerformanceOptimizer({
@@ -509,10 +446,8 @@ async function initializeDatabase() {
         global.backupSystem = backupSystem;
         global.downloadQueue = downloadQueue;
         global.cacheSystem = cacheSystem;
-        global.loadBalancer = loadBalancer;
         global.systemMonitor = systemMonitor;
         global.securitySystem = securitySystem;
-        global.disasterRecoverySystem = disasterRecoverySystem;
         global.ddosProtection = ddosProtection;
         global.testAlerts = [];
         
@@ -579,43 +514,6 @@ app.use((req, res, next) => {
     }
 });
 
-// ================================================
-// LOAD BALANCER MIDDLEWARE
-// ================================================
-
-// Load balancer middleware
-app.use((req, res, next) => {
-    if (global.loadBalancer) {
-        // Determine request priority
-        let priority = 'normal';
-
-        if (req.method === 'POST' && (req.path.includes('/absensi') || req.path.includes('/login'))) {
-            priority = 'critical';
-        } else if (req.method === 'GET' && (req.path.includes('/absensi') || req.path.includes('/dashboard'))) {
-            priority = 'high';
-        } else if (req.path.includes('/analytics') || req.path.includes('/reports')) {
-            priority = 'normal';
-        } else {
-            priority = 'low';
-        }
-
-        // Add request to load balancer
-        const requestId = global.loadBalancer.addRequest({
-            method: req.method,
-            path: req.path,
-            headers: req.headers,
-            body: req.body
-        }, priority);
-
-        // Add request ID to response headers
-        res.setHeader('X-Request-ID', requestId);
-
-        // Add load balancer stats to response
-        res.setHeader('X-Load-Balancer-Stats', JSON.stringify(global.loadBalancer.getStats()));
-    }
-
-    next();
-});
 
 // ================================================
 // MIDDLEWARE - JWT Authentication & Authorization
@@ -722,6 +620,7 @@ app.use('/api/admin/export', exportRoutes); // Alias for frontend compatibility
 app.use('/api/admin', letterheadRoutes); // All letterhead endpoints
 app.use('/api/dashboard', dashboardRoutes); // Dashboard stats and chart
 app.use('/api/admin', dashboardRoutes); // Alias: /api/admin/live-summary
+app.use('/api/admin/attendance-settings', attendanceSettingsRoutes); // Attendance settings config
 
 
 // Route Aliases for Frontend Compatibility

@@ -138,8 +138,8 @@ export const REKAP_GURU_MAPPING = {
 // Kode yang disimpan di DB vs display
 // ================================================
 export const STATUS_KEHADIRAN = {
-    // Status yang dihitung sebagai "hadir"
-    HADIR: ['H', 'Hadir', 'T', 'Terlambat'],
+    // Status yang dihitung sebagai "hadir" (including Dispen)
+    HADIR: ['H', 'Hadir', 'T', 'Terlambat', 'D', 'Dispen'],
     
     // Status ketidakhadiran (untuk rekap)
     SAKIT: ['S', 'Sakit'],

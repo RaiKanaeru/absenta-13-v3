@@ -49,8 +49,9 @@ export const getStats = async (req, res) => {
             );
 
             const sevenDaysAgoWIB = formatWIBDate(new Date(getWIBTime().getTime() - 7 * 24 * 60 * 60 * 1000));
+            // Note: For absensi_guru, Dispen is also considered as Hadir
             const [persentaseKehadiran] = await global.dbPool.execute(
-                `SELECT ROUND((SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
+                `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
                  FROM absensi_guru WHERE tanggal >= ?`,
                 [sevenDaysAgoWIB]
             );
@@ -80,8 +81,9 @@ export const getStats = async (req, res) => {
             );
 
             const thirtyDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 30 * 24 * 60 * 60 * 1000));
+            // Note: For absensi_guru, Dispen is also considered as Hadir
             const [persentaseKehadiran] = await global.dbPool.execute(
-                `SELECT ROUND((SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
+                `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
                  FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
                 [req.user.guru_id, thirtyDaysAgoWIB]
             );
@@ -139,8 +141,8 @@ export const getChart = async (req, res) => {
             const sevenDaysAgoWIB = formatWIBDate(new Date(getWIBTime().getTime() - 7 * 24 * 60 * 60 * 1000));
             const [weeklyData] = await global.dbPool.execute(
                 `SELECT DATE(tanggal) as tanggal,
-                    SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-                    SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
+                    SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) as hadir,
+                    SUM(CASE WHEN status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END) as tidak_hadir
                  FROM absensi_guru WHERE tanggal >= ?
                  GROUP BY DATE(tanggal) ORDER BY tanggal`,
                 [sevenDaysAgoWIB]
@@ -158,8 +160,8 @@ export const getChart = async (req, res) => {
             const sevenDaysAgoWIB = formatWIBDate(new Date(getWIBTime().getTime() - 7 * 24 * 60 * 60 * 1000));
             const [personalData] = await global.dbPool.execute(
                 `SELECT DATE(tanggal) as tanggal,
-                    SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-                    SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
+                    SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) as hadir,
+                    SUM(CASE WHEN status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END) as tidak_hadir
                  FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?
                  GROUP BY DATE(tanggal) ORDER BY tanggal`,
                 [req.user.guru_id, sevenDaysAgoWIB]
@@ -229,7 +231,7 @@ export const getLiveSummary = async (req, res) => {
         const [attendanceStats] = await global.dbPool.execute(`
             SELECT 
                 ROUND(
-                    (SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) * 100.0) / 
+                    (SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0) / 
                     NULLIF(COUNT(*), 0)
                 , 1) as percentage
             FROM absensi_guru
