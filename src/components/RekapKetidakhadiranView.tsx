@@ -231,8 +231,8 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
       
       const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
       let fileName = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${selectedTahun}`;
@@ -245,11 +245,11 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       
       fileName += '.xlsx';
       
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      document.body.removeChild(downloadLink);
 
       toast({
         title: "Success",

@@ -46,16 +46,16 @@ const importMapel = async (req, res) => {
         const seenKode = new Set();
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const currentRow = rows[i];
             const rowErrors = [];
             const rowNum = i + 2; // Excel row number
 
             try {
                 // Validasi umum - perbaiki field mapping
-                const kodeMapel = r.kode_mapel || r['Kode Mapel'] || r['kode_mapel'];
-                const namaMapel = r.nama_mapel || r['Nama Mapel'] || r['nama_mapel'];
-                const deskripsi = r.deskripsi || r.Deskripsi || r['deskripsi'];
-                const status = r.status || r.Status || r['status'];
+                const kodeMapel = currentRow.kode_mapel || currentRow['Kode Mapel'] || currentRow['kode_mapel'];
+                const namaMapel = currentRow.nama_mapel || currentRow['Nama Mapel'] || currentRow['nama_mapel'];
+                const deskripsi = currentRow.deskripsi || currentRow.Deskripsi || currentRow['deskripsi'];
+                const status = currentRow.status || currentRow.Status || currentRow['status'];
 
                 if (!kodeMapel) rowErrors.push('kode_mapel wajib');
                 if (!namaMapel) rowErrors.push('nama_mapel wajib');
@@ -65,11 +65,11 @@ const importMapel = async (req, res) => {
                 }
 
                 if (kodeMapel) {
-                    const k = String(kodeMapel).trim();
-                    if (seenKode.has(k)) {
+                    const normalizedCode = String(kodeMapel).trim();
+                    if (seenKode.has(normalizedCode)) {
                         rowErrors.push('kode_mapel duplikat di file');
                     }
-                    seenKode.add(k);
+                    seenKode.add(normalizedCode);
                 }
 
                 if (rowErrors.length) {
@@ -102,12 +102,12 @@ const importMapel = async (req, res) => {
         const conn = await global.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-            for (const v of valid) {
+            for (const validRecord of valid) {
                 await conn.execute(
                     `INSERT INTO mapel (kode_mapel, nama_mapel, deskripsi, status)
                      VALUES (?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE nama_mapel = VALUES(nama_mapel), deskripsi = VALUES(deskripsi), status = VALUES(status)`,
-                    [v.kode_mapel, v.nama_mapel, v.deskripsi, v.status]
+                    [validRecord.kode_mapel, validRecord.nama_mapel, validRecord.deskripsi, validRecord.status]
                 );
             }
             await conn.commit();

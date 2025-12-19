@@ -1461,28 +1461,28 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
 
             months.forEach(month => {
                 const monthData = studentPresensi.find(p => p.bulan === month) || { S: 0, I: 0, A: 0 };
-                const s = parseInt(monthData.S) || 0;
-                const i = parseInt(monthData.I) || 0;
-                const a = parseInt(monthData.A) || 0;
-                const jml = s + i + a;
+                const sakitCount = parseInt(monthData.S) || 0;
+                const izinCount = parseInt(monthData.I) || 0;
+                const alpaCount = parseInt(monthData.A) || 0;
+                const monthlyTotal = sakitCount + izinCount + alpaCount;
 
-                worksheet.getCell(dataRow, col).value = s || 0;
-                worksheet.getCell(dataRow, col + 1).value = i || 0;
-                worksheet.getCell(dataRow, col + 2).value = a || 0;
-                worksheet.getCell(dataRow, col + 3).value = jml || 0;
+                worksheet.getCell(dataRow, col).value = sakitCount || 0;
+                worksheet.getCell(dataRow, col + 1).value = izinCount || 0;
+                worksheet.getCell(dataRow, col + 2).value = alpaCount || 0;
+                worksheet.getCell(dataRow, col + 3).value = monthlyTotal || 0;
 
                 // Apply cell styles
                 for (let c = 0; c < 4; c++) {
                     Object.assign(worksheet.getCell(dataRow, col + c), dataStyle);
                 }
 
-                totalS += s;
-                totalI += i;
-                totalA += a;
+                totalS += sakitCount;
+                totalI += izinCount;
+                totalA += alpaCount;
 
-                monthlyTotals[month].S += s;
-                monthlyTotals[month].I += i;
-                monthlyTotals[month].A += a;
+                monthlyTotals[month].S += sakitCount;
+                monthlyTotals[month].I += izinCount;
+                monthlyTotals[month].A += alpaCount;
 
                 col += 4;
             });
