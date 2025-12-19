@@ -27,7 +27,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Skeleton } from "@/components/ui/skeleton";
 import ErrorBoundary from "./ErrorBoundary";
 import BackupManagementView from "./BackupManagementView";
-import LoadBalancerView from "./LoadBalancerView";
 import MonitoringDashboard from "./MonitoringDashboard";
 import JamPelajaranConfig from "./JamPelajaranConfig";
 import SimpleRestoreView from "./SimpleRestoreView";
@@ -204,7 +203,6 @@ const menuItems = [
   { id: 'add-schedule', title: 'Jadwal', icon: Calendar, description: 'Atur jadwal pelajaran', gradient: 'from-teal-500 to-teal-700' },
   { id: 'add-room', title: 'Ruang Kelas', icon: Home, description: 'Kelola ruang kelas', gradient: 'from-amber-500 to-amber-700' },
   { id: 'backup-management', title: 'Backup & Archive', icon: Database, description: 'Kelola backup dan arsip data', gradient: 'from-cyan-500 to-cyan-700' },
-  { id: 'load-balancer', title: 'Load Balancer', icon: Activity, description: 'Monitoring performa sistem', gradient: 'from-emerald-500 to-emerald-700' },
   { id: 'monitoring', title: 'System Monitoring', icon: Monitor, description: 'Real-time monitoring & alerting', gradient: 'from-violet-500 to-violet-700' },
   { id: 'disaster-recovery', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
   { id: 'letterhead-settings', title: 'Kop Laporan', icon: FileTextIcon, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
@@ -9661,8 +9659,6 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ManageRoomsView onBack={handleBack} onLogout={onLogout} />;
       case 'backup-management':
         return <ErrorBoundary><BackupManagementView /></ErrorBoundary>;
-      case 'load-balancer':
-        return <ErrorBoundary><LoadBalancerView /></ErrorBoundary>;
       case 'monitoring':
         return <ErrorBoundary><MonitoringDashboard /></ErrorBoundary>;
       case 'disaster-recovery':
