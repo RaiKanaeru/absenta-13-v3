@@ -20,5 +20,7 @@ INSERT INTO attendance_settings (setting_key, setting_value, description) VALUES
 ('alpha_voids_day', 'true', 'Jika ada 1 jam Alpa, gugurkan seluruh kehadiran hari itu')
 ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP;
 
--- Add index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_setting_key ON attendance_settings(setting_key);
+-- Add index for faster lookups (ignore error if already exists)
+-- Note: MySQL doesn't support IF NOT EXISTS for CREATE INDEX
+-- The table creation already ensures this runs only once
+ALTER TABLE attendance_settings ADD INDEX idx_setting_key (setting_key);
