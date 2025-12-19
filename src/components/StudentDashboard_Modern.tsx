@@ -1811,7 +1811,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                                 </p>
                               )}
                               <RadioGroup 
-                                value={kehadiranData[guruKey]?.status ?? (guru.status_kehadiran || undefined)} 
+                                value={kehadiranData[guruKey]?.status || guru.status_kehadiran || ''} 
                                 onValueChange={(value) => updateKehadiranStatus(guruKey, value)}
                                 disabled={!guru.id_guru || guru.id_guru === 0 || isUpdatingStatus === guruKey}
                               >
@@ -1885,7 +1885,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                           Status Kehadiran Guru:
                         </Label>
                         <RadioGroup 
-                          value={kehadiranData[jadwal.id_jadwal]?.status ?? undefined} 
+                          value={kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || ''} 
                           onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
                           disabled={isUpdatingStatus === String(jadwal.id_jadwal)}
                         >
