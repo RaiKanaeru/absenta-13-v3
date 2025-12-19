@@ -28,33 +28,29 @@ export const getStats = async (req, res) => {
         const stats = {};
 
         if (req.user.role === 'admin') {
-            // Admin statistics
-            const [totalSiswa] = await global.dbPool.execute(
-                'SELECT COUNT(*) as count FROM siswa WHERE status = "aktif"'
-            );
-            const [totalGuru] = await global.dbPool.execute(
-                'SELECT COUNT(*) as count FROM guru WHERE status = "aktif"'
-            );
-            const [totalKelas] = await global.dbPool.execute(
-                'SELECT COUNT(*) as count FROM kelas WHERE status = "aktif"'
-            );
-            const [totalMapel] = await global.dbPool.execute(
-                'SELECT COUNT(*) as count FROM mapel WHERE status = "aktif"'
-            );
-
+            // Admin statistics - execute all queries in parallel
             const todayWIB = getMySQLDateWIB();
-            const [absensiHariIni] = await global.dbPool.execute(
-                'SELECT COUNT(*) as count FROM absensi_guru WHERE tanggal = ?',
-                [todayWIB]
-            );
-
             const sevenDaysAgoWIB = formatWIBDate(new Date(getWIBTime().getTime() - 7 * 24 * 60 * 60 * 1000));
-            // Note: For absensi_guru, Dispen is also considered as Hadir
-            const [persentaseKehadiran] = await global.dbPool.execute(
-                `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
-                 FROM absensi_guru WHERE tanggal >= ?`,
-                [sevenDaysAgoWIB]
-            );
+
+            const [
+                [totalSiswa],
+                [totalGuru],
+                [totalKelas],
+                [totalMapel],
+                [absensiHariIni],
+                [persentaseKehadiran]
+            ] = await Promise.all([
+                global.dbPool.execute('SELECT COUNT(*) as count FROM siswa WHERE status = "aktif"'),
+                global.dbPool.execute('SELECT COUNT(*) as count FROM guru WHERE status = "aktif"'),
+                global.dbPool.execute('SELECT COUNT(*) as count FROM kelas WHERE status = "aktif"'),
+                global.dbPool.execute('SELECT COUNT(*) as count FROM mapel WHERE status = "aktif"'),
+                global.dbPool.execute('SELECT COUNT(*) as count FROM absensi_guru WHERE tanggal = ?', [todayWIB]),
+                global.dbPool.execute(
+                    `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
+                     FROM absensi_guru WHERE tanggal >= ?`,
+                    [sevenDaysAgoWIB]
+                )
+            ]);
 
             stats.totalSiswa = totalSiswa[0].count;
             stats.totalGuru = totalGuru[0].count;
@@ -64,50 +60,57 @@ export const getStats = async (req, res) => {
             stats.persentaseKehadiran = persentaseKehadiran[0].persentase || 0;
 
         } else if (req.user.role === 'guru') {
-            // Guru statistics
+            // Guru statistics - execute queries in parallel
             const wibNow = getWIBTime();
             const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const currentDayWIB = dayNames[wibNow.getDay()];
-
-            const [jadwalHariIni] = await global.dbPool.execute(
-                `SELECT COUNT(*) as count FROM jadwal WHERE guru_id = ? AND hari = ? AND status = 'aktif'`,
-                [req.user.guru_id, currentDayWIB]
-            );
-
             const sevenDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000));
-            const [absensiMingguIni] = await global.dbPool.execute(
-                `SELECT COUNT(*) as count FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
-                [req.user.guru_id, sevenDaysAgoWIB]
-            );
-
             const thirtyDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 30 * 24 * 60 * 60 * 1000));
-            // Note: For absensi_guru, Dispen is also considered as Hadir
-            const [persentaseKehadiran] = await global.dbPool.execute(
-                `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
-                 FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
-                [req.user.guru_id, thirtyDaysAgoWIB]
-            );
+
+            const [
+                [jadwalHariIni],
+                [absensiMingguIni],
+                [persentaseKehadiran]
+            ] = await Promise.all([
+                global.dbPool.execute(
+                    `SELECT COUNT(*) as count FROM jadwal WHERE guru_id = ? AND hari = ? AND status = 'aktif'`,
+                    [req.user.guru_id, currentDayWIB]
+                ),
+                global.dbPool.execute(
+                    `SELECT COUNT(*) as count FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
+                    [req.user.guru_id, sevenDaysAgoWIB]
+                ),
+                global.dbPool.execute(
+                    `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
+                     FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
+                    [req.user.guru_id, thirtyDaysAgoWIB]
+                )
+            ]);
 
             stats.jadwalHariIni = jadwalHariIni[0].count;
             stats.absensiMingguIni = absensiMingguIni[0].count;
             stats.persentaseKehadiran = persentaseKehadiran[0].persentase || 0;
 
         } else if (req.user.role === 'siswa') {
-            // Siswa statistics
+            // Siswa statistics - execute queries in parallel
             const wibNow = getWIBTime();
             const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const currentDayWIB = dayNames[wibNow.getDay()];
-
-            const [jadwalHariIni] = await global.dbPool.execute(
-                `SELECT COUNT(*) as count FROM jadwal WHERE kelas_id = ? AND hari = ? AND status = 'aktif'`,
-                [req.user.kelas_id, currentDayWIB]
-            );
-
             const sevenDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000));
-            const [absensiMingguIni] = await global.dbPool.execute(
-                `SELECT COUNT(*) as count FROM absensi_guru WHERE kelas_id = ? AND tanggal >= ?`,
-                [req.user.kelas_id, sevenDaysAgoWIB]
-            );
+
+            const [
+                [jadwalHariIni],
+                [absensiMingguIni]
+            ] = await Promise.all([
+                global.dbPool.execute(
+                    `SELECT COUNT(*) as count FROM jadwal WHERE kelas_id = ? AND hari = ? AND status = 'aktif'`,
+                    [req.user.kelas_id, currentDayWIB]
+                ),
+                global.dbPool.execute(
+                    `SELECT COUNT(*) as count FROM absensi_guru WHERE kelas_id = ? AND tanggal >= ?`,
+                    [req.user.kelas_id, sevenDaysAgoWIB]
+                )
+            ]);
 
             stats.jadwalHariIni = jadwalHariIni[0].count;
             stats.absensiMingguIni = absensiMingguIni[0].count;

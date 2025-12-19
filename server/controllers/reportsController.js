@@ -150,15 +150,23 @@ export const getAnalyticsDashboard = async (req, res) => {
             LIMIT 10
         `;
 
-        // Get total students count (lightweight query)
-        const [totalStudentsResult] = await global.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"');
+        // Execute all queries in parallel for better performance
+        const [
+            [totalStudentsResult],
+            [studentAttendance],
+            [teacherAttendance],
+            [topAbsentStudents],
+            [topAbsentTeachers],
+            [notifications]
+        ] = await Promise.all([
+            global.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
+            global.dbPool.execute(studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            global.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            global.dbPool.execute(topAbsentStudentsQuery),
+            global.dbPool.execute(topAbsentTeachersQuery),
+            global.dbPool.execute(notificationsQuery)
+        ]);
         const totalStudents = totalStudentsResult[0]?.total || 0;
-
-        const [studentAttendance] = await global.dbPool.execute(studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]);
-        const [teacherAttendance] = await global.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]);
-        const [topAbsentStudents] = await global.dbPool.execute(topAbsentStudentsQuery);
-        const [topAbsentTeachers] = await global.dbPool.execute(topAbsentTeachersQuery);
-        const [notifications] = await global.dbPool.execute(notificationsQuery);
 
         const analyticsData = {
             studentAttendance: studentAttendance || [],
