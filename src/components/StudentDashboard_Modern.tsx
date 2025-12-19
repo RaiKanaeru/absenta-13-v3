@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -157,7 +157,7 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-const Pagination = ({ currentPage, totalPages, onPageChange }: PaginationProps) => {
+const Pagination = React.memo(({ currentPage, totalPages, onPageChange }: PaginationProps) => {
   const getVisiblePages = () => {
     const delta = 2;
     const range = [];
@@ -265,10 +265,10 @@ const Pagination = ({ currentPage, totalPages, onPageChange }: PaginationProps) 
       </div>
     </div>
   );
-};
+});
 
 export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) => {
-  console.log('StudentDashboard: Component mounting/rendering with user:', userData);
+  // console.log();
   
   const [activeTab, setActiveTab] = useState('kehadiran');
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -392,8 +392,11 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   const [absenSiswaData, setAbsenSiswaData] = useState<{[key: number]: {status: string; keterangan: string}}>({});
   const [loadingAbsenKelas, setLoadingAbsenKelas] = useState(false);
 
-  console.log('StudentDashboard: Current state - siswaId:', siswaId, 'initialLoading:', initialLoading, 'error:', error);
-
+  // Memoized computed values for performance
+  const jadwalData = useMemo(() => 
+    isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni,
+    [isEditMode, jadwalBerdasarkanTanggal, jadwalHariIni]
+  );
 
   // Helper functions for expandable rows
   const toggleRowExpansion = (rowId: number) => {
@@ -427,7 +430,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
   // Get siswa perwakilan info
   useEffect(() => {
-    console.log('StudentDashboard: Starting to fetch siswa info...');
+    // console.log();
     
     const getSiswaInfo = async () => {
       try {
@@ -445,7 +448,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           return;
         }
         
-        console.log('StudentDashboard: Making fetch request to /api/siswa-perwakilan/info');
+        // console.log();
         
         const response = await fetch(getApiUrl('/api/siswa-perwakilan/info'), {
           method: 'GET',
@@ -456,12 +459,12 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           credentials: 'include'
         });
         
-        console.log('StudentDashboard: Response status:', response.status);
-        console.log('StudentDashboard: Response ok:', response.ok);
+        // console.log();
+        // console.log();
         
         if (response.ok) {
           const data = await response.json();
-          console.log('StudentDashboard: Received data:', data);
+          // console.log();
           
           if (data.success) {
             setSiswaId(data.id_siswa);
@@ -481,7 +484,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
               nis: data.nis,
               kelas: data.nama_kelas
             }));
-            console.log('StudentDashboard: Set siswaId to:', data.id_siswa, 'kelasInfo to:', data.nama_kelas);
+            // console.log();
           } else {
             setError(data.error || 'Data siswa tidak valid');
           }
@@ -492,7 +495,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
           } catch (parseError) {
-            console.log('Could not parse error response');
+            // console.log();
           }
           
           if (response.status === 401) {
@@ -526,7 +529,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         setError(errorMessage);
       } finally {
         setInitialLoading(false);
-        console.log('StudentDashboard: Finished loading initial data');
+        // console.log();
       }
     };
 
@@ -558,7 +561,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       if (response.ok) {
         const data = await response.json();
-        console.log('StudentDashboard: Loaded jadwal hari ini:', data);
+        // console.log();
         
         // Proses guru_list dari string ke array
         const processedData = data.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
@@ -654,7 +657,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       if (response.ok) {
         const result = await response.json();
-        console.log('StudentDashboard: Loaded jadwal banding by date:', result);
+        // console.log();
         
         if (result.success && result.data) {
           // Proses guru_list dari string ke array
@@ -769,7 +772,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       if (response.ok) {
         const data = await response.json();
-        console.log('StudentDashboard: Loaded riwayat data:', data);
+        // console.log();
         setRiwayatData(data);
       } else {
         const errorData = await response.json();
@@ -887,7 +890,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       if (response.ok) {
         const data = await response.json();
-        console.log('StudentDashboard: Loaded status kehadiran siswa:', data);
+        // console.log();
         
         // Update status data
         const statusKey = `${siswaNama}_${tanggal}_${jadwalId}`;
@@ -934,7 +937,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       if (response.ok) {
         const data = await response.json();
-        console.log('StudentDashboard: Loaded status kehadiran siswa (by id):', data);
+        // console.log();
 
         const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === idSiswa);
         const siswaNama = chosen?.nama || '';
@@ -1035,9 +1038,9 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         tanggal_absen: selectedDate
       };
       
-      console.log('📝 Submitting kehadiran data:', requestData);
-      console.log('📝 Kehadiran data keys:', Object.keys(kehadiranData));
-      console.log('📝 Selected date:', selectedDate);
+      // console.log();
+      // console.log();
+      // console.log();
       
       // Get and clean token with mobile fallback
       const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -1206,7 +1209,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     
     // Prevent multiple updates pada key yang sama
     if (pendingUpdates.has(keyStr)) {
-      console.log('Update already in progress for key:', keyStr);
+      // console.log();
       return;
     }
 
@@ -1247,7 +1250,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
         const jadwal = jadwalData.find(j => j.id_jadwal === jadwalId);
         
-        console.log('🔍 Debug jadwal lookup:', { key, jadwalId, jadwal, isEditMode });
+        // console.log();
         
         if (!jadwal) {
           throw new Error('Jadwal tidak ditemukan');
@@ -1273,7 +1276,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           // If still not found, try from kehadiranData
           if (!guruId && kehadiranData[key]?.guru_id) {
             guruId = kehadiranData[key].guru_id;
-            console.log('🔍 Using guru_id from kehadiranData:', guruId);
+            // console.log();
           }
           
           console.log('🔍 Debug guruId extraction:', { 
@@ -1292,7 +1295,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       const tanggalTarget = isEditMode ? selectedDate : getCurrentDateWIB();
       
-      console.log('🔄 Updating status:', { jadwalId, guruId, status, tanggal: tanggalTarget });
+      // console.log();
 
       const resp = await fetch(getApiUrl('/api/siswa/update-status-guru'), {
         method: 'POST',
@@ -1317,7 +1320,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       }
 
       const result = await resp.json();
-      console.log('✅ Status updated successfully:', result);
+      // console.log();
 
       // Tampilkan notifikasi sukses
       toast({
@@ -1332,7 +1335,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       
       // Reload data untuk sinkronisasi dengan server
       if (isEditMode) {
-        console.log('🔄 Reloading jadwal after successful update...');
+        // console.log();
         await loadJadwalBandingByDate(selectedDate);
       } else {
         await loadJadwalHariIni();
@@ -3168,8 +3171,8 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         alasan_banding: formBanding.siswa_banding[0]?.alasan_banding
       };
       
-      console.log('📝 Submitting banding absen data:', requestData);
-      console.log('📝 Form state:', formBanding);
+      // console.log();
+      // console.log();
       
       const response = await fetch(getApiUrl(`/api/siswa/${selectedSiswaId}/banding-absen`), {
         method: 'POST',
