@@ -25,6 +25,12 @@ export const ACADEMIC_MONTHS = [
 export type AcademicMonth = typeof ACADEMIC_MONTHS[number];
 
 /**
+ * Default effective working days when a specific month is not configured.
+ * This represents a typical month with ~20 working days.
+ */
+export const DEFAULT_EFFECTIVE_DAYS_PER_MONTH = 20;
+
+/**
  * Default effective working days per month
  * Can be adjusted based on actual academic calendar
  */
@@ -49,7 +55,7 @@ export const EFFECTIVE_DAYS_PER_MONTH: Record<number, number> = {
  * @returns Number of effective working days
  */
 export const getEffectiveDays = (monthNumber: number): number => {
-  return EFFECTIVE_DAYS_PER_MONTH[monthNumber] || 20;
+  return EFFECTIVE_DAYS_PER_MONTH[monthNumber] || DEFAULT_EFFECTIVE_DAYS_PER_MONTH;
 };
 
 /**
@@ -61,11 +67,13 @@ export const getTotalAcademicYearDays = (): number => {
 };
 
 /**
- * Calculate effective days for a date range
- * This is a rough estimate - actual calculation should account for weekends and holidays
+ * Calculate calendar days for a date range.
+ * Note: This counts all calendar days including weekends. For a more accurate
+ * working days calculation, a calendar service accounting for weekends and
+ * holidays would be needed.
  * @param startDate - Start date string (YYYY-MM-DD)
  * @param endDate - End date string (YYYY-MM-DD)
- * @returns Estimated number of effective days
+ * @returns Number of calendar days in the range (inclusive)
  */
 export const calculateDateRangeEffectiveDays = (startDate: string, endDate: string): number => {
   const start = new Date(startDate);

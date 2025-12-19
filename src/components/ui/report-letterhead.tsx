@@ -6,19 +6,7 @@
 
 import React from 'react';
 import { DEFAULT_SCHOOL_HEADER } from '../../lib/academic-constants';
-
-interface LetterheadLine {
-  text: string;
-  fontWeight?: 'normal' | 'bold';
-}
-
-interface LetterheadConfig {
-  enabled: boolean;
-  lines?: LetterheadLine[];
-  logoLeftUrl?: string;
-  logoRightUrl?: string;
-  alignment?: 'left' | 'center' | 'right';
-}
+import type { LetterheadConfig } from '../../hooks/useLetterhead';
 
 interface ReportLetterheadProps {
   /** Letterhead configuration from useLetterhead hook */
@@ -99,6 +87,16 @@ const CustomLetterhead: React.FC<{ letterhead: LetterheadConfig }> = ({ letterhe
 );
 
 /**
+ * Checks if letterhead has custom configuration that should be rendered
+ */
+const hasCustomLetterhead = (letterhead: LetterheadConfig | null): letterhead is LetterheadConfig => {
+  return letterhead !== null && 
+         letterhead.enabled && 
+         letterhead.lines !== undefined && 
+         letterhead.lines.length > 0;
+};
+
+/**
  * ReportLetterhead Component
  * Renders a complete report header with letterhead and title information
  */
@@ -109,12 +107,10 @@ export const ReportLetterhead: React.FC<ReportLetterheadProps> = ({
   className,
   periodInfo
 }) => {
-  const hasCustomLetterhead = letterhead?.enabled && letterhead?.lines && letterhead.lines.length > 0;
-
   return (
     <div className="text-center mb-6 p-4 bg-white border-2 border-gray-300">
-      {hasCustomLetterhead ? (
-        <CustomLetterhead letterhead={letterhead!} />
+      {hasCustomLetterhead(letterhead) ? (
+        <CustomLetterhead letterhead={letterhead} />
       ) : (
         <DefaultLetterhead />
       )}
