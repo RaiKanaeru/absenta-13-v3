@@ -230,7 +230,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
                 AND ag2.tanggal = ?
                 AND ag2.guru_id = g2.id_guru
             WHERE j.kelas_id = ? AND j.hari = ?
-            GROUP BY j.id_jadwal, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
+            GROUP BY j.id_jadwal, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, ag.ada_tugas, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
             ORDER BY j.jam_ke
         `, [todayWIB, todayWIB, kelasId, currentDay]);
 
@@ -339,9 +339,9 @@ export const getSiswaJadwalRentang = async (req, res) => {
                 AND ag2.tanggal = ?
                 AND ag2.guru_id = g2.id_guru
             WHERE j.kelas_id = ? AND j.hari = ?
-            GROUP BY j.id_jadwal, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
+            GROUP BY j.id_jadwal, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, ag.ada_tugas, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
             ORDER BY j.jam_ke
-        `, [targetDateStr, targetDateStr, targetDateStr, kelasId, targetDay]);
+        `, [targetDateStr, targetDateStr, kelasId, targetDay]);
 
         log.success('GetSiswaJadwalRentang', { siswaId: siswa_id, targetDateStr, count: jadwalData.length });
 
