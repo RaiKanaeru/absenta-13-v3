@@ -583,7 +583,7 @@ const importStudentAccount = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
 
-        console.log('📊 Processing student account import...');
+        // console.log();
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -591,7 +591,7 @@ const importStudentAccount = async (req, res) => {
         const ws = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(ws);
 
-        console.log(`📊 Found ${rows.length} rows to process`);
+        // console.log();
 
         const errors = [];
         const valid = [];
@@ -835,7 +835,7 @@ const importTeacherAccount = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
 
-        console.log('📊 Processing teacher account import...');
+        // console.log();
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -843,7 +843,7 @@ const importTeacherAccount = async (req, res) => {
         const ws = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(ws);
 
-        console.log(`📊 Found ${rows.length} rows to process`);
+        // console.log();
 
         const errors = [];
         const valid = [];
@@ -1087,7 +1087,7 @@ const importSiswa = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
 
-        console.log('📊 Processing data siswa import...');
+        // console.log();
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -1095,7 +1095,7 @@ const importSiswa = async (req, res) => {
         const ws = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(ws);
 
-        console.log(`📊 Found ${rows.length} rows to process`);
+        // console.log();
 
         const errors = [];
         const valid = [];
@@ -1279,7 +1279,7 @@ const importGuru = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
 
-        console.log('📊 Processing data guru import...');
+        // console.log();
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -1287,7 +1287,7 @@ const importGuru = async (req, res) => {
         const ws = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(ws);
 
-        console.log(`📊 Found ${rows.length} rows to process`);
+        // console.log();
 
         const errors = [];
         const valid = [];

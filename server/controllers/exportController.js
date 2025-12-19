@@ -37,7 +37,7 @@ const getCommonExcelSetup = async (reportKey) => {
 export const exportAbsensi = async (req, res) => {
     try {
         const { date_start, date_end } = req.query;
-        console.log('📊 Exporting absensi guru:', { date_start, date_end });
+        // console.log();
 
         let query = `
             SELECT ag.tanggal, ag.status, ag.keterangan, ag.waktu_catat,
@@ -119,7 +119,7 @@ export const exportAbsensi = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Absensi guru exported successfully: ${rows.length} records`);
+        // console.log();
 
     } catch (error) {
         console.error('❌ Excel export error:', error);
@@ -134,7 +134,7 @@ export const exportAbsensi = async (req, res) => {
 export const exportTeacherList = async (req, res) => {
     try {
         const { academicYear = '2025-2026' } = req.query;
-        console.log('🎯 Exporting teacher list...');
+        // console.log();
 
         // Import AbsentaExportSystem
         const AbsentaExportSystem = (await import('../../src/utils/absentaExportSystem.js')).default;
@@ -158,7 +158,7 @@ export const exportTeacherList = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Teacher list exported successfully: ${teachers.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -171,7 +171,7 @@ export const exportTeacherList = async (req, res) => {
 export const exportStudentSummary = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
-        console.log('📊 Exporting student summary...');
+        // console.log();
 
         let query = `
             SELECT 
@@ -242,7 +242,7 @@ export const exportStudentSummary = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Student summary exported successfully: ${students.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -255,7 +255,7 @@ export const exportStudentSummary = async (req, res) => {
 export const exportTeacherSummary = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        console.log('👨‍🏫 Exporting teacher summary...');
+        // console.log();
 
         const [teachers] = await global.dbPool.execute(`
             SELECT 
@@ -312,7 +312,7 @@ export const exportTeacherSummary = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Teacher summary exported successfully: ${teachers.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -325,7 +325,7 @@ export const exportTeacherSummary = async (req, res) => {
 export const exportBandingAbsen = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, status } = req.query;
-        console.log('📋 Exporting banding absen...');
+        // console.log();
 
         const { formatWIBDate } = await import('../utils/timeUtils.js');
 
@@ -421,7 +421,7 @@ export const exportBandingAbsen = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Banding absen exported successfully: ${bandingData.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -436,7 +436,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
     try {
         const { tahun } = req.query;
         const tahunAjaran = tahun || new Date().getFullYear();
-        console.log('📊 Exporting rekap ketidakhadiran guru (SMK13 format):', { tahunAjaran });
+        // console.log();
 
         // Hari efektif per bulan (configurable)
         const hariEfektifPerBulan = {
@@ -613,7 +613,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Rekap ketidakhadiran guru (SMK13 format) exported: ${rows.length} teachers`);
+        // console.log();
     } catch (error) {
         console.error('❌ Error exporting rekap ketidakhadiran guru:', error);
         return sendDatabaseError(res, error);
@@ -636,7 +636,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
         const { startDate, endDate, kelas_id, status } = req.query;
         const guruId = req.user.guru_id;
 
-        console.log('📊 Exporting riwayat banding absen:', { startDate, endDate, kelas_id, status, guruId });
+        // console.log();
 
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
@@ -740,7 +740,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Riwayat banding absen exported: ${rows.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -759,7 +759,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
         const { startDate, endDate, kelas_id } = req.query;
         const guruId = req.user.guru_id;
 
-        console.log('📊 Exporting presensi siswa SMKN 13:', { startDate, endDate, kelas_id, guruId });
+        // console.log();
 
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
@@ -883,7 +883,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Presensi siswa SMKN 13 exported: ${rows.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -902,7 +902,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const { startDate, endDate, kelas_id, reportType } = req.query;
         const guruId = req.user.guru_id;
 
-        console.log('📊 Exporting rekap ketidakhadiran:', { startDate, endDate, kelas_id, reportType, guruId });
+        // console.log();
 
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
@@ -1032,7 +1032,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Rekap ketidakhadiran exported: ${rows.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -1051,7 +1051,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         const { startDate, endDate, kelas_id } = req.query;
         const guruId = req.user.guru_id;
 
-        console.log('📊 Exporting ringkasan kehadiran siswa SMKN 13:', { startDate, endDate, kelas_id, guruId });
+        // console.log();
 
         if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
@@ -1140,7 +1140,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Ringkasan kehadiran siswa exported: ${dataWithPercentage.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -1157,7 +1157,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
 export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
     try {
         const { tahun } = req.query;
-        console.log('📊 Exporting rekap ketidakhadiran guru SMKN 13:', { tahun });
+        // console.log();
 
         if (!tahun) {
             return res.status(400).json({ error: 'Tahun harus diisi' });
@@ -1245,7 +1245,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Rekap ketidakhadiran guru SMKN13 exported: ${dataWithPercentage.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -1263,7 +1263,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
 export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
         const { kelas_id, tahun, semester = 'gasal' } = req.query;
-        console.log('📊 Exporting rekap ketidakhadiran siswa (SMK13 format):', { kelas_id, tahun, semester });
+        // console.log();
 
         // Get class info and wali kelas
         const [kelasRows] = await global.dbPool.execute(`
@@ -1553,7 +1553,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Rekap ketidakhadiran siswa (SMK13 format) exported: ${studentsRows.length} students`);
+        // console.log();
     } catch (error) {
         console.error('❌ Error exporting rekap ketidakhadiran:', error);
         return sendDatabaseError(res, error);
@@ -1567,7 +1567,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
 export const exportPresensiSiswa = async (req, res) => {
     try {
         const { kelas_id, bulan, tahun } = req.query;
-        console.log('📊 Exporting presensi siswa:', { kelas_id, bulan, tahun });
+        // console.log();
 
         // Get class name
         const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
@@ -1623,7 +1623,7 @@ export const exportPresensiSiswa = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ Presensi siswa exported: ${exportData.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -1639,7 +1639,7 @@ export const exportPresensiSiswa = async (req, res) => {
  */
 export const exportAdminAttendance = async (req, res) => {
     try {
-        console.log('📊 Exporting attendance data...');
+        // console.log();
 
         const query = `
             SELECT 
@@ -1666,7 +1666,7 @@ export const exportAdminAttendance = async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename="data-kehadiran-siswa.csv"');
         res.send(csvContent);
 
-        console.log(`✅ Attendance data exported: ${rows.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -1688,7 +1688,7 @@ export const exportAdminAttendance = async (req, res) => {
  */
 export const exportJadwalMatrix = async (req, res) => {
     try {
-        console.log('📅 Exporting jadwal matrix format (redesigned)...');
+        // console.log();
         const { kelas_id, hari } = req.query;
 
         // Use getLetterhead from top-level import (line 11)
@@ -1712,7 +1712,7 @@ export const exportJadwalMatrix = async (req, res) => {
         query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
 
         const [schedules] = await global.dbPool.execute(query, params);
-        console.log(`📊 Found ${schedules.length} schedules`);
+        // console.log();
 
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
@@ -1869,7 +1869,7 @@ export const exportJadwalMatrix = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Pelajaran_Matrix_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
-        console.log(`✅ Jadwal matrix exported (redesigned): ${schedules.length} records, ${uniqueClasses.length} classes`);
+        // console.log();
     } catch (error) {
         console.error('❌ Export jadwal matrix error:', error);
         return sendDatabaseError(res, error);
@@ -1883,7 +1883,7 @@ export const exportJadwalMatrix = async (req, res) => {
  */
 export const exportJadwalGrid = async (req, res) => {
     try {
-        console.log('📅 Exporting jadwal master grid format...');
+        // console.log();
         const { kelas_id, hari } = req.query;
 
         // Use getLetterhead from top-level import
@@ -2106,7 +2106,7 @@ export const exportJadwalGrid = async (req, res) => {
         
         await workbook.xlsx.write(res);
         res.end();
-        console.log(`✅ Master Jadwal Grid exported: ${schedules.length} records`);
+        // console.log();
 
     } catch (error) {
         console.error('❌ Export jadwal grid error:', error);
@@ -2120,7 +2120,7 @@ export const exportJadwalGrid = async (req, res) => {
  */
 export const exportJadwalPrint = async (req, res) => {
     try {
-        console.log('📅 Exporting jadwal print format...');
+        // console.log();
         const { kelas_id, hari } = req.query;
 
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
@@ -2180,7 +2180,7 @@ export const exportJadwalPrint = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Print_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
-        console.log(`✅ Jadwal print exported: ${schedules.length} records`);
+        // console.log();
     } catch (error) {
         return sendDatabaseError(res, error);
     }
@@ -2214,7 +2214,7 @@ export const requestExcelDownload = async (req, res) => {
         const userId = req.user.id;
         const userRole = req.user.role;
 
-        console.log(`📥 Requesting Excel download for user ${userId} (${userRole})`);
+        // console.log();
 
         const jobData = {
             userId,
@@ -2502,7 +2502,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
  */
 export const exportRekapJadwalGuru = async (req, res) => {
     try {
-        console.log('👨‍🏫 Exporting rekap jadwal guru matrix...');
+        // console.log();
         const { tahun_ajar } = req.query;
 
         // Letterhead
@@ -2607,7 +2607,7 @@ export const exportRekapJadwalGuru = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Rekap_Jadwal_Guru_${Date.now()}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
-        console.log(`✅ Rekap jadwal guru exported: ${Object.keys(teachers).length} teachers`);
+        // console.log();
 
     } catch (error) {
         console.error('❌ Export rekap jadwal guru error:', error);
@@ -2631,7 +2631,7 @@ import templateExportService from '../services/templateExportService.js';
 export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
     try {
         const { tahun } = req.query;
-        console.log('📋 [TEMPLATE] Exporting rekap ketidakhadiran guru:', { tahun });
+        // console.log();
 
         if (!tahun) {
             return res.status(400).json({ error: 'Tahun harus diisi' });
@@ -2717,7 +2717,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ [TEMPLATE] Rekap ketidakhadiran guru exported: ${templateData.length} records`);
+        // console.log();
 
     } catch (error) {
         console.error('❌ [TEMPLATE] Export rekap ketidakhadiran guru error:', error);
@@ -2734,7 +2734,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
 export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
     try {
         const { kelas_id, semester, tahun } = req.query;
-        console.log('📋 [TEMPLATE] Exporting rekap ketidakhadiran kelas:', { kelas_id, semester, tahun });
+        // console.log();
 
         if (!kelas_id || !tahun) {
             return res.status(400).json({ error: 'kelas_id dan tahun harus diisi' });
@@ -2863,7 +2863,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
 
-        console.log(`✅ [TEMPLATE] Rekap ketidakhadiran kelas exported: ${templateData.length} siswa`);
+        // console.log();
 
     } catch (error) {
         console.error('❌ [TEMPLATE] Export rekap ketidakhadiran kelas error:', error);
