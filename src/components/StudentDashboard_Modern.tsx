@@ -12,6 +12,7 @@ import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
+import { getCleanToken } from '@/utils/authUtils';
 import { 
   LogOut, Clock, User, BookOpen, CheckCircle2, XCircle, Calendar, Save,
   GraduationCap, Settings, Menu, X, Home, Users, FileText, Send, AlertCircle, MessageCircle, Eye, Plus, Edit,
@@ -438,9 +439,8 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         setInitialLoading(true);
         setError(null);
         
-        // Get and clean token with mobile fallback
-        const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-        const cleanToken = rawToken ? rawToken.trim() : '';
+        // Get clean token using centralized utility
+        const cleanToken = getCleanToken();
         
         if (!cleanToken) {
           console.error('❌ Token tidak ditemukan');
@@ -543,9 +543,8 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
     setLoading(true);
     try {
-      // Get and clean token with mobile fallback
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
+      // Get clean token using centralized utility
+      const cleanToken = getCleanToken();
       
       if (!cleanToken) {
         console.error('❌ Token tidak ditemukan');
@@ -657,8 +656,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
     setLoadingJadwal(true);
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = token ? token.replace(/['"]/g, '') : '';
+      const cleanToken = getCleanToken();
       
       const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-rentang?tanggal=${tanggal}`), {
         headers: {
@@ -776,9 +774,8 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     if (!siswaId) return;
 
     try {
-      // Get and clean token with mobile fallback
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
+      // Get clean token using centralized utility
+      const cleanToken = getCleanToken();
       
       if (!cleanToken) {
         console.error('❌ Token tidak ditemukan');

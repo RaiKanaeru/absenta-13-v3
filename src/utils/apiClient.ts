@@ -1,4 +1,5 @@
 import { getApiUrl } from '@/config/api';
+import { getCleanToken } from './authUtils';
 
 // ================================================
 // ERROR TYPES & CODES
@@ -131,6 +132,7 @@ export const apiCall = async <T = any>(
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getCleanToken()}`,
                     ...options.headers,
                 },
                 ...fetchOptions,
