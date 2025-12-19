@@ -235,14 +235,14 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
   const fetchTeachers = useCallback(async () => {
     try {
       const response = await apiCall('/api/admin/guru', { onLogout });
-      console.log('📊 Fetched teachers data:', response);
+      // console.log();
       console.log('🔍 Response structure:', {
         hasData: !!response.data,
         hasSuccess: !!response.success,
         dataLength: response.data?.length || 0,
         directLength: Array.isArray(response) ? response.length : 0
       });
-      console.log('🔍 First teacher data structure:', response.data?.[0] || response[0]);
+      // console.log();
       
       // Handle both response structures
       const teachersData = response.data || response;
@@ -331,7 +331,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
         status: formData.status
       };
 
-      console.log('📤 Sending data to server:', { url, method, submitData });
+      // console.log();
 
       await apiCall(url, {
         method,
@@ -3703,15 +3703,15 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
   });
 
   // Enhanced debug logging for better troubleshooting
-  console.log('🔍 PreviewJadwalView Debug:');
-  console.log('📊 Total schedules:', schedules.length);
-  console.log('📊 Total classes:', classes.length);
-  console.log('📊 Filter settings:', filter);
-  console.log('📊 Filtered schedules:', filteredSchedules.length);
+  // console.log();
+  // console.log();
+  // console.log();
+  // console.log();
+  // console.log();
   
   // Check data consistency
   if (schedules.length > 0 && classes.length > 0) {
-    console.log('🔍 Data consistency check:');
+    // console.log();
     console.log('📊 Sample schedule:', {
       id: schedules[0].id,
       kelas_id: schedules[0].kelas_id,
@@ -3733,9 +3733,9 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
   }
   
   if (filteredSchedules.length > 0) {
-    console.log('📊 Sample filtered schedule:', filteredSchedules[0]);
+    // console.log();
   } else {
-    console.log('⚠️ No filtered schedules found - check filter settings and data');
+    // console.log();
   }
 
   // Group schedules by class and day for matrix view
@@ -3761,17 +3761,17 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
   );
 
   // Debug logging for classes
-  console.log('🔍 Classes debug:');
-  console.log('📊 Total classes:', classes.length);
-  console.log('📊 Unique classes:', uniqueClasses.length);
-  console.log('📊 Sample class:', uniqueClasses[0]);
+  // console.log();
+  // console.log();
+  // console.log();
+  // console.log();
 
   const handleExportExcel = async (type: 'matrix' | 'grid') => {
     try {
       setIsExporting(true);
-      console.log(`🔍 Exporting ${type} format with filters:`, filter);
-      console.log('📊 Available schedules for export:', schedules.length);
-      console.log('📊 Filtered schedules for export:', filteredSchedules.length);
+      // console.log();
+      // console.log();
+      // console.log();
       
       // Check if there's data to export
       if (schedules.length === 0) {
@@ -3804,7 +3804,7 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
         ? `/api/admin/export/jadwal-matrix?${params.toString()}`
         : `/api/admin/export/jadwal-grid?${params.toString()}`;
 
-      console.log('🔗 Export endpoint:', endpoint);
+      // console.log();
 
       // Get auth token
       const token = localStorage.getItem('token');
@@ -3935,7 +3935,7 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
 
   const handlePreviewJadwal = () => {
     // Trigger re-render with current filters
-    console.log('Previewing jadwal with filters:', filter);
+    // console.log();
     toast({
       title: "Preview Jadwal",
       description: `Menampilkan jadwal dengan filter: Kelas ${filter.kelas === 'all' ? 'Semua' : filter.kelas}, Hari ${filter.hari === 'all' ? 'Semua' : filter.hari}`,
@@ -4393,7 +4393,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     const loadAllData = async () => {
       try {
         setIsLoading(true);
-        console.log('🔄 Loading all data for schedule management...');
+        // console.log();
         
         // Load all data in parallel for better performance
         const [schedulesData, teachersData, subjectsData, classesData, roomsData] = await Promise.all([
@@ -4402,7 +4402,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             return [];
           }),
           apiCall('/api/admin/guru', { onLogout }).then(response => {
-            console.log('📊 Teachers API response:', response);
+            // console.log();
             return response;
           }).catch(err => {
             console.error('❌ Error fetching teachers:', err);
@@ -4438,8 +4438,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         });
         
         // Debug teachers data structure
-        console.log('🔍 Teachers data structure:', teachersData);
-        console.log('🔍 First teacher:', teachersData?.data?.[0] || teachersData?.[0]);
+        // console.log();
+        // console.log();
         
       } catch (error) {
         console.error('❌ Error loading data:', error);
@@ -4740,11 +4740,11 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
   }
 
   if (showPreview) {
-    console.log('🔍 PreviewJadwalView called with:');
-    console.log('📊 Schedules passed:', schedules.length);
-    console.log('📊 Classes passed:', classes.length);
-    console.log('📊 Sample schedule:', schedules[0]);
-    console.log('📊 Sample class:', classes[0]);
+    // console.log();
+    // console.log();
+    // console.log();
+    // console.log();
+    // console.log();
     return <PreviewJadwalView onBack={() => setShowPreview(false)} schedules={schedules} classes={classes} />;
   }
 
@@ -4912,9 +4912,9 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       </SelectTrigger>
                       <SelectContent>
                         {(() => {
-                          console.log('🔍 Teachers in dropdown:', teachers);
-                          console.log('🔍 Teachers count:', teachers.length);
-                          console.log('🔍 Filtered teachers:', teachers.filter(teacher => teacher.id && teacher.status === 'aktif' && !formData.guru_ids.includes(teacher.id)));
+                          // console.log();
+                          // console.log();
+                          // console.log();
                           
                           const filteredTeachers = teachers.filter(teacher => teacher.id && teacher.status === 'aktif' && !formData.guru_ids.includes(teacher.id));
                           
@@ -5999,7 +5999,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     const fetchStudentData = async () => {
       try {
         setError('');
-        console.log('🔄 Fetching live student attendance data...');
+        // console.log();
         const token = localStorage.getItem('token');
         const data = await apiCall('/api/admin/live-student-attendance', {
           headers: {
@@ -6016,7 +6016,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           }
         });
 
-        console.log('✅ Live student attendance data received:', data.length, 'records');
+        // console.log();
         setAttendanceData(data);
       } catch (error: unknown) {
         console.error('❌ Error fetching live student attendance:', error);
@@ -6310,7 +6310,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         return;
       }
 
-      console.log('📤 Exporting live student attendance data...', filteredData.length, 'records');
+      // console.log();
 
       // Prepare data for Excel export
       const exportData = filteredData.map((student: LiveStudentRow, index: number) => ({
@@ -6342,7 +6342,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       link.download = `pemantauan_siswa_live_${getCurrentDateWIB()}.csv`;
       link.click();
 
-      console.log('✅ Live student attendance exported successfully');
+      // console.log();
     } catch (error: unknown) {
       console.error('❌ Error exporting live student attendance:', error);
       const message = error instanceof Error ? error.message : String(error);
@@ -6661,7 +6661,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           params.append('status', selectedStatus);
         }
 
-        console.log('Fetching banding absen report with params:', params.toString());
+        // console.log();
 
         const data = await apiCall(`/api/admin/banding-absen-report?${params}`, {
           headers: {
@@ -6670,7 +6670,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           }
         });
         
-        console.log('Banding absen report data:', data);
+        // console.log();
         
         if (Array.isArray(data)) {
           setReportData(data);
@@ -6722,7 +6722,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           params.append('status', selectedStatus);
         }
 
-        console.log('Downloading banding absen report with params:', params.toString());
+        // console.log();
 
         // UBAH ENDPOINT KE EXCEL FORMAT
         const response = await fetch(getApiUrl(`/api/export/banding-absen?${params}`), {
@@ -7080,7 +7080,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       const fetchTeacherData = async () => {
         try {
           setError('');
-          console.log('🔄 Fetching live teacher attendance data...');
+          // console.log();
           const token = localStorage.getItem('token');
           const data = await apiCall('/api/admin/live-teacher-attendance', {
             headers: {
@@ -7096,7 +7096,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
               setTimeout(() => onLogout(), 2000);
             }
           });
-          console.log('✅ Live teacher attendance data received:', data.length, 'records');
+          // console.log();
           setAttendanceData(data);
         } catch (error) {
           console.error('❌ Error fetching live teacher attendance:', error);
@@ -7356,7 +7356,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           return;
         }
 
-        console.log('📤 Exporting live teacher attendance data...', filteredData.length, 'records');
+        // console.log();
         
         // Prepare data for Excel export
         const exportData = filteredData.map((teacher, index) => ({
@@ -7394,7 +7394,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           title: "Berhasil",
           description: "Data guru berhasil diekspor ke CSV"
         });
-        console.log('✅ Live teacher attendance exported successfully');
+        // console.log();
       } catch (error) {
         console.error('❌ Error exporting live teacher attendance:', error);
         toast({
@@ -7647,7 +7647,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
       const fetchAnalyticsData = async () => {
         try {
           setError('');
-          console.log('🔄 Fetching analytics data...');
+          // console.log();
           const token = localStorage.getItem('token');
           const data = await apiCall('/api/admin/analytics', {
             headers: {
@@ -7663,7 +7663,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
               setTimeout(() => onLogout(), 2000);
             }
           });
-          console.log('✅ Analytics data received:', data);
+          // console.log();
           setAnalyticsData(data);
         } catch (error) {
           console.error('❌ Error fetching analytics data:', error);
@@ -8605,27 +8605,27 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
 
   const fetchStudents = useCallback(async (classId: string) => {
     if (!classId) {
-      console.log('❌ No classId provided to fetchStudents');
+      // console.log();
       return;
     }
     
-    console.log('👥 Fetching students for classId:', classId);
+    // console.log();
     setIsLoading(true);
     try {
       const data = await apiCall('/api/admin/students-data', { onLogout });
-      console.log('📊 Raw students data:', data);
-      console.log('🔍 Filtering students for classId:', classId);
+      // console.log();
+      // console.log();
       
       const filteredStudents = data.filter((student: StudentData) => {
         // Convert both to string for comparison
         const studentClassId = student.kelas_id?.toString();
         const targetClassId = classId.toString();
         const matches = studentClassId === targetClassId;
-        console.log(`Student ${student.nama} (ID: ${student.id_siswa}) - kelas_id: ${studentClassId}, target: ${targetClassId}, matches: ${matches}`);
+        // console.log();
         return matches;
       });
       
-      console.log('✅ Filtered students:', filteredStudents);
+      // console.log();
       setStudents(filteredStudents);
       setSelectedStudents(new Set()); // Reset selection
     } catch (error) {
@@ -8641,12 +8641,12 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
   }, [fetchClasses]);
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered - fromClassId:', fromClassId);
+    // console.log();
     if (fromClassId) {
-      console.log('📞 Calling fetchStudents with classId:', fromClassId);
+      // console.log();
       fetchStudents(fromClassId);
     } else {
-      console.log('🧹 Clearing students - no classId');
+      // console.log();
       setStudents([]);
       setSelectedStudents(new Set());
     }
@@ -8654,9 +8654,9 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
 
   // 🧠 SMART CLASS PARSER - Parsing nama kelas secara cerdas dan fleksibel
   const parseClassName = useCallback((className: string) => {
-    console.log('🔤 Parsing class name:', className);
+    // console.log();
     const cleanName = className.trim().toUpperCase();
-    console.log('🧹 Cleaned name:', cleanName);
+    // console.log();
     
     // Pattern yang lebih fleksibel untuk berbagai format kelas
     const patterns = [
@@ -8675,7 +8675,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     for (let i = 0; i < patterns.length; i++) {
       const pattern = patterns[i];
       const match = cleanName.match(pattern);
-      console.log(`🔍 Pattern ${i + 1}:`, pattern, 'match:', match);
+      // console.log();
       
       if (match) {
         let level = match[1];
@@ -8698,17 +8698,17 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         
         if (majorMapping[major]) {
           major = majorMapping[major];
-          console.log(`🔄 Mapped jurusan: ${match[2]} -> ${major}`);
+          // console.log();
         }
         
         const result = { level, major, number, fullName: className };
-        console.log('✅ Parsed successfully:', result);
+        // console.log();
         return result;
       }
     }
     
     // Fallback: coba ekstrak tingkat dari awal string
-    console.log('🔄 Trying fallback parsing...');
+    // console.log();
     const fallbackPatterns = [
       /^(X|XI|XII)/,
       /^(10|11|12)/
@@ -8738,7 +8738,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         
         if (majorMapping[major]) {
           major = majorMapping[major];
-          console.log(`🔄 Fallback mapped jurusan: ${majorMatch[1]} -> ${major}`);
+          // console.log();
         }
         
         // Coba ekstrak nomor
@@ -8746,46 +8746,46 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         const number = numberMatch ? parseInt(numberMatch[1]) : 1;
         
         const result = { level, major, number, fullName: className };
-        console.log('✅ Fallback parsed successfully:', result);
+        // console.log();
         return result;
       }
     }
     
-    console.log('❌ Could not parse class name:', className);
+    // console.log();
     return null;
   }, []);
 
   // 🎯 AUTO-DETECT TARGET CLASS - Otomatis cari kelas tujuan berdasarkan kelas asal
   const findTargetClass = useCallback((fromClassId: string) => {
-    console.log('🔍 Finding target class for:', fromClassId);
-    console.log('📚 Available classes:', classes.map(c => ({ id: c.id, name: c.nama_kelas, status: c.status })));
+    // console.log();
+    // console.log();
     
     const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
     if (!sourceClass) {
-      console.log('❌ Source class not found');
+      // console.log();
       return null;
     }
     
-    console.log('📖 Source class:', sourceClass.nama_kelas);
+    // console.log();
     
     const parsed = parseClassName(sourceClass.nama_kelas || '');
     if (!parsed) {
-      console.log('❌ Could not parse class name:', sourceClass.nama_kelas);
+      // console.log();
       return null;
     }
     
-    console.log('🧩 Parsed class:', parsed);
+    // console.log();
     
     // Tentukan tingkat tujuan
     let targetLevel = '';
     if (parsed.level === 'X') targetLevel = 'XI';
     else if (parsed.level === 'XI') targetLevel = 'XII';
     else {
-      console.log('❌ Cannot promote from level:', parsed.level);
+      // console.log();
       return null; // XII tidak bisa dinaikkan
     }
     
-    console.log('🎯 Looking for target level:', targetLevel, 'major:', parsed.major, 'number:', parsed.number);
+    // console.log();
     
     // Cari kelas dengan tingkat tujuan, jurusan sama, nomor sama
     const targetClass = classes.find(cls => {
@@ -8796,25 +8796,25 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
              targetParsed.number === parsed.number;
       
       if (targetParsed) {
-        console.log('🔍 Checking class:', cls.nama_kelas, 'parsed:', targetParsed, 'match:', isMatch);
+        // console.log();
       }
       
       return isMatch;
     });
     
-    console.log('✅ Target class found:', targetClass?.nama_kelas || 'None');
+    // console.log();
     return targetClass || null;
   }, [classes, parseClassName]);
 
   // Auto-detect dan set kelas tujuan saat kelas asal dipilih
   useEffect(() => {
     if (fromClassId && classes.length > 0) {
-      console.log('🔄 Auto-detecting target class for:', fromClassId);
+      // console.log();
       
       const targetClass = findTargetClass(fromClassId);
       
       if (targetClass) {
-        console.log('✅ Exact match found:', targetClass.nama_kelas);
+        // console.log();
         setToClassId(targetClass.id?.toString() || '');
         
         // Parsing untuk notifikasi
@@ -8830,7 +8830,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
           });
         }
       } else {
-        console.log('🔄 No exact match, trying fallback search');
+        // console.log();
         
         // Jika tidak ditemukan, coba cari manual berdasarkan tingkat dan jurusan
         const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
@@ -8839,7 +8839,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         if (sourceParsed) {
           // Validasi kelas XII tidak bisa dinaikkan
           if (sourceParsed.level === 'XII') {
-            console.log('❌ Cannot promote from XII level');
+            // console.log();
             setToClassId('');
             toast({
               title: "❌ Tidak Dapat Dipromosikan",
@@ -8853,7 +8853,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
           if (sourceParsed.level === 'X') targetLevel = 'XI';
           else if (sourceParsed.level === 'XI') targetLevel = 'XII';
           
-          console.log('🔄 Fallback search for:', targetLevel, sourceParsed.major);
+          // console.log();
           
           // Cari kelas dengan tingkat tujuan dan jurusan sama (abaikan nomor)
           const fallbackClass = classes.find(cls => {
@@ -8861,12 +8861,12 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
             
             const name = cls.nama_kelas?.toUpperCase() || '';
             const isMatch = name.includes(targetLevel) && name.includes(sourceParsed.major);
-            console.log('🔍 Fallback checking:', cls.nama_kelas, 'contains', targetLevel, 'and', sourceParsed.major, ':', isMatch);
+            // console.log();
             return isMatch;
           });
           
           if (fallbackClass) {
-            console.log('✅ Fallback class found:', fallbackClass.nama_kelas);
+            // console.log();
             setToClassId(fallbackClass.id?.toString() || '');
             toast({
               title: "⚠ Kelas Tujuan Ditemukan (Parsial)",
@@ -8874,7 +8874,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
               variant: "default"
             });
           } else {
-            console.log('❌ No fallback class found');
+            // console.log();
             setToClassId('');
             toast({
               title: "❌ Kelas Tujuan Tidak Ditemukan",
@@ -8883,7 +8883,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
             });
           }
         } else {
-          console.log('❌ Could not parse source class for fallback');
+          // console.log();
           setToClassId('');
           
           // Coba fallback sederhana: cari kelas dengan tingkat yang lebih tinggi
@@ -8907,7 +8907,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
               });
               
               if (fallbackClass) {
-                console.log('✅ Simple fallback found:', fallbackClass.nama_kelas);
+                // console.log();
                 setToClassId(fallbackClass.id?.toString() || '');
                 toast({
                   title: "⚠ Kelas Tujuan Ditemukan (Sederhana)",
@@ -8999,7 +8999,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     setIsProcessing(true);
     try {
       const studentIds = Array.from(selectedStudents);
-      console.log('🚀 Sending promotion request:', { fromClassId, toClassId, studentIds });
+      // console.log();
       
       const response = await apiCall('/api/admin/student-promotion', {
         method: 'POST',
@@ -9011,7 +9011,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         onLogout
       });
 
-      console.log('✅ Promotion response:', response);
+      // console.log();
 
       toast({ 
         title: "Berhasil", 
@@ -9627,7 +9627,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     created_at?: string;
     updated_at?: string;
   }) => {
-    console.log('🔄 Updating admin user data:', updatedData);
+    // console.log();
     setUserData(prevData => ({
       ...prevData,
       ...updatedData,

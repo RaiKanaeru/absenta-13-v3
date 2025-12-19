@@ -382,9 +382,9 @@ const AttendanceView = ({ schedule, user, onBack }: {
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        console.log(`🔍 Fetching students for schedule ID: ${schedule.id}`);
+        // console.log();
         const data = await apiCall(`/api/schedule/${schedule.id}/students`);
-        console.log(`✅ Received ${data.length} students:`, data);
+        // console.log();
         setStudents(data);
         
         // Initialize attendance with existing data or default to 'Hadir'
@@ -399,8 +399,8 @@ const AttendanceView = ({ schedule, user, onBack }: {
         setNotes(initialNotes);
         
         // Log attendance status for debugging
-        console.log('📊 Initial attendance data:', initialAttendance);
-        console.log('📝 Initial notes data:', initialNotes);
+        // console.log();
+        // console.log();
       } catch (error) {
         console.error('❌ Error fetching students:', error);
         let errorMessage = "Gagal memuat daftar siswa";
@@ -432,9 +432,9 @@ const AttendanceView = ({ schedule, user, onBack }: {
   const fetchStudentsByDate = async (tanggal: string) => {
     try {
       setLoading(true);
-      console.log(`🔍 Fetching students for schedule ID: ${schedule.id} on date: ${tanggal}`);
+      // console.log();
       const data = await apiCall(`/api/schedule/${schedule.id}/students-by-date?tanggal=${tanggal}`);
-      console.log(`✅ Received ${data.length} students for date ${tanggal}:`, data);
+      // console.log();
       setStudents(data);
       
       // Initialize attendance with existing data or default to 'Hadir'
@@ -518,7 +518,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
       
       // Validasi selectedDate tidak boleh lebih dari hari ini
       if (selectedDate > todayStr) {
-        console.log('❌ Frontend validation failed: selectedDate > todayStr');
+        // console.log();
         toast({ 
           title: "Error", 
           description: "Tidak dapat mengabsen untuk tanggal masa depan", 
@@ -556,7 +556,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
         }),
       });
 
-      console.log('✅ Attendance submission response:', response);
+      // console.log();
 
       let message = hasExistingAttendance 
         ? "Absensi berhasil diperbarui" 
@@ -2987,7 +2987,7 @@ const HistoryView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
         });
         
         const res = await apiCall(`/api/guru/student-attendance-history?${params}`);
-        console.log('📊 Raw response from API:', res);
+        // console.log();
         
         let flat: Array<FlatHistoryRow>;
         let totalDaysCount = 0;
@@ -3006,7 +3006,7 @@ const HistoryView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
           setTotalDays(totalDaysCount);
         }
         
-        console.log('📊 Flattened data:', flat);
+        // console.log();
 
         const normalizeStatus = (s: string): AttendanceStatus => {
           const v = (s || '').toLowerCase();
@@ -3021,7 +3021,7 @@ const HistoryView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
         // Bentuk ulang menjadi HistoryData terkelompok per tanggal dan kelas
         const grouped: HistoryData = {};
         flat.forEach((row) => {
-          console.log('📊 Processing row:', row);
+          // console.log();
           const dateKey = formatDateWIB(row.tanggal);
           if (!grouped[dateKey]) grouped[dateKey] = {};
           const classKey = `${row.nama_mapel} - ${row.nama_kelas}`;
@@ -3052,7 +3052,7 @@ const HistoryView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
           });
         });
 
-        console.log('📊 Grouped data:', grouped);
+        // console.log();
         setHistoryData(grouped);
       } catch (error) {
         console.error('Error fetching history:', error);
@@ -3206,11 +3206,11 @@ const HistoryView = ({ user }: { user: TeacherDashboardProps['userData'] }) => {
                               </TableHeader>
                               <TableBody>
                                 {(() => {
-                                  console.log('📊 Rendering siswa for class:', classData.mata_pelajaran, 'siswa count:', classData.siswa.length);
+                                  // console.log();
                                   return null;
                                 })()}
                                 {classData.siswa.map((siswa, siswaIndex) => {
-                                  console.log('📊 Rendering siswa:', siswaIndex, siswa);
+                                  // console.log();
                                   return (
                                     <TableRow key={siswaIndex}>
                                     <TableCell>

@@ -158,7 +158,7 @@ const MonitoringDashboard: React.FC = () => {
 
     const testAlert = async (type: string, severity: string) => {
         try {
-            console.log(`🔔 Sending test alert: ${type} - ${severity}`);
+            // console.log();
             
             const response = await fetch(getApiUrl('/api/admin/test-alert'), {
                 method: 'POST',
@@ -169,7 +169,7 @@ const MonitoringDashboard: React.FC = () => {
             
             if (response.ok) {
                 const result = await response.json();
-                console.log('✅ Test alert sent successfully:', result);
+                // console.log();
                 
                 // Show success toast
                 toast({
