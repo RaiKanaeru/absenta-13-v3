@@ -634,7 +634,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         const errorData = await response.json();
         toast({
           title: "Error memuat jadwal",
-          description: errorData.error || 'Failed to load schedule',
+          description: (typeof errorData.error === 'string' ? errorData.error : errorData.error?.message) || 'Failed to load schedule',
           variant: "destructive"
         });
       }
@@ -745,7 +745,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           const errorData = await response.json();
           toast({
             title: "Error memuat jadwal",
-            description: errorData.error || 'Failed to load schedule',
+            description: (typeof errorData.error === 'string' ? errorData.error : errorData.error?.message) || 'Failed to load schedule',
             variant: "destructive"
           });
         } else {
