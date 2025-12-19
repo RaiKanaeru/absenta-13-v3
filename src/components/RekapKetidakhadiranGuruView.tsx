@@ -4,13 +4,15 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Badge } from './ui/badge';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { ArrowLeft, Download, Search, Users, Calendar, BarChart3 } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
 import SimpleLetterheadInit from './SimpleLetterheadInit';
+import { ReportLetterhead } from './ui/report-letterhead';
+import { ReportSummary } from './ui/report-summary';
 import { getCurrentYearWIB, formatDateOnly } from '../lib/time-utils';
+import { ACADEMIC_MONTHS, getMonthName } from '../lib/academic-constants';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 
@@ -70,21 +72,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
   // Use letterhead hook for consistent kop laporan
   const { letterhead } = useLetterhead('REPORT_REKAP_KETIDAKHADIRAN_GURU');
 
-  // Bulan dalam setahun
-  const months = [
-    { key: 'JUL', name: 'Juli', number: 7 },
-    { key: 'AGT', name: 'Agustus', number: 8 },
-    { key: 'SEP', name: 'September', number: 9 },
-    { key: 'OKT', name: 'Oktober', number: 10 },
-    { key: 'NOV', name: 'November', number: 11 },
-    { key: 'DES', name: 'Desember', number: 12 },
-    { key: 'JAN', name: 'Januari', number: 1 },
-    { key: 'FEB', name: 'Februari', number: 2 },
-    { key: 'MAR', name: 'Maret', number: 3 },
-    { key: 'APR', name: 'April', number: 4 },
-    { key: 'MEI', name: 'Mei', number: 5 },
-    { key: 'JUN', name: 'Juni', number: 6 }
-  ];
+  // Use shared academic months constant
 
 
   // Fetch rekap data
@@ -244,15 +232,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
     return data ? (data.persentase_kehadiran || 100) : 100;
   };
 
-  // Get hari efektif for month
-  const getHariEfektif = (monthNumber: number) => {
-    // Ini bisa disesuaikan dengan kalender akademik
-    const hariEfektifPerBulan = {
-      7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,
-      1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20
-    };
-    return hariEfektifPerBulan[monthNumber] || 20;
-  };
+  // Use shared getEffectiveDays from academic-constants instead of local function
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
@@ -334,7 +314,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                     <SelectValue placeholder="Pilih Bulan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {months.map((month) => (
+                    {ACADEMIC_MONTHS.map((month) => (
                       <SelectItem key={month.number} value={month.number.toString()}>
                         {month.name}
                       </SelectItem>
@@ -388,89 +368,19 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              {/* School Header */}
-              <div className="text-center mb-6 p-4 bg-white border-2 border-gray-300">
-                {letterhead && letterhead.enabled && letterhead.lines && letterhead.lines.length > 0 ? (
-                  <>
-                    {/* Logo kiri dan kanan jika tersedia */}
-                    {(letterhead.logoLeftUrl || letterhead.logoRightUrl) && (
-                      <div className="flex justify-between items-center mb-4">
-                        {letterhead.logoLeftUrl && (
-                          <img 
-                            src={letterhead.logoLeftUrl} 
-                            alt="Logo Kiri" 
-                            className="h-16 object-contain"
-                            onError={(e) => {
-                              console.warn('⚠️ Logo kiri gagal dimuat:', letterhead.logoLeftUrl);
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        )}
-                        <div className="flex-1"></div>
-                        {letterhead.logoRightUrl && (
-                          <img 
-                            src={letterhead.logoRightUrl} 
-                            alt="Logo Kanan" 
-                            className="h-16 object-contain"
-                            onError={(e) => {
-                              console.warn('⚠️ Logo kanan gagal dimuat:', letterhead.logoRightUrl);
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Baris teks kop laporan */}
-                    {letterhead.lines.map((line, index) => (
-                      <div 
-                        key={index} 
-                        className={`text-sm ${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'}`}
-                        style={{ textAlign: letterhead.alignment }}
-                      >
-                        {line.text}
-                      </div>
-                    ))}
-                    
-                    <div className="text-lg font-bold mt-4">
-                      REKAP KETIDAKHADIRAN GURU
-                    </div>
-                    <div className="text-sm">
-                      TAHUN PELAJARAN {selectedTahun}/{parseInt(selectedTahun) + 1}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-sm font-bold">
-                      PEMERINTAH DAERAH PROVINSI JAWA BARAT<br />
-                      DINAS PENDIDIKAN<br />
-                      CABANG DINAS PENDIDIKAN WILAYAH VII<br />
-                      SEKOLAH MENENGAH KEJURUAN NEGERI 13
-                    </div>
-                    <div className="text-xs mt-2">
-                      Jalan Soekarno - Hatta Km.10 Telepon (022) 7318960: Ext. 114<br />
-                      Telepon/Faksimil: (022) 7332252 – Bandung 40286<br />
-                      Email: smk13bdg@gmail.com Home page: http://www.smkn13.sch.id
-                    </div>
-                    <div className="text-lg font-bold mt-4">
-                      REKAP KETIDAKHADIRAN GURU
-                    </div>
-                    <div className="text-sm">
-                      TAHUN PELAJARAN {selectedTahun}/{parseInt(selectedTahun) + 1}
-                    </div>
-                  </>
-                )}
-                {viewMode === 'bulanan' && selectedBulan && (
-                  <div className="text-sm">
-                    BULAN {months.find(m => m.number.toString() === selectedBulan)?.name.toUpperCase()}
-                  </div>
-                )}
-                {viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir && (
-                  <div className="text-sm">
-                    PERIODE {formatDateOnly(selectedTanggalAwal)} - {formatDateOnly(selectedTanggalAkhir)}
-                  </div>
-                )}
-              </div>
+              {/* School Header - Using shared component */}
+              <ReportLetterhead
+                letterhead={letterhead}
+                reportTitle="REKAP KETIDAKHADIRAN GURU"
+                selectedTahun={selectedTahun}
+                periodInfo={
+                  viewMode === 'bulanan' && selectedBulan
+                    ? `BULAN ${getMonthName(parseInt(selectedBulan)).toUpperCase()}`
+                    : viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir
+                    ? `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`
+                    : undefined
+                }
+              />
 
               {/* Rekap Table */}
               <div className="border-2 border-gray-400">
@@ -481,7 +391,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                       <th className="border border-gray-300 p-2 text-center w-48">NAMA GURU</th>
                       {viewMode === 'tahunan' ? (
                         <>
-                          {months.map((month) => (
+                          {ACADEMIC_MONTHS.map((month) => (
                             <th key={month.key} className="border border-gray-300 p-2 text-center bg-blue-100">
                               {month.key}
                             </th>
@@ -489,7 +399,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                         </>
                       ) : viewMode === 'bulanan' ? (
                         <th className="border border-gray-300 p-2 text-center bg-blue-100">
-                          {months.find(m => m.number.toString() === selectedBulan)?.key}
+                          {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
                         </th>
                       ) : (
                         <th className="border border-gray-300 p-2 text-center bg-blue-100">
@@ -576,30 +486,13 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                 </table>
               </div>
 
-              {/* Summary Section */}
-              <div className="mt-4 text-sm">
-                <div className="font-bold">KETERANGAN:</div>
-                <div>S: Sakit | A: Alpa | I: Izin</div>
-                <div className="mt-2">
-                  <div className="font-bold">JUMLAH HARI EFEKTIF KERJA:</div>
-                  {viewMode === 'tahunan' ? (
-                    <div>Total dalam setahun: {months.reduce((total, month) => total + getHariEfektif(month.number), 0)} hari</div>
-                  ) : viewMode === 'bulanan' ? (
-                    <div>Bulan {months.find(m => m.number.toString() === selectedBulan)?.name}: {getHariEfektif(parseInt(selectedBulan))} hari</div>
-                  ) : (
-                    <div>Periode {selectedTanggalAwal} - {selectedTanggalAkhir}: {(() => {
-                      if (selectedTanggalAwal && selectedTanggalAkhir) {
-                        const start = new Date(selectedTanggalAwal);
-                        const end = new Date(selectedTanggalAkhir);
-                        const diffTime = Math.abs(end.getTime() - start.getTime());
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                        return diffDays;
-                      }
-                      return 0;
-                    })()} hari</div>
-                  )}
-                </div>
-              </div>
+              {/* Summary Section - Using shared component */}
+              <ReportSummary
+                viewMode={viewMode}
+                selectedBulan={selectedBulan}
+                selectedTanggalAwal={selectedTanggalAwal}
+                selectedTanggalAkhir={selectedTanggalAkhir}
+              />
             </div>
           </CardContent>
         </Card>
