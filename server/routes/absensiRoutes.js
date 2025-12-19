@@ -26,7 +26,9 @@ import {
     getClassAttendanceHistory,
     getStudentAttendanceStatus,
     recordTeacherAttendanceSimple,
-    getAbsensiHistory
+    getAbsensiHistory,
+    getStudentsForPiketAbsen,
+    submitStudentAttendanceByPiket
 } from '../controllers/absensiController.js';
 
 const router = express.Router();
@@ -100,6 +102,28 @@ router.post('/siswa/submit-kehadiran-guru', authenticateToken, requireRole(['sis
  * @body jadwal_id, guru_id, status, keterangan, tanggal_absen, ada_tugas
  */
 router.post('/siswa/update-status-guru', authenticateToken, requireRole(['siswa']), updateTeacherStatus);
+
+// ===========================
+// Student Attendance by Piket (when Guru absent)
+// ===========================
+
+/**
+ * @route GET /api/siswa/:siswa_id/daftar-siswa-absen
+ * @desc Get student list for piket to take attendance (only when guru is absent)
+ * @access Siswa (Class Representative)
+ * @param siswa_id - Piket student ID
+ * @query jadwal_id - Schedule ID
+ * @query tanggal - Target date
+ */
+router.get('/siswa/:siswa_id/daftar-siswa-absen', authenticateToken, requireRole(['siswa']), getStudentsForPiketAbsen);
+
+/**
+ * @route POST /api/siswa/submit-absensi-siswa
+ * @desc Submit student attendance by piket (only when guru is absent)
+ * @access Siswa (Class Representative)
+ * @body siswa_pencatat_id, jadwal_id, tanggal_absen, attendance_data (object)
+ */
+router.post('/siswa/submit-absensi-siswa', authenticateToken, requireRole(['siswa']), submitStudentAttendanceByPiket);
 
 // ===========================
 // Attendance History & Reports

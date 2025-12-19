@@ -376,7 +376,24 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
     const [pendingUpdates, setPendingUpdates] = useState<Set<string>>(new Set());
 
+  // State untuk Absen Kelas (ketika guru tidak hadir)
+  const [showAbsenKelasModal, setShowAbsenKelasModal] = useState(false);
+  const [absenKelasJadwalId, setAbsenKelasJadwalId] = useState<number | null>(null);
+  const [absenKelasGuruNama, setAbsenKelasGuruNama] = useState<string>('');
+  const [daftarSiswaKelas, setDaftarSiswaKelas] = useState<Array<{
+    id_siswa: number;
+    nis: string;
+    nama: string;
+    jenis_kelamin: string;
+    jabatan: string;
+    attendance_status: string;
+    keterangan: string;
+  }>>([]);
+  const [absenSiswaData, setAbsenSiswaData] = useState<{[key: number]: {status: string; keterangan: string}}>({});
+  const [loadingAbsenKelas, setLoadingAbsenKelas] = useState(false);
+
   console.log('StudentDashboard: Current state - siswaId:', siswaId, 'initialLoading:', initialLoading, 'error:', error);
+
 
   // Helper functions for expandable rows
   const toggleRowExpansion = (rowId: number) => {
@@ -1074,6 +1091,115 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       setLoading(false);
     }
   };
+
+  // Open Absen Kelas modal (when guru is absent)
+  const openAbsenKelasModal = async (jadwalId: number, guruNama: string) => {
+    if (!siswaId) return;
+    
+    setAbsenKelasJadwalId(jadwalId);
+    setAbsenKelasGuruNama(guruNama);
+    setLoadingAbsenKelas(true);
+    setShowAbsenKelasModal(true);
+    
+    try {
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/daftar-siswa-absen?jadwal_id=${jadwalId}`), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setDaftarSiswaKelas(data.data || []);
+        // Initialize default status for all students
+        const initialData: {[key: number]: {status: string; keterangan: string}} = {};
+        (data.data || []).forEach((siswa: { id_siswa: number; attendance_status?: string; keterangan?: string }) => {
+          initialData[siswa.id_siswa] = {
+            status: siswa.attendance_status || 'Hadir',
+            keterangan: siswa.keterangan || ''
+          };
+        });
+        setAbsenSiswaData(initialData);
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "Gagal memuat daftar siswa",
+          variant: "destructive"
+        });
+        setShowAbsenKelasModal(false);
+      }
+    } catch (error) {
+      console.error('Error loading students for piket attendance:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat daftar siswa",
+        variant: "destructive"
+      });
+      setShowAbsenKelasModal(false);
+    } finally {
+      setLoadingAbsenKelas(false);
+    }
+  };
+
+  // Submit student attendance by piket
+  const submitAbsenKelas = async () => {
+    if (!siswaId || !absenKelasJadwalId) return;
+    
+    setLoadingAbsenKelas(true);
+    
+    try {
+      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const cleanToken = rawToken ? rawToken.trim() : '';
+      
+      const response = await fetch(getApiUrl('/api/siswa/submit-absensi-siswa'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cleanToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          siswa_pencatat_id: siswaId,
+          jadwal_id: absenKelasJadwalId,
+          attendance_data: absenSiswaData
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Berhasil!",
+          description: `Absensi ${data.processed || Object.keys(absenSiswaData).length} siswa berhasil disimpan`,
+        });
+        setShowAbsenKelasModal(false);
+        setAbsenKelasJadwalId(null);
+        setDaftarSiswaKelas([]);
+        setAbsenSiswaData({});
+      } else {
+        toast({
+          title: "Gagal",
+          description: data.message || "Gagal menyimpan absensi siswa",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting piket attendance:', error);
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan absensi siswa",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingAbsenKelas(false);
+    }
+  };
+
 
   const updateKehadiranStatus = async (key: string | number, status: string) => {
     const keyStr = String(key);
@@ -1822,6 +1948,23 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                             Ada Tugas
                           </Label>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Tombol Absen Kelas - Muncul ketika guru Tidak Hadir */}
+                    {kehadiranData[jadwal.id_jadwal]?.status === 'Tidak Hadir' && !isEditMode && (
+                      <div className="mt-3">
+                        <Button
+                          onClick={() => openAbsenKelasModal(jadwal.id_jadwal, jadwal.nama_guru || 'Guru')}
+                          variant="outline"
+                          className="w-full bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          Absen Kelas (Guru Tidak Hadir)
+                        </Button>
+                        <p className="text-xs text-gray-500 mt-1 text-center">
+                          Klik untuk mengabsen siswa karena guru tidak hadir
+                        </p>
                       </div>
                     )}
 
@@ -3294,6 +3437,148 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       {/* Floating Font Size Control for Mobile */}
       <FontSizeControl variant="floating" className="lg:hidden" />
       
+      {/* Absen Kelas Modal (Piket mengabsen siswa ketika guru tidak hadir) */}
+      {showAbsenKelasModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-orange-600 text-white p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Absensi Siswa</h2>
+                  <p className="text-sm text-orange-100">
+                    Guru {absenKelasGuruNama} tidak hadir - Diabsen oleh Piket
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAbsenKelasModal(false);
+                    setAbsenKelasJadwalId(null);
+                    setDaftarSiswaKelas([]);
+                    setAbsenSiswaData({});
+                  }}
+                  className="p-1 hover:bg-orange-700 rounded"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="overflow-y-auto max-h-[60vh] p-4">
+              {loadingAbsenKelas ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                  <span className="ml-2">Memuat daftar siswa...</span>
+                </div>
+              ) : daftarSiswaKelas.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                  <p>Tidak ada siswa ditemukan</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                    <span>Total: {daftarSiswaKelas.length} siswa</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const newData: {[key: number]: {status: string; keterangan: string}} = {};
+                          daftarSiswaKelas.forEach(siswa => {
+                            newData[siswa.id_siswa] = { status: 'Hadir', keterangan: '' };
+                          });
+                          setAbsenSiswaData(newData);
+                        }}
+                        className="text-xs"
+                      >
+                        Semua Hadir
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {daftarSiswaKelas.map((siswa, index) => (
+                    <div key={siswa.id_siswa} className="border rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="text-xs text-gray-500 mr-2">{index + 1}.</span>
+                          <span className="font-medium">{siswa.nama}</span>
+                          <span className="text-xs text-gray-500 ml-2">({siswa.nis})</span>
+                          {siswa.jabatan && (
+                            <Badge variant="secondary" className="ml-2 text-xs">{siswa.jabatan}</Badge>
+                          )}
+                        </div>
+                        <Badge className={`text-xs ${
+                          siswa.jenis_kelamin === 'L' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                        }`}>
+                          {siswa.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-5 gap-1">
+                        {['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'].map(status => (
+                          <button
+                            key={status}
+                            onClick={() => setAbsenSiswaData(prev => ({
+                              ...prev,
+                              [siswa.id_siswa]: { ...prev[siswa.id_siswa], status }
+                            }))}
+                            className={`px-2 py-1 text-xs rounded border ${
+                              absenSiswaData[siswa.id_siswa]?.status === status
+                                ? status === 'Hadir' ? 'bg-green-500 text-white border-green-500'
+                                : status === 'Alpa' ? 'bg-red-500 text-white border-red-500'
+                                : 'bg-yellow-500 text-white border-yellow-500'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="border-t p-4 bg-gray-50">
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAbsenKelasModal(false);
+                    setAbsenKelasJadwalId(null);
+                    setDaftarSiswaKelas([]);
+                    setAbsenSiswaData({});
+                  }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={submitAbsenKelas}
+                  disabled={loadingAbsenKelas || daftarSiswaKelas.length === 0}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {loadingAbsenKelas ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Simpan Absensi
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Profile Modal */}
       {showEditProfile && (
         <EditProfile
