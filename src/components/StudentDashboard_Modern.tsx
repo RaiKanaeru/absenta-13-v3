@@ -35,7 +35,7 @@ const parseGuruList = (guruListString: string) => {
   }
   
   return guruListString.split('||').map(guruString => {
-    const [id_guru, nama_guru, nip, status_kehadiran, keterangan_guru, waktu_catat, is_primary] = guruString.split(':');
+    const [id_guru, nama_guru, nip, status_kehadiran, keterangan_guru, waktu_catat, is_primary, ada_tugas] = guruString.split(':');
     return {
       id_guru: parseInt(id_guru) || 0,
       nama_guru: nama_guru || '',
@@ -43,7 +43,8 @@ const parseGuruList = (guruListString: string) => {
       status_kehadiran: status_kehadiran || 'belum_diambil',
       keterangan_guru: keterangan_guru || '',
       waktu_catat: waktu_catat || '',
-      is_primary: parseInt(is_primary) === 1
+      is_primary: parseInt(is_primary) === 1,
+      ada_tugas: parseInt(ada_tugas) === 1
     };
   });
 };
@@ -618,6 +619,17 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
           }
         });
         setKehadiranData(initialKehadiran);
+        
+        // Initialize ada_tugas data from loaded jadwal
+        const initialAdaTugas: {[key: number]: boolean} = {};
+        processedData.forEach((jadwal: JadwalHariIni) => {
+          if (jadwal.is_absenable) {
+            // For single guru, use jadwal.ada_tugas
+            // For multi-guru, we'd need per-guru ada_tugas (future enhancement)
+            initialAdaTugas[jadwal.id_jadwal] = Boolean((jadwal as JadwalHariIni & {ada_tugas?: number}).ada_tugas);
+          }
+        });
+        setAdaTugasData(initialAdaTugas);
       } else {
         const errorData = await response.json();
         toast({
@@ -712,9 +724,19 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             }
           });
           setKehadiranData(initialKehadiran);
+          
+          // Initialize ada_tugas data from loaded jadwal (edit mode)
+          const initialAdaTugas: {[key: number]: boolean} = {};
+          processedData.forEach((jadwal: JadwalHariIni) => {
+            if (jadwal.is_absenable) {
+              initialAdaTugas[jadwal.id_jadwal] = Boolean((jadwal as JadwalHariIni & {ada_tugas?: number}).ada_tugas);
+            }
+          });
+          setAdaTugasData(initialAdaTugas);
         } else {
           setJadwalBerdasarkanTanggal([]);
           setKehadiranData({});
+          setAdaTugasData({});
         }
       } else {
         // Check if response is JSON before trying to parse

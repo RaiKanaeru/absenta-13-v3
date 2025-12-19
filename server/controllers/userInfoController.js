@@ -195,6 +195,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
                 COALESCE(ag.status, 'belum_diambil') as status_kehadiran,
                 COALESCE(ag.keterangan, '') as keterangan,
                 COALESCE(ag.waktu_catat, '') as waktu_catat,
+                COALESCE(ag.ada_tugas, 0) as ada_tugas,
                 rk.kode_ruang,
                 rk.nama_ruang,
                 j.jenis_aktivitas,
@@ -209,7 +210,8 @@ export const getSiswaJadwalHariIni = async (req, res) => {
                         COALESCE(ag2.status, 'belum_diambil'), ':', 
                         COALESCE(ag2.keterangan, ''), ':',
                         COALESCE(ag2.waktu_catat, ''), ':',
-                        COALESCE(jg2.is_primary, 0)
+                        COALESCE(jg2.is_primary, 0), ':',
+                        COALESCE(ag2.ada_tugas, 0)
                     ) 
                     ORDER BY jg2.is_primary DESC, g2.nama ASC 
                     SEPARATOR '||'
@@ -301,6 +303,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
                 COALESCE(ag.status, 'belum_diambil') as status_kehadiran,
                 COALESCE(ag.keterangan, '') as keterangan,
                 COALESCE(ag.waktu_catat, '') as waktu_catat,
+                COALESCE(ag.ada_tugas, 0) as ada_tugas,
                 rk.kode_ruang,
                 rk.nama_ruang,
                 j.jenis_aktivitas,
@@ -315,7 +318,8 @@ export const getSiswaJadwalRentang = async (req, res) => {
                         COALESCE(ag2.status, 'belum_diambil'), ':', 
                         COALESCE(ag2.keterangan, ''), ':',
                         COALESCE(ag2.waktu_catat, ''), ':',
-                        COALESCE(jg2.is_primary, 0)
+                        COALESCE(jg2.is_primary, 0), ':',
+                        COALESCE(ag2.ada_tugas, 0)
                     ) 
                     ORDER BY jg2.is_primary DESC, g2.nama ASC 
                     SEPARATOR '||'
