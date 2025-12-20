@@ -11,6 +11,9 @@
 import ExcelJS from 'exceljs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('TemplateExport');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,10 +32,10 @@ export async function loadTemplate(templateName) {
     const workbook = new ExcelJS.Workbook();
     try {
         await workbook.xlsx.readFile(templatePath);
-        console.log(`📋 Template loaded: ${templateName}`);
+        logger.info('Template loaded', { templateName });
         return workbook;
     } catch (error) {
-        console.error(`❌ Failed to load template: ${templateName}`, error.message);
+        logger.error('Failed to load template', { templateName, error: error.message });
         throw new Error(`Template file not found: ${templateName}. Please copy template files to server/templates/excel/`);
     }
 }
@@ -84,7 +87,7 @@ export function fillCells(worksheet, data, mapping, startRow) {
         });
     });
     
-    console.log(`✅ Filled ${data.length} rows starting at row ${startRow}`);
+    logger.debug('Filled rows', { count: data.length, startRow });
 }
 
 /**

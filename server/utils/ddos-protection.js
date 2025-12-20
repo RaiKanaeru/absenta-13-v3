@@ -13,6 +13,9 @@
 
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('DDoS');
 
 // ================================================
 // CONFIGURATION
@@ -423,7 +426,7 @@ class DDoSProtection extends EventEmitter {
         
         // Silent block - logged internally only
         if (process.env.DEBUG_DDOS === 'true') {
-            console.log(`[DDoS] IP ${ip} blocked (${permanent ? 'permanent' : 'temporary'}) - Reason: ${reason}`);
+            logger.debug('IP blocked', { ip, type: permanent ? 'permanent' : 'temporary', reason });
         }
     }
     

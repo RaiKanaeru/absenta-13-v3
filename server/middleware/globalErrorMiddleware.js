@@ -13,6 +13,9 @@
  */
 
 import { sendErrorResponse, ERROR_CODES, AppError, generateRequestId } from '../utils/errorHandler.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('ErrorMiddleware');
 
 // ================================================
 // REQUEST ID MIDDLEWARE
@@ -40,7 +43,7 @@ export function requestIdMiddleware(req, res, next) {
 export function notFoundHandler(req, res, next) {
     const requestId = res.locals?.requestId || generateRequestId();
     
-    console.log(`⚠️ [${requestId}] 404 Not Found: ${req.method} ${req.originalUrl}`);
+    logger.warn('404 Not Found', { requestId, method: req.method, url: req.originalUrl });
     
     res.status(404).json({
         success: false,
@@ -69,7 +72,8 @@ export function globalErrorHandler(err, req, res, next) {
     const isDevelopment = process.env.NODE_ENV !== 'production';
     
     // Log error details
-    console.error(`❌ [${requestId}] Unhandled Error:`, {
+    logger.error('Unhandled Error', {
+        requestId,
         message: err.message,
         code: err.code,
         name: err.name,

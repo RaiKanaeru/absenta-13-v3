@@ -10,6 +10,9 @@ dotenv.config();
 import mysql from 'mysql2/promise';
 import fs from 'fs/promises';
 import path from 'path';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('DbOptimization');
 
 class DatabaseOptimization {
     constructor() {
@@ -40,7 +43,7 @@ class DatabaseOptimization {
      * Initialize database optimization system
      */
     async initialize() {
-        console.log('🚀 Initializing Database Optimization System...');
+        logger.info('Initializing Database Optimization System');
         
         try {
             // Create connection pool
@@ -58,11 +61,11 @@ class DatabaseOptimization {
             // Create archive tables
             await this.createArchiveTables();
             
-            console.log('✅ Database Optimization System initialized successfully');
+            logger.info('Database Optimization System initialized successfully');
             return true;
             
         } catch (error) {
-            console.error('❌ Database optimization initialization failed:', error);
+            logger.error('Database optimization initialization failed', error);
             throw error;
         }
     }
@@ -71,7 +74,7 @@ class DatabaseOptimization {
      * Create connection pool for handling concurrent users
      */
     async createConnectionPool() {
-        console.log('🔄 Creating database connection pool...');
+        logger.info('Creating database connection pool');
         
         try {
             this.pool = mysql.createPool(this.poolConfig);
@@ -81,11 +84,11 @@ class DatabaseOptimization {
             await testConnection.execute('SELECT 1');
             testConnection.release();
             
-            console.log('✅ Connection pool created successfully');
-            console.log(`📊 Pool config: ${this.poolConfig.connectionLimit} connections, ${this.poolConfig.acquireTimeout}ms timeout`);
+            logger.info('Connection pool created successfully');
+            logger.debug('Pool config', { connectionLimit: this.poolConfig.connectionLimit, acquireTimeout: this.poolConfig.acquireTimeout });
             
         } catch (error) {
-            console.error('❌ Failed to create connection pool:', error);
+            logger.error('Failed to create connection pool', error);
             throw error;
         }
     }
@@ -94,7 +97,7 @@ class DatabaseOptimization {
      * Backup current database before optimization
      */
     async backupDatabase() {
-        console.log('💾 Creating database backup...');
+        logger.info('Creating database backup');
         
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -105,13 +108,13 @@ class DatabaseOptimization {
             await fs.mkdir(backupDir, { recursive: true });
             
             // Create backup using mysqldump (if available) or manual export
-            console.log(`📁 Backup will be saved to: ${backupFile}`);
-            console.log('⚠️  Manual backup recommended: mysqldump -u root absenta13 > absenta13_backup.sql');
+            logger.debug('Backup location', { backupFile });
+            logger.warn('Manual backup recommended: mysqldump -u root absenta13 > absenta13_backup.sql');
             
-            console.log('✅ Database backup process initiated');
+            logger.info('Database backup process initiated');
             
         } catch (error) {
-            console.error('❌ Database backup failed:', error);
+            logger.error('Database backup failed', error);
             throw error;
         }
     }
@@ -120,7 +123,7 @@ class DatabaseOptimization {
      * Add optimized indexes for better query performance
      */
     async addDatabaseIndexes() {
-        console.log('🔍 Adding database indexes for optimization...');
+        logger.info('Adding database indexes for optimization');
         
         const indexes = [
             // Indexes for absensi_siswa table
@@ -183,19 +186,19 @@ class DatabaseOptimization {
                     if (existingIndexes.length === 0) {
                         const sql = `ALTER TABLE ${index.table} ADD INDEX ${index.name} ${index.columns}`;
                         await this.pool.execute(sql);
-                        console.log(`✅ Added index: ${index.name} on ${index.table} - ${index.description}`);
+                        logger.info('Added index', { name: index.name, table: index.table, description: index.description });
                     } else {
-                        console.log(`⏭️  Index already exists: ${index.name} on ${index.table}`);
+                        logger.debug('Index already exists', { name: index.name, table: index.table });
                     }
                 } catch (indexError) {
-                    console.warn(`⚠️  Failed to add index ${index.name}:`, indexError.message);
+                    logger.warn('Failed to add index', { name: index.name, error: indexError.message });
                 }
             }
             
-            console.log('✅ Database indexing completed');
+            logger.info('Database indexing completed');
             
         } catch (error) {
-            console.error('❌ Database indexing failed:', error);
+            logger.error('Database indexing failed', error);
             throw error;
         }
     }
@@ -204,7 +207,7 @@ class DatabaseOptimization {
      * Test query performance before and after optimization
      */
     async testQueryPerformance() {
-        console.log('🧪 Testing query performance...');
+        logger.info('Testing query performance');
         
         const testQueries = [
             {
@@ -237,13 +240,13 @@ class DatabaseOptimization {
                 const executionTime = endTime - startTime;
                 
                 const status = executionTime <= test.expectedTime ? '✅' : '⚠️';
-                console.log(`${status} ${test.name}: ${executionTime}ms (expected: ${test.expectedTime}ms)`);
+                logger.debug('Query test', { name: test.name, executionTime, expectedTime: test.expectedTime, passed: executionTime <= test.expectedTime });
             }
             
-            console.log('✅ Query performance testing completed');
+            logger.info('Query performance testing completed');
             
         } catch (error) {
-            console.error('❌ Query performance testing failed:', error);
+            logger.error('Query performance testing failed', error);
             throw error;
         }
     }
@@ -252,7 +255,7 @@ class DatabaseOptimization {
      * Create archive tables for data partitioning
      */
     async createArchiveTables() {
-        console.log('📦 Creating archive tables for data partitioning...');
+        logger.info('Creating archive tables for data partitioning');
         
         const archiveTables = [
             {
@@ -285,16 +288,16 @@ class DatabaseOptimization {
                         `ALTER TABLE ${table.name} ADD COLUMN archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
                     );
                     
-                    console.log(`✅ Created archive table: ${table.name} - ${table.description}`);
+                    logger.info('Created archive table', { name: table.name, description: table.description });
                 } else {
-                    console.log(`⏭️  Archive table already exists: ${table.name}`);
+                    logger.debug('Archive table already exists', { name: table.name });
                 }
             }
             
-            console.log('✅ Archive tables creation completed');
+            logger.info('Archive tables creation completed');
             
         } catch (error) {
-            console.error('❌ Archive tables creation failed:', error);
+            logger.error('Archive tables creation failed', error);
             throw error;
         }
     }
@@ -303,7 +306,7 @@ class DatabaseOptimization {
      * Archive old data to improve performance
      */
     async archiveOldData(monthsOld = 12) {
-        console.log(`📦 Archiving data older than ${monthsOld} months...`);
+        logger.info('Archiving old data', { monthsOld });
         
         try {
             const cutoffDate = new Date();
@@ -339,12 +342,12 @@ class DatabaseOptimization {
                 [cutoffDateStr]
             );
 
-            console.log(`✅ Archived ${studentArchiveResult.affectedRows} student records`);
-            console.log(`✅ Archived ${teacherArchiveResult.affectedRows} teacher records`);
-            console.log('✅ Data archiving completed');
+            logger.info('Archived student records', { count: studentArchiveResult.affectedRows });
+            logger.info('Archived teacher records', { count: teacherArchiveResult.affectedRows });
+            logger.info('Data archiving completed');
             
         } catch (error) {
-            console.error('❌ Data archiving failed:', error);
+            logger.error('Data archiving failed', error);
             throw error;
         }
     }
@@ -401,7 +404,7 @@ class DatabaseOptimization {
     async close() {
         if (this.pool) {
             await this.pool.end();
-            console.log('✅ Database connection pool closed');
+            logger.info('Database connection pool closed');
         }
     }
 }
@@ -415,21 +418,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     
     try {
         await dbOptimization.initialize();
-        console.log('🎉 Database optimization completed successfully!');
+        logger.info('Database optimization completed successfully');
         
         // Show pool statistics
         const stats = dbOptimization.getPoolStats();
         if (stats) {
-            console.log('📊 Connection Pool Statistics:');
-            console.log(`   Total Connections: ${stats.totalConnections}`);
-            console.log(`   Active Connections: ${stats.activeConnections}`);
-            console.log(`   Idle Connections: ${stats.idleConnections}`);
-            console.log(`   Queued Requests: ${stats.queuedRequests}`);
+            logger.debug('Connection Pool Statistics', { totalConnections: stats.totalConnections, activeConnections: stats.activeConnections, idleConnections: stats.idleConnections, queuedRequests: stats.queuedRequests });
         }
         
         process.exit(0);
     } catch (error) {
-        console.error('💥 Database optimization failed:', error);
+        logger.error('Database optimization failed', error);
         process.exit(1);
     }
 }
