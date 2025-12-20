@@ -4,6 +4,9 @@
  */
 
 import mysql from 'mysql2/promise';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('QueryOptimizer');
 
 class QueryOptimizer {
     constructor(pool) {
@@ -12,7 +15,7 @@ class QueryOptimizer {
         this.queryCache = new Map();
         this.queryStats = new Map();
         
-        console.log('🔍 Query Optimizer initialized');
+        logger.info('Query Optimizer initialized');
     }
     
     /**
@@ -21,9 +24,9 @@ class QueryOptimizer {
     async initialize() {
         try {
             // Skip stored procedures and prepared statements for MySQL2 compatibility
-            console.log('✅ Query Optimizer initialized successfully');
+            logger.info('Query Optimizer initialized successfully');
         } catch (error) {
-            console.error('❌ Failed to initialize Query Optimizer:', error);
+            logger.error('Failed to initialize Query Optimizer', error);
             throw error;
         }
     }
@@ -174,7 +177,7 @@ class QueryOptimizer {
             try {
                 await this.pool.execute(procedure);
             } catch (error) {
-                console.error('Error creating stored procedure:', error);
+                logger.error('Error creating stored procedure', error);
                 // Continue with other procedures
             }
         }
@@ -228,7 +231,7 @@ class QueryOptimizer {
                 const prepared = await this.pool.prepare(stmt.sql);
                 this.preparedStatements.set(stmt.name, prepared);
             } catch (error) {
-                console.error(`Error preparing statement ${stmt.name}:`, error);
+                logger.error('Error preparing statement', { name: stmt.name, error: error.message });
             }
         }
     }
@@ -377,7 +380,7 @@ class QueryOptimizer {
      */
     clearCache() {
         this.queryCache.clear();
-        console.log('🧹 Query cache cleared');
+        logger.info('Query cache cleared');
     }
     
     /**
@@ -399,7 +402,7 @@ class QueryOptimizer {
             const [rows] = await this.pool.execute(explainQuery, params);
             return rows;
         } catch (error) {
-            console.error('Error analyzing query:', error);
+            logger.error('Error analyzing query', error);
             return null;
         }
     }
@@ -413,7 +416,7 @@ class QueryOptimizer {
         this.queryCache.clear();
         this.queryStats.clear();
         
-        console.log('🧹 Query Optimizer cleaned up');
+        logger.info('Query Optimizer cleaned up');
     }
 }
 

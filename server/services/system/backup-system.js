@@ -14,6 +14,9 @@ import path from 'path';
 import { createWriteStream } from 'fs';
 import { spawn } from 'child_process';
 import cron from 'node-cron';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Backup');
 
 class BackupSystem {
     constructor() {
