@@ -362,7 +362,7 @@ const importJadwal = async (req, res) => {
         const allowedDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2; // Excel row number
 
@@ -372,26 +372,26 @@ const importJadwal = async (req, res) => {
 
                 if (isBasicFormat) {
                     // Format biasa - langsung pakai ID
-                    kelas_id = r.kelas_id;
-                    mapel_id = r.mapel_id || null;
-                    guru_id = r.guru_id || null;
-                    ruang_id = r.ruang_id || null;
+                    kelas_id = rowData.kelas_id;
+                    mapel_id = rowData.mapel_id || null;
+                    guru_id = rowData.guru_id || null;
+                    ruang_id = rowData.ruang_id || null;
 
                     // Dukungan multi-guru via kolom guru_ids (comma-separated IDs)
-                    if (r.guru_ids) {
-                        const raw = String(r.guru_ids).split(',');
+                    if (rowData.guru_ids) {
+                        const raw = String(rowData.guru_ids).split(',');
                         guru_ids_array = raw
                             .map(v => Number(String(v).trim()))
                             .filter(v => Number.isFinite(v));
                     }
                 } else {
                     // Format friendly - mapping nama ke ID
-                    kelas_id = await mapKelasByName(r.Kelas || r.kelas);
-                    mapel_id = await mapMapelByName(r['Mata Pelajaran'] || r.mapel);
+                    kelas_id = await mapKelasByName(rowData.Kelas || rowData.kelas);
+                    mapel_id = await mapMapelByName(rowData['Mata Pelajaran'] || rowData.mapel);
                     
                     // Bisa multi nama guru dipisah koma dari kolom Guru
-                    if (r.Guru || r.guru) {
-                        const guruNames = String(r.Guru || r.guru)
+                    if (rowData.Guru || rowData.guru) {
+                        const guruNames = String(rowData.Guru || rowData.guru)
                             .split(',')
                             .map(s => s.trim())
                             .filter(s => s.length > 0);
@@ -402,8 +402,8 @@ const importJadwal = async (req, res) => {
                     }
 
                     // Dukungan guru tambahan dari kolom "Guru Tambahan"
-                    if (r['Guru Tambahan'] || r.guru_tambahan) {
-                        const guruTambahanNames = String(r['Guru Tambahan'] || r.guru_tambahan)
+                    if (rowData['Guru Tambahan'] || rowData.guru_tambahan) {
+                        const guruTambahanNames = String(rowData['Guru Tambahan'] || rowData.guru_tambahan)
                             .split(',')
                             .map(s => s.trim())
                             .filter(s => s.length > 0);
@@ -417,31 +417,31 @@ const importJadwal = async (req, res) => {
                     
                     // Jika tidak ada daftar, fallback single guru
                     if (guru_ids_array.length === 0) {
-                        guru_id = await mapGuruByName(r.Guru || r.guru);
+                        guru_id = await mapGuruByName(rowData.Guru || rowData.guru);
                     } else {
                         guru_id = guru_ids_array[0];
                     }
-                    ruang_id = await mapRuangByKode(r['Kode Ruang'] || r.ruang);
+                    ruang_id = await mapRuangByKode(rowData['Kode Ruang'] || rowData.ruang);
 
                     // Validasi mapping
                     if (!kelas_id) {
-                        rowErrors.push(`Kelas "${r.Kelas || r.kelas}" tidak ditemukan`);
+                        rowErrors.push(`Kelas "${rowData.Kelas || rowData.kelas}" tidak ditemukan`);
                     }
 
-                    const jenisAktivitas = r.jenis_aktivitas || r['Jenis Aktivitas'] || 'pelajaran';
+                    const jenisAktivitas = rowData.jenis_aktivitas || rowData['Jenis Aktivitas'] || 'pelajaran';
                     if (jenisAktivitas === 'pelajaran') {
                         // Untuk pelajaran, mata pelajaran dan guru wajib
                         if (!mapel_id) {
-                            rowErrors.push(`Mata pelajaran "${r['Mata Pelajaran'] || r.mapel}" tidak ditemukan`);
+                            rowErrors.push(`Mata pelajaran "${rowData['Mata Pelajaran'] || rowData.mapel}" tidak ditemukan`);
                         }
                         // Minimal 1 guru (dari guru_id atau guru_ids)
                         if (!guru_id && guru_ids_array.length === 0) {
-                            rowErrors.push(`Guru "${r.Guru || r.guru || r.guru_ids}" tidak ditemukan`);
+                            rowErrors.push(`Guru "${rowData.Guru || rowData.guru || rowData.guru_ids}" tidak ditemukan`);
                         }
                     } else {
                         // Untuk non-pelajaran, mata pelajaran dan guru opsional
                         // Keterangan khusus wajib untuk non-pelajaran
-                        const keteranganKhusus = r.keterangan_khusus || r['Keterangan Khusus'] || r['keterangan_khusus'];
+                        const keteranganKhusus = rowData.keterangan_khusus || rowData['Keterangan Khusus'] || rowData['keterangan_khusus'];
                         if (!keteranganKhusus || keteranganKhusus.trim() === '') {
                             rowErrors.push(`Keterangan khusus wajib untuk jenis aktivitas "${jenisAktivitas}"`);
                         }
@@ -449,19 +449,19 @@ const importJadwal = async (req, res) => {
                 }
 
                 // Validasi umum - perbaiki field mapping
-                if (!r.hari && !r.Hari && !r['hari']) rowErrors.push('hari wajib');
-                if (!r.jam_ke && !r['Jam Ke'] && !r['jam_ke']) rowErrors.push('jam_ke wajib');
-                if (!r.jam_mulai && !r['Jam Mulai'] && !r['jam_mulai']) rowErrors.push('jam_mulai wajib');
-                if (!r.jam_selesai && !r['Jam Selesai'] && !r['jam_selesai']) rowErrors.push('jam_selesai wajib');
+                if (!rowData.hari && !rowData.Hari && !rowData['hari']) rowErrors.push('hari wajib');
+                if (!rowData.jam_ke && !rowData['Jam Ke'] && !rowData['jam_ke']) rowErrors.push('jam_ke wajib');
+                if (!rowData.jam_mulai && !rowData['Jam Mulai'] && !rowData['jam_mulai']) rowErrors.push('jam_mulai wajib');
+                if (!rowData.jam_selesai && !rowData['Jam Selesai'] && !rowData['jam_selesai']) rowErrors.push('jam_selesai wajib');
 
-                const hari = r.hari || r.Hari || r['hari'];
+                const hari = rowData.hari || rowData.Hari || rowData['hari'];
                 if (hari && !allowedDays.includes(String(hari))) {
                     rowErrors.push('hari tidak valid');
                 }
 
                 // Validasi format jam 24 jam
-                const jamMulai = r.jam_mulai || r['Jam Mulai'] || r['jam_mulai'];
-                const jamSelesai = r.jam_selesai || r['Jam Selesai'] || r['jam_selesai'];
+                const jamMulai = rowData.jam_mulai || rowData['Jam Mulai'] || rowData['jam_mulai'];
+                const jamSelesai = rowData.jam_selesai || rowData['Jam Selesai'] || rowData['jam_selesai'];
 
                 if (jamMulai && !validateTimeFormat(String(jamMulai))) {
                     rowErrors.push(`Format jam mulai "${jamMulai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
@@ -482,13 +482,13 @@ const importJadwal = async (req, res) => {
                 if (rowErrors.length) {
                     errors.push({ index: rowNum, errors: rowErrors });
                 } else {
-                    const jenisAktivitas = r.jenis_aktivitas || r['Jenis Aktivitas'] || r['jenis_aktivitas'] || 'pelajaran';
+                    const jenisAktivitas = rowData.jenis_aktivitas || rowData['Jenis Aktivitas'] || rowData['jenis_aktivitas'] || 'pelajaran';
                     const isAbsenable = jenisAktivitas === 'pelajaran' ? 1 : 0;
-                    const keteranganKhusus = r.keterangan_khusus || r['Keterangan Khusus'] || r['keterangan_khusus'] || null;
+                    const keteranganKhusus = rowData.keterangan_khusus || rowData['Keterangan Khusus'] || rowData['keterangan_khusus'] || null;
                     
                     // Normalisasi guru_ids untuk kedua format
-                    if (guru_ids_array.length === 0 && r.guru_ids) {
-                        const raw = String(r.guru_ids).split(',');
+                    if (guru_ids_array.length === 0 && rowData.guru_ids) {
+                        const raw = String(rowData.guru_ids).split(',');
                         guru_ids_array = raw
                             .map(v => Number(String(v).trim()))
                             .filter(v => Number.isFinite(v));
@@ -504,9 +504,9 @@ const importJadwal = async (req, res) => {
                         guru_id: primaryGuru ? Number(primaryGuru) : null,
                         ruang_id: ruang_id ? Number(ruang_id) : null,
                         hari: String(hari),
-                        jam_ke: Number(r.jam_ke || r['Jam Ke'] || r['jam_ke']),
-                        jam_mulai: String(r.jam_mulai || r['Jam Mulai'] || r['jam_mulai']),
-                        jam_selesai: String(r.jam_selesai || r['Jam Selesai'] || r['jam_selesai']),
+                        jam_ke: Number(rowData.jam_ke || rowData['Jam Ke'] || rowData['jam_ke']),
+                        jam_mulai: String(rowData.jam_mulai || rowData['Jam Mulai'] || rowData['jam_mulai']),
+                        jam_selesai: String(rowData.jam_selesai || rowData['Jam Selesai'] || rowData['jam_selesai']),
                         jenis_aktivitas: jenisAktivitas,
                         is_absenable: isAbsenable,
                         keterangan_khusus: keteranganKhusus,
@@ -613,20 +613,20 @@ const importStudentAccount = async (req, res) => {
         }
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2; // Excel row number
 
             try {
                 // Validasi field wajib
-                if (!r.nama && !r['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
-                if (!r.username && !r['Username *']) rowErrors.push('Username wajib diisi');
-                if (!r.password && !r['Password *']) rowErrors.push('Password wajib diisi');
-                if (!r.nis && !r['NIS *']) rowErrors.push('NIS wajib diisi');
-                if (!r.kelas && !r['Kelas *']) rowErrors.push('Kelas wajib diisi');
+                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
+                if (!rowData.username && !rowData['Username *']) rowErrors.push('Username wajib diisi');
+                if (!rowData.password && !rowData['Password *']) rowErrors.push('Password wajib diisi');
+                if (!rowData.nis && !rowData['NIS *']) rowErrors.push('NIS wajib diisi');
+                if (!rowData.kelas && !rowData['Kelas *']) rowErrors.push('Kelas wajib diisi');
 
                 // Validasi NIS
-                const nis = r.nis || r['NIS *'];
+                const nis = rowData.nis || rowData['NIS *'];
                 if (nis) {
                     const nisValue = String(nis).trim();
                     if (nisValue.length < 8) rowErrors.push('NIS minimal 8 karakter');
@@ -642,7 +642,7 @@ const importStudentAccount = async (req, res) => {
                 }
 
                 // Validasi Username
-                const username = r.username || r['Username *'];
+                const username = rowData.username || rowData['Username *'];
                 if (username) {
                     const usernameValue = String(username).trim();
                     if (usernameValue.length < 4) rowErrors.push('Username minimal 4 karakter');
@@ -658,19 +658,19 @@ const importStudentAccount = async (req, res) => {
                 }
 
                 // Validasi Password
-                const password = r.password || r['Password *'];
+                const password = rowData.password || rowData['Password *'];
                 if (password && String(password).trim().length < 6) {
                     rowErrors.push('Password minimal 6 karakter');
                 }
 
                 // Validasi email
-                const email = r.email || r.Email;
+                const email = rowData.email || rowData.Email;
                 if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
                     rowErrors.push('Format email tidak valid');
                 }
 
                 // Validasi jenis kelamin
-                const jenisKelamin = r.jenis_kelamin || r['Jenis Kelamin'];
+                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
                 if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
                     rowErrors.push('Jenis kelamin harus L atau P');
                 }
@@ -679,12 +679,12 @@ const importStudentAccount = async (req, res) => {
                     errors.push({ index: rowNum, errors: rowErrors });
                 } else {
                     valid.push({
-                        nama: String(r.nama || r['Nama Lengkap *']).trim(),
+                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
                         username: String(username).trim(),
                         password: String(password).trim(),
                         nis: String(nis).trim(),
-                        kelas: String(r.kelas || r['Kelas *']).trim(),
-                        jabatan: (r.jabatan || r.Jabatan) ? String(r.jabatan || r.Jabatan).trim() : null,
+                        kelas: String(rowData.kelas || rowData['Kelas *']).trim(),
+                        jabatan: (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null,
                         jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
                         email: email ? String(email).trim() : null
                     });
@@ -859,19 +859,19 @@ const importTeacherAccount = async (req, res) => {
         }
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2;
 
             try {
                 // Validasi field wajib
-                if (!r.nama && !r['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
-                if (!r.username && !r['Username *']) rowErrors.push('Username wajib diisi');
-                if (!r.password && !r['Password *']) rowErrors.push('Password wajib diisi');
-                if (!r.nip && !r['NIP *']) rowErrors.push('NIP wajib diisi');
+                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
+                if (!rowData.username && !rowData['Username *']) rowErrors.push('Username wajib diisi');
+                if (!rowData.password && !rowData['Password *']) rowErrors.push('Password wajib diisi');
+                if (!rowData.nip && !rowData['NIP *']) rowErrors.push('NIP wajib diisi');
 
                 // Validasi NIP
-                const nip = r.nip || r['NIP *'];
+                const nip = rowData.nip || rowData['NIP *'];
                 if (nip) {
                     const nipValue = String(nip).trim();
                     if (nipValue.length < 8) rowErrors.push('NIP minimal 8 karakter');
@@ -886,7 +886,7 @@ const importTeacherAccount = async (req, res) => {
                 }
 
                 // Validasi Username
-                const username = r.username || r['Username *'];
+                const username = rowData.username || rowData['Username *'];
                 if (username) {
                     const usernameValue = String(username).trim();
                     if (usernameValue.length < 4) rowErrors.push('Username minimal 4 karakter');
@@ -902,31 +902,31 @@ const importTeacherAccount = async (req, res) => {
                 }
 
                 // Validasi Password
-                const password = r.password || r['Password *'];
+                const password = rowData.password || rowData['Password *'];
                 if (password && String(password).trim().length < 6) {
                     rowErrors.push('Password minimal 6 karakter');
                 }
 
                 // Validasi email
-                const email = r.email || r.Email;
+                const email = rowData.email || rowData.Email;
                 if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
                     rowErrors.push('Format email tidak valid');
                 }
 
                 // Validasi jenis kelamin
-                const jenisKelamin = r.jenis_kelamin || r['Jenis Kelamin'];
+                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
                 if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
                     rowErrors.push('Jenis kelamin harus L atau P');
                 }
 
                 // Validasi no telepon
-                const noTelp = r.no_telp || r['No. Telepon'];
+                const noTelp = rowData.no_telp || rowData['No. Telepon'];
                 if (noTelp && String(noTelp).length < 10) {
                     rowErrors.push('Nomor telepon minimal 10 digit');
                 }
 
                 // Validasi status
-                const status = r.status || r.Status;
+                const status = rowData.status || rowData.Status;
                 if (status && !['aktif', 'nonaktif'].includes(String(status).toLowerCase())) {
                     rowErrors.push('Status harus aktif atau nonaktif');
                 }
@@ -935,15 +935,15 @@ const importTeacherAccount = async (req, res) => {
                     errors.push({ index: rowNum, errors: rowErrors });
                 } else {
                     valid.push({
-                        nama: String(r.nama || r['Nama Lengkap *']).trim(),
+                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
                         nip: String(nip).trim(),
                         username: String(username).trim(),
                         password: String(password).trim(),
                         email: email ? String(email).trim() : null,
                         no_telp: noTelp ? String(noTelp).trim() : null,
                         jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-                        mata_pelajaran: (r.mata_pelajaran || r['Mata Pelajaran']) ? String(r.mata_pelajaran || r['Mata Pelajaran']).trim() : null,
-                        alamat: (r.alamat || r.Alamat) ? String(r.alamat || r.Alamat).trim() : null,
+                        mata_pelajaran: (rowData.mata_pelajaran || rowData['Mata Pelajaran']) ? String(rowData.mata_pelajaran || rowData['Mata Pelajaran']).trim() : null,
+                        alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
                         status: status ? String(status) : 'aktif'
                     });
                 }
@@ -1101,18 +1101,18 @@ const importSiswa = async (req, res) => {
         }
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2;
 
             try {
                 // Validasi field wajib
-                if (!r.nis && !r['NIS *']) rowErrors.push('NIS wajib diisi');
-                if (!r.nama && !r['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
-                if (!r.kelas && !r['Kelas *']) rowErrors.push('Kelas wajib diisi');
+                if (!rowData.nis && !rowData['NIS *']) rowErrors.push('NIS wajib diisi');
+                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
+                if (!rowData.kelas && !rowData['Kelas *']) rowErrors.push('Kelas wajib diisi');
 
                 // Validasi NIS
-                const nis = r.nis || r['NIS *'];
+                const nis = rowData.nis || rowData['NIS *'];
                 if (nis) {
                     const nisValue = String(nis).trim();
                     if (nisValue.length < 8) rowErrors.push('NIS minimal 8 karakter');
@@ -1128,13 +1128,13 @@ const importSiswa = async (req, res) => {
                 }
 
                 // Validasi email
-                const email = r.email || r.Email;
+                const email = rowData.email || rowData.Email;
                 if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
                     rowErrors.push('Format email tidak valid');
                 }
 
                 // Validasi jenis kelamin
-                const jenisKelamin = r.jenis_kelamin || r['Jenis Kelamin'];
+                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
                 if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
                     rowErrors.push('Jenis kelamin harus L atau P');
                 }
@@ -1144,13 +1144,13 @@ const importSiswa = async (req, res) => {
                 } else {
                     valid.push({
                         nis: String(nis).trim(),
-                        nama: String(r.nama || r['Nama Lengkap *']).trim(),
-                        kelas: String(r.kelas || r['Kelas *']).trim(),
+                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
+                        kelas: String(rowData.kelas || rowData['Kelas *']).trim(),
                         jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-                        telepon_orangtua: (r.telepon_orangtua || r['Telepon Orang Tua']) ? String(r.telepon_orangtua || r['Telepon Orang Tua']).trim() : null,
-                        nomor_telepon_siswa: (r.nomor_telepon_siswa || r['Nomor Telepon Siswa']) ? String(r.nomor_telepon_siswa || r['Nomor Telepon Siswa']).trim() : null,
-                        alamat: (r.alamat || r.Alamat) ? String(r.alamat || r.Alamat).trim() : null,
-                        status: (r.status || r.Status) ? String(r.status || r.Status).trim() : 'aktif'
+                        telepon_orangtua: (rowData.telepon_orangtua || rowData['Telepon Orang Tua']) ? String(rowData.telepon_orangtua || rowData['Telepon Orang Tua']).trim() : null,
+                        nomor_telepon_siswa: (rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']) ? String(rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']).trim() : null,
+                        alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
+                        status: (rowData.status || rowData.Status) ? String(rowData.status || rowData.Status).trim() : 'aktif'
                     });
                 }
             } catch (error) {
@@ -1287,17 +1287,17 @@ const importGuru = async (req, res) => {
         }
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2;
 
             try {
                 // Validasi field wajib
-                if (!r.nip && !r['NIP *']) rowErrors.push('NIP wajib diisi');
-                if (!r.nama && !r['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
+                if (!rowData.nip && !rowData['NIP *']) rowErrors.push('NIP wajib diisi');
+                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
 
                 // Validasi NIP
-                const nip = r.nip || r['NIP *'];
+                const nip = rowData.nip || rowData['NIP *'];
                 if (nip) {
                     const nipValue = String(nip).trim();
                     if (nipValue.length < 8) rowErrors.push('NIP minimal 8 karakter');
@@ -1312,19 +1312,19 @@ const importGuru = async (req, res) => {
                 }
 
                 // Validasi email
-                const email = r.email || r.Email;
+                const email = rowData.email || rowData.Email;
                 if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
                     rowErrors.push('Format email tidak valid');
                 }
 
                 // Validasi jenis kelamin
-                const jenisKelamin = r.jenis_kelamin || r['Jenis Kelamin'];
+                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
                 if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
                     rowErrors.push('Jenis kelamin harus L atau P');
                 }
 
                 // Validasi no telepon
-                const noTelp = r.no_telepon || r['No. Telepon'];
+                const noTelp = rowData.no_telepon || rowData['No. Telepon'];
                 if (noTelp && String(noTelp).length < 10) {
                     rowErrors.push('Nomor telepon minimal 10 digit');
                 }
@@ -1334,13 +1334,13 @@ const importGuru = async (req, res) => {
                 } else {
                     valid.push({
                         nip: String(nip).trim(),
-                        nama: String(r.nama || r['Nama Lengkap *']).trim(),
+                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
                         jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
                         email: email ? String(email).trim() : null,
                         no_telepon: noTelp ? String(noTelp).trim() : null,
-                        alamat: (r.alamat || r.Alamat) ? String(r.alamat || r.Alamat).trim() : null,
-                        jabatan: (r.jabatan || r.Jabatan) ? String(r.jabatan || r.Jabatan).trim() : null,
-                        status: (r.status || r.Status) ? String(r.status || r.Status).trim() : 'aktif'
+                        alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
+                        jabatan: (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null,
+                        status: (rowData.status || rowData.Status) ? String(rowData.status || rowData.Status).trim() : 'aktif'
                     });
                 }
             } catch (error) {
