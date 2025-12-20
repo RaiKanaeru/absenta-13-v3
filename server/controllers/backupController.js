@@ -51,7 +51,7 @@ function calculateNextBackupDate(schedule) {
 /**
  * Helper function to process SQL backup
  */
-async function processSQLBackup(filePath) {
+async function restoreDatabaseFromSqlFile(filePath) {
     try {
         const sqlContent = await fs.readFile(filePath, 'utf8');
 
@@ -82,7 +82,7 @@ async function processSQLBackup(filePath) {
 /**
  * Helper function to process ZIP backup
  */
-async function processZIPBackup(filePath) {
+async function restoreDatabaseFromZipArchive(filePath) {
     try {
         const zip = new AdmZip(filePath);
         const zipEntries = zip.getEntries();
@@ -123,7 +123,7 @@ async function processZIPBackup(filePath) {
 /**
  * Helper function to get folder size
  */
-async function getFolderSize(folderPath) {
+async function calculateDirectorySizeBytes(folderPath) {
     try {
         const files = await fs.readdir(folderPath);
         let totalSize = 0;
@@ -712,9 +712,9 @@ const restoreBackupFromFile = async (req, res) => {
         // Process the backup file
         let result;
         if (fileExtension === '.sql') {
-            result = await processSQLBackup(tempFilePath);
+            result = await restoreDatabaseFromSqlFile(tempFilePath);
         } else if (fileExtension === '.zip') {
-            result = await processZIPBackup(tempFilePath);
+            result = await restoreDatabaseFromZipArchive(tempFilePath);
         }
 
         // Clean up temporary file
@@ -1632,9 +1632,9 @@ const getRecoveryProcedures = async (req, res) => {
 export {
     // Helper functions (exported for potential reuse)
     calculateNextBackupDate,
-    processSQLBackup,
-    processZIPBackup,
-    getFolderSize,
+    restoreDatabaseFromSqlFile,
+    restoreDatabaseFromZipArchive,
+    calculateDirectorySizeBytes,
     
     // Backup CRUD
     createSemesterBackup,

@@ -36,7 +36,8 @@ const getCommonExcelSetup = async (reportKey) => {
  */
 export const exportAbsensi = async (req, res) => {
     try {
-        const { date_start, date_end } = req.query;        let query = `
+        const { date_start, date_end } = req.query;
+        let query = `
             SELECT ag.tanggal, ag.status, ag.keterangan, ag.waktu_catat,
                    j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
                    COALESCE(g.nama, 'Sistem') as nama_guru, g.nip,
@@ -114,7 +115,8 @@ export const exportAbsensi = async (req, res) => {
 
         // Write to response
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ Excel export error:', error);
         res.status(500).json({ error: 'Failed to export data to Excel' });
     }
@@ -126,7 +128,8 @@ export const exportAbsensi = async (req, res) => {
  */
 export const exportTeacherList = async (req, res) => {
     try {
-        const { academicYear = '2025-2026' } = req.query;        // Import AbsentaExportSystem
+        const { academicYear = '2025-2026' } = req.query;
+        // Import AbsentaExportSystem
         const AbsentaExportSystem = (await import('../../src/utils/absentaExportSystem.js')).default;
         const exportSystem = new AbsentaExportSystem();
 
@@ -146,7 +149,8 @@ export const exportTeacherList = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Daftar_Guru_${academicYear.replace('-', '_')}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -157,7 +161,8 @@ export const exportTeacherList = async (req, res) => {
  */
 export const exportStudentSummary = async (req, res) => {
     try {
-        const { startDate, endDate, kelas_id } = req.query;        let query = `
+        const { startDate, endDate, kelas_id } = req.query;
+        let query = `
             SELECT 
                 s.nama,
                 s.nis,
@@ -224,7 +229,8 @@ export const exportStudentSummary = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -235,7 +241,8 @@ export const exportStudentSummary = async (req, res) => {
  */
 export const exportTeacherSummary = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;        const [teachers] = await global.dbPool.execute(`
+        const { startDate, endDate } = req.query;
+        const [teachers] = await global.dbPool.execute(`
             SELECT 
                 g.nama,
                 g.nip,
@@ -288,7 +295,8 @@ export const exportTeacherSummary = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Guru_${startDate}_${endDate}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -299,7 +307,8 @@ export const exportTeacherSummary = async (req, res) => {
  */
 export const exportBandingAbsen = async (req, res) => {
     try {
-        const { startDate, endDate, kelas_id, status } = req.query;        const { formatWIBDate } = await import('../utils/timeUtils.js');
+        const { startDate, endDate, kelas_id, status } = req.query;
+        const { formatWIBDate } = await import('../utils/timeUtils.js');
 
         let query = `
             SELECT 
@@ -391,7 +400,8 @@ export const exportBandingAbsen = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Banding_Absen_${startDate}_${endDate}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -404,7 +414,8 @@ export const exportBandingAbsen = async (req, res) => {
 export const exportRekapKetidakhadiranGuru = async (req, res) => {
     try {
         const { tahun } = req.query;
-        const tahunAjaran = tahun || new Date().getFullYear();        // Hari efektif per bulan (configurable)
+        const tahunAjaran = tahun || new Date().getFullYear();
+        // Hari efektif per bulan (configurable)
         const hariEfektifPerBulan = {
             7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,  // Jul-Des
             1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20     // Jan-Jun
@@ -577,7 +588,8 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ Error exporting rekap ketidakhadiran guru:', error);
         return sendDatabaseError(res, error);
     }
@@ -597,7 +609,8 @@ import { excelStyles, applyStyle, applyHeaderRow, borders, colors, formatTime, p
 export const exportRiwayatBandingAbsen = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, status } = req.query;
-        const guruId = req.user.guru_id;        if (!startDate || !endDate) {
+        const guruId = req.user.guru_id;
+        if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
         }
 
@@ -697,7 +710,8 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="riwayat-banding-absen-${startDate}-${endDate}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -713,7 +727,8 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 export const exportPresensiSiswaSmkn13 = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.guru_id;        if (!startDate || !endDate) {
+        const guruId = req.user.guru_id;
+        if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
         }
 
@@ -833,7 +848,8 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="presensi-siswa-smkn13-${startDate}-${endDate}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -849,7 +865,8 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
 export const exportRekapKetidakhadiran = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, reportType } = req.query;
-        const guruId = req.user.guru_id;        if (!startDate || !endDate) {
+        const guruId = req.user.guru_id;
+        if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
         }
 
@@ -975,7 +992,8 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="rekap-ketidakhadiran-${reportType}-${startDate}-${endDate}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -991,7 +1009,8 @@ export const exportRekapKetidakhadiran = async (req, res) => {
 export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.guru_id;        if (!startDate || !endDate) {
+        const guruId = req.user.guru_id;
+        if (!startDate || !endDate) {
             return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
         }
 
@@ -1076,7 +1095,8 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="ringkasan-kehadiran-siswa-smkn13-${startDate}-${endDate}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -1091,7 +1111,8 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
  */
 export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
     try {
-        const { tahun } = req.query;        if (!tahun) {
+        const { tahun } = req.query;
+        if (!tahun) {
             return res.status(400).json({ error: 'Tahun harus diisi' });
         }
 
@@ -1175,7 +1196,8 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
 
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -1191,7 +1213,8 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
  */
 export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
-        const { kelas_id, tahun, semester = 'gasal' } = req.query;        // Get class info and wali kelas
+        const { kelas_id, tahun, semester = 'gasal' } = req.query;
+        // Get class info and wali kelas
         const [kelasRows] = await global.dbPool.execute(`
             SELECT k.nama_kelas, g.nama as wali_kelas 
             FROM kelas k 
@@ -1477,7 +1500,8 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ Error exporting rekap ketidakhadiran:', error);
         return sendDatabaseError(res, error);
     }
@@ -1489,7 +1513,8 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
  */
 export const exportPresensiSiswa = async (req, res) => {
     try {
-        const { kelas_id, bulan, tahun } = req.query;        // Get class name
+        const { kelas_id, bulan, tahun } = req.query;
+        // Get class name
         const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
         const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
 
@@ -1541,7 +1566,8 @@ export const exportPresensiSiswa = async (req, res) => {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Presensi_Siswa_${kelasName}_${bulan}_${tahun}.xlsx"`);
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -1555,7 +1581,8 @@ export const exportPresensiSiswa = async (req, res) => {
  * GET /api/admin/export/attendance
  */
 export const exportAdminAttendance = async (req, res) => {
-    try {        const query = `
+    try {
+        const query = `
             SELECT 
                 DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal,
                 s.nama as nama_siswa, s.nis, k.nama_kelas, a.status,
@@ -1578,7 +1605,8 @@ export const exportAdminAttendance = async (req, res) => {
 
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="data-kehadiran-siswa.csv"');
-        res.send(csvContent);    } catch (error) {
+        res.send(csvContent);
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -1598,7 +1626,8 @@ export const exportAdminAttendance = async (req, res) => {
  * - Matching web matrix layout
  */
 export const exportJadwalMatrix = async (req, res) => {
-    try {        const { kelas_id, hari } = req.query;
+    try {
+        const { kelas_id, hari } = req.query;
 
         // Use getLetterhead from top-level import (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
@@ -1620,7 +1649,8 @@ export const exportJadwalMatrix = async (req, res) => {
         if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
         query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
 
-        const [schedules] = await global.dbPool.execute(query, params);        const ExcelJS = (await import('exceljs')).default;
+        const [schedules] = await global.dbPool.execute(query, params);
+        const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Jadwal Pelajaran Matrix');
 
@@ -1774,7 +1804,8 @@ export const exportJadwalMatrix = async (req, res) => {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Pelajaran_Matrix_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ Export jadwal matrix error:', error);
         return sendDatabaseError(res, error);
     }
@@ -1786,7 +1817,8 @@ export const exportJadwalMatrix = async (req, res) => {
  * Layout: Rows = Class (3 rows: Mapel, Ruang, Guru), Columns = Day > Jam
  */
 export const exportJadwalGrid = async (req, res) => {
-    try {        const { kelas_id, hari } = req.query;
+    try {
+        const { kelas_id, hari } = req.query;
 
         // Use getLetterhead from top-level import
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
@@ -2007,7 +2039,8 @@ export const exportJadwalGrid = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="Master_Jadwal_Grid_${Date.now()}.xlsx"`);
         
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ Export jadwal grid error:', error);
         return sendDatabaseError(res, error);
     }
@@ -2018,7 +2051,8 @@ export const exportJadwalGrid = async (req, res) => {
  * GET /api/admin/export/jadwal-print
  */
 export const exportJadwalPrint = async (req, res) => {
-    try {        const { kelas_id, hari } = req.query;
+    try {
+        const { kelas_id, hari } = req.query;
 
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
@@ -2076,7 +2110,8 @@ export const exportJadwalPrint = async (req, res) => {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Print_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };
@@ -2107,7 +2142,8 @@ export const requestExcelDownload = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, mapel_id } = req.body;
         const userId = req.user.id;
-        const userRole = req.user.role;        const jobData = {
+        const userRole = req.user.role;
+        const jobData = {
             userId,
             userRole,
             startDate,
@@ -2220,10 +2256,10 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         `, [guruId, kelas_id]);
 
         const pertemuanDates = [];
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][d.getDay()];
+        for (let currentDate = new Date(start); currentDate <= end; currentDate.setDate(currentDate.getDate() + 1)) {
+            const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
             if (jadwalData.some(j => j.hari === dayName)) {
-                pertemuanDates.push(d.toISOString().split('T')[0]);
+                pertemuanDates.push(currentDate.toISOString().split('T')[0]);
             }
         }
 
@@ -2357,9 +2393,9 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         siswaData.forEach((s, idx) => {
             const row = headerRow + 1 + idx;
             const basic = [idx + 1, s.nama, s.nis, s.jenis_kelamin];
-            const daily = finalDates.map(d => {
-                const st = attendanceMap[s.id_siswa]?.[d];
-                return st === 'Hadir' ? 'H' : st === 'Izin' ? 'I' : st === 'Sakit' ? 'S' : st === 'Alpa' ? 'A' : st === 'Dispen' ? 'D' : '-';
+            const daily = finalDates.map(dateStr => {
+                const attendanceStatus = attendanceMap[s.id_siswa]?.[dateStr];
+                return attendanceStatus === 'Hadir' ? 'H' : attendanceStatus === 'Izin' ? 'I' : attendanceStatus === 'Sakit' ? 'S' : attendanceStatus === 'Alpa' ? 'A' : attendanceStatus === 'Dispen' ? 'D' : '-';
             });
             const summary = [s.total_hadir, s.total_izin, s.total_sakit, s.total_alpa, s.total_dispen, s.persentase_kehadiran];
             
@@ -2392,7 +2428,8 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
  * Layout: Rows = Guru, Columns = Days, Value = ADA/Empty
  */
 export const exportRekapJadwalGuru = async (req, res) => {
-    try {        const { tahun_ajar } = req.query;
+    try {
+        const { tahun_ajar } = req.query;
 
         // Letterhead
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
@@ -2495,7 +2532,8 @@ export const exportRekapJadwalGuru = async (req, res) => {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Rekap_Jadwal_Guru_${Date.now()}.xlsx"`);
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ Export rekap jadwal guru error:', error);
         return sendDatabaseError(res, error);
     }
@@ -2516,7 +2554,8 @@ import templateExportService from '../services/templateExportService.js';
  */
 export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
     try {
-        const { tahun } = req.query;        if (!tahun) {
+        const { tahun } = req.query;
+        if (!tahun) {
             return res.status(400).json({ error: 'Tahun harus diisi' });
         }
 
@@ -2598,7 +2637,8 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahun}.xlsx"`);
         
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ [TEMPLATE] Export rekap ketidakhadiran guru error:', error);
         return sendDatabaseError(res, error);
     }
@@ -2612,7 +2652,8 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
  */
 export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
     try {
-        const { kelas_id, semester, tahun } = req.query;        if (!kelas_id || !tahun) {
+        const { kelas_id, semester, tahun } = req.query;
+        if (!kelas_id || !tahun) {
             return res.status(400).json({ error: 'kelas_id dan tahun harus diisi' });
         }
 
@@ -2737,7 +2778,8 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_${namaKelas.replace(/\s+/g, '_')}_${tahun}_GASAL.xlsx"`);
         
         await workbook.xlsx.write(res);
-        res.end();    } catch (error) {
+        res.end();
+    } catch (error) {
         console.error('❌ [TEMPLATE] Export rekap ketidakhadiran kelas error:', error);
         return sendDatabaseError(res, error);
     }

@@ -35,8 +35,8 @@ const importMapel = async (req, res) => {
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
 
         // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kode_mapel');
@@ -140,8 +140,8 @@ const importKelas = async (req, res) => {
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
 
         // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('nama_kelas');
@@ -156,9 +156,9 @@ const importKelas = async (req, res) => {
             const rowNum = i + 2;
 
             try {
-                const namaKelas = r.nama_kelas || r['Nama Kelas'];
-                const tingkat = r.tingkat || r.Tingkat;
-                const status = r.status || r.Status;
+                const namaKelas = rowData.nama_kelas || rowData['Nama Kelas'];
+                const tingkat = rowData.tingkat || rowData.Tingkat;
+                const status = rowData.status || rowData.Status;
 
                 if (!namaKelas) rowErrors.push('nama_kelas wajib');
 
@@ -167,11 +167,11 @@ const importKelas = async (req, res) => {
                 }
 
                 if (namaKelas) {
-                    const k = String(namaKelas).trim();
-                    if (seenNama.has(k)) {
+                    const trimmedValue = String(namaKelas).trim();
+                    if (seenNama.has(trimmedValue)) {
                         rowErrors.push('nama_kelas duplikat di file');
                     }
-                    seenNama.add(k);
+                    seenNama.add(trimmedValue);
                 }
 
                 if (rowErrors.length) {
@@ -241,8 +241,8 @@ const importRuang = async (req, res) => {
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
 
         // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kode_ruang');
@@ -257,11 +257,11 @@ const importRuang = async (req, res) => {
             const rowNum = i + 2;
 
             try {
-                const kodeRuang = r.kode_ruang || r['Kode Ruang'];
-                const namaRuang = r.nama_ruang || r['Nama Ruang'];
-                const lokasi = r.lokasi || r.Lokasi;
-                const kapasitas = r.kapasitas || r.Kapasitas;
-                const status = r.status || r.Status;
+                const kodeRuang = rowData.kode_ruang || rowData['Kode Ruang'];
+                const namaRuang = rowData.nama_ruang || rowData['Nama Ruang'];
+                const lokasi = rowData.lokasi || rowData.Lokasi;
+                const kapasitas = rowData.kapasitas || rowData.Kapasitas;
+                const status = rowData.status || rowData.Status;
 
                 if (!kodeRuang) rowErrors.push('kode_ruang wajib');
                 if (!namaRuang) rowErrors.push('nama_ruang wajib');
@@ -275,11 +275,11 @@ const importRuang = async (req, res) => {
                 }
 
                 if (kodeRuang) {
-                    const k = String(kodeRuang).trim();
-                    if (seenKode.has(k)) {
+                    const trimmedValue = String(kodeRuang).trim();
+                    if (seenKode.has(trimmedValue)) {
                         rowErrors.push('kode_ruang duplikat di file');
                     }
-                    seenKode.add(k);
+                    seenKode.add(trimmedValue);
                 }
 
                 if (rowErrors.length) {
@@ -351,8 +351,8 @@ const importJadwal = async (req, res) => {
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
 
         // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kelas_id');
@@ -581,11 +581,13 @@ const importJadwal = async (req, res) => {
  */
 const importStudentAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);        const errors = [];
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
+        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
@@ -825,11 +827,13 @@ const importStudentAccount = async (req, res) => {
  */
 const importTeacherAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);        const errors = [];
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
+        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
@@ -1069,11 +1073,13 @@ const importTeacherAccount = async (req, res) => {
  */
 const importSiswa = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);        const errors = [];
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
+        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
@@ -1253,11 +1259,13 @@ const importSiswa = async (req, res) => {
  */
 const importGuru = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
-        const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);        const errors = [];
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
+        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
