@@ -581,19 +581,11 @@ const importJadwal = async (req, res) => {
  */
 const importStudentAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
-
-        // console.log();
-
-        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
-
-        // console.log();
-
-        const errors = [];
+        const rows = sheetToJsonByHeader(ws);        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
@@ -833,19 +825,11 @@ const importStudentAccount = async (req, res) => {
  */
 const importTeacherAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
-
-        // console.log();
-
-        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
-
-        // console.log();
-
-        const errors = [];
+        const rows = sheetToJsonByHeader(ws);        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
@@ -1085,19 +1069,11 @@ const importTeacherAccount = async (req, res) => {
  */
 const importSiswa = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
-
-        // console.log();
-
-        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
-
-        // console.log();
-
-        const errors = [];
+        const rows = sheetToJsonByHeader(ws);        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
@@ -1277,19 +1253,11 @@ const importSiswa = async (req, res) => {
  */
 const importGuru = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
-
-        // console.log();
-
-        // Parse Excel file
+        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const ws = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(ws);
-
-        // console.log();
-
-        const errors = [];
+        const rows = sheetToJsonByHeader(ws);        const errors = [];
         const valid = [];
         const genderEnum = ['L', 'P'];
 
