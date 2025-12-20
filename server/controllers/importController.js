@@ -151,7 +151,7 @@ const importKelas = async (req, res) => {
         const seenNama = new Set();
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2;
 
@@ -252,7 +252,7 @@ const importRuang = async (req, res) => {
         const seenKode = new Set();
 
         for (let i = 0; i < rows.length; i++) {
-            const r = rows[i];
+            const rowData = rows[i];
             const rowErrors = [];
             const rowNum = i + 2;
 
