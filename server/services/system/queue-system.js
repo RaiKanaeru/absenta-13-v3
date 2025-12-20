@@ -13,6 +13,9 @@ import ExcelJS from 'exceljs';
 import fs from 'fs/promises';
 import path from 'path';
 import mysql from 'mysql2/promise';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Queue');
 
 class DownloadQueue {
     constructor() {
@@ -60,7 +63,7 @@ class DownloadQueue {
      * Initialize queue system
      */
     async initialize() {
-        console.log('🚀 Initializing Download Queue System...');
+        logger.info('Initializing Download Queue System');
         
         try {
             // Initialize Redis connection
@@ -78,11 +81,11 @@ class DownloadQueue {
             // Start queue processors
             await this.startQueueProcessors();
             
-            console.log('✅ Download Queue System initialized successfully');
+            logger.info('Download Queue System initialized successfully');
             return true;
             
         } catch (error) {
-            console.error('❌ Queue system initialization failed:', error);
+            logger.error('Queue system initialization failed', error);
             throw error;
         }
     }
@@ -91,30 +94,30 @@ class DownloadQueue {
      * Initialize Redis connection
      */
     async initializeRedis() {
-        console.log('🔄 Connecting to Redis...');
+        logger.info('Connecting to Redis');
         
         try {
             this.redis = new Redis(this.redisConfig);
             
             // Test Redis connection
             await this.redis.ping();
-            console.log('✅ Redis connection established');
+            logger.info('Redis connection established');
             
             // Handle Redis connection events
             this.redis.on('error', (error) => {
-                console.error('❌ Redis connection error:', error);
+                logger.error('Redis connection error', error);
             });
             
             this.redis.on('connect', () => {
-                console.log('✅ Redis connected');
+                logger.debug('Redis connected');
             });
             
             this.redis.on('ready', () => {
-                console.log('✅ Redis ready');
+                logger.debug('Redis ready');
             });
             
         } catch (error) {
-            console.error('❌ Failed to connect to Redis:', error);
+            logger.error('Failed to connect to Redis', error);
             throw error;
         }
     }
@@ -123,17 +126,17 @@ class DownloadQueue {
      * Initialize database connection pool
      */
     async initializeDatabase() {
-        console.log('🔄 Initializing database connection pool...');
+        logger.info('Initializing database connection pool');
         
         try {
             this.pool = mysql.createPool(this.dbConfig);
             
             // Test database connection
             await this.pool.execute('SELECT 1');
-            console.log('✅ Database connection pool established');
+            logger.info('Database connection pool established');
             
         } catch (error) {
-            console.error('❌ Failed to initialize database pool:', error);
+            logger.error('Failed to initialize database pool', error);
             throw error;
         }
     }
@@ -144,7 +147,7 @@ class DownloadQueue {
     async createDownloadDirectory() {
         try {
             await fs.mkdir(this.downloadDir, { recursive: true });
-            console.log(`📁 Created download directory: ${this.downloadDir}`);
+            logger.debug('Created download directory', { path: this.downloadDir });
         } catch (error) {
             if (error.code !== 'EEXIST') {
                 throw error;
@@ -156,7 +159,7 @@ class DownloadQueue {
      * Initialize queues
      */
     async initializeQueues() {
-        console.log('🔄 Initializing download queues...');
+        logger.info('Initializing download queues');
         
         // Excel download queue
         this.queues.excelDownload = new Queue('excel download', {
@@ -186,14 +189,14 @@ class DownloadQueue {
             }
         });
 
-        console.log('✅ Download queues initialized');
+        logger.info('Download queues initialized');
     }
 
     /**
      * Start queue processors
      */
     async startQueueProcessors() {
-        console.log('🔄 Starting queue processors...');
+        logger.info('Starting queue processors');
         
         // Excel download processor
         this.queues.excelDownload.process('student-attendance', this.maxConcurrentDownloads, async (job) => {
@@ -216,7 +219,7 @@ class DownloadQueue {
         // Queue event handlers
         this.setupQueueEventHandlers();
 
-        console.log('✅ Queue processors started');
+        logger.info('Queue processors started');
     }
 
     /**
@@ -225,24 +228,24 @@ class DownloadQueue {
     setupQueueEventHandlers() {
         // Excel download queue events
         this.queues.excelDownload.on('completed', (job, result) => {
-            console.log(`✅ Excel download completed: ${job.id} - ${result.filename}`);
+            logger.info('Excel download completed', { jobId: job.id, filename: result.filename });
         });
 
         this.queues.excelDownload.on('failed', (job, err) => {
-            console.error(`❌ Excel download failed: ${job.id} - ${err.message}`);
+            logger.error('Excel download failed', { jobId: job.id, error: err.message });
         });
 
         this.queues.excelDownload.on('stalled', (job) => {
-            console.warn(`⚠️ Excel download stalled: ${job.id}`);
+            logger.warn('Excel download stalled', { jobId: job.id });
         });
 
         // Report generation queue events
         this.queues.reportGeneration.on('completed', (job, result) => {
-            console.log(`✅ Report generation completed: ${job.id} - ${result.filename}`);
+            logger.info('Report generation completed', { jobId: job.id, filename: result.filename });
         });
 
         this.queues.reportGeneration.on('failed', (job, err) => {
-            console.error(`❌ Report generation failed: ${job.id} - ${err.message}`);
+            logger.error('Report generation failed', { jobId: job.id, error: err.message });
         });
     }
 
@@ -273,7 +276,7 @@ class DownloadQueue {
                 userRole
             }, jobOptions);
 
-            console.log(`📥 Added ${type} download job: ${job.id} (Priority: ${jobPriority})`);
+            logger.info('Added download job', { type, jobId: job.id, priority: jobPriority });
             
             return {
                 jobId: job.id,
@@ -283,7 +286,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error('❌ Failed to add download job:', error);
+            logger.error('Failed to add download job', error);
             throw error;
         }
     }
@@ -295,7 +298,7 @@ class DownloadQueue {
         const { filters, userId, userRole } = job.data;
         const { tanggal_mulai, tanggal_selesai, kelas_id } = filters;
         
-        console.log(`🔄 Processing student attendance download: ${job.id}`);
+        logger.debug('Processing student attendance download', { jobId: job.id });
         
         try {
             // Update job progress
@@ -382,7 +385,7 @@ class DownloadQueue {
             
             await job.progress(100);
             
-            console.log(`✅ Student attendance Excel created: ${filename} (${rows.length} records)`);
+            logger.info('Student attendance Excel created', { filename, recordCount: rows.length });
             
             return {
                 filename,
@@ -393,7 +396,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error(`❌ Student attendance download failed: ${error.message}`);
+            logger.error('Student attendance download failed', { error: error.message });
             throw error;
         }
     }
@@ -405,7 +408,7 @@ class DownloadQueue {
         const { filters, userId, userRole } = job.data;
         const { tanggal_mulai, tanggal_selesai, guru_id } = filters;
         
-        console.log(`🔄 Processing teacher attendance download: ${job.id}`);
+        logger.debug('Processing teacher attendance download', { jobId: job.id });
         
         try {
             await job.progress(10);
@@ -488,7 +491,7 @@ class DownloadQueue {
             
             await job.progress(100);
             
-            console.log(`✅ Teacher attendance Excel created: ${filename} (${rows.length} records)`);
+            logger.info('Teacher attendance Excel created', { filename, recordCount: rows.length });
             
             return {
                 filename,
@@ -499,7 +502,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error(`❌ Teacher attendance download failed: ${error.message}`);
+            logger.error('Teacher attendance download failed', { error: error.message });
             throw error;
         }
     }
@@ -511,7 +514,7 @@ class DownloadQueue {
         const { filters, userId, userRole } = job.data;
         const { semester, year } = filters;
         
-        console.log(`🔄 Processing analytics report download: ${job.id}`);
+        logger.debug('Processing analytics report download', { jobId: job.id });
         
         try {
             await job.progress(10);
@@ -581,7 +584,7 @@ class DownloadQueue {
             
             await job.progress(100);
             
-            console.log(`✅ Analytics report Excel created: ${filename}`);
+            logger.info('Analytics report Excel created', { filename });
             
             return {
                 filename,
@@ -592,7 +595,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error(`❌ Analytics report download failed: ${error.message}`);
+            logger.error('Analytics report download failed', { error: error.message });
             throw error;
         }
     }
@@ -603,7 +606,7 @@ class DownloadQueue {
     async processSemesterReportGeneration(job) {
         const { semester, year, userId } = job.data;
         
-        console.log(`🔄 Processing semester report generation: ${job.id}`);
+        logger.debug('Processing semester report generation', { jobId: job.id });
         
         try {
             await job.progress(10);
@@ -632,7 +635,7 @@ class DownloadQueue {
             
             await job.progress(100);
             
-            console.log(`✅ Semester report generated: ${filename}`);
+            logger.info('Semester report generated', { filename });
             
             return {
                 filename,
@@ -642,7 +645,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error(`❌ Semester report generation failed: ${error.message}`);
+            logger.error('Semester report generation failed', { error: error.message });
             throw error;
         }
     }
@@ -674,7 +677,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error('❌ Failed to get job status:', error);
+            logger.error('Failed to get job status', error);
             throw error;
         }
     }
@@ -721,7 +724,7 @@ class DownloadQueue {
             };
 
         } catch (error) {
-            console.error('❌ Failed to get queue statistics:', error);
+            logger.error('Failed to get queue statistics', error);
             throw error;
         }
     }
@@ -785,12 +788,12 @@ class DownloadQueue {
                 
                 if (now - stats.mtime.getTime() > maxAge) {
                     await fs.unlink(filepath);
-                    console.log(`🗑️ Deleted old download file: ${file}`);
+                    logger.debug('Deleted old download file', { file });
                 }
             }
             
         } catch (error) {
-            console.error('❌ Failed to cleanup old downloads:', error);
+            logger.error('Failed to cleanup old downloads', error);
         }
     }
 
@@ -814,10 +817,10 @@ class DownloadQueue {
                 await this.pool.end();
             }
             
-            console.log('✅ Queue system connections closed');
+            logger.info('Queue system connections closed');
             
         } catch (error) {
-            console.error('❌ Error closing queue system:', error);
+            logger.error('Error closing queue system', error);
         }
     }
 }
@@ -843,23 +846,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
             }
         });
         
-        console.log('🎉 Test job added:', jobResult);
+        logger.debug('Test job added', jobResult);
         
         // Get queue statistics
         const stats = await downloadQueue.getQueueStatistics();
-        console.log('📊 Queue statistics:', stats);
+        logger.debug('Queue statistics', stats);
         
         // Wait a bit for processing
         await new Promise(resolve => setTimeout(resolve, 5000));
         
         // Get job status
         const jobStatus = await downloadQueue.getJobStatus(jobResult.jobId);
-        console.log('📋 Job status:', jobStatus);
+        logger.debug('Job status', jobStatus);
         
         await downloadQueue.close();
         process.exit(0);
     } catch (error) {
-        console.error('💥 Queue system test failed:', error);
+        logger.error('Queue system test failed', error);
         process.exit(1);
     }
 }
