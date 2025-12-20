@@ -11,6 +11,9 @@ import { performance } from 'perf_hooks';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Monitor');
 
 class SystemMonitor extends EventEmitter {
     constructor(options = {}) {
@@ -59,7 +62,7 @@ class SystemMonitor extends EventEmitter {
         // Ensure log directory exists
         this.ensureLogDirectory();
         
-        console.log('📊 System Monitor initialized');
+        logger.info('System Monitor initialized');
     }
     
     /**
@@ -70,7 +73,7 @@ class SystemMonitor extends EventEmitter {
             const logDir = path.dirname(this.options.logFile);
             await fs.mkdir(logDir, { recursive: true });
         } catch (error) {
-            console.error('Failed to create log directory:', error);
+            logger.error('Failed to create log directory', error);
         }
     }
     
@@ -85,7 +88,7 @@ class SystemMonitor extends EventEmitter {
             this.collectMetrics();
         }, this.options.monitoringInterval);
         
-        console.log('🔄 System monitoring started');
+        logger.info('System monitoring started');
         this.emit('monitoringStarted');
     }
     
@@ -101,7 +104,7 @@ class SystemMonitor extends EventEmitter {
             this.monitoringTimer = null;
         }
         
-        console.log('🛑 System monitoring stopped');
+        logger.info('System monitoring stopped');
         this.emit('monitoringStopped');
     }
     
@@ -128,7 +131,7 @@ class SystemMonitor extends EventEmitter {
             this.emit('metricsUpdated', this.metrics);
             
         } catch (error) {
-            console.error('Error collecting metrics:', error);
+            logger.error('Error collecting metrics', error);
             this.recordError('metrics_collection', error);
         }
     }
@@ -188,7 +191,7 @@ class SystemMonitor extends EventEmitter {
             this.metrics.system.disk.total = 40 * 1024 * 1024 * 1024; // 40GB as per requirements
             this.metrics.system.disk.percentage = 0; // Placeholder
         } catch (error) {
-            console.error('Error collecting disk metrics:', error);
+            logger.error('Error collecting disk metrics', error);
         }
     }
     
@@ -216,7 +219,7 @@ class SystemMonitor extends EventEmitter {
                 this.metrics.database.connections.total = this.metrics.database.connections.active + this.metrics.database.connections.idle;
             }
         } catch (error) {
-            console.error('Error collecting database metrics:', error);
+            logger.error('Error collecting database metrics', error);
         }
     }
     
@@ -364,7 +367,7 @@ class SystemMonitor extends EventEmitter {
         // Emit alert event
         this.emit('alert', alert);
         
-        console.log(`🚨 ALERT [${alert.severity.toUpperCase()}]: ${alert.message}`);
+        logger.warn('ALERT', { severity: alert.severity.toUpperCase(), message: alert.message });
     }
     
     /**
@@ -405,7 +408,7 @@ class SystemMonitor extends EventEmitter {
             const logEntry = `${alert.timestamp} [${alert.severity.toUpperCase()}] ${alert.type}: ${alert.message}\n`;
             await fs.appendFile(this.options.logFile, logEntry);
         } catch (error) {
-            console.error('Failed to log alert:', error);
+            logger.error('Failed to log alert', error);
         }
     }
     
@@ -501,7 +504,7 @@ class SystemMonitor extends EventEmitter {
     cleanup() {
         this.stop();
         this.clearOldAlerts();
-        console.log('🧹 System Monitor cleaned up');
+        logger.info('System Monitor cleaned up');
     }
 }
 

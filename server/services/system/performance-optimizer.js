@@ -6,6 +6,9 @@
 
 import { EventEmitter } from 'events';
 import { performance } from 'perf_hooks';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Performance');
 
 class PerformanceOptimizer extends EventEmitter {
     constructor(options = {}) {
@@ -57,14 +60,14 @@ class PerformanceOptimizer extends EventEmitter {
         this.gcTimer = null;
         this.monitoringTimer = null;
         
-        console.log('⚡ Performance Optimizer initialized');
+        logger.info('Performance Optimizer initialized');
     }
     
     /**
      * Initialize performance optimizer
      */
     async initialize() {
-        console.log('🚀 Initializing Performance Optimizer...');
+        logger.info('Initializing Performance Optimizer');
         
         try {
             // Start garbage collection timer
@@ -78,10 +81,10 @@ class PerformanceOptimizer extends EventEmitter {
             }
             
             this.isRunning = true;
-            console.log('✅ Performance Optimizer initialized successfully');
+            logger.info('Performance Optimizer initialized successfully');
             
         } catch (error) {
-            console.error('❌ Failed to initialize Performance Optimizer:', error);
+            logger.error('Failed to initialize Performance Optimizer', error);
             throw error;
         }
     }
@@ -129,7 +132,7 @@ class PerformanceOptimizer extends EventEmitter {
             };
             
         } catch (error) {
-            console.error('❌ Query optimization error:', error);
+            logger.error('Query optimization error', error);
             throw error;
         }
     }
@@ -273,7 +276,7 @@ class PerformanceOptimizer extends EventEmitter {
             toRemove.forEach(([key]) => this.queryCache.delete(key));
         }
         
-        console.log(`🧹 Cleaned up ${entriesToDelete.length} expired cache entries`);
+        logger.debug('Cleaned up expired cache entries', { count: entriesToDelete.length });
     }
     
     /**
@@ -283,7 +286,7 @@ class PerformanceOptimizer extends EventEmitter {
         this.gcTimer = setInterval(() => {
             if (global.gc) {
                 global.gc();
-                console.log('🗑️ Garbage collection performed');
+                logger.debug('Garbage collection performed');
             }
             
             // Cleanup old cache
@@ -310,7 +313,7 @@ class PerformanceOptimizer extends EventEmitter {
             }
             
             // Log performance metrics
-            console.log(`📊 Performance Metrics: ${this.performanceMetrics.cacheHitRatio.toFixed(2)}% cache hit, ${this.performanceMetrics.averageResponseTime.toFixed(2)}ms avg response`);
+            logger.debug('Performance Metrics', { cacheHitRatio: this.performanceMetrics.cacheHitRatio.toFixed(2), avgResponseTime: this.performanceMetrics.averageResponseTime.toFixed(2) });
             
         }, 60000); // Every minute
     }
@@ -346,7 +349,7 @@ class PerformanceOptimizer extends EventEmitter {
     clearCaches() {
         this.queryCache.clear();
         this.slowQueries.clear();
-        console.log('🧹 All caches cleared');
+        logger.info('All caches cleared');
     }
     
     /**
@@ -365,11 +368,8 @@ class PerformanceOptimizer extends EventEmitter {
             this.monitoringTimer = null;
         }
         
-        console.log('🛑 Performance Optimizer stopped');
+        logger.info('Performance Optimizer stopped');
     }
 }
 
 export default PerformanceOptimizer;
-
-
-

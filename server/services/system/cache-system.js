@@ -8,6 +8,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import Redis from 'ioredis';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Cache');
 
 class CacheSystem {
     constructor() {
@@ -82,19 +85,19 @@ class CacheSystem {
      * Initialize cache system
      */
     async initialize() {
-        console.log('🚀 Initializing Cache System...');
+        logger.info('Initializing Cache System');
         
         try {
             // Initialize Redis connection
             await this.initializeRedis();
             
-            console.log('✅ Cache System initialized successfully');
+            logger.info('Cache System initialized successfully');
             return true;
             
         } catch (error) {
-            console.error('❌ Cache system initialization failed:', error);
+            logger.error('Cache system initialization failed', error);
             // Don't throw error, continue without caching
-            console.log('⚠️ Continuing without Redis caching...');
+            logger.warn('Continuing without Redis caching');
             return false;
         }
     }
@@ -103,7 +106,7 @@ class CacheSystem {
      * Initialize Redis connection
      */
     async initializeRedis() {
-        console.log('🔄 Connecting to Redis for caching...');
+        logger.info('Connecting to Redis for caching');
         
         try {
             this.redis = new Redis(this.redisConfig);
@@ -111,31 +114,31 @@ class CacheSystem {
             // Test Redis connection
             await this.redis.ping();
             this.isConnected = true;
-            console.log('✅ Redis connection established for caching');
+            logger.info('Redis connection established for caching');
             
             // Handle Redis connection events
             this.redis.on('error', (error) => {
-                console.error('❌ Redis connection error:', error);
+                logger.error('Redis connection error', error);
                 this.isConnected = false;
             });
             
             this.redis.on('connect', () => {
-                console.log('✅ Redis connected');
+                logger.debug('Redis connected');
                 this.isConnected = true;
             });
             
             this.redis.on('ready', () => {
-                console.log('✅ Redis ready for caching');
+                logger.debug('Redis ready for caching');
                 this.isConnected = true;
             });
             
             this.redis.on('close', () => {
-                console.log('⚠️ Redis connection closed');
+                logger.warn('Redis connection closed');
                 this.isConnected = false;
             });
             
         } catch (error) {
-            console.error('❌ Failed to connect to Redis:', error);
+            logger.error('Failed to connect to Redis', error);
             this.isConnected = false;
             throw error;
         }
@@ -156,16 +159,16 @@ class CacheSystem {
             
             if (data) {
                 this.cacheStats.hits++;
-                console.log(`✅ Cache hit: ${cacheKey}`);
+                logger.debug('Cache hit', { cacheKey });
                 return JSON.parse(data);
             } else {
                 this.cacheStats.misses++;
-                console.log(`❌ Cache miss: ${cacheKey}`);
+                logger.debug('Cache miss', { cacheKey });
                 return null;
             }
             
         } catch (error) {
-            console.error('❌ Cache get error:', error);
+            logger.error('Cache get error', error);
             this.cacheStats.misses++;
             return null;
         }
@@ -186,11 +189,11 @@ class CacheSystem {
             await this.redis.setex(cacheKey, ttl, JSON.stringify(data));
             this.cacheStats.sets++;
             
-            console.log(`✅ Cache set: ${cacheKey} (TTL: ${ttl}s)`);
+            logger.debug('Cache set', { cacheKey, ttl });
             return true;
             
         } catch (error) {
-            console.error('❌ Cache set error:', error);
+            logger.error('Cache set error', error);
             return false;
         }
     }
@@ -208,11 +211,11 @@ class CacheSystem {
             const result = await this.redis.del(cacheKey);
             this.cacheStats.deletes++;
             
-            console.log(`✅ Cache delete: ${cacheKey}`);
+            logger.debug('Cache delete', { cacheKey });
             return result > 0;
             
         } catch (error) {
-            console.error('❌ Cache delete error:', error);
+            logger.error('Cache delete error', error);
             return false;
         }
     }
@@ -227,11 +230,11 @@ class CacheSystem {
 
         try {
             await this.redis.flushdb();
-            console.log('✅ All cache cleared (FLUSHDB)');
+            logger.info('All cache cleared (FLUSHDB)');
             this.resetCacheStatistics();
             return true;
         } catch (error) {
-            console.error('❌ Cache clear error:', error);
+            logger.error('Cache clear error', error);
             return false;
         }
     }
@@ -251,13 +254,13 @@ class CacheSystem {
             if (keys.length > 0) {
                 await this.redis.del(...keys);
                 this.cacheStats.deletes += keys.length;
-                console.log(`✅ Cache delete pattern: ${cachePattern} (${keys.length} keys)`);
+                logger.debug('Cache delete pattern', { cachePattern, count: keys.length });
             }
             
             return true;
             
         } catch (error) {
-            console.error('❌ Cache delete pattern error:', error);
+            logger.error('Cache delete pattern error', error);
             return false;
         }
     }
@@ -276,7 +279,7 @@ class CacheSystem {
             return result === 1;
             
         } catch (error) {
-            console.error('❌ Cache exists error:', error);
+            logger.error('Cache exists error', error);
             return false;
         }
     }
@@ -304,7 +307,7 @@ class CacheSystem {
             return data;
             
         } catch (error) {
-            console.error('❌ Fallback function error:', error);
+            logger.error('Fallback function error', error);
             throw error;
         }
     }
@@ -448,18 +451,18 @@ class CacheSystem {
      * Warm up cache with frequently accessed data
      */
     async warmUpCache(databasePool) {
-        console.log('🔥 Warming up cache...');
+        logger.info('Warming up cache');
         
         try {
             // Cache classes
             const [classes] = await databasePool.execute('SELECT * FROM kelas WHERE status = "aktif"');
             await this.cacheClasses(classes);
-            console.log(`✅ Cached ${classes.length} classes`);
+            logger.debug('Cached classes', { count: classes.length });
             
             // Cache teachers
             const [teachers] = await databasePool.execute('SELECT * FROM guru WHERE status = "aktif"');
             await this.cacheTeachers(teachers);
-            console.log(`✅ Cached ${teachers.length} teachers`);
+            logger.debug('Cached teachers', { count: teachers.length });
             
             // Cache students by class
             const [classList] = await databasePool.execute('SELECT DISTINCT kelas_id FROM siswa WHERE status = "aktif"');
@@ -472,12 +475,12 @@ class CacheSystem {
                 await this.cacheStudentsByClass(cls.kelas_id, students);
             }
             
-            console.log(`✅ Cached students for ${classList.length} classes`);
+            logger.debug('Cached students for classes', { count: classList.length });
             
-            console.log('✅ Cache warm-up completed');
+            logger.info('Cache warm-up completed');
             
         } catch (error) {
-            console.error('❌ Cache warm-up failed:', error);
+            logger.error('Cache warm-up failed', error);
         }
     }
 
@@ -506,7 +509,7 @@ class CacheSystem {
             sets: 0,
             deletes: 0
         };
-        console.log('✅ Cache statistics reset');
+        logger.info('Cache statistics reset');
     }
 
     /**
@@ -521,7 +524,7 @@ class CacheSystem {
             const info = await this.redis.info();
             return info;
         } catch (error) {
-            console.error('❌ Failed to get Redis info:', error);
+            logger.error('Failed to get Redis info', error);
             return null;
         }
     }
@@ -549,7 +552,7 @@ class CacheSystem {
         if (this.redis) {
             await this.redis.quit();
             this.isConnected = false;
-            console.log('✅ Cache system Redis connection closed');
+            logger.info('Cache system Redis connection closed');
         }
     }
 }
@@ -566,35 +569,35 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         
         if (cacheSystem.isConnected) {
             // Test basic cache operations
-            console.log('🧪 Testing cache operations...');
+            logger.debug('Testing cache operations');
             
             // Test set and get
             await cacheSystem.set('test-key', { message: 'Hello Cache!' }, 'analytics');
             const data = await cacheSystem.get('test-key', 'analytics');
-            console.log('📦 Cached data:', data);
+            logger.debug('Cached data', data);
             
             // Test cache statistics
             const stats = cacheSystem.getCacheStatistics();
-            console.log('📊 Cache statistics:', stats);
+            logger.debug('Cache statistics', stats);
             
             // Test cache with TTL
             await cacheSystem.set('ttl-test', { expires: 'soon' }, 'sessions', 10);
-            console.log('⏰ Set data with 10s TTL');
+            logger.debug('Set data with 10s TTL');
             
             // Wait and check
             await new Promise(resolve => setTimeout(resolve, 2000));
             const ttlData = await cacheSystem.get('ttl-test', 'sessions');
-            console.log('⏰ Data after 2s:', ttlData);
+            logger.debug('Data after 2s', ttlData);
             
             await cacheSystem.close();
-            console.log('🎉 Cache system test completed successfully!');
+            logger.info('Cache system test completed successfully');
         } else {
-            console.log('⚠️ Redis not available, cache system running in no-op mode');
+            logger.warn('Redis not available, cache system running in no-op mode');
         }
         
         process.exit(0);
     } catch (error) {
-        console.error('💥 Cache system test failed:', error);
+        logger.error('Cache system test failed', error);
         process.exit(1);
     }
 }
