@@ -14,10 +14,14 @@ dotenv.config();
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('Siswa');
 
-// Validasi payload siswa untuk Create/Update
+// Validasi payload siswa untuk Create/Update (optimized with parallel queries)
 async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId = null, excludeUserId = null } = {}) {
     const errors = [];
     const { nis, nama, username, email, kelas_id, jenis_kelamin, jabatan, nomor_telepon_siswa, telepon_orangtua, password } = body;
+
+    // Collect validation queries to run in parallel
+    const validationPromises = [];
+    const validationChecks = [];
 
     // Validasi NIS (wajib)
     if (!isUpdate || nis !== undefined) {
@@ -26,20 +30,14 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         } else if (!/^\d{8,15}$/.test(nis)) {
             errors.push('NIS harus berupa angka 8-15 digit');
         } else {
-            try {
-                let sql = 'SELECT id FROM siswa WHERE nis = ?';
-                const params = [nis];
-                if (isUpdate && excludeStudentId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeStudentId);
-                }
-                const [existingNis] = await global.dbPool.execute(sql, params);
-                if (existingNis.length > 0) {
-                    errors.push('NIS sudah digunakan');
-                }
-            } catch (error) {
-                errors.push('Gagal memvalidasi NIS');
+            let sql = 'SELECT id FROM siswa WHERE nis = ? LIMIT 1';
+            const params = [nis];
+            if (isUpdate && excludeStudentId) {
+                sql = 'SELECT id FROM siswa WHERE nis = ? AND id != ? LIMIT 1';
+                params.push(excludeStudentId);
             }
+            validationPromises.push(global.dbPool.execute(sql, params));
+            validationChecks.push({ type: 'nis', errorMsg: 'NIS sudah digunakan' });
         }
     }
 
@@ -57,20 +55,14 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         } else if (!/^[a-z0-9._-]{4,30}$/.test(username)) {
             errors.push('Username harus 4-30 karakter, hanya huruf kecil, angka, titik, underscore, dan strip');
         } else {
-            try {
-                let sql = 'SELECT id FROM users WHERE username = ?';
-                const params = [username];
-                if (isUpdate && excludeUserId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeUserId);
-                }
-                const [existingUsername] = await global.dbPool.execute(sql, params);
-                if (existingUsername.length > 0) {
-                    errors.push('Username sudah digunakan');
-                }
-            } catch (error) {
-                errors.push('Gagal memvalidasi username');
+            let sql = 'SELECT id FROM users WHERE username = ? LIMIT 1';
+            const params = [username];
+            if (isUpdate && excludeUserId) {
+                sql = 'SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1';
+                params.push(excludeUserId);
             }
+            validationPromises.push(global.dbPool.execute(sql, params));
+            validationChecks.push({ type: 'username', errorMsg: 'Username sudah digunakan' });
         }
     }
 
@@ -79,20 +71,14 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             errors.push('Format email tidak valid');
         } else {
-            try {
-                let sql = 'SELECT id FROM users WHERE email = ?';
-                const params = [email];
-                if (isUpdate && excludeUserId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeUserId);
-                }
-                const [existingEmail] = await global.dbPool.execute(sql, params);
-                if (existingEmail.length > 0) {
-                    errors.push('Email sudah digunakan');
-                }
-            } catch (error) {
-                errors.push('Gagal memvalidasi email');
+            let sql = 'SELECT id FROM users WHERE email = ? LIMIT 1';
+            const params = [email];
+            if (isUpdate && excludeUserId) {
+                sql = 'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1';
+                params.push(excludeUserId);
             }
+            validationPromises.push(global.dbPool.execute(sql, params));
+            validationChecks.push({ type: 'email', errorMsg: 'Email sudah digunakan' });
         }
     }
 
@@ -101,17 +87,11 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         if (!kelas_id || !Number.isInteger(Number(kelas_id)) || Number(kelas_id) <= 0) {
             errors.push('Kelas wajib dipilih');
         } else {
-            try {
-                const [existingKelas] = await global.dbPool.execute(
-                    'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif"',
-                    [kelas_id]
-                );
-                if (existingKelas.length === 0) {
-                    errors.push('Kelas tidak ditemukan atau tidak aktif');
-                }
-            } catch (error) {
-                errors.push('Gagal memvalidasi kelas');
-            }
+            validationPromises.push(global.dbPool.execute(
+                'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif" LIMIT 1',
+                [kelas_id]
+            ));
+            validationChecks.push({ type: 'kelas', errorMsg: 'Kelas tidak ditemukan atau tidak aktif', expectEmpty: true });
         }
     }
 
@@ -135,20 +115,14 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         if (!/^[0-9]{10,15}$/.test(nomor_telepon_siswa)) {
             errors.push('Nomor telepon siswa harus berupa angka 10-15 digit');
         } else {
-            try {
-                let sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ?';
-                const params = [nomor_telepon_siswa];
-                if (isUpdate && excludeStudentId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeStudentId);
-                }
-                const [existingPhone] = await global.dbPool.execute(sql, params);
-                 if (existingPhone.length > 0) {
-                    errors.push('Nomor telepon siswa sudah digunakan');
-                }
-            } catch (error) {
-                 errors.push('Gagal memvalidasi nomor telepon siswa');
+            let sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';
+            const params = [nomor_telepon_siswa];
+            if (isUpdate && excludeStudentId) {
+                sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1';
+                params.push(excludeStudentId);
             }
+            validationPromises.push(global.dbPool.execute(sql, params));
+            validationChecks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
         }
     }
 
@@ -158,6 +132,32 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
     }
     if (isUpdate && password !== undefined && password !== null && password !== '' && (typeof password !== 'string' || password.length < 6)) {
         errors.push('Password minimal 6 karakter');
+    }
+
+    // Execute all validation queries in parallel
+    if (validationPromises.length > 0) {
+        try {
+            const results = await Promise.all(validationPromises);
+            
+            for (let i = 0; i < results.length; i++) {
+                const [rows] = results[i];
+                const check = validationChecks[i];
+                
+                if (check.expectEmpty) {
+                    // For kelas validation: expect to find the record
+                    if (rows.length === 0) {
+                        errors.push(check.errorMsg);
+                    }
+                } else {
+                    // For duplicate checks: expect NOT to find the record
+                    if (rows.length > 0) {
+                        errors.push(check.errorMsg);
+                    }
+                }
+            }
+        } catch (error) {
+            errors.push('Gagal memvalidasi data');
+        }
     }
 
     return {
