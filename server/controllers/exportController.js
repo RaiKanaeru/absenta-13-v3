@@ -1376,15 +1376,15 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         }
 
         // Apply header styles to main columns
-        ['A', 'B', 'C', 'D'].forEach(c => {
-            for (let r = headerRow1; r <= headerRow3; r++) {
-                Object.assign(worksheet.getCell(`${c}${r}`), headerStyle);
+        ['A', 'B', 'C', 'D'].forEach(colLetter => {
+            for (let headerRowNum = headerRow1; headerRowNum <= headerRow3; headerRowNum++) {
+                Object.assign(worksheet.getCell(`${colLetter}${headerRowNum}`), headerStyle);
             }
         });
 
         // Merge NO, NIS, NAMA, L/P across 3 rows
-        ['A', 'B', 'C', 'D'].forEach(c => {
-            worksheet.mergeCells(`${c}${headerRow1}:${c}${headerRow3}`);
+        ['A', 'B', 'C', 'D'].forEach(colLetter => {
+            worksheet.mergeCells(`${colLetter}${headerRow1}:${colLetter}${headerRow3}`);
         });
         worksheet.getCell(`A${headerRow1}`).value = 'NO.';
         worksheet.getCell(`B${headerRow1}`).value = 'NIS/NISN';
@@ -2016,9 +2016,9 @@ export const exportJadwalGrid = async (req, res) => {
             });
 
             // Styling for data cells
-            for (let c = 4; c <= totalCols; c++) {
-                [mapelRow, ruangRow, guruRow].forEach(r => {
-                    const cell = r.getCell(c);
+            for (let colIdx = 4; colIdx <= totalCols; colIdx++) {
+                [mapelRow, ruangRow, guruRow].forEach(dataRow => {
+                    const cell = dataRow.getCell(colIdx);
                     cell.border = borders.thin;
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 });
