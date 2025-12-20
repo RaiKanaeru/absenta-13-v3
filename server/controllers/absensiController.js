@@ -893,7 +893,7 @@ export async function recordTeacherAttendanceSimple(req, res) {
     try {
         const todayWIB = getMySQLDateWIB();
         const [existing] = await global.dbPool.execute(
-            `SELECT * FROM absensi_guru WHERE jadwal_id = ? AND tanggal = ?`,
+            `SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND tanggal = ? LIMIT 1`,
             [jadwal_id, todayWIB]
         );
 
@@ -903,7 +903,7 @@ export async function recordTeacherAttendanceSimple(req, res) {
         }
 
         const [jadwalData] = await global.dbPool.execute(
-            'SELECT * FROM jadwal WHERE id_jadwal = ?',
+            'SELECT id_jadwal, kelas_id, guru_id, mapel_id, jam_mulai FROM jadwal WHERE id_jadwal = ? LIMIT 1',
             [jadwal_id]
         );
 

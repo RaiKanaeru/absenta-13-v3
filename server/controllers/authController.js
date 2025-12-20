@@ -127,9 +127,9 @@ export const login = async (req, res) => {
             });
         }
 
-        // Query user from database
+        // Query user from database (select only needed columns)
         const [rows] = await global.dbPool.execute(
-            'SELECT * FROM users WHERE username = ? AND status = "aktif"',
+            'SELECT id_user, username, password, nama, role, email, foto, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
             [username]
         );
 

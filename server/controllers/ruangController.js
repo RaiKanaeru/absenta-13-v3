@@ -55,7 +55,7 @@ export const getRuangById = async (req, res) => {
 
     try {
         const [rows] = await global.dbPool.execute(
-            'SELECT * FROM ruang_kelas WHERE id_ruang = ?',
+            'SELECT id_ruang as id, kode_ruang, nama_ruang, lokasi, kapasitas, status, created_at FROM ruang_kelas WHERE id_ruang = ? LIMIT 1',
             [id]
         );
 
