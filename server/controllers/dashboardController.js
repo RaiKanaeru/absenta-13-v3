@@ -4,7 +4,7 @@
  * Migrated from server_modern.js
  */
 
-import { getWIBTime, formatWIBDate, getMySQLDateWIB } from '../utils/timeUtils.js';
+import { getWIBTime, formatWIBDate, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
 import { sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -62,8 +62,7 @@ export const getStats = async (req, res) => {
         } else if (req.user.role === 'guru') {
             // Guru statistics - execute queries in parallel
             const wibNow = getWIBTime();
-            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const currentDayWIB = dayNames[wibNow.getDay()];
+            const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
             const sevenDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000));
             const thirtyDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 30 * 24 * 60 * 60 * 1000));
 
@@ -94,8 +93,7 @@ export const getStats = async (req, res) => {
         } else if (req.user.role === 'siswa') {
             // Siswa statistics - execute queries in parallel
             const wibNow = getWIBTime();
-            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const currentDayWIB = dayNames[wibNow.getDay()];
+            const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
             const sevenDaysAgoWIB = formatWIBDate(new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000));
 
             const [

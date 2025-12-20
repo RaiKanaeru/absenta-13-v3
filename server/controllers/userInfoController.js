@@ -3,7 +3,7 @@
  * Self-service info endpoints for siswa perwakilan, guru, admin
  */
 
-import { getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
+import { getWIBTime, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
 import { sendDatabaseError, sendNotFoundError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -160,8 +160,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
 
     try {
         const wibTime = getWIBTime();
-        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        const currentDay = dayNames[wibTime.getDay()];
+        const currentDay = HARI_INDONESIA[wibTime.getDay()];
         const todayWIB = getMySQLDateWIB();
 
         log.debug('Date context', { currentDay, todayWIB });
@@ -281,8 +280,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
         }
 
         // Get day name for the target date
-        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        const targetDay = dayNames[targetDate.getDay()];
+        const targetDay = HARI_INDONESIA[targetDate.getDay()];
         const targetDateStr = targetDate.toISOString().split('T')[0];
 
         log.debug('Target date context', { targetDay, targetDateStr });

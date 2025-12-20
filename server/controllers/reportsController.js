@@ -3,7 +3,7 @@
  * Handles analytics dashboard and attendance reports (CSV/Excel)
  */
 
-import { getMySQLDateWIB, getWIBTime } from '../utils/timeUtils.js';
+import { getMySQLDateWIB, getWIBTime, HARI_INDONESIA } from '../utils/timeUtils.js';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { createLogger } from '../utils/logger.js';
@@ -193,8 +193,7 @@ export const getLiveTeacherAttendance = async (req, res) => {
     try {
         const todayWIB = getMySQLDateWIB();
         const wibNow = getWIBTime();
-        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        const currentDayWIB = dayNames[wibNow.getDay()];
+        const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
 
         const query = `
             SELECT DISTINCT

@@ -4,6 +4,7 @@
  */
 
 import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { formatBytes } from '../utils/formatUtils.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Monitoring');
@@ -510,14 +511,7 @@ export const getSystemPerformance = async (req, res) => {
         global.lastCpuUsage = cpuUsageData;
         global.lastCpuTime = Date.now();
 
-        // Helper to format bytes
-        function formatBytes(bytes) {
-            if (!bytes || bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
+        // Use shared formatBytes utility
 
         const systemMetrics = {
             uptime: uptime,

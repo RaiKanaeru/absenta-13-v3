@@ -1,6 +1,19 @@
 // TIMEZONE CONFIGURATION (UTC+7 / Asia/Jakarta)
 const TIMEZONE = 'Asia/Jakarta';
 
+// Day name constants (centralized to avoid duplication)
+export const HARI_INDONESIA = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+export const HARI_SEKOLAH = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/**
+ * Get Indonesian day name from date
+ * @param {Date} date - Date object (default: now)
+ * @returns Indonesian day name (e.g., "Senin", "Selasa")
+ */
+export function getHariFromDate(date = new Date()) {
+    return HARI_INDONESIA[date.getDay()];
+}
+
 /**
  * Get current time in WIB timezone
  * Uses Intl API to reliably get WIB time regardless of server timezone

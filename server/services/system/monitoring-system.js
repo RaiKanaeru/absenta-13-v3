@@ -12,6 +12,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { createLogger } from '../../utils/logger.js';
+import { formatBytes } from '../../utils/formatUtils.js';
 
 const logger = createLogger('Monitor');
 
@@ -446,14 +447,10 @@ class SystemMonitor extends EventEmitter {
     }
     
     /**
-     * Format bytes
+     * Format bytes (delegates to shared utility)
      */
     formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const BYTES_PER_KB = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const unitIndex = Math.floor(Math.log(bytes) / Math.log(BYTES_PER_KB));
-        return parseFloat((bytes / Math.pow(BYTES_PER_KB, unitIndex)).toFixed(2)) + ' ' + sizes[unitIndex];
+        return formatBytes(bytes);
     }
     
     /**
