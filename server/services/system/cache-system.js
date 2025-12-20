@@ -454,13 +454,13 @@ class CacheSystem {
         logger.info('Warming up cache');
         
         try {
-            // Cache classes
-            const [classes] = await databasePool.execute('SELECT * FROM kelas WHERE status = "aktif"');
+            // Cache classes (select only needed columns for performance)
+            const [classes] = await databasePool.execute('SELECT id_kelas, nama_kelas, tingkat, status FROM kelas WHERE status = "aktif"');
             await this.cacheClasses(classes);
             logger.debug('Cached classes', { count: classes.length });
             
-            // Cache teachers
-            const [teachers] = await databasePool.execute('SELECT * FROM guru WHERE status = "aktif"');
+            // Cache teachers (select only needed columns for performance)
+            const [teachers] = await databasePool.execute('SELECT id_guru, nama, nip, mata_pelajaran, status FROM guru WHERE status = "aktif"');
             await this.cacheTeachers(teachers);
             logger.debug('Cached teachers', { count: teachers.length });
             
@@ -469,7 +469,7 @@ class CacheSystem {
             
             for (const cls of classList) {
                 const [students] = await databasePool.execute(
-                    'SELECT * FROM siswa WHERE kelas_id = ? AND status = "aktif"',
+                    'SELECT id_siswa, nama, nis, kelas_id, jenis_kelamin, status FROM siswa WHERE kelas_id = ? AND status = "aktif"',
                     [cls.kelas_id]
                 );
                 await this.cacheStudentsByClass(cls.kelas_id, students);
