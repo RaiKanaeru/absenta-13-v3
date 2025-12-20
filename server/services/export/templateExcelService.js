@@ -22,6 +22,9 @@ import {
     getTemplatePathByTingkat,
     extractTingkatFromKelas
 } from '../../config/exportConfig.js';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('TemplateExcel');
 
 // ================================================
 // HELPER FUNCTIONS
@@ -40,8 +43,8 @@ async function loadTemplate(templatePath) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(templatePath);
     
-    console.log(`📂 Template loaded: ${path.basename(templatePath)}`);
-    console.log(`📊 Sheets found: ${workbook.worksheets.map(ws => ws.name).join(', ')}`);
+    logger.info('Template loaded', { templatePath: path.basename(templatePath) });
+    logger.debug('Sheets found', { sheets: workbook.worksheets.map(ws => ws.name) });
     
     return workbook;
 }
@@ -115,7 +118,7 @@ function setCellByRowCol(sheet, row, col, value) {
  * @returns {Promise<Buffer>} - Excel file buffer
  */
 export async function exportRekapKelasGasal({ namaKelas, waliKelas, siswaData }) {
-    console.log(`📊 Generating rekap kelas gasal for: ${namaKelas}`);
+    logger.info('Generating rekap kelas gasal', { namaKelas });
     
     // Get template based on tingkat
     const tingkat = extractTingkatFromKelas(namaKelas);
@@ -128,7 +131,7 @@ export async function exportRekapKelasGasal({ namaKelas, waliKelas, siswaData })
     
     // Find the correct sheet for this class
     const sheet = findSheetByClassName(workbook, namaKelas);
-    console.log(`📄 Using sheet: ${sheet.name}`);
+    logger.debug('Using sheet', { sheetName: sheet.name });
     
     // Fill wali kelas
     if (waliKelas) {
@@ -160,7 +163,7 @@ export async function exportRekapKelasGasal({ namaKelas, waliKelas, siswaData })
         }
     });
     
-    console.log(`✅ Filled ${siswaData.length} students data`);
+    logger.info('Filled students data', { count: siswaData.length });
     
     // Return as buffer
     const buffer = await workbook.xlsx.writeBuffer();
@@ -179,13 +182,13 @@ export async function exportRekapKelasGasal({ namaKelas, waliKelas, siswaData })
  * @returns {Promise<Buffer>} - Excel file buffer
  */
 export async function exportRekapGuruTahunan({ guruData }) {
-    console.log(`📊 Generating rekap guru tahunan`);
+    logger.info('Generating rekap guru tahunan');
     
     const workbook = await loadTemplate(TEMPLATE_PATHS.REKAP_GURU);
     
     // Use first sheet (should be the main data sheet)
     const sheet = workbook.worksheets[0];
-    console.log(`📄 Using sheet: ${sheet.name}`);
+    logger.debug('Using sheet', { sheetName: sheet.name });
     
     const { DATA_START_ROW, KOLOM_IDENTITAS, KOLOM_BULAN } = REKAP_GURU_MAPPING;
     
@@ -207,7 +210,7 @@ export async function exportRekapGuruTahunan({ guruData }) {
         }
     });
     
-    console.log(`✅ Filled ${guruData.length} teachers data`);
+    logger.info('Filled teachers data', { count: guruData.length });
     
     // Return as buffer
     const buffer = await workbook.xlsx.writeBuffer();
@@ -239,7 +242,7 @@ export async function fetchRekapSiswaByKelas(dbPool, kelasId, semester = 'gasal'
         endDate = `${tahunAkhir}-06-30`;   // Juni
     }
     
-    console.log(`📅 Fetching data for period: ${startDate} to ${endDate}`);
+    logger.debug('Fetching data for period', { startDate, endDate });
     
     // Query untuk mendapatkan siswa dan ketidakhadiran mereka
     const query = `
@@ -312,7 +315,7 @@ export async function fetchRekapGuru(dbPool, tahunAjaran = TAHUN_PELAJARAN) {
     const startDate = `${tahunAwal}-07-01`;
     const endDate = `${tahunAkhir}-06-30`;
     
-    console.log(`📅 Fetching guru data for period: ${startDate} to ${endDate}`);
+    logger.debug('Fetching guru data for period', { startDate, endDate });
     
     const query = `
         SELECT 
@@ -372,7 +375,7 @@ export async function getWaliKelas(dbPool, kelasId) {
         );
         return rows[0]?.nama || '';
     } catch (error) {
-        console.warn('⚠️ Could not fetch wali kelas:', error.message);
+        logger.warn('Could not fetch wali kelas', { error: error.message });
         return '';
     }
 }
@@ -404,7 +407,7 @@ export async function getKelasInfo(dbPool, kelasId) {
  * @returns {Promise<Buffer>} - Excel file buffer
  */
 export async function exportRekapGuruMingguan({ guruData }) {
-    console.log(`📊 Generating rekap guru mingguan`);
+    logger.info('Generating rekap guru mingguan');
     
     // Create new workbook (simpler than loading template for this format)
     const ExcelJS = await import('exceljs');
@@ -479,7 +482,7 @@ export async function exportRekapGuruMingguan({ guruData }) {
         row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
     });
     
-    console.log(`✅ Filled ${guruData.length} teachers schedule`);
+    logger.info('Filled teachers schedule', { count: guruData.length });
     
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer;
@@ -551,7 +554,7 @@ function getMapelColor(mapelId, mapelName) {
  * @returns {Promise<Buffer>} - Excel file buffer
  */
 export async function exportJadwalPelajaranComplex({ jadwalData }) {
-    console.log(`📊 Generating complex jadwal with ${jadwalData?.length || 0} items`);
+    logger.info('Generating complex jadwal', { count: jadwalData?.length || 0 });
     
     // Reset color cache for consistent colors
     mapelColorCache.clear();
@@ -775,7 +778,7 @@ export async function exportJadwalPelajaranComplex({ jadwalData }) {
         sheet.mergeCells('A4:G4');
     }
     
-    console.log(`✅ Generated complex jadwal for ${sortedKelas.length} classes`);
+    logger.info('Generated complex jadwal', { classCount: sortedKelas.length });
     
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer;
@@ -817,7 +820,7 @@ export async function fetchJadwalForExport(dbPool) {
     `;
     
     const [rows] = await dbPool.execute(query);
-    console.log(`📅 Fetched ${rows.length} jadwal items for export`);
+    logger.debug('Fetched jadwal items for export', { count: rows.length });
     return rows;
 }
 

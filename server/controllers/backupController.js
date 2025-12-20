@@ -150,10 +150,10 @@ async function getFolderSize(folderPath) {
  */
 const createSemesterBackup = async (req, res) => {
     try {
-        console.log('📄 Creating semester backup...');
+        logger.info('Creating semester backup');
 
         if (!global.backupSystem) {
-            console.error('❌ Backup system not initialized');
+            logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
                 message: 'Backup system is not initialized yet. Please try again in a few seconds.'
@@ -204,10 +204,10 @@ const createSemesterBackup = async (req, res) => {
 
             // Save settings
             await fs.writeFile(settingsPath, JSON.stringify(currentSettings, null, 2));
-            console.log('✅ Backup settings updated successfully');
+            logger.info('Backup settings updated successfully');
 
         } catch (settingsError) {
-            console.error('⚠️ Failed to update backup settings:', settingsError);
+            logger.warn('Failed to update backup settings', { error: settingsError.message });
         }
 
         res.json({
@@ -217,7 +217,7 @@ const createSemesterBackup = async (req, res) => {
             backupSystemStatus: global.backupSystem ? 'initialized' : 'not initialized'
         });
     } catch (error) {
-        console.error('❌ Error creating semester backup:', error);
+        logger.error('Error creating semester backup', error);
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to create semester backup'
@@ -231,10 +231,10 @@ const createSemesterBackup = async (req, res) => {
  */
 const createDateBackup = async (req, res) => {
     try {
-        console.log('📄 Creating date-based backup...');
+        logger.info('Creating date-based backup');
 
         if (!global.backupSystem) {
-            console.error('❌ Backup system not initialized');
+            logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
                 message: 'Backup system is not initialized yet. Please try again in a few seconds.'
@@ -282,7 +282,7 @@ const createDateBackup = async (req, res) => {
             });
         }
 
-        console.log(`📅 Creating backup for date range: ${startDate} to ${actualEndDate}`);
+        logger.info('Creating date backup', { startDate, endDate: actualEndDate });
 
         const backupResult = await global.backupSystem.createDateBackup(startDate, actualEndDate);
 
@@ -308,10 +308,10 @@ const createDateBackup = async (req, res) => {
             settings.nextBackupDate = calculateNextBackupDate(settings.autoBackupSchedule);
 
             await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
-            console.log('✅ Backup settings updated successfully');
+            logger.info('Backup settings updated successfully');
 
         } catch (settingsError) {
-            console.error('⚠️ Failed to update backup settings:', settingsError);
+            logger.warn('Failed to update backup settings', { error: settingsError.message });
         }
 
         res.json({
@@ -328,7 +328,7 @@ const createDateBackup = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error creating date-based backup:', error);
+        logger.error('Error creating date-based backup', error);
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to create date-based backup'
@@ -351,7 +351,7 @@ const getBackupList = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error getting backup list:', error);
+        logger.error('Error getting backup list', error);
         res.status(500).json({
             error: 'Internal server error',
             message: 'Gagal memuat daftar backup'
@@ -365,11 +365,11 @@ const getBackupList = async (req, res) => {
  */
 const getBackups = async (req, res) => {
     try {
-        console.log('📂 Fetching backups via BackupSystem...');
+        logger.info('Fetching backups via BackupSystem');
 
         if (global.backupSystem) {
             const backups = await global.backupSystem.listBackups();
-            console.log(`✅ BackupSystem returned ${backups.length} backups`);
+            logger.debug('BackupSystem returned backups', { count: backups.length });
             
             return res.status(200).json({
                 ok: true,
@@ -378,7 +378,7 @@ const getBackups = async (req, res) => {
         }
 
         // Fallback or Error if system not initialized
-        console.warn('⚠️ BackupSystem not initialized, trying fallback listing...');
+        logger.warn('BackupSystem not initialized, trying fallback listing');
         const backupDir = process.env.BACKUP_DIR || path.join(process.cwd(), 'backups');
         
         try {
@@ -402,7 +402,7 @@ const getBackups = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Error getting backups:', error);
+        logger.error('Error getting backups', error);
         res.status(500).json({
             ok: false,
             message: 'Gagal mendapatkan daftar backup',
@@ -426,10 +426,10 @@ const deleteBackup = async (req, res) => {
             });
         }
 
-        console.log(`🗑️ Attempting to delete backup: ${backupId}`);
+        logger.info('Attempting to delete backup', { backupId });
 
         if (!global.backupSystem) {
-            console.error('❌ Backup system not initialized');
+            logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
                 message: 'Backup system is not initialized yet. Please try again in a few seconds.'
@@ -439,7 +439,7 @@ const deleteBackup = async (req, res) => {
         // Try to delete using backup system first
         try {
             const result = await global.backupSystem.deleteBackup(backupId);
-            console.log(`✅ Backup deleted via backup system: ${backupId}`);
+            logger.info('Backup deleted via backup system', { backupId });
 
             res.json({
                 success: true,
@@ -447,7 +447,7 @@ const deleteBackup = async (req, res) => {
                 data: result
             });
         } catch (backupSystemError) {
-            console.log(`⚠️ Backup system delete failed, trying manual deletion: ${backupSystemError.message}`);
+            logger.warn('Backup system delete failed, trying manual deletion', { error: backupSystemError.message });
 
             // Fallback: Manual deletion
             const backupDir = path.join(process.cwd(), 'backups');
@@ -457,11 +457,11 @@ const deleteBackup = async (req, res) => {
             const folderStats = await fs.stat(folderPath).catch(() => null);
 
             if (folderStats && folderStats.isDirectory()) {
-                console.log(`📁 Found backup folder for manual deletion: ${backupId}`);
+                logger.debug('Found backup folder for manual deletion', { backupId });
 
                 // Delete the entire folder and its contents
                 await fs.rm(folderPath, { recursive: true, force: true });
-                console.log(`✅ Manually deleted backup folder: ${backupId}`);
+                logger.info('Manually deleted backup folder', { backupId });
 
                 res.json({
                     success: true,
@@ -492,9 +492,9 @@ const deleteBackup = async (req, res) => {
                     await fs.unlink(filePath);
                     deleted = true;
                     deletedFiles.push(filename);
-                    console.log(`✅ Manually deleted file: ${filename}`);
+                    logger.debug('Manually deleted file', { filename });
                 } catch (fileError) {
-                    console.log(`⚠️ Could not delete ${filename}: ${fileError.message}`);
+                    logger.warn('Could not delete file', { filename, error: fileError.message });
                 }
             }
 
@@ -513,7 +513,7 @@ const deleteBackup = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Error deleting backup:', error);
+        logger.error('Error deleting backup', error);
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Gagal menghapus backup'
@@ -530,7 +530,7 @@ const downloadBackup = async (req, res) => {
         const { backupId } = req.params;
         const backupDir = path.join(process.cwd(), 'backups');
 
-        console.log(`📥 Downloading backup: ${backupId}`);
+        logger.info('Downloading backup', { backupId });
 
         let filePath = null;
         let filename = null;
@@ -540,7 +540,7 @@ const downloadBackup = async (req, res) => {
         try {
             const stats = await fs.stat(backupSubDir);
             if (stats.isDirectory()) {
-                console.log(`📁 Found backup directory: ${backupSubDir}`);
+                logger.debug('Found backup directory', { backupSubDir });
 
                 const files = await fs.readdir(backupSubDir);
 
@@ -574,7 +574,7 @@ const downloadBackup = async (req, res) => {
                 }
             }
         } catch (error) {
-            console.log(`❌ Backup directory not found: ${backupSubDir}`);
+            logger.warn('Backup directory not found', { backupSubDir });
         }
 
         // If not found in subdirectory, try direct files
@@ -602,7 +602,7 @@ const downloadBackup = async (req, res) => {
         }
 
         if (!filePath) {
-            console.error(`❌ No backup file found for ID: ${backupId}`);
+            logger.error('No backup file found', { backupId });
             return res.status(404).json({
                 error: 'Backup file not found',
                 message: `No backup file found for ID: ${backupId}`
@@ -613,10 +613,10 @@ const downloadBackup = async (req, res) => {
         res.setHeader('Content-Type', 'application/octet-stream');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
-        console.log(`📤 Sending file: ${filePath}`);
+        logger.debug('Sending file', { filePath });
         res.download(filePath, filename, (err) => {
             if (err) {
-                console.error('❌ Error during file download:', err);
+                logger.error('Error during file download', err);
                 if (!res.headersSent) {
                     res.status(500).json({
                         error: 'Download failed',
@@ -624,12 +624,12 @@ const downloadBackup = async (req, res) => {
                     });
                 }
             } else {
-                console.log(`✅ File download completed: ${filename}`);
+                logger.info('File download completed', { filename });
             }
         });
 
     } catch (error) {
-        console.error('❌ Error downloading backup:', error);
+        logger.error('Error downloading backup', error);
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to download backup'
@@ -665,7 +665,7 @@ const restoreBackupById = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error restoring backup:', error);
+        logger.error('Error restoring backup', error);
         res.status(500).json({
             error: 'Internal server error',
             message: 'Gagal memulihkan backup'
@@ -686,7 +686,7 @@ const restoreBackupFromFile = async (req, res) => {
             });
         }
 
-        console.log('📥 Processing backup file upload:', {
+        logger.info('Processing backup file upload', {
             filename: req.file.originalname,
             mimetype: req.file.mimetype,
             size: req.file.size
@@ -727,7 +727,7 @@ const restoreBackupFromFile = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error restoring backup:', error);
+        logger.error('Error restoring backup', error);
         res.status(500).json({
             error: 'Internal server error',
             message: 'Gagal memulihkan backup'
@@ -745,10 +745,10 @@ const restoreBackupFromFile = async (req, res) => {
  */
 const createTestArchiveData = async (req, res) => {
     try {
-        console.log('🧪 Creating test archive data...');
+        logger.info('Creating test archive data');
 
         if (!global.dbPool || !global.dbPool.pool) {
-            console.error('❌ Database pool not initialized');
+            logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
                 message: 'Database connection pool is not initialized yet. Please try again in a few seconds.'
@@ -760,7 +760,7 @@ const createTestArchiveData = async (req, res) => {
         oldDate.setMonth(oldDate.getMonth() - 25);
         const oldDateStr = oldDate.toISOString().split('T')[0];
 
-        console.log(`📅 Creating test data with date: ${oldDateStr} (25 months old)`);
+        logger.debug('Creating test data with date', { oldDateStr, monthsOld: 25 });
 
         // Clean up existing test data
         await global.dbPool.pool.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
@@ -798,7 +798,7 @@ const createTestArchiveData = async (req, res) => {
             monthsOld: 25
         };
 
-        console.log(`✅ Created ${studentResult.affectedRows} test student records`);
+        logger.info('Created test student records', { count: studentResult.affectedRows });
 
         res.json({
             success: true,
@@ -806,7 +806,7 @@ const createTestArchiveData = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error creating test archive data:', error);
+        logger.error('Error creating test archive data', error);
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to create test archive data'
@@ -822,10 +822,10 @@ const archiveOldData = async (req, res) => {
     try {
         const { monthsOld = 12 } = req.body;
 
-        console.log(`📄 Archiving data older than ${monthsOld} months...`);
+        logger.info('Archiving data older than months', { monthsOld });
 
         if (!global.backupSystem) {
-            console.error('❌ Backup system not initialized');
+            logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
                 message: 'Backup system is not initialized yet. Please try again in a few seconds.'
@@ -833,7 +833,7 @@ const archiveOldData = async (req, res) => {
         }
 
         if (!global.dbPool || !global.dbPool.pool) {
-            console.error('❌ Database pool not initialized');
+            logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
                 message: 'Database connection pool is not initialized yet. Please try again in a few seconds.'
@@ -849,7 +849,7 @@ const archiveOldData = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error archiving old data:', error);
+        logger.error('Error archiving old data', error);
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to archive old data'
@@ -863,10 +863,10 @@ const archiveOldData = async (req, res) => {
  */
 const getArchiveStats = async (req, res) => {
     try {
-        console.log('📊 Getting archive statistics...');
+        logger.info('Getting archive statistics');
 
         if (!global.dbPool || !global.dbPool.pool) {
-            console.error('❌ Database pool not initialized');
+            logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
                 message: 'Database connection pool is not initialized yet. Please try again in a few seconds.'
@@ -879,7 +879,7 @@ const getArchiveStats = async (req, res) => {
             const [studentArchive] = await global.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
             studentArchiveCount = studentArchive[0]?.count || 0;
         } catch (error) {
-            console.log('⚠️ Student archive table not found, using 0');
+            logger.warn('Student archive table not found, using 0');
         }
 
         // Get teacher archive count
@@ -888,7 +888,7 @@ const getArchiveStats = async (req, res) => {
             const [teacherArchive] = await global.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
             teacherArchiveCount = teacherArchive[0]?.count || 0;
         } catch (error) {
-            console.log('⚠️ Teacher archive table not found, using 0');
+            logger.warn('Teacher archive table not found, using 0');
         }
 
         // Get total archive size (approximate)
@@ -921,7 +921,7 @@ const getArchiveStats = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error getting archive stats:', error);
+        logger.error('Error getting archive stats', error);
         res.status(500).json({
             error: 'Internal server error',
             message: 'Gagal memuat statistik arsip'
