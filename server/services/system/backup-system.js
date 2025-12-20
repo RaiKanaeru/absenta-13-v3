@@ -51,25 +51,25 @@ class BackupSystem {
      * @param {Object} externalPool - Optional external database pool (recommended to use global pool)
      */
     async initialize(externalPool = null) {
-        console.log('🚀 Initializing Backup & Archive System...');
+        logger.info('Initializing Backup & Archive System');
         
         try {
             // Use external pool if provided, otherwise create own pool
             if (externalPool) {
                 this.pool = externalPool;
-                console.log('📊 Using external database pool');
+                logger.debug('Using external database pool');
             } else {
                 // Create own connection pool (fallback)
                 this.pool = mysql.createPool(this.dbConfig);
-                console.log('📊 Created own database pool');
+                logger.debug('Created own database pool');
             }
             
             // Verify pool is working with a simple test query
             try {
                 await this.pool.execute('SELECT 1 as test');
-                console.log('✅ Database pool connection verified');
+                logger.info('Database pool connection verified');
             } catch (poolError) {
-                console.error('❌ Database pool connection failed:', poolError.message);
+                logger.error('Database pool connection failed', { error: poolError.message });
                 throw poolError;
             }
             
@@ -79,11 +79,11 @@ class BackupSystem {
             // Setup automated backup schedule
             await this.setupAutomatedBackup();
             
-            console.log('✅ Backup & Archive System initialized successfully');
+            logger.info('Backup & Archive System initialized successfully');
             return true;
             
         } catch (error) {
-            console.error('❌ Backup system initialization failed:', error);
+            logger.error('Backup system initialization failed', error);
             throw error;
         }
     }
@@ -97,7 +97,7 @@ class BackupSystem {
         for (const dir of directories) {
             try {
                 await fs.mkdir(dir, { recursive: true });
-                console.log(`📁 Created directory: ${dir}`);
+                logger.debug('Created directory', { dir });
             } catch (error) {
                 if (error.code !== 'EEXIST') {
                     throw error;
@@ -110,38 +110,38 @@ class BackupSystem {
      * Setup automated backup schedule
      */
     async setupAutomatedBackup() {
-        console.log('⏰ Setting up automated backup schedule...');
+        logger.info('Setting up automated backup schedule');
         
         // Weekly full backup
         cron.schedule(this.backupConfig.autoBackupSchedule, async () => {
-            console.log('🔄 Starting automated weekly backup...');
+            logger.info('Starting automated weekly backup');
             try {
                 await this.createSemesterBackup();
-                console.log('✅ Automated backup completed');
+                logger.info('Automated backup completed');
             } catch (error) {
-                console.error('❌ Automated backup failed:', error);
+                logger.error('Automated backup failed', error);
             }
         });
         
         // Daily archive cleanup (at 3 AM)
         cron.schedule('0 3 * * *', async () => {
-            console.log('🧹 Starting daily archive cleanup...');
+            logger.info('Starting daily archive cleanup');
             try {
                 await this.cleanupOldBackups();
-                console.log('✅ Archive cleanup completed');
+                logger.info('Archive cleanup completed');
             } catch (error) {
-                console.error('❌ Archive cleanup failed:', error);
+                logger.error('Archive cleanup failed', error);
             }
         });
         
-        console.log('✅ Automated backup schedule configured');
+        logger.info('Automated backup schedule configured');
     }
 
     /**
      * Create date-based backup
      */
     async createDateBackup(startDate, endDate) {
-        console.log(`📅 Creating date-based backup from ${startDate} to ${endDate}...`);
+        logger.info('Creating date-based backup', { startDate, endDate });
         
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const backupId = `date_backup_${timestamp}`;
@@ -151,24 +151,24 @@ class BackupSystem {
             await fs.mkdir(backupPath, { recursive: true });
             
             // 1. Database backup (SQL dump) - hanya data dalam range tanggal
-            console.log('💾 Creating date-filtered database backup...');
+            logger.debug('Creating date-filtered database backup');
             await this.createDateFilteredDatabaseBackup(backupPath, backupId, startDate, endDate);
             
             // 2. Excel export untuk data dalam range tanggal
-            console.log('📊 Creating date-filtered Excel export...');
+            logger.debug('Creating date-filtered Excel export');
             await this.createDateFilteredExcelExport(backupPath, backupId, startDate, endDate);
             
             // 3. Create backup manifest
-            console.log('📋 Creating backup manifest...');
+            logger.debug('Creating backup manifest');
             await this.createDateBackupManifest(backupPath, backupId, startDate, endDate);
             
             // 4. Compress backup if enabled
             if (this.backupConfig.compressionEnabled) {
-                console.log('🗜️ Compressing backup...');
+                logger.debug('Compressing backup');
                 await this.compressBackup(backupPath, backupId);
             }
             
-            console.log(`✅ Date-based backup created: ${backupId}`);
+            logger.info('Date-based backup created', { backupId });
             return {
                 backupId,
                 path: backupPath,
@@ -178,7 +178,7 @@ class BackupSystem {
             };
             
         } catch (error) {
-            console.error('❌ Date-based backup creation failed:', error);
+            logger.error('Date-based backup creation failed', error);
             throw error;
         }
     }
@@ -187,7 +187,7 @@ class BackupSystem {
      * Create scheduled backup based on custom schedule
      */
     async createScheduledBackup(schedule) {
-        console.log(`📅 Creating scheduled backup: ${schedule.name}`);
+        logger.info('Creating scheduled backup', { name: schedule.name });
         
         try {
             // Create backup with schedule name as identifier
@@ -222,11 +222,11 @@ class BackupSystem {
             const infoPath = path.join(backupDir, 'backup_info.json');
             await fs.writeFile(infoPath, JSON.stringify(backupInfo, null, 2));
             
-            console.log(`✅ Scheduled backup created: ${backupId}`);
+            logger.info('Scheduled backup created', { backupId });
             return backupInfo;
             
         } catch (error) {
-            console.error('❌ Error creating scheduled backup:', error);
+            logger.error('Error creating scheduled backup', error);
             throw error;
         }
     }
@@ -235,7 +235,7 @@ class BackupSystem {
      * Create comprehensive semester backup
      */
     async createSemesterBackup(semester = null, year = null) {
-        console.log('📦 Creating semester backup...');
+        logger.info('Creating semester backup');
         
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const backupId = `semester_backup_${timestamp}`;
@@ -252,28 +252,28 @@ class BackupSystem {
             await fs.mkdir(backupPath, { recursive: true });
             
             // 1. Database backup (SQL dump)
-            console.log('💾 Creating database backup...');
+            logger.debug('Creating database backup');
             await this.createDatabaseBackup(backupPath, backupId);
             
             // 2. Excel export for all data
-            console.log('📊 Creating Excel export...');
+            logger.debug('Creating Excel export');
             await this.createExcelExport(backupPath, backupId, semester, year);
             
             // 3. Archive old data
-            console.log('📦 Archiving old data...');
+            logger.debug('Archiving old data');
             await this.archiveOldDataForBackup(backupPath, backupId);
             
             // 4. Create backup manifest
-            console.log('📋 Creating backup manifest...');
+            logger.debug('Creating backup manifest');
             await this.createBackupManifest(backupPath, backupId, semester, year);
             
             // 5. Compress backup if enabled
             if (this.backupConfig.compressionEnabled) {
-                console.log('🗜️ Compressing backup...');
+                logger.debug('Compressing backup');
                 await this.compressBackup(backupPath, backupId);
             }
             
-            console.log(`✅ Semester backup created: ${backupId}`);
+            logger.info('Semester backup created', { backupId });
             return {
                 backupId,
                 path: backupPath,
@@ -283,7 +283,7 @@ class BackupSystem {
             };
             
         } catch (error) {
-            console.error('❌ Semester backup creation failed:', error);
+            logger.error('Semester backup creation failed', error);
             throw error;
         }
     }
@@ -312,17 +312,17 @@ class BackupSystem {
             for (const table of tables) {
                 const tableName = table.tableName; // Use aliased name
                 if (!tableName) {
-                    console.warn('⚠️ Skipping table with undefined name:', table);
+                    logger.warn('Skipping table with undefined name', { table });
                     continue;
                 }
                 
                 try {
-                    console.log(`📊 Exporting table: ${tableName}`);
+                    logger.debug('Exporting table', { tableName });
                     
                     // Get table structure
                     const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
                     if (!structure || !structure[0]) {
-                        console.warn(`⚠️ Could not get structure for table: ${tableName}`);
+                        logger.warn('Could not get structure for table', { tableName });
                         continue;
                     }
                     sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
@@ -344,7 +344,7 @@ class BackupSystem {
                         const result = await this.pool.execute(query, queryParams);
                         data = result[0] || [];
                     } catch (queryError) {
-                        console.warn(`⚠️ Could not query data for table ${tableName}:`, queryError.message);
+                        logger.warn('Could not query data for table', { tableName, error: queryError.message });
                         sqlContent += `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
                         continue;
                     }
@@ -383,17 +383,17 @@ class BackupSystem {
                         sqlContent += `-- No data found for table \`${tableName}\` in date range\n\n`;
                     }
                 } catch (tableError) {
-                    console.error(`❌ Error exporting table ${tableName}:`, tableError.message);
+                    logger.error('Error exporting table', { tableName, error: tableError.message });
                     sqlContent += `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
                 }
             }
             
             // Write SQL file
             await fs.writeFile(sqlFile, sqlContent, 'utf8');
-            console.log(`✅ Date-filtered database backup created: ${sqlFile}`);
+            logger.info('Date-filtered database backup created', { sqlFile });
             
         } catch (error) {
-            console.error('❌ Date-filtered database backup creation failed:', error);
+            logger.error('Date-filtered database backup creation failed', error);
             throw error;
         }
     }
@@ -428,17 +428,17 @@ class BackupSystem {
             for (const table of tables) {
                 const tableName = table.tableName; // Use aliased name
                 if (!tableName) {
-                    console.warn('⚠️ Skipping table with undefined name:', table);
+                    logger.warn('Skipping table with undefined name', { table });
                     continue;
                 }
                 
                 try {
-                    console.log(`📊 Exporting table: ${tableName}`);
+                    logger.debug('Exporting table', { tableName });
                     
                     // Get table structure
                     const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
                     if (!structure || !structure[0]) {
-                        console.warn(`⚠️ Could not get structure for table: ${tableName}`);
+                        logger.warn('Could not get structure for table', { tableName });
                         continue;
                     }
                     sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
@@ -451,7 +451,7 @@ class BackupSystem {
                         const result = await this.pool.execute(`SELECT * FROM \`${tableName}\``);
                         data = result[0] || [];
                     } catch (queryError) {
-                        console.warn(`⚠️ Could not query data for table ${tableName}:`, queryError.message);
+                        logger.warn('Could not query data for table', { tableName, error: queryError.message });
                         sqlContent += `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
                         continue;
                     }
@@ -491,17 +491,17 @@ class BackupSystem {
                         sqlContent += `-- No data in table \`${tableName}\`\n\n`;
                     }
                 } catch (tableError) {
-                    console.error(`❌ Error exporting table ${tableName}:`, tableError.message);
+                    logger.error('Error exporting table', { tableName, error: tableError.message });
                     sqlContent += `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
                 }
             }
             
             // Write SQL file
             await fs.writeFile(sqlFile, sqlContent, 'utf8');
-            console.log(`✅ Database backup created: ${sqlFile}`);
+            logger.info('Database backup created', { sqlFile });
             
         } catch (error) {
-            console.error('❌ Database backup creation failed:', error);
+            logger.error('Database backup creation failed', error);
             throw error;
         }
     }
@@ -520,33 +520,33 @@ class BackupSystem {
         
         try {
             // 1. Student Attendance Sheet (date-filtered)
-            console.log('📊 Exporting date-filtered student attendance...');
+            logger.debug('Exporting date-filtered student attendance');
             await this.exportDateFilteredStudentAttendance(workbook, startDate, endDate);
             
             // 2. Teacher Attendance Sheet (date-filtered)
-            console.log('📊 Exporting date-filtered teacher attendance...');
+            logger.debug('Exporting date-filtered teacher attendance');
             await this.exportDateFilteredTeacherAttendance(workbook, startDate, endDate);
             
             // 3. Permission Requests Sheet (date-filtered)
-            console.log('📊 Exporting date-filtered permission requests...');
+            logger.debug('Exporting date-filtered permission requests');
             await this.exportDateFilteredPermissionRequests(workbook, startDate, endDate);
             
             // 4. Date Range Analytics Summary
-            console.log('📊 Creating date range analytics summary...');
+            logger.debug('Creating date range analytics summary');
             await this.createDateRangeAnalyticsSummary(workbook, startDate, endDate);
             
             // 5. System Configuration Sheet
-            console.log('📊 Exporting system configuration...');
+            logger.debug('Exporting system configuration');
             await this.exportSystemConfiguration(workbook);
             
             // Save Excel file
             const excelFile = path.join(backupPath, `${backupId}_export.xlsx`);
             await workbook.xlsx.writeFile(excelFile);
             
-            console.log(`✅ Date-filtered Excel export created: ${excelFile}`);
+            logger.info('Date-filtered Excel export created', { excelFile });
             
         } catch (error) {
-            console.error('❌ Date-filtered Excel export failed:', error);
+            logger.error('Date-filtered Excel export failed', error);
             throw error;
         }
     }
@@ -565,33 +565,33 @@ class BackupSystem {
         
         try {
             // 1. Student Attendance Sheet
-            console.log('📊 Exporting student attendance...');
+            logger.debug('Exporting student attendance');
             await this.exportStudentAttendance(workbook, semester, year);
             
             // 2. Teacher Attendance Sheet
-            console.log('📊 Exporting teacher attendance...');
+            logger.debug('Exporting teacher attendance');
             await this.exportTeacherAttendance(workbook, semester, year);
             
             // 3. Permission Requests Sheet
-            console.log('📊 Exporting permission requests...');
+            logger.debug('Exporting permission requests');
             await this.exportPermissionRequests(workbook, semester, year);
             
             // 4. Analytics Summary Sheet
-            console.log('📊 Creating analytics summary...');
+            logger.debug('Creating analytics summary');
             await this.createAnalyticsSummary(workbook, semester, year);
             
             // 5. System Configuration Sheet
-            console.log('📊 Exporting system configuration...');
+            logger.debug('Exporting system configuration');
             await this.exportSystemConfiguration(workbook);
             
             // Save Excel file
             const excelFile = path.join(backupPath, `${backupId}_export.xlsx`);
             await workbook.xlsx.writeFile(excelFile);
             
-            console.log(`✅ Excel export created: ${excelFile}`);
+            logger.info('Excel export created', { excelFile });
             
         } catch (error) {
-            console.error('❌ Excel export failed:', error);
+            logger.error('Excel export failed', error);
             throw error;
         }
     }
@@ -610,23 +610,23 @@ class BackupSystem {
         
         try {
             // 1. Student Attendance Summary
-            console.log('📊 Creating student attendance summary...');
+            logger.debug('Creating student attendance summary');
             await this.createStudentAttendanceSummary(workbook);
             
             // 2. Teacher Attendance Summary
-            console.log('📊 Creating teacher attendance summary...');
+            logger.debug('Creating teacher attendance summary');
             await this.createTeacherAttendanceSummary(workbook);
             
             // 3. System Info Sheet
-            console.log('📊 Creating system info sheet...');
+            logger.debug('Creating system info sheet');
             await this.createSystemInfoSheet(workbook);
             
             // Save workbook
             await workbook.xlsx.writeFile(excelPath);
-            console.log(`✅ Excel report created: ${excelPath}`);
+            logger.info('Excel report created', { excelPath });
             
         } catch (error) {
-            console.error('❌ Excel report creation failed:', error);
+            logger.error('Excel report creation failed', error);
             throw error;
         }
     }
@@ -675,7 +675,7 @@ class BackupSystem {
             });
             
         } catch (error) {
-            console.error('Error creating student attendance summary:', error);
+            logger.error('Error creating student attendance summary', error);
             worksheet.addRow(['Error', 'Failed to load data', '', '', '', '']);
         }
     }
@@ -724,7 +724,7 @@ class BackupSystem {
             });
             
         } catch (error) {
-            console.error('Error creating teacher attendance summary:', error);
+            logger.error('Error creating teacher attendance summary', error);
             worksheet.addRow(['Error', 'Failed to load data', '', '', '', '']);
         }
     }
@@ -755,7 +755,7 @@ class BackupSystem {
             });
             
         } catch (error) {
-            console.error('Error creating system info sheet:', error);
+            logger.error('Error creating system info sheet', error);
             worksheet.addRow(['Error', 'Failed to load system information']);
         }
     }
@@ -815,7 +815,7 @@ class BackupSystem {
         // Style headers
         this.styleWorksheet(worksheet, 'Student Attendance Data');
         
-        console.log(`✅ Exported ${safeRows.length} student attendance records`);
+        logger.debug('Exported student attendance records', { count: safeRows.length });
     }
 
     /**
@@ -869,7 +869,7 @@ class BackupSystem {
         // Style headers
         this.styleWorksheet(worksheet, 'Teacher Attendance Data');
         
-        console.log(`✅ Exported ${safeRows.length} teacher attendance records`);
+        logger.debug('Exported teacher attendance records', { count: safeRows.length });
     }
 
     /**
@@ -930,7 +930,7 @@ class BackupSystem {
         // Style headers
         this.styleWorksheet(worksheet, 'Permission Requests Data');
         
-        console.log(`✅ Exported ${safeRows.length} permission request records`);
+        logger.debug('Exported permission request records', { count: safeRows.length });
     }
 
     /**
@@ -985,7 +985,7 @@ class BackupSystem {
         // Style headers
         this.styleWorksheet(worksheet, `Student Attendance Data (${startDate} to ${endDate})`);
         
-        console.log(`✅ Exported ${safeRows.length} date-filtered student attendance records`);
+        logger.debug('Exported date-filtered student attendance records', { count: safeRows.length });
     }
 
     /**
@@ -1037,7 +1037,7 @@ class BackupSystem {
         // Style headers
         this.styleWorksheet(worksheet, `Teacher Attendance Data (${startDate} to ${endDate})`);
         
-        console.log(`✅ Exported ${safeRows.length} date-filtered teacher attendance records`);
+        logger.debug('Exported date-filtered teacher attendance records', { count: safeRows.length });
     }
 
     /**
@@ -1096,7 +1096,7 @@ class BackupSystem {
         // Style headers
         this.styleWorksheet(worksheet, `Permission Requests Data (${startDate} to ${endDate})`);
         
-        console.log(`✅ Exported ${safeRows.length} date-filtered permission request records`);
+        logger.debug('Exported date-filtered permission request records', { count: safeRows.length });
     }
 
     /**
@@ -1161,7 +1161,7 @@ class BackupSystem {
         // Style the summary
         this.styleWorksheet(worksheet, `Date Range Analytics (${startDate} to ${endDate})`);
         
-        console.log('✅ Date range analytics summary created');
+        logger.info('Date range analytics summary created');
     }
 
     /**
@@ -1223,7 +1223,7 @@ class BackupSystem {
         // Style the summary
         this.styleWorksheet(worksheet, 'Analytics Summary');
         
-        console.log('✅ Analytics summary created');
+        logger.info('Analytics summary created');
     }
 
     /**
@@ -1265,7 +1265,7 @@ class BackupSystem {
         // Style the configuration
         this.styleWorksheet(worksheet, 'System Configuration');
         
-        console.log('✅ System configuration exported');
+        logger.info('System configuration exported');
     }
 
     /**
@@ -1278,7 +1278,7 @@ class BackupSystem {
         
         try {
             // Ensure archive tables exist before archiving
-            console.log('📋 Ensuring archive tables exist...');
+            logger.debug('Ensuring archive tables exist');
             await this.createArchiveTables();
             
             // Archive old student attendance
@@ -1309,11 +1309,11 @@ class BackupSystem {
             const reportFile = path.join(backupPath, `${backupId}_archive_report.json`);
             await fs.writeFile(reportFile, JSON.stringify(archiveReport, null, 2));
             
-            console.log(`✅ Archived ${archiveReport.studentRecordsArchived} student records`);
-            console.log(`✅ Archived ${archiveReport.teacherRecordsArchived} teacher records`);
+            logger.info('Archived student records', { count: archiveReport.studentRecordsArchived });
+            logger.info('Archived teacher records', { count: archiveReport.teacherRecordsArchived });
             
         } catch (error) {
-            console.error('⚠️ Data archiving failed (non-critical, continuing backup):', error.message);
+            logger.warn('Data archiving failed (non-critical, continuing backup)', { error: error.message });
             // Create empty archive report instead of crashing
             const archiveReport = {
                 backupId,
@@ -1371,9 +1371,9 @@ class BackupSystem {
                 )
             `);
             
-            console.log('✅ Archive tables created/verified');
+            logger.info('Archive tables created/verified');
         } catch (error) {
-            console.error('❌ Error creating archive tables:', error);
+            logger.error('Error creating archive tables', error);
             throw error;
         }
     }
@@ -1387,7 +1387,7 @@ class BackupSystem {
         archiveDate.setMonth(archiveDate.getMonth() - archiveAge);
         const archiveDateStr = archiveDate.toISOString().split('T')[0];
         
-        console.log(`📦 Archiving data older than ${archiveAge} months (before ${archiveDateStr})...`);
+        logger.info('Archiving old data', { archiveAge, archiveDateStr });
         
         try {
             // Create archive tables if they don't exist
@@ -1429,15 +1429,15 @@ class BackupSystem {
                 timestamp: new Date().toISOString()
             };
             
-            console.log(`✅ Archived ${studentArchiveResult.affectedRows} student records`);
-            console.log(`✅ Archived ${teacherArchiveResult.affectedRows} teacher records`);
-            console.log(`✅ Deleted ${studentDeleteResult.affectedRows} old student records`);
-            console.log(`✅ Deleted ${teacherDeleteResult.affectedRows} old teacher records`);
+            logger.info('Archived student records', { count: studentArchiveResult.affectedRows });
+            logger.info('Archived teacher records', { count: teacherArchiveResult.affectedRows });
+            logger.info('Deleted old student records', { count: studentDeleteResult.affectedRows });
+            logger.info('Deleted old teacher records', { count: teacherDeleteResult.affectedRows });
             
             return result;
             
         } catch (error) {
-            console.error('❌ Data archiving failed:', error);
+            logger.error('Data archiving failed', error);
             throw error;
         }
     }
@@ -1466,7 +1466,7 @@ class BackupSystem {
         const manifestFile = path.join(backupPath, `${backupId}_manifest.json`);
         await fs.writeFile(manifestFile, JSON.stringify(manifest, null, 2));
         
-        console.log(`✅ Date-based backup manifest created: ${manifestFile}`);
+        logger.info('Date-based backup manifest created', { manifestFile });
     }
 
     /**
@@ -1530,7 +1530,7 @@ class BackupSystem {
         const manifestFile = path.join(backupPath, `${backupId}_manifest.json`);
         await fs.writeFile(manifestFile, JSON.stringify(manifest, null, 2));
         
-        console.log(`✅ Backup manifest created: ${manifestFile}`);
+        logger.info('Backup manifest created', { manifestFile });
     }
 
     /**
@@ -1585,7 +1585,7 @@ class BackupSystem {
                 const hash = crypto.createHash('sha256').update(data).digest('hex');
                 checksums[file] = hash;
             } catch (error) {
-                console.warn(`⚠️ Could not calculate checksum for ${file}:`, error.message);
+                logger.warn('Could not calculate checksum for file', { file, error: error.message });
             }
         }
         
@@ -1603,7 +1603,7 @@ class BackupSystem {
             
             return new Promise((resolve, reject) => {
                 output.on('close', () => {
-                    console.log(`✅ Backup compressed: ${archive.pointer()} bytes`);
+                    logger.info('Backup compressed', { bytes: archive.pointer() });
                     resolve();
                 });
                 
@@ -1616,7 +1616,7 @@ class BackupSystem {
                 archive.finalize();
             });
         } catch (error) {
-            console.warn('⚠️ Compression failed, backup will remain uncompressed:', error.message);
+            logger.warn('Compression failed, backup will remain uncompressed', { error: error.message });
             // Don't throw error, just continue without compression
         }
     }
@@ -1646,12 +1646,12 @@ class BackupSystem {
                 for (const fileInfo of filesToDelete) {
                     const filePath = path.join(this.backupDir, fileInfo.file);
                     await fs.unlink(filePath);
-                    console.log(`🗑️ Deleted old backup: ${fileInfo.file}`);
+                    logger.debug('Deleted old backup', { file: fileInfo.file });
                 }
             }
             
         } catch (error) {
-            console.error('❌ Backup cleanup failed:', error);
+            logger.error('Backup cleanup failed', error);
         }
     }
 
@@ -1812,14 +1812,14 @@ class BackupSystem {
                         }
                     }
                 } catch (e) {
-                    console.warn(`⚠️ Error processing backup file ${file}:`, e.message);
+                    logger.warn('Error processing backup file', { file, error: e.message });
                 }
             }
             
             return backups.sort((a, b) => b.created - a.created);
             
         } catch (error) {
-            console.error('❌ Failed to list backups:', error);
+            logger.error('Failed to list backups', error);
             return [];
         }
     }
@@ -1828,7 +1828,7 @@ class BackupSystem {
      * Restore from backup
      */
     async restoreFromBackup(backupId) {
-        console.log(`🔄 Restoring from backup: ${backupId}`);
+        logger.info('Restoring from backup', { backupId });
         
         try {
             // First try to find SQL file in uncompressed folder
@@ -1841,15 +1841,15 @@ class BackupSystem {
             try {
                 await fs.access(sqlFile);
                 sqlFilePath = sqlFile;
-                console.log('📁 Found SQL file in uncompressed folder');
+                logger.debug('Found SQL file in uncompressed folder');
             } catch (error) {
-                console.log('📁 SQL file not found in uncompressed folder, trying zip file...');
+                logger.debug('SQL file not found in uncompressed folder, trying zip file');
                 
                 // Try zip file
                 const zipFile = path.join(this.backupDir, `${backupId}.zip`);
                 try {
                     await fs.access(zipFile);
-                    console.log('📦 Found zip file, extracting...');
+                    logger.debug('Found zip file, extracting');
                     
                     const extractPath = path.join(this.backupDir, `${backupId}_temp`);
                     const { default: extract } = await import('extract-zip');
@@ -1858,7 +1858,7 @@ class BackupSystem {
                     const extractedSqlFile = path.join(extractPath, `${backupId}.sql`);
                     await fs.access(extractedSqlFile);
                     sqlFilePath = extractedSqlFile;
-                    console.log('✅ Successfully extracted SQL file from zip');
+                    logger.debug('Successfully extracted SQL file from zip');
                     
                 } catch (zipError) {
                     throw new Error(`Backup file not found: ${backupId}. Neither folder nor zip file exists.`);
@@ -1876,14 +1876,14 @@ class BackupSystem {
             if (sqlFilePath.includes('_temp')) {
                 const extractPath = path.dirname(sqlFilePath);
                 await fs.rm(extractPath, { recursive: true, force: true });
-                console.log('🧹 Cleaned up temporary extraction directory');
+                    logger.debug('Cleaned up temporary extraction directory');
             }
             
-            console.log(`✅ Successfully restored from backup: ${backupId}`);
+            logger.info('Successfully restored from backup', { backupId });
             return { success: true, message: 'Backup restored successfully' };
             
         } catch (error) {
-            console.error('❌ Backup restoration failed:', error);
+            logger.error('Backup restoration failed', error);
             throw error;
         }
     }
@@ -1893,7 +1893,7 @@ class BackupSystem {
      */
     async restoreDatabase(sqlFile) {
         try {
-            console.log(`🔄 Restoring database from: ${sqlFile}`);
+            logger.info('Restoring database from file', { sqlFile });
             
             // Read SQL file content
             const sqlContent = await fs.readFile(sqlFile, 'utf8');
@@ -1904,7 +1904,7 @@ class BackupSystem {
                 .map(stmt => stmt.trim())
                 .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
             
-            console.log(`📝 Found ${statements.length} SQL statements to execute`);
+            logger.debug('Found SQL statements to execute', { count: statements.length });
             
             // Execute each statement
             for (let i = 0; i < statements.length; i++) {
@@ -1912,18 +1912,18 @@ class BackupSystem {
                 if (statement.trim()) {
                     try {
                         await this.pool.execute(statement);
-                        console.log(`✅ Executed statement ${i + 1}/${statements.length}`);
+                        logger.debug('Executed statement', { index: i + 1, total: statements.length });
                     } catch (error) {
-                        console.warn(`⚠️ Warning: Failed to execute statement ${i + 1}:`, error.message);
+                        logger.warn('Failed to execute statement', { index: i + 1, error: error.message });
                         // Continue with other statements
                     }
                 }
             }
             
-            console.log('✅ Database restoration completed successfully');
+            logger.info('Database restoration completed successfully');
             
         } catch (error) {
-            console.error('❌ Database restoration failed:', error);
+            logger.error('Database restoration failed', error);
             throw error;
         }
     }
@@ -1932,7 +1932,7 @@ class BackupSystem {
      * Delete backup
      */
     async deleteBackup(backupId) {
-        console.log(`🗑️ Deleting backup: ${backupId}`);
+        logger.info('Deleting backup', { backupId });
         
         try {
             // First, check if it's a folder-based backup
@@ -1940,11 +1940,11 @@ class BackupSystem {
             const folderStats = await fs.stat(folderPath).catch(() => null);
             
             if (folderStats && folderStats.isDirectory()) {
-                console.log(`📁 Found backup folder: ${backupId}`);
+                logger.debug('Found backup folder', { backupId });
                 
                 // Delete the entire folder and its contents
                 await fs.rm(folderPath, { recursive: true, force: true });
-                console.log(`✅ Successfully deleted backup folder: ${backupId}`);
+                logger.info('Successfully deleted backup folder', { backupId });
                 
                 return { 
                     success: true, 
@@ -1972,15 +1972,15 @@ class BackupSystem {
                     await fs.unlink(filePath);
                     deleted = true;
                     deletedFiles.push(filename);
-                    console.log(`✅ Deleted backup file: ${filename}`);
+                    logger.debug('Deleted backup file', { filename });
                 } catch (fileError) {
                     // File doesn't exist, continue to next format
-                    console.log(`⚠️ File not found: ${filename}`);
+                    logger.warn('File not found', { filename });
                 }
             }
             
             if (deleted) {
-                console.log(`✅ Successfully deleted backup: ${backupId}`);
+                logger.info('Successfully deleted backup', { backupId });
                 return { 
                     success: true, 
                     message: 'Backup deleted successfully',
@@ -1992,7 +1992,7 @@ class BackupSystem {
             }
             
         } catch (error) {
-            console.error('❌ Backup deletion failed:', error);
+            logger.error('Backup deletion failed', error);
             throw error;
         }
     }
@@ -2003,7 +2003,7 @@ class BackupSystem {
     async close() {
         if (this.pool) {
             await this.pool.end();
-            console.log('✅ Backup system connection pool closed');
+            logger.info('Backup system connection pool closed');
         }
     }
 }
@@ -2020,16 +2020,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         
         // Create a test backup
         const result = await backupSystem.createSemesterBackup('Ganjil', 2025);
-        console.log('🎉 Backup created successfully:', result);
+        logger.debug('Backup created successfully', result);
         
         // List backups
         const backups = await backupSystem.listBackups();
-        console.log('📋 Available backups:', backups);
+        logger.debug('Available backups', backups);
         
         await backupSystem.close();
         process.exit(0);
     } catch (error) {
-        console.error('💥 Backup system failed:', error);
+        logger.error('Backup system failed', error);
         process.exit(1);
     }
 }
