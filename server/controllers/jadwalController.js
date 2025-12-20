@@ -284,13 +284,16 @@ export const createJadwal = async (req, res) => {
 
         const jadwalId = result.insertId;
 
-        // Insert semua guru ke jadwal_guru
+        // Insert semua guru ke jadwal_guru (batch insert for performance)
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
             const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
-            for (let i = 0; i < validGuruIds.length; i++) {
+            if (validGuruIds.length > 0) {
+                const values = validGuruIds.map((id, i) => [jadwalId, id, i === 0 ? 1 : 0]);
+                const placeholders = values.map(() => '(?, ?, ?)').join(', ');
+                const flatValues = values.flat();
                 await global.dbPool.execute(
-                    'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
-                    [jadwalId, validGuruIds[i], i === 0 ? 1 : 0]
+                    `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
+                    flatValues
                 );
             }
         }
@@ -401,16 +404,20 @@ export const updateJadwal = async (req, res) => {
             return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
-        // Update jadwal_guru table untuk multi-guru schedules
+        // Update jadwal_guru table untuk multi-guru schedules (batch insert for performance)
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
             // Hapus relasi lama
             await global.dbPool.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
 
-            // Tambahkan relasi baru
-            for (let i = 0; i < finalGuruIds.length; i++) {
+            // Tambahkan relasi baru dengan batch insert
+            const validGuruIds = finalGuruIds.filter(gid => gid && !isNaN(gid) && gid > 0);
+            if (validGuruIds.length > 0) {
+                const values = validGuruIds.map((gid, i) => [id, gid, i === 0 ? 1 : 0]);
+                const placeholders = values.map(() => '(?, ?, ?)').join(', ');
+                const flatValues = values.flat();
                 await global.dbPool.execute(
-                    'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
-                    [id, finalGuruIds[i], i === 0 ? 1 : 0]
+                    `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
+                    flatValues
                 );
             }
         }

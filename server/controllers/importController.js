@@ -542,17 +542,20 @@ const importJadwal = async (req, res) => {
                 );
                 const jadwalId = insertRes && insertRes.insertId ? insertRes.insertId : null;
                 
-                // Jika pelajaran dan ada guru_ids, isi tabel relasi jadwal_guru
+                // Jika pelajaran dan ada guru_ids, isi tabel relasi jadwal_guru (batch insert for performance)
                 if (jadwalId && v.jenis_aktivitas === 'pelajaran' && Array.isArray(v.guru_ids) && v.guru_ids.length > 0) {
-                    for (let idx = 0; idx < v.guru_ids.length; idx++) {
-                        const gid = v.guru_ids[idx];
+                    const validGuruIds = v.guru_ids.filter(gid => gid && !isNaN(gid) && gid > 0);
+                    if (validGuruIds.length > 0) {
+                        const values = validGuruIds.map((gid, idx) => [jadwalId, gid, idx === 0 ? 1 : 0]);
+                        const placeholders = values.map(() => '(?, ?, ?)').join(', ');
+                        const flatValues = values.flat();
                         await conn.execute(
-                            'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
-                            [jadwalId, gid, idx === 0 ? 1 : 0]
+                            `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
+                            flatValues
                         );
-                    }
-                    if (v.guru_ids.length > 1) {
-                        await conn.execute('UPDATE jadwal SET is_multi_guru = 1 WHERE id_jadwal = ?', [jadwalId]);
+                        if (validGuruIds.length > 1) {
+                            await conn.execute('UPDATE jadwal SET is_multi_guru = 1 WHERE id_jadwal = ?', [jadwalId]);
+                        }
                     }
                 }
             }
