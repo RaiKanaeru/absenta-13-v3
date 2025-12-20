@@ -1421,8 +1421,8 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
                 worksheet.getCell(dataRow, col + 3).value = monthlyTotal || 0;
 
                 // Apply cell styles
-                for (let c = 0; c < 4; c++) {
-                    Object.assign(worksheet.getCell(dataRow, col + c), dataStyle);
+                for (let columnOffset = 0; columnOffset < 4; columnOffset++) {
+                    Object.assign(worksheet.getCell(dataRow, col + columnOffset), dataStyle);
                 }
 
                 totalS += sakitCount;
@@ -1451,8 +1451,8 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             worksheet.getCell(dataRow, col + 5).value = parseFloat(persenHadir);
 
             // Apply styles to summary columns
-            for (let c = 0; c < 6; c++) {
-                Object.assign(worksheet.getCell(dataRow, col + c), dataStyle);
+            for (let columnOffset = 0; columnOffset < 6; columnOffset++) {
+                Object.assign(worksheet.getCell(dataRow, col + columnOffset), dataStyle);
             }
 
             totals.S += totalS;
@@ -2334,8 +2334,8 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
                         let buffer;
                         if (url.startsWith('data:image/')) buffer = Buffer.from(url.split(',')[1], 'base64');
                         else {
-                            const p = path.default.join(process.cwd(), 'public', url);
-                            if (fs.existsSync(p)) buffer = fs.readFileSync(p);
+                            const logoFilePath = path.default.join(process.cwd(), 'public', url);
+                            if (fs.existsSync(logoFilePath)) buffer = fs.readFileSync(logoFilePath);
                         }
                         if (buffer) {
                             const imgId = workbook.addImage({ buffer, extension: 'png' });

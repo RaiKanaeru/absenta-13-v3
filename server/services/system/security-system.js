@@ -724,9 +724,9 @@ class SecuritySystem extends EventEmitter {
             
             if (stats && stats.size > this.options.auditLogging.maxLogSize) {
                 // Rotate log files
-                for (let i = this.options.auditLogging.maxLogFiles - 1; i > 0; i--) {
-                    const oldFile = `${logFile}.${i}`;
-                    const newFile = `${logFile}.${i + 1}`;
+                for (let logFileIndex = this.options.auditLogging.maxLogFiles - 1; logFileIndex > 0; logFileIndex--) {
+                    const oldFile = `${logFile}.${logFileIndex}`;
+                    const newFile = `${logFile}.${logFileIndex + 1}`;
                     
                     try {
                         await fs.rename(oldFile, newFile);

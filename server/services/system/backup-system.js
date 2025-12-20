@@ -1776,14 +1776,14 @@ class BackupSystem {
                     // Handle Semester & Date Backups (Zip or Folder)
                     else if (file.startsWith('semester_backup_') || file.startsWith('date_backup_')) {
                         const isZip = file.endsWith('.zip');
-                        const id = file.replace(/\.zip$/, '');
+                        const backupId = file.replace(/\.zip$/, '');
                         
                         // If we already have this ID (e.g. from zip or folder processed first), skip OR update if better?
                         // Simple logic: If we have zip, keep it. If we have folder, keep it unless we find zip?
                         // Since we iterate randomly, let's just accept first found, but prefer zip if we want strictly compressed?
                         // Let's just avoid duplicates.
                         
-                        if (!seenIds.has(id)) {
+                        if (!seenIds.has(backupId)) {
                              const backupType = file.startsWith('semester_backup_') ? 'semester' : 'date';
                              let size = stats.size;
                              
@@ -1792,15 +1792,15 @@ class BackupSystem {
                                  try {
                                      const dirFiles = await fs.readdir(filePath);
                                      size = 0;
-                                     for (const f of dirFiles) {
-                                         const s = await fs.stat(path.join(filePath, f));
-                                         if (s.isFile()) size += s.size;
+                                     for (const dirFile of dirFiles) {
+                                         const dirFileStat = await fs.stat(path.join(filePath, dirFile));
+                                         if (dirFileStat.isFile()) size += dirFileStat.size;
                                      }
                                  } catch(e) {}
                              }
 
                              backups.push({
-                                 id: id,
+                                 id: backupId,
                                  filename: file, // Show actual filename (zip or folder name)
                                  size: size,
                                  created: stats.birthtime,
