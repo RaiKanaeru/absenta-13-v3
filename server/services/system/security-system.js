@@ -7,6 +7,9 @@ import { EventEmitter } from 'events';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Security');
 
 class SecuritySystem extends EventEmitter {
     constructor(options = {}) {
@@ -83,7 +86,7 @@ class SecuritySystem extends EventEmitter {
         // Start cleanup tasks
         this.startCleanupTasks();
         
-        console.log('🔒 Security System initialized');
+        logger.info('Security System initialized');
     }
     
     /**
@@ -93,16 +96,16 @@ class SecuritySystem extends EventEmitter {
         try {
             const logDir = path.dirname(this.options.auditLogging.logFile);
             await fs.mkdir(logDir, { recursive: true });
-            console.log(`📁 Log directory ensured: ${logDir}`);
+            logger.debug('Log directory ensured', { logDir });
         } catch (error) {
-            console.error('Failed to create log directory:', error);
+            logger.error('Failed to create log directory', error);
             // Fallback: try to create logs directory in current working directory
             try {
                 await fs.mkdir('logs', { recursive: true });
                 this.options.auditLogging.logFile = 'logs/security-audit.log';
-                console.log('📁 Fallback log directory created: logs/');
+                logger.info('Fallback log directory created', { path: 'logs/' });
             } catch (fallbackError) {
-                console.error('Failed to create fallback log directory:', fallbackError);
+                logger.error('Failed to create fallback log directory', fallbackError);
             }
         }
     }
@@ -419,14 +422,14 @@ class SecuritySystem extends EventEmitter {
             const logEntry = JSON.stringify(event) + '\n';
             await fs.appendFile(this.options.auditLogging.logFile, logEntry);
         } catch (error) {
-            console.error('Failed to write audit log:', error);
+            logger.error('Failed to write audit log', error);
             // Try to create directory again if it failed
             try {
                 await this.ensureLogDirectory();
                 const logEntry = JSON.stringify(event) + '\n';
                 await fs.appendFile(this.options.auditLogging.logFile, logEntry);
             } catch (retryError) {
-                console.error('Failed to write audit log after retry:', retryError);
+                logger.error('Failed to write audit log after retry', retryError);
             }
         }
     }
@@ -452,14 +455,14 @@ class SecuritySystem extends EventEmitter {
             const logEntry = JSON.stringify(event) + '\n';
             await fs.appendFile(this.options.auditLogging.logFile, logEntry);
         } catch (error) {
-            console.error('Failed to write security log:', error);
+            logger.error('Failed to write security log', error);
             // Try to create directory again if it failed
             try {
                 await this.ensureLogDirectory();
                 const logEntry = JSON.stringify(event) + '\n';
                 await fs.appendFile(this.options.auditLogging.logFile, logEntry);
             } catch (retryError) {
-                console.error('Failed to write security log after retry:', retryError);
+                logger.error('Failed to write security log after retry', retryError);
             }
         }
         
@@ -492,14 +495,14 @@ class SecuritySystem extends EventEmitter {
             const logEntry = JSON.stringify(event) + '\n';
             await fs.appendFile(this.options.auditLogging.logFile, logEntry);
         } catch (error) {
-            console.error('Failed to write security log:', error);
+            logger.error('Failed to write security log', error);
             // Try to create directory again if it failed
             try {
                 await this.ensureLogDirectory();
                 const logEntry = JSON.stringify(event) + '\n';
                 await fs.appendFile(this.options.auditLogging.logFile, logEntry);
             } catch (retryError) {
-                console.error('Failed to write security log after retry:', retryError);
+                logger.error('Failed to write security log after retry', retryError);
             }
         }
         
@@ -627,7 +630,7 @@ class SecuritySystem extends EventEmitter {
             duration: Date.now() - activity.firstSeen
         });
         
-        console.log(`🚨 IP ${clientId} blocked due to suspicious activity (score: ${activity.score})`);
+        logger.warn('IP blocked due to suspicious activity', { clientId, score: activity.score });
     }
     
     /**
@@ -735,10 +738,10 @@ class SecuritySystem extends EventEmitter {
                 // Move current log to .1
                 await fs.rename(logFile, `${logFile}.1`);
                 
-                console.log('📝 Log files rotated');
+                logger.info('Log files rotated');
             }
         } catch (error) {
-            console.error('Failed to rotate log files:', error);
+            logger.error('Failed to rotate log files', error);
         }
     }
     
@@ -780,7 +783,7 @@ class SecuritySystem extends EventEmitter {
         this.suspiciousActivities.delete(ip);
         
         this.logSecurityEvent('ip_unblocked', { ip });
-        console.log(`✅ IP ${ip} unblocked`);
+        logger.info('IP unblocked', { ip });
     }
     
     /**
@@ -801,14 +804,14 @@ class SecuritySystem extends EventEmitter {
      * Start security system
      */
     start() {
-        console.log('🔒 Security System started');
+        logger.info('Security System started');
         
         // Unblock localhost IPs that might have been blocked during development
         const localhostIPs = ['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost'];
         localhostIPs.forEach(ip => {
             if (this.isIPBlocked(ip)) {
                 this.unblockIP(ip);
-                console.log(`🔓 Unblocked localhost IP: ${ip}`);
+                logger.debug('Unblocked localhost IP', { ip });
             }
         });
         
@@ -825,7 +828,7 @@ class SecuritySystem extends EventEmitter {
         this.suspiciousActivities.clear();
         this.securityEvents = [];
         
-        console.log('🧹 Security System cleaned up');
+        logger.info('Security System cleaned up');
     }
 }
 
