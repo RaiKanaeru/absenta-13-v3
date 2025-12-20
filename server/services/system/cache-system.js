@@ -464,18 +464,26 @@ class CacheSystem {
             await this.cacheTeachers(teachers);
             logger.debug('Cached teachers', { count: teachers.length });
             
-            // Cache students by class
-            const [classList] = await databasePool.execute('SELECT DISTINCT kelas_id FROM siswa WHERE status = "aktif"');
+            // Cache students by class (single query instead of N+1 for better performance)
+            const [allStudents] = await databasePool.execute(
+                'SELECT id_siswa, nama, nis, kelas_id, jenis_kelamin, status FROM siswa WHERE status = "aktif" ORDER BY kelas_id, nama'
+            );
             
-            for (const cls of classList) {
-                const [students] = await databasePool.execute(
-                    'SELECT id_siswa, nama, nis, kelas_id, jenis_kelamin, status FROM siswa WHERE kelas_id = ? AND status = "aktif"',
-                    [cls.kelas_id]
-                );
-                await this.cacheStudentsByClass(cls.kelas_id, students);
+            // Group students by class
+            const studentsByClass = new Map();
+            for (const student of allStudents) {
+                if (!studentsByClass.has(student.kelas_id)) {
+                    studentsByClass.set(student.kelas_id, []);
+                }
+                studentsByClass.get(student.kelas_id).push(student);
             }
             
-            logger.debug('Cached students for classes', { count: classList.length });
+            // Cache each class's students
+            for (const [kelasId, students] of studentsByClass) {
+                await this.cacheStudentsByClass(kelasId, students);
+            }
+            
+            logger.debug('Cached students for classes', { count: studentsByClass.size, totalStudents: allStudents.length });
             
             logger.info('Cache warm-up completed');
             

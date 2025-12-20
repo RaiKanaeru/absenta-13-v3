@@ -114,19 +114,32 @@ async function restoreDatabaseFromZipArchive(filePath) {
 
         const sqlContent = zip.readAsText(sqlFile);
 
-        // Execute SQL commands
+        // Execute SQL commands in transaction for better performance
         const commands = sqlContent.split(';').filter(cmd => cmd.trim());
-
-        for (const command of commands) {
-            if (command.trim()) {
-                await global.dbPool.pool.execute(command);
+        const connection = await global.dbPool.pool.getConnection();
+        
+        try {
+            await connection.beginTransaction();
+            
+            for (const command of commands) {
+                if (command.trim()) {
+                    await connection.execute(command);
+                }
             }
+            
+            await connection.commit();
+        } catch (txError) {
+            await connection.rollback();
+            throw txError;
+        } finally {
+            connection.release();
         }
 
         return {
             type: 'zip',
             message: 'Database berhasil dipulihkan dari file ZIP',
-            filesExtracted: zipEntries.length
+            filesExtracted: zipEntries.length,
+            commandsExecuted: commands.length
         };
     } catch (error) {
         throw new Error(`Gagal memproses file ZIP: ${error.message}`);

@@ -196,8 +196,7 @@ export const getLiveSummary = async (req, res) => {
 
     try {
         const wibNow = getWIBTime();
-        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        const currentDayWIB = dayNames[wibNow.getDay()];
+        const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
         const currentTimeWIB = `${wibNow.getHours().toString().padStart(2, '0')}:${wibNow.getMinutes().toString().padStart(2, '0')}:00`;
         const todayWIB = getMySQLDateWIB();
 
