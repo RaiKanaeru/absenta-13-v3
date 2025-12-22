@@ -39,7 +39,6 @@ const incrementFailedAttempts = (): number => {
     count: newCount,
     timestamp: Date.now()
   }));
-  console.log(`[hCaptcha] Failed attempt #${newCount}/${CAPTCHA_THRESHOLD}`);
   return newCount;
 };
 
@@ -66,7 +65,6 @@ const getLockout = (): { lockedUntil: number } | null => {
 const setLockout = (retryAfterSeconds: number) => {
   const lockedUntil = Date.now() + (retryAfterSeconds * 1000);
   localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ lockedUntil }));
-  console.log(`[Lockout] Locked until ${new Date(lockedUntil).toLocaleTimeString()}`);
 };
 
 const clearLockout = () => {
@@ -87,7 +85,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     const data = getFailedAttempts();
     if (data.count >= CAPTCHA_THRESHOLD) {
       setShowCaptcha(true);
-      console.log(`[hCaptcha] Loaded ${data.count} failed attempts, showing captcha`);
     }
     
     // Check for existing lockout
@@ -132,7 +129,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     
     // If captcha is required but not solved, don't proceed
     if (showCaptcha && !captchaToken) {
-      console.log('[hCaptcha] Captcha required but not solved');
       return;
     }
     
@@ -157,7 +153,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
         const minutes = parseInt(match[1]);
         setLockout(minutes * 60);
         setLockoutRemaining(minutes * 60);
-        console.log(`[Lockout] Set ${minutes} minute lockout from server response`);
       }
     }
     
@@ -166,7 +161,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
       const newCount = incrementFailedAttempts();
       if (newCount >= CAPTCHA_THRESHOLD) {
         setShowCaptcha(true);
-        console.log('[hCaptcha] Threshold reached, showing captcha');
       }
     } else if (!error && prevErrorRef.current) {
       // Error cleared - login was successful
@@ -184,7 +178,6 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
 
   const onCaptchaVerify = (token: string) => {
     setCaptchaToken(token);
-    console.log('[hCaptcha] Verified successfully');
   };
 
   // Check if form is ready to submit
