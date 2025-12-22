@@ -36,10 +36,9 @@ export async function processMissingAttendance() {
     const todayName = getHariFromDate(); // Senin, Selasa, etc.
     const currentTime = getMySQLDateTimeWIB();
 
-    // Skip Sundays (Minggu) or depending on school days setting
-    // But jadwal query will restrict this anyway (if no schedule on Minggu, no processing)
-    if (todayName === 'Minggu') {
-        logger.info('Skipping auto attendance on Sunday');
+    // Skip Sundays (Minggu) AND Saturdays (Sabtu) as requested
+    if (todayName === 'Minggu' || todayName === 'Sabtu') {
+        logger.info('Skipping auto attendance on Weekend (Sabtu/Minggu)');
         return;
     }
 
