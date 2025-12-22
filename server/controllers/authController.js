@@ -148,7 +148,7 @@ export const login = async (req, res) => {
 
         // Query user from database (select only needed columns)
         const [rows] = await global.dbPool.execute(
-            'SELECT id_user, username, password, nama, role, email, foto, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
+            'SELECT id as id_user, username, password, nama, role, email, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
             [username]
         );
 
@@ -300,3 +300,4 @@ export const verify = (req, res) => {
         message: 'Token valid'
     });
 };
+
