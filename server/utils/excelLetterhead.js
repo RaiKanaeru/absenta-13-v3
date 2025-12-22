@@ -6,6 +6,9 @@
 
 import path from 'path';
 import fs from 'fs';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('ExcelLetterhead');
 
 /**
  * Add letterhead to Excel worksheet
@@ -46,7 +49,7 @@ export async function addLetterheadToWorksheet(workbook, worksheet, letterhead, 
                     });
                 }
             } catch (error) {
-                console.warn('⚠️ Could not add left logo:', error.message);
+                logger.warn('Could not add left logo', { error: error.message });
             }
         }
 
@@ -66,7 +69,7 @@ export async function addLetterheadToWorksheet(workbook, worksheet, letterhead, 
                     });
                 }
             } catch (error) {
-                console.warn('⚠️ Could not add right logo:', error.message);
+                logger.warn('Could not add right logo', { error: error.message });
             }
         }
 

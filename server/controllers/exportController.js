@@ -2342,7 +2342,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
                             sheet.addImage(imgId, { tl: { col, row: currentRow - 1 }, br: { col: col + 2, row: currentRow + 2 } });
                         }
                     } catch (e) {
-                         console.warn('Logo error:', e.message);
+                         logger.warn('Logo error', { error: e.message });
                          sheet.getCell(currentRow, col + 1).value = '[LOGO]';
                     }
                 };
