@@ -66,7 +66,7 @@ export const addTeacher = async (req, res) => {
 
     try {
         // Check if username already exists
-        const [existingUsers] = await global.dbPool.execute(
+        const [existingUsers] = await connection.execute(
             'SELECT id FROM users WHERE username = ?',
             [username]
         );
@@ -128,7 +128,7 @@ export const updateTeacher = async (req, res) => {
 
     try {
         // Check if username already exists (excluding current user)
-        const [existingUsers] = await global.dbPool.execute(
+        const [existingUsers] = await connection.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, id]
         );

@@ -48,7 +48,7 @@ export const addTeacherData = async (req, res) => {
         }
 
         // Check if NIP already exists
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await connection.execute(
             'SELECT id FROM guru WHERE nip = ?',
             [nip]
         );
@@ -66,7 +66,7 @@ export const addTeacherData = async (req, res) => {
             const dummyUsername = `guru_${nip}_${Date.now()}`;
             const dummyPassword = await bcrypt.hash('dummy123', saltRounds);
 
-            const [userResult] = await global.dbPool.execute(
+            const [userResult] = await connection.execute(
                 'INSERT INTO users (username, password, role, nama, status) VALUES (?, ?, ?, ?, ?)',
                 [dummyUsername, dummyPassword, 'guru', nama, 'aktif']
             );
@@ -77,7 +77,7 @@ export const addTeacherData = async (req, res) => {
                 VALUES ((SELECT COALESCE(MAX(id_guru), 0) + 1 FROM guru g2), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
-            const [result] = await global.dbPool.execute(query, [
+            const [result] = await connection.execute(query, [
                 userResult.insertId, dummyUsername, nip, nama, email || null, mata_pelajaran || null,
                 alamat || null, telepon || null, jenis_kelamin, status || 'aktif'
             ]);
@@ -116,7 +116,7 @@ export const updateTeacherData = async (req, res) => {
         }
 
         // Check if NIP already exists for other records
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await connection.execute(
             'SELECT id FROM guru WHERE nip = ? AND id != ?',
             [nip, id]
         );
@@ -130,13 +130,13 @@ export const updateTeacherData = async (req, res) => {
 
         try {
             // Update user account name if it exists
-            const [guruData] = await global.dbPool.execute(
+            const [guruData] = await connection.execute(
                 'SELECT user_id FROM guru WHERE id = ?',
                 [id]
             );
 
             if (guruData.length > 0 && guruData[0].user_id) {
-                await global.dbPool.execute(
+                await connection.execute(
                     'UPDATE users SET nama = ? WHERE id = ?',
                     [nama, guruData[0].user_id]
                 );
@@ -150,7 +150,7 @@ export const updateTeacherData = async (req, res) => {
                 WHERE id = ?
             `;
 
-            const [result] = await global.dbPool.execute(updateQuery, [
+            const [result] = await connection.execute(updateQuery, [
                 nip, nama, email || null, mata_pelajaran || null,
                 alamat || null, telepon || null, jenis_kelamin, status || 'aktif', id
             ]);
@@ -188,7 +188,7 @@ export const deleteTeacherData = async (req, res) => {
 
         try {
             // Get user_id first
-            const [guruData] = await global.dbPool.execute(
+            const [guruData] = await connection.execute(
                 'SELECT user_id FROM guru WHERE id = ?',
                 [id]
             );
@@ -199,7 +199,7 @@ export const deleteTeacherData = async (req, res) => {
             }
 
             // Delete guru data first (foreign key constraint)
-            const [result] = await global.dbPool.execute(
+            const [result] = await connection.execute(
                 'DELETE FROM guru WHERE id = ?',
                 [id]
             );
@@ -211,7 +211,7 @@ export const deleteTeacherData = async (req, res) => {
 
             // Delete from users table
             if (guruData[0].user_id) {
-                await global.dbPool.execute(
+                await connection.execute(
                     'DELETE FROM users WHERE id = ?',
                     [guruData[0].user_id]
                 );
