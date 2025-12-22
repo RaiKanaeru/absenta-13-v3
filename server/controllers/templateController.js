@@ -23,16 +23,16 @@ const getMapelTemplate = async (req, res) => {
 
     try {
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('mapel');
+        const worksheet = workbook.addWorksheet('mapel');
         
-        ws.columns = [
+        worksheet.columns = [
             { header: 'kode_mapel', key: 'kode_mapel', width: 20 },
             { header: 'nama_mapel', key: 'nama_mapel', width: 30 },
             { header: 'deskripsi', key: 'deskripsi', width: 40 },
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        ws.addRow({ kode_mapel: 'BING-02', nama_mapel: 'Bahasa Inggris Wajib', deskripsi: 'Contoh deskripsi', status: 'aktif' });
+        worksheet.addRow({ kode_mapel: 'BING-02', nama_mapel: 'Bahasa Inggris Wajib', deskripsi: 'Contoh deskripsi', status: 'aktif' });
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template-mapel.xlsx"');
@@ -55,15 +55,15 @@ const getKelasTemplate = async (req, res) => {
 
     try {
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('kelas');
+        const worksheet = workbook.addWorksheet('kelas');
         
-        ws.columns = [
+        worksheet.columns = [
             { header: 'nama_kelas', key: 'nama_kelas', width: 25 },
             { header: 'tingkat', key: 'tingkat', width: 10 },
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        ws.addRow({ nama_kelas: 'X IPA 3', tingkat: 'X', status: 'aktif' });
+        worksheet.addRow({ nama_kelas: 'X IPA 3', tingkat: 'X', status: 'aktif' });
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template-kelas.xlsx"');
@@ -86,16 +86,16 @@ const getRuangTemplate = async (req, res) => {
 
     try {
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('ruang');
+        const worksheet = workbook.addWorksheet('ruang');
         
-        ws.columns = [
+        worksheet.columns = [
             { header: 'nama_ruang', key: 'nama_ruang', width: 30 },
             { header: 'kapasitas', key: 'kapasitas', width: 15 },
             { header: 'lokasi', key: 'lokasi', width: 30 },
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        ws.addRow({ nama_ruang: 'Lab Komputer 1', kapasitas: 40, lokasi: 'Gedung A Lt. 2', status: 'aktif' });
+        worksheet.addRow({ nama_ruang: 'Lab Komputer 1', kapasitas: 40, lokasi: 'Gedung A Lt. 2', status: 'aktif' });
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="template-ruang.xlsx"');
@@ -118,9 +118,9 @@ const getJadwalTemplate = async (req, res) => {
 
     try {
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('jadwal');
+        const worksheet = workbook.addWorksheet('jadwal');
         
-        ws.columns = [
+        worksheet.columns = [
             { header: 'hari', key: 'hari', width: 15 },
             { header: 'jam_ke', key: 'jam_ke', width: 10 },
             { header: 'jam_mulai', key: 'jam_mulai', width: 12 },
@@ -131,7 +131,7 @@ const getJadwalTemplate = async (req, res) => {
             { header: 'ruang', key: 'ruang', width: 20 },
         ];
         
-        ws.addRow({ hari: 'Senin', jam_ke: 1, jam_mulai: '07:00', jam_selesai: '07:45', kelas: 'X IPA 1', mapel: 'Matematika Wajib', guru: 'Budi Santoso', ruang: 'Ruang 101' });
+        worksheet.addRow({ hari: 'Senin', jam_ke: 1, jam_mulai: '07:00', jam_selesai: '07:45', kelas: 'X IPA 1', mapel: 'Matematika Wajib', guru: 'Budi Santoso', ruang: 'Ruang 101' });
         
         const instruksi = workbook.addWorksheet('Instruksi');
         instruksi.columns = [{ header: 'Petunjuk Pengisian', key: 'petunjuk', width: 60 }];
@@ -164,9 +164,9 @@ const getGuruTemplate = async (req, res) => {
 
     try {
         const workbook = new ExcelJS.Workbook();
-        const ws = workbook.addWorksheet('guru');
+        const worksheet = workbook.addWorksheet('guru');
         
-        ws.columns = [
+        worksheet.columns = [
             { header: 'nip', key: 'nip', width: 20 },
             { header: 'nama', key: 'nama', width: 30 },
             { header: 'jenis_kelamin', key: 'jenis_kelamin', width: 15 },
@@ -177,7 +177,7 @@ const getGuruTemplate = async (req, res) => {
             { header: 'status', key: 'status', width: 15 },
         ];
         
-        ws.addRow({ nip: '198501012010011001', nama: 'Dr. Budi Santoso, M.Pd.', jenis_kelamin: 'L', email: 'budi.santoso@school.id', alamat: 'Jl. Pendidikan No. 123', no_telepon: '08123456789', jabatan: 'Guru Matematika', status: 'aktif' });
+        worksheet.addRow({ nip: '198501012010011001', nama: 'Dr. Budi Santoso, M.Pd.', jenis_kelamin: 'L', email: 'budi.santoso@school.id', alamat: 'Jl. Pendidikan No. 123', no_telepon: '08123456789', jabatan: 'Guru Matematika', status: 'aktif' });
         
         const instruksi = workbook.addWorksheet('Instruksi');
         instruksi.columns = [{ header: 'Petunjuk Pengisian', key: 'petunjuk', width: 60 }];
