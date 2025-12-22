@@ -2697,7 +2697,19 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         // Set header cells (kelas name, wali kelas)
         if (mapping.headerCells) {
             templateExportService.setCell(worksheet, mapping.headerCells.namaKelas, namaKelas);
-            // TODO: Get wali kelas from DB
+            
+            // Get wali kelas from DB
+            const [waliKelasResult] = await global.dbPool.execute(
+                `SELECT g.nama as wali_kelas_nama
+                 FROM kelas k 
+                 LEFT JOIN guru g ON k.wali_kelas_id = g.id_guru 
+                 WHERE k.id_kelas = ?`,
+                [kelas_id]
+            );
+            const waliKelasNama = waliKelasResult[0]?.wali_kelas_nama || '-';
+            if (mapping.headerCells.waliKelas) {
+                templateExportService.setCell(worksheet, mapping.headerCells.waliKelas, waliKelasNama);
+            }
         }
 
         // Query siswa and attendance data
@@ -2707,24 +2719,24 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
                 s.nis,
                 s.nama,
                 s.jenis_kelamin,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as jul_s,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as jul_i,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as jul_a,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as agt_s,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as agt_i,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as agt_a,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as sep_s,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as sep_i,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as sep_a,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as okt_s,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as okt_i,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as okt_a,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as nov_s,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as nov_i,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as nov_a,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'S' THEN 1 ELSE 0 END), 0) as des_s,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'I' THEN 1 ELSE 0 END), 0) as des_i,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'A' THEN 1 ELSE 0 END), 0) as des_a
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as jul_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'Izin' THEN 1 ELSE 0 END), 0) as jul_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as jul_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as agt_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'Izin' THEN 1 ELSE 0 END), 0) as agt_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as agt_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as sep_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'Izin' THEN 1 ELSE 0 END), 0) as sep_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as sep_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as okt_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'Izin' THEN 1 ELSE 0 END), 0) as okt_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as okt_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as nov_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'Izin' THEN 1 ELSE 0 END), 0) as nov_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as nov_a,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as des_s,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'Izin' THEN 1 ELSE 0 END), 0) as des_i,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as des_a
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
                 AND YEAR(a.tanggal) = ?
