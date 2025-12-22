@@ -79,13 +79,10 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      console.log('🔍 Loading letterhead config:', { token: token ? 'present' : 'missing', scope, selectedReportKey });
       
       const url = scope === 'global' 
         ? getApiUrl('/api/admin/letterhead')
         : getApiUrl(`/api/admin/letterhead?reportKey=${selectedReportKey}`);
-        
-      console.log('🔍 Fetching URL:', url);
       
       const response = await fetch(url, {
         headers: {
@@ -94,12 +91,9 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         },
         credentials: 'include'
       });
-      
-      console.log('🔍 Response status:', response.status, response.statusText);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Response data:', data);
         if (data.success) {
           // Handle backward compatibility - convert old format to new format
           const configData = data.data;
@@ -327,7 +321,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       });
 
       if (response.ok) {
-        console.log('✅ Old file deleted successfully');
+        // File deleted successfully
       } else {
         console.warn('⚠️ Could not delete old file');
       }

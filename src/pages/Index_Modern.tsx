@@ -354,8 +354,6 @@ const Index = () => {
 
   // Render dashboard based on user role
   if (currentState === 'dashboard' && userData) {
-    console.log('🎯 Rendering dashboard for role:', userData.role);
-    
     switch (userData.role) {
       case 'admin':
         return (
@@ -404,8 +402,7 @@ const Index = () => {
     }
   }
 
-  // Fallback
-  console.log('⚠️ Unexpected state, redirecting to login');
+  // Fallback - unexpected state
   setCurrentState('login');
   return null;
 };
