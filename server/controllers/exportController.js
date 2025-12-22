@@ -117,7 +117,7 @@ export const exportAbsensi = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ Excel export error:', error);
+        logger.error('Excel export error', { error: error.message });
         res.status(500).json({ error: 'Failed to export data to Excel' });
     }
 };
@@ -590,7 +590,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ Error exporting rekap ketidakhadiran guru:', error);
+        logger.error('Error exporting rekap ketidakhadiran guru', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -1502,7 +1502,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ Error exporting rekap ketidakhadiran:', error);
+        logger.error('Error exporting rekap ketidakhadiran', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -1806,7 +1806,7 @@ export const exportJadwalMatrix = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ Export jadwal matrix error:', error);
+        logger.error('Export jadwal matrix error', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -2041,7 +2041,7 @@ export const exportJadwalGrid = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ Export jadwal grid error:', error);
+        logger.error('Export jadwal grid error', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -2534,7 +2534,7 @@ export const exportRekapJadwalGuru = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ Export rekap jadwal guru error:', error);
+        logger.error('Export rekap jadwal guru error', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -2639,7 +2639,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ [TEMPLATE] Export rekap ketidakhadiran guru error:', error);
+        logger.error('Template export rekap ketidakhadiran guru error', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };
@@ -2792,7 +2792,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
-        console.error('❌ [TEMPLATE] Export rekap ketidakhadiran kelas error:', error);
+        logger.error('Template export rekap ketidakhadiran kelas error', { error: error.message });
         return sendDatabaseError(res, error);
     }
 };

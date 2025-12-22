@@ -221,7 +221,7 @@ const importKelas = async (req, res) => {
 
         res.json({ success: true, inserted_or_updated: valid.length, invalid: errors.length, errors });
     } catch (err) {
-        console.error('❌ Import kelas error:', err);
+        logger.error('Import kelas error', { error: err.message });
         res.status(500).json({ error: 'Gagal impor kelas' });
     }
 };
@@ -331,7 +331,7 @@ const importRuang = async (req, res) => {
 
         res.json({ success: true, inserted_or_updated: valid.length, invalid: errors.length, errors });
     } catch (err) {
-        console.error('❌ Import ruang error:', err);
+        logger.error('Import ruang error', { error: err.message });
         res.status(500).json({ error: 'Gagal impor ruang' });
     }
 };
@@ -569,7 +569,7 @@ const importJadwal = async (req, res) => {
 
         res.json({ success: true, inserted: valid.length, invalid: errors.length, errors });
     } catch (err) {
-        console.error('❌ Import jadwal error:', err);
+        logger.error('Import jadwal error', { error: err.message });
         res.status(500).json({ error: 'Gagal impor jadwal' });
     }
 };
@@ -605,7 +605,7 @@ const importStudentAccount = async (req, res) => {
             dbUsernames.forEach(row => existingUsernames.add(row.username));
             dbNis.forEach(row => existingNis.add(row.nis));
         } catch (dbError) {
-            console.error('Error checking existing data:', dbError);
+            logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
                 error: 'Gagal memeriksa data yang sudah ada',
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
@@ -792,7 +792,7 @@ const importStudentAccount = async (req, res) => {
                         successCount++;
                     }
                 } catch (insertError) {
-                    console.error(`❌ Error processing student account ${v.nama}:`, insertError);
+                    logger.error('Error processing student account', { nama: v.nama, error: insertError.message });
                     throw insertError;
                 }
             }
@@ -851,7 +851,7 @@ const importTeacherAccount = async (req, res) => {
             dbUsernames.forEach(row => existingUsernames.add(row.username));
             dbNips.forEach(row => existingNips.add(row.nip));
         } catch (dbError) {
-            console.error('Error checking existing data:', dbError);
+            logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
                 error: 'Gagal memeriksa data yang sudah ada',
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
@@ -1038,7 +1038,7 @@ const importTeacherAccount = async (req, res) => {
                         successCount++;
                     }
                 } catch (insertError) {
-                    console.error(`❌ Error processing teacher account ${v.nama}:`, insertError);
+                    logger.error('Error processing teacher account', { nama: v.nama, error: insertError.message });
                     throw insertError;
                 }
             }
@@ -1093,7 +1093,7 @@ const importSiswa = async (req, res) => {
             const [dbNis] = await global.dbPool.execute('SELECT nis FROM siswa');
             dbNis.forEach(row => existingNis.add(row.nis));
         } catch (dbError) {
-            console.error('Error checking existing data:', dbError);
+            logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
                 error: 'Gagal memeriksa data yang sudah ada',
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
@@ -1224,7 +1224,7 @@ const importSiswa = async (req, res) => {
                         successCount++;
                     }
                 } catch (insertError) {
-                    console.error(`❌ Error processing student data ${v.nama}:`, insertError);
+                    logger.error('Error processing student data', { nama: v.nama, error: insertError.message });
                     throw insertError;
                 }
             }
@@ -1279,7 +1279,7 @@ const importGuru = async (req, res) => {
             const [dbNips] = await global.dbPool.execute('SELECT nip FROM guru');
             dbNips.forEach(row => existingNips.add(row.nip));
         } catch (dbError) {
-            console.error('Error checking existing data:', dbError);
+            logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
                 error: 'Gagal memeriksa data yang sudah ada',
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
