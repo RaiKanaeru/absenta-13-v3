@@ -1796,7 +1796,9 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                         {jadwal.guru_list.map((guru, guruIdx) => {
                           const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
                           const currentStatus = kehadiranData[guruKey]?.status || guru.status_kehadiran || 'belum_diambil';
-                          const isSubmitted = currentStatus !== 'belum_diambil';
+                          
+                          // Fix: isSubmitted should mainly rely on server data, NOT client form state (which defaults to 'Hadir')
+                          const isSubmitted = guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil';
                           
                           return (
                             <div key={guruKey} className={`border rounded-lg p-3 sm:p-4 ${isSubmitted ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
