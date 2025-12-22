@@ -642,7 +642,12 @@ app.use(globalErrorHandler);  // Handle all unhandled errors
 // Inline endpoints removed during refactoring - December 2024
 // ================================================
 
+import { initAutoAttendanceScheduler } from './server/services/system/autoAttendanceService.js';
+
 initializeDatabase().then(() => {
+    // Initialize scheduled tasks (Cron Jobs)
+    initAutoAttendanceScheduler();
+
     app.listen(port, '0.0.0.0', () => {
         console.log(`🚀 ABSENTA Modern Server is running on http://0.0.0.0:${port}`);
         console.log(`🌐 Accessible from network: http://[YOUR_IP]:${port}`);
