@@ -147,8 +147,11 @@ export const login = async (req, res) => {
         }
 
         // Query user from database (select only needed columns)
+        // Select 'id' (real column) AND 'id as id_user' (alias) because:
+        // 1. 'user.id' is used in token generation (fixes 500 error)
+        // 2. 'id_user' is expected by some parts of the backend
         const [rows] = await global.dbPool.execute(
-            'SELECT id as id_user, username, password, nama, role, email, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
+            'SELECT id, id as id_user, username, password, nama, role, email, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
             [username]
         );
 
