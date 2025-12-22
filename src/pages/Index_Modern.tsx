@@ -53,21 +53,17 @@ const getToken = () => {
 const setToken = (token: string) => {
   try {
     localStorage.setItem('token', token);
-    console.log('✅ Token stored in localStorage');
-  } catch (error) {
-    console.error('❌ localStorage failed, trying sessionStorage:', error);
+  } catch (localError) {
+    // Fallback to sessionStorage
     try {
       sessionStorage.setItem('token', token);
-      console.log('✅ Token stored in sessionStorage as fallback');
     } catch (sessionError) {
-      console.error('❌ Both localStorage and sessionStorage failed:', sessionError);
+      console.error('Token storage failed');
     }
   }
 };
 
 const Index = () => {
-  console.log('🚀 ABSENTA Modern App Starting...');
-  
   const [currentState, setCurrentState] = useState<AppState>('login');
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,29 +72,23 @@ const Index = () => {
 
   const checkExistingAuth = useCallback(async () => {
     try {
-      console.log('🔍 Checking existing authentication...');
-      console.log('📱 localStorage available:', typeof(Storage) !== "undefined");
       const token = getToken();
-      console.log('📱 Token found:', token ? 'exists' : 'not found');
       
       const response = await fetch(getApiUrl('/api/verify'), {
         method: 'GET',
         credentials: 'include'
       });
       
-      console.log('🔍 Auth check response status:', response.status);
-      
+
       if (response.ok) {
         // Check if the response is JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          console.log('ℹ️ Non-JSON response from auth check');
           return;
         }
 
         const responseText = await response.text();
         if (!responseText.trim()) {
-          console.log('ℹ️ Empty response from auth check');
           return;
         }
 
@@ -106,12 +96,10 @@ const Index = () => {
         try {
           result = JSON.parse(responseText);
         } catch (parseError) {
-          console.log('ℹ️ Could not parse auth response:', parseError);
           return;
         }
 
         if (result.success && result.user) {
-          console.log('✅ Existing auth found, user:', result.user);
           
           // Load latest profile data based on role
           try {
@@ -141,7 +129,6 @@ const Index = () => {
             
             if (profileResponse && profileResponse.ok) {
               const profileData = await profileResponse.json();
-              console.log('📋 Profile data received:', profileData);
               if (profileData.success) {
                 // Merge JWT data with latest profile data
                 const updatedUserData = {
@@ -161,22 +148,14 @@ const Index = () => {
                   })
                 };
                 setUserData(updatedUserData);
-                console.log('✅ Updated user data with latest profile:', updatedUserData);
               } else {
-                console.log('❌ Profile data not successful:', profileData);
                 setUserData(result.user);
               }
             } else {
-              console.log('❌ Profile response not ok:', profileResponse?.status, profileResponse?.statusText);
               setUserData(result.user);
             }
           } catch (profileError) {
-            console.error('❌ Failed to load latest profile data:', profileError);
-            console.log('❌ Profile error details:', {
-              message: profileError.message,
-              stack: profileError.stack,
-              name: profileError.name
-            });
+            console.error('Failed to load profile:', profileError);
             setUserData(result.user);
           }
           
@@ -187,11 +166,9 @@ const Index = () => {
             description: `Halo ${result.user.nama}, Anda berhasil login otomatis.`,
           });
         }
-      } else {
-        console.log('ℹ️ No existing authentication found, status:', response.status);
       }
     } catch (error) {
-      console.log('ℹ️ No existing auth or error checking:', error);
+      // Silent fail - no existing auth
     }
   }, [toast]);
 
@@ -201,9 +178,6 @@ const Index = () => {
   }, [checkExistingAuth]);
 
   const handleLogin = useCallback(async (credentials: { username: string; password: string }) => {
-    console.log('🔐 Starting login process for:', credentials.username);
-    console.log('📱 User Agent:', navigator.userAgent);
-    console.log('📱 Is Mobile:', /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     setIsLoading(true);
     setError(null);
 
@@ -217,22 +191,15 @@ const Index = () => {
         body: JSON.stringify(credentials),
       });
 
-      console.log('📡 Login response status:', response.status);
-      console.log('📡 Login response headers:', response.headers.get('content-type'));
-
       // Check if the response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        console.error('❌ Server returned non-JSON response');
         throw new Error('Server mengirim respons yang tidak valid. Pastikan server berjalan dengan baik.');
       }
 
-      // Check if response has content
+      // Parse response
       const responseText = await response.text();
-      console.log('📡 Raw response text:', responseText);
-      
       if (!responseText.trim()) {
-        console.error('❌ Empty response from server');
         throw new Error('Server mengirim respons kosong. Periksa koneksi ke server.');
       }
 
@@ -240,16 +207,11 @@ const Index = () => {
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError);
-        console.error('❌ Response text that failed to parse:', responseText);
-        throw new Error('Server mengirim respons yang tidak dapat dibaca. Periksa log server.');
+        console.error('JSON parse error:', parseError);
+        throw new Error('Server mengirim respons yang tidak dapat dibaca.');
       }
 
-      console.log('📡 Parsed login response:', result);
-
       if (response.ok && result.success) {
-        console.log('✅ Login successful for user:', result.user);
-        
         setUserData(result.user);
         setCurrentState('dashboard');
         setError(null);
@@ -264,10 +226,22 @@ const Index = () => {
           description: `Selamat datang, ${result.user.nama}!`,
         });
       } else {
-        throw new Error(result.error || 'Login failed');
+        // Extract error message properly from response
+        let errorMessage = 'Login gagal';
+        if (result.error) {
+          if (typeof result.error === 'string') {
+            errorMessage = result.error;
+          } else if (typeof result.error === 'object') {
+            // Handle structured error: {code, message, details}
+            errorMessage = result.error.message || result.error.error || JSON.stringify(result.error);
+          }
+        } else if (result.message) {
+          errorMessage = result.message;
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('Login error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat login';
       setError(errorMessage);
       
@@ -282,7 +256,6 @@ const Index = () => {
   }, [toast]);
 
   const handleLogout = useCallback(async () => {
-    console.log('🚪 Logging out user...');
     
     try {
       await fetch(getApiUrl('/api/logout'), {
@@ -301,14 +274,11 @@ const Index = () => {
       setCurrentState('login');
       setError(null);
       
-      console.log('✅ Logout successful');
-      
       toast({
         title: "Logout Berhasil",
         description: "Anda telah keluar dari sistem",
       });
     } catch (error) {
-      console.error('❌ Logout error:', error);
       // Force logout even if request fails
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
