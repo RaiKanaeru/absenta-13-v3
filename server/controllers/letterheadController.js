@@ -19,7 +19,7 @@ async function getLetterheadGlobal() {
     try {
         return await getLetterhead({ reportKey: null });
     } catch (error) {
-        console.error('Error getting global letterhead:', error);
+        logger.error('Error getting global letterhead', { error: error.message });
         return null;
     }
 }
@@ -28,7 +28,7 @@ async function getLetterheadForReportKey(reportKey) {
     try {
         return await getLetterhead({ reportKey });
     } catch (error) {
-        console.error('Error getting report letterhead:', error);
+        logger.error('Error getting report letterhead', { reportKey, error: error.message });
         return null;
     }
 }

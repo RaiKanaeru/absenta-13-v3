@@ -1027,7 +1027,7 @@ const getBackupDirectoryStatus = async (req, res) => {
                 })
             );
         } catch (error) {
-            console.log('Backup directory does not exist or is not accessible');
+            logger.debug('Backup directory does not exist or is not accessible');
         }
 
         res.json({
@@ -1041,7 +1041,7 @@ const getBackupDirectoryStatus = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error checking backup directory:', error);
+        logger.error('Error checking backup directory', { error: error.message });
         res.status(500).json({
             error: 'Internal server error',
             message: 'Gagal memeriksa direktori backup'
@@ -1055,7 +1055,7 @@ const getBackupDirectoryStatus = async (req, res) => {
  */
 const getBackupSettings = async (req, res) => {
     try {
-        console.log('⚙️ Getting backup settings...');
+        logger.debug('Getting backup settings');
 
         const defaultSettings = {
             autoBackupSchedule: 'weekly',
@@ -1106,7 +1106,7 @@ const getBackupSettings = async (req, res) => {
 const saveBackupSettings = async (req, res) => {
     try {
         const settings = req.body;
-        console.log('💾 Saving backup settings:', settings);
+        logger.info('Saving backup settings', { schedule: settings.autoBackupSchedule });
 
         const validSettings = {
             autoBackupSchedule: settings.autoBackupSchedule || 'weekly',
@@ -1138,7 +1138,7 @@ const saveBackupSettings = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error saving backup settings:', error);
+        logger.error('Error saving backup settings', { error: error.message });
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to save backup settings'
@@ -1156,7 +1156,7 @@ const saveBackupSettings = async (req, res) => {
  */
 const getCustomSchedules = async (req, res) => {
     try {
-        console.log('📅 Getting custom schedules...');
+        logger.debug('Getting custom schedules');
 
         const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
         let schedules = [];
@@ -1185,7 +1185,7 @@ const getCustomSchedules = async (req, res) => {
 const createCustomSchedule = async (req, res) => {
     try {
         const { name, date, time, enabled } = req.body;
-        console.log('📅 Creating custom schedule:', { name, date, time, enabled });
+        logger.info('Creating custom schedule', { name, date, time });
 
         if (!name || !date || !time) {
             return res.status(400).json({
@@ -1234,7 +1234,7 @@ const createCustomSchedule = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error creating custom schedule:', error);
+        logger.error('Error creating custom schedule', { error: error.message });
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to create custom schedule'
@@ -1250,7 +1250,7 @@ const updateCustomSchedule = async (req, res) => {
     try {
         const { id } = req.params;
         const { name, date, time, enabled } = req.body;
-        console.log('📅 Updating custom schedule:', { id, name, date, time, enabled });
+        logger.info('Updating custom schedule', { id, name });
 
         const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
         let schedules = [];
@@ -1292,7 +1292,7 @@ const updateCustomSchedule = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error updating custom schedule:', error);
+        logger.error('Error updating custom schedule', { error: error.message });
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to update custom schedule'
@@ -1307,7 +1307,7 @@ const updateCustomSchedule = async (req, res) => {
 const deleteCustomSchedule = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log('🗑️ Deleting custom schedule:', id);
+        logger.info('Deleting custom schedule', { id });
 
         const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
         let schedules = [];
@@ -1341,7 +1341,7 @@ const deleteCustomSchedule = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error deleting custom schedule:', error);
+        logger.error('Error deleting custom schedule', { error: error.message });
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to delete custom schedule'
@@ -1356,7 +1356,7 @@ const deleteCustomSchedule = async (req, res) => {
 const runCustomSchedule = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log('🚀 Running custom schedule manually:', { id });
+        logger.info('Running custom schedule manually', { id });
 
         const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
         let schedules = [];
@@ -1400,7 +1400,7 @@ const runCustomSchedule = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Error running custom schedule:', error);
+        logger.error('Error running custom schedule', { error: error.message });
         res.status(500).json({
             error: 'Internal server error',
             message: error.message || 'Failed to run custom schedule'
@@ -1414,7 +1414,7 @@ const runCustomSchedule = async (req, res) => {
  */
 const createManualBackup = async (req, res) => {
     try {
-        console.log('💾 Creating database backup...');
+        logger.info('Creating database backup');
 
         const backupDir = path.join(process.cwd(), 'backups');
         try {
@@ -1464,16 +1464,16 @@ const createManualBackup = async (req, res) => {
                             backupContent += '\n';
                         }
                     } catch (tableError) {
-                        console.log(`⚠️ Could not backup table ${table}: ${tableError.message}`);
+                        logger.warn('Could not backup table', { table, error: tableError.message });
                     }
                 }
 
                 await fs.writeFile(filepath, backupContent);
-                console.log(`✅ Manual backup created: ${filename}`);
+                logger.info('Manual backup created', { filename });
 
                 return { filename, filepath, size: backupContent.length };
             } catch (manualError) {
-                console.error('❌ Manual backup failed:', manualError);
+                logger.error('Manual backup failed', { error: manualError.message });
                 throw new Error('Gagal membuat backup database');
             }
         }
@@ -1489,7 +1489,7 @@ const createManualBackup = async (req, res) => {
             const mysqldumpCmd = `mysqldump -h localhost -u root absenta13 > "${filepath}"`;
             await execAsync(mysqldumpCmd);
 
-            console.log('✅ mysqldump backup created successfully');
+            logger.info('mysqldump backup created successfully');
 
             res.setHeader('Content-Type', 'application/sql');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -1498,7 +1498,7 @@ const createManualBackup = async (req, res) => {
             res.send(fileContent);
 
         } catch (mysqldumpError) {
-            console.log('❌ mysqldump not available, using manual backup...');
+            logger.debug('mysqldump not available, using manual backup');
             const result = await createManualBackupFile();
 
             res.setHeader('Content-Type', 'application/sql');
