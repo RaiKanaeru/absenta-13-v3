@@ -1,6 +1,15 @@
 /**
- * Auth Controller
- * Handles user authentication: login, logout, verify
+ * @fileoverview Auth Controller - Modul Autentikasi ABSENTA
+ * @module controllers/authController
+ * 
+ * Menangani proses autentikasi pengguna:
+ * - Login dengan username/password
+ * - Logout dan invalidasi session
+ * - Verifikasi token JWT
+ * - Rate limiting untuk mencegah brute force
+ * 
+ * @requires bcrypt - Untuk hashing password
+ * @requires jsonwebtoken - Untuk generate/verify JWT
  */
 
 import bcrypt from 'bcrypt';
@@ -11,15 +20,25 @@ import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
 
+/** Secret key untuk signing JWT token */
 const JWT_SECRET = process.env.JWT_SECRET || 'absenta-super-secret-key-2025';
 const logger = createLogger('Auth');
 
-// ================================================
-// LOGIN RATE LIMITING (IP-based)
-// ================================================
+// ============================================================
+// RATE LIMITING - Mencegah Brute Force Attack
+// ============================================================
+
+/** 
+ * Map untuk menyimpan riwayat percobaan login per IP
+ * @type {Map<string, {count: number, firstAttempt: number, lastAttempt: number, lockedUntil?: number}>}
+ */
 const loginAttempts = new Map();
+
+/** Maksimal percobaan login sebelum lockout */
 const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes in ms
+
+/** Durasi lockout dalam milliseconds (15 menit) */
+const LOCKOUT_DURATION = 15 * 60 * 1000;
 
 /**
  * Check if IP is locked out from login attempts

@@ -39,22 +39,31 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Utility function to get token with mobile fallback
+/**
+ * Mengambil token autentikasi dari storage
+ * Mencoba localStorage terlebih dahulu, jika gagal fallback ke sessionStorage
+ * @returns {string | null} Token autentikasi atau null jika tidak ditemukan
+ */
 const getToken = () => {
   try {
     return localStorage.getItem('token') || sessionStorage.getItem('token');
   } catch (error) {
-    console.error('❌ Error accessing storage:', error);
+    console.error('Error accessing storage:', error);
     return null;
   }
 };
 
-// Utility function to set token with mobile fallback
+/**
+ * Menyimpan token autentikasi ke storage
+ * Mencoba localStorage terlebih dahulu, jika gagal fallback ke sessionStorage
+ * Berguna untuk perangkat mobile yang memiliki keterbatasan storage
+ * @param {string} token - Token JWT yang akan disimpan
+ */
 const setToken = (token: string) => {
   try {
     localStorage.setItem('token', token);
   } catch (localError) {
-    // Fallback to sessionStorage
+    // Fallback ke sessionStorage untuk perangkat dengan localStorage terbatas
     try {
       sessionStorage.setItem('token', token);
     } catch (sessionError) {
@@ -63,13 +72,30 @@ const setToken = (token: string) => {
   }
 };
 
+/**
+ * Komponen utama aplikasi ABSENTA
+ * Menangani:
+ * - State autentikasi (login/dashboard)
+ * - Routing berdasarkan role (admin/guru/siswa)
+ * - Auto-login dari token tersimpan
+ * - Login/logout handling
+ */
 const Index = () => {
+  // State aplikasi: 'login' atau 'dashboard'
   const [currentState, setCurrentState] = useState<AppState>('login');
+  // Data user yang sedang login
   const [userData, setUserData] = useState<UserData | null>(null);
+  // Loading state untuk operasi async
   const [isLoading, setIsLoading] = useState(false);
+  // Error message untuk ditampilkan ke user
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  /**
+   * Memeriksa autentikasi yang sudah ada (auto-login)
+   * Dipanggil saat komponen mount untuk cek session aktif
+   * Jika valid, load data profile terbaru dan redirect ke dashboard
+   */
   const checkExistingAuth = useCallback(async () => {
     try {
       const token = getToken();
@@ -177,6 +203,14 @@ const Index = () => {
     checkExistingAuth();
   }, [checkExistingAuth]);
 
+  /**
+   * Handler untuk proses login
+   * Mengirim credentials ke API dan menangani response
+   * Termasuk error handling untuk berbagai format error dari server
+   * @param {Object} credentials - Username dan password
+   * @param {string} credentials.username - Username pengguna
+   * @param {string} credentials.password - Password pengguna
+   */
   const handleLogin = useCallback(async (credentials: { username: string; password: string }) => {
     setIsLoading(true);
     setError(null);
@@ -255,6 +289,11 @@ const Index = () => {
     }
   }, [toast]);
 
+  /**
+   * Handler untuk proses logout
+   * Menghapus token dari storage dan reset state aplikasi
+   * Tetap logout meskipun request ke server gagal
+   */
   const handleLogout = useCallback(async () => {
     
     try {

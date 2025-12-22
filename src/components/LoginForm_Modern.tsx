@@ -12,26 +12,41 @@ interface LoginFormProps {
   error: string | null;
 }
 
-// Risk-based captcha threshold
-const CAPTCHA_THRESHOLD = 2; // Show captcha after 2 failed attempts
+// ============================================
+// KONFIGURASI KEAMANAN LOGIN
+// ============================================
+
+/** Jumlah percobaan gagal sebelum captcha ditampilkan */
+const CAPTCHA_THRESHOLD = 2;
+/** Key localStorage untuk mencatat percobaan gagal */
 const STORAGE_KEY = 'absenta_login_attempts';
+/** Key localStorage untuk status lockout */
 const LOCKOUT_KEY = 'absenta_lockout';
 
-// Helper to get/set failed attempts
+/**
+ * Mengambil jumlah percobaan login gagal dari localStorage
+ * Data otomatis reset setelah 15 menit untuk mencegah permanent lockout
+ * @returns {Object} count: jumlah percobaan, timestamp: waktu terakhir
+ */
 const getFailedAttempts = (): { count: number; timestamp: number } => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const data = JSON.parse(stored);
-      // Reset if older than 15 minutes
+      // Auto-reset setelah 15 menit
       if (Date.now() - data.timestamp < 15 * 60 * 1000) {
         return data;
       }
     }
-  } catch (e) { /* ignore parse errors */ }
+  } catch (e) { /* abaikan error parsing */ }
   return { count: 0, timestamp: Date.now() };
 };
 
+/**
+ * Menambah counter percobaan login gagal
+ * Dipanggil setiap kali login gagal untuk trigger captcha
+ * @returns {number} Jumlah total percobaan gagal
+ */
 const incrementFailedAttempts = (): number => {
   const current = getFailedAttempts();
   const newCount = current.count + 1;
@@ -42,11 +57,20 @@ const incrementFailedAttempts = (): number => {
   return newCount;
 };
 
+/** Reset counter percobaan gagal (dipanggil setelah login sukses) */
 const clearFailedAttempts = () => {
   localStorage.removeItem(STORAGE_KEY);
 };
 
-// Lockout helpers
+// ============================================
+// LOCKOUT MANAGEMENT (Rate Limiting Client-Side)
+// ============================================
+
+/**
+ * Mengecek apakah user sedang dalam status lockout
+ * Lockout terjadi ketika server mengembalikan 429 (too many requests)
+ * @returns {Object|null} lockedUntil timestamp atau null jika tidak lockout
+ */
 const getLockout = (): { lockedUntil: number } | null => {
   try {
     const stored = localStorage.getItem(LOCKOUT_KEY);
@@ -55,22 +79,42 @@ const getLockout = (): { lockedUntil: number } | null => {
       if (data.lockedUntil > Date.now()) {
         return data;
       }
-      // Clear expired lockout
+      // Hapus lockout yang sudah expired
       localStorage.removeItem(LOCKOUT_KEY);
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) { /* abaikan */ }
   return null;
 };
 
+/**
+ * Mengaktifkan lockout untuk durasi tertentu
+ * Dipanggil ketika server mengembalikan 429 dengan retryAfter
+ * @param {number} retryAfterSeconds - Durasi lockout dalam detik
+ */
 const setLockout = (retryAfterSeconds: number) => {
   const lockedUntil = Date.now() + (retryAfterSeconds * 1000);
   localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ lockedUntil }));
 };
 
+/** Hapus status lockout (dipanggil setelah login sukses) */
 const clearLockout = () => {
   localStorage.removeItem(LOCKOUT_KEY);
 };
 
+// ============================================
+// KOMPONEN LOGIN FORM
+// ============================================
+
+/**
+ * Komponen form login dengan fitur keamanan:
+ * - Risk-based hCaptcha (muncul setelah N percobaan gagal)
+ * - Client-side rate limiting (lockout countdown)
+ * - Visual feedback untuk error dan loading state
+ * 
+ * @param {Function} onLogin - Callback untuk submit credentials
+ * @param {boolean} isLoading - Status loading dari parent
+ * @param {string|null} error - Pesan error dari parent
+ */
 export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
