@@ -509,13 +509,6 @@ const AttendanceView = ({ schedule, user, onBack }: {
       // Validasi tanggal sebelum submit
       const todayStr = getCurrentDateWIB();
       
-      console.log('🔍 Frontend date validation:', {
-        selectedDate,
-        todayStr,
-        isEditMode,
-        isFuture: selectedDate > todayStr
-      });
-      
       // Validasi selectedDate tidak boleh lebih dari hari ini
       if (selectedDate > todayStr) {
         // console.log();
@@ -538,13 +531,6 @@ const AttendanceView = ({ schedule, user, onBack }: {
         };
       });
 
-      console.log('📤 Submitting attendance data:', {
-        scheduleId: schedule.id,
-        attendance: attendanceData,
-        notes,
-        guruId: user.guru_id || user.id
-      });
-      
       const response = await apiCall(`/api/attendance/submit`, {
         method: 'POST',
         body: JSON.stringify({

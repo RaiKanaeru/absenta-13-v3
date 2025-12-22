@@ -1298,12 +1298,6 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             // console.log();
           }
           
-          console.log('🔍 Debug guruId extraction:', { 
-            from_jadwal_guru_id: (jadwal as any).guru_id, 
-            from_jadwal_id_guru: (jadwal as any).id_guru, 
-            from_kehadiranData: kehadiranData[key]?.guru_id,
-            final: guruId 
-          });
         }
       }
 
