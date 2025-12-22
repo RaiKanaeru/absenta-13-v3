@@ -135,13 +135,21 @@ export const REKAP_GURU_MAPPING = {
 
 // ================================================
 // STATUS KEHADIRAN MAPPING
-// Kode yang disimpan di DB vs display
+// Menggunakan konstanta dari attendanceConstants.js sebagai single source of truth
 // ================================================
+// Re-export dari attendanceConstants untuk backward compatibility
+export { 
+    PRESENT_STATUSES as STATUS_HADIR,
+    ABSENT_CATEGORIES as STATUS_KETIDAKHADIRAN,
+    isPresent,
+    isAbsent,
+    getAbsenceCategory
+} from './attendanceConstants.js';
+
+// Legacy mapping untuk kompatibilitas dengan kode lama
+// @deprecated - Gunakan import dari attendanceConstants.js
 export const STATUS_KEHADIRAN = {
-    // Status yang dihitung sebagai "hadir" (including Dispen)
     HADIR: ['H', 'Hadir', 'T', 'Terlambat', 'D', 'Dispen'],
-    
-    // Status ketidakhadiran (untuk rekap)
     SAKIT: ['S', 'Sakit'],
     IZIN: ['I', 'Izin'],
     ALPHA: ['A', 'Alpha', 'Alpa', 'Tanpa Keterangan']

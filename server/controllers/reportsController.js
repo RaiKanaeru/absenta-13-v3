@@ -766,8 +766,8 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { year, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
     
-    // Support both 'year' and 'tahun' params
-    const selectedYear = parseInt(year || tahun);
+    // Support both 'year' and 'tahun' params with validation
+    const selectedYear = parseInt(year || tahun) || new Date().getFullYear();
     
     log.requestStart('GetRekapKetidakhadiranGuru', { selectedYear, bulan, tanggal_awal, tanggal_akhir });
 
@@ -877,14 +877,14 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
         }
 
         let startDate, endDate;
-        const selectedYear = parseInt(tahun);
+        const selectedYear = parseInt(tahun) || new Date().getFullYear();
 
         if (tanggal_awal && tanggal_akhir) {
             startDate = tanggal_awal;
             endDate = tanggal_akhir;
         } else if (bulan) {
             // Specific month
-            const monthIndex = parseInt(bulan); // 1-12
+            const monthIndex = parseInt(bulan) || 1; // 1-12, default to January
             let targetYear = selectedYear;
             // Logic: if month is Jul-Dec (7-12), use selectedYear.
             // If month is Jan-Jun (1-6), use selectedYear + 1.
@@ -1040,8 +1040,10 @@ export const getPresensiSiswa = async (req, res) => {
             return sendValidationError(res, 'Kelas, bulan, dan tahun wajib diisi');
         }
 
-        const startDate = `${tahun}-${bulan.padStart(2, '0')}-01`;
-        const endDate = new Date(parseInt(tahun), parseInt(bulan), 0).toISOString().split('T')[0];
+        const tahunInt = parseInt(tahun) || new Date().getFullYear();
+        const bulanInt = parseInt(bulan) || 1;
+        const startDate = `${tahunInt}-${String(bulanInt).padStart(2, '0')}-01`;
+        const endDate = new Date(tahunInt, bulanInt, 0).toISOString().split('T')[0];
 
         const query = `
             SELECT 
