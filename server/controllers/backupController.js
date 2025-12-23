@@ -244,10 +244,7 @@ const createSemesterBackup = async (req, res) => {
         });
     } catch (error) {
         logger.error('Error creating semester backup', error);
-        res.status(500).json({
-            error: 'Internal server error',
-            message: error.message || 'Failed to create semester backup'
-        });
+        return sendDatabaseError(res, error, error.message || 'Gagal backup');
     }
 };
 
