@@ -41,7 +41,7 @@ const getMapelTemplate = async (req, res) => {
         log.success('GetMapelTemplate', {});
     } catch (error) {
         log.dbError('generateMapelTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template mapel' });
+        return sendDatabaseError(res, error, 'Gagal membuat template mapel');
     }
 };
 
@@ -72,7 +72,7 @@ const getKelasTemplate = async (req, res) => {
         log.success('GetKelasTemplate', {});
     } catch (error) {
         log.dbError('generateKelasTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template kelas' });
+        return sendDatabaseError(res, error, 'Gagal membuat template kelas');
     }
 };
 
@@ -104,7 +104,7 @@ const getRuangTemplate = async (req, res) => {
         log.success('GetRuangTemplate', {});
     } catch (error) {
         log.dbError('generateRuangTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template ruang' });
+        return sendDatabaseError(res, error, 'Gagal membuat template ruang');
     }
 };
 
@@ -150,7 +150,7 @@ const getJadwalTemplate = async (req, res) => {
         log.success('GetJadwalTemplate', {});
     } catch (error) {
         log.dbError('generateJadwalTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template jadwal' });
+        return sendDatabaseError(res, error, 'Gagal membuat template jadwal');
     }
 };
 
@@ -197,7 +197,7 @@ const getGuruTemplate = async (req, res) => {
         log.success('GetGuruTemplate', {});
     } catch (error) {
         log.dbError('generateGuruTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template guru' });
+        return sendDatabaseError(res, error, 'Gagal membuat template guru');
     }
 };
 
@@ -277,7 +277,7 @@ const getStudentAccountTemplateBasic = async (req, res) => {
         log.success('GetStudentAccountTemplateBasic', {});
     } catch (error) {
         log.dbError('generateStudentAccountTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -315,7 +315,7 @@ const getStudentAccountTemplateFriendly = async (req, res) => {
         log.success('GetStudentAccountTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateStudentAccountFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -359,7 +359,7 @@ const getTeacherAccountTemplateBasic = async (req, res) => {
         log.success('GetTeacherAccountTemplateBasic', {});
     } catch (error) {
         log.dbError('generateTeacherAccountTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -393,7 +393,7 @@ const getTeacherAccountTemplateFriendly = async (req, res) => {
         log.success('GetTeacherAccountTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateTeacherAccountFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -429,7 +429,7 @@ const getSiswaTemplateBasic = async (req, res) => {
         log.success('GetSiswaTemplateBasic', {});
     } catch (error) {
         log.dbError('generateSiswaTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -472,7 +472,7 @@ const getSiswaTemplateFriendly = async (req, res) => {
         log.success('GetSiswaTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateSiswaFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -506,7 +506,7 @@ const getGuruTemplateBasic = async (req, res) => {
         log.success('GetGuruTemplateBasic', {});
     } catch (error) {
         log.dbError('generateGuruTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -547,7 +547,7 @@ const getGuruTemplateFriendly = async (req, res) => {
         log.success('GetGuruTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateGuruFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -574,7 +574,7 @@ const getMapelTemplateBasic = async (req, res) => {
         log.success('GetMapelTemplateBasic', {});
     } catch (error) {
         log.dbError('generateMapelBasicTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -601,7 +601,7 @@ const getMapelTemplateFriendly = async (req, res) => {
         log.success('GetMapelTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateMapelFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -628,7 +628,7 @@ const getKelasTemplateBasic = async (req, res) => {
         log.success('GetKelasTemplateBasic', {});
     } catch (error) {
         log.dbError('generateKelasBasicTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -655,7 +655,7 @@ const getKelasTemplateFriendly = async (req, res) => {
         log.success('GetKelasTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateKelasFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -683,7 +683,7 @@ const getRuangTemplateBasic = async (req, res) => {
         log.success('GetRuangTemplateBasic', {});
     } catch (error) {
         log.dbError('generateRuangBasicTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -711,7 +711,7 @@ const getRuangTemplateFriendly = async (req, res) => {
         log.success('GetRuangTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateRuangFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -776,7 +776,7 @@ const getJadwalTemplateBasic = async (req, res) => {
         log.success('GetJadwalTemplateBasic', {});
     } catch (error) {
         log.dbError('generateJadwalBasicTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 
@@ -811,7 +811,7 @@ const getJadwalTemplateFriendly = async (req, res) => {
         log.success('GetJadwalTemplateFriendly', {});
     } catch (error) {
         log.dbError('generateJadwalFriendlyTemplate', error);
-        res.status(500).json({ error: 'Gagal membuat template' });
+        return sendDatabaseError(res, error, 'Gagal membuat template');
     }
 };
 

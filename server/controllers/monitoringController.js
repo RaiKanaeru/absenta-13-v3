@@ -565,7 +565,7 @@ export const getSystemPerformance = async (req, res) => {
         });
     } catch (error) {
         log.error('GetSystemPerformance failed', { error: error.message });
-        return res.status(500).json({ error: 'Internal server error', message: error.message });
+        return sendDatabaseError(res, error, 'Gagal memuat performa sistem');
     }
 };
 
@@ -721,7 +721,7 @@ export const getMonitoringDashboard = async (req, res) => {
         return sendSuccessResponse(res, responseData);
     } catch (error) {
         log.error('GetMonitoringDashboard failed', { error: error.message });
-        return res.status(500).json({ error: 'Internal server error', message: error.message });
+        return sendDatabaseError(res, error, 'Gagal memuat dashboard monitoring');
     }
 };
 
