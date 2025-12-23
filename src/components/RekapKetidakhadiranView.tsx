@@ -78,7 +78,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       console.error('Error fetching classes:', error);
       setError('Gagal memuat data kelas');
     }
-  }, [onLogout]);
+  }, []);
 
   // Fetch students by class
   const fetchStudents = useCallback(async (kelasId: string) => {
@@ -99,7 +99,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     } finally {
       setLoading(false);
     }
-  }, [onLogout]);
+  }, []);
 
   // Fetch presensi data
   const fetchPresensiData = useCallback(async (kelasId: string, tahun: string, bulan?: string, tanggalAwal?: string, tanggalAkhir?: string) => {
@@ -134,7 +134,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     } finally {
       setLoading(false);
     }
-  }, [onLogout]);
+  }, []);
 
   useEffect(() => {
     fetchClasses();

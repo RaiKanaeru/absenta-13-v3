@@ -62,7 +62,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       console.error('Error fetching classes:', error);
       setError('Gagal memuat data kelas');
     }
-  }, [onLogout]);
+  }, []);
 
   // Fetch students by class
   const fetchStudents = useCallback(async (kelasId: string) => {
@@ -83,7 +83,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
     } finally {
       setLoading(false);
     }
-  }, [onLogout]);
+  }, []);
 
   // Fetch presensi data
   const fetchPresensiData = useCallback(async (kelasId: string, bulan: string, tahun: string) => {
@@ -110,7 +110,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
     } finally {
       setLoading(false);
     }
-  }, [onLogout]);
+  }, []);
 
   useEffect(() => {
     fetchClasses();

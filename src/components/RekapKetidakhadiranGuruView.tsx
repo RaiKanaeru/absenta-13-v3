@@ -107,7 +107,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
     } finally {
       setLoading(false);
     }
-  }, [onLogout]);
+  }, []);
 
   const handleExportExcel = async () => {
     try {
