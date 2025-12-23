@@ -111,7 +111,7 @@ export const exportAbsensi = async (req, res) => {
 
         // Set response headers
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=absensi-guru-${new Date().toISOString().split('T')[0]}.xlsx`);
+        res.setHeader('Content-Disposition', `attachment; filename=absensi-guru-${formatWIBDate()}.xlsx`);
 
         // Write to response
         await workbook.xlsx.write(res);
@@ -384,7 +384,7 @@ export const exportBandingAbsen = async (req, res) => {
             diproses_oleh: row.diproses_oleh
         }));
 
-        const reportPeriod = `${formatWIBDate(new Date(startDate))} - ${formatWIBDate(new Date(endDate))}`;
+        const reportPeriod = `${startDate} - ${endDate}`;
 
         // Generate Excel workbook
         const workbook = await buildExcel({
@@ -414,7 +414,7 @@ export const exportBandingAbsen = async (req, res) => {
 export const exportRekapKetidakhadiranGuru = async (req, res) => {
     try {
         const { tahun } = req.query;
-        const tahunAjaran = tahun || new Date().getFullYear();
+        const tahunAjaran = tahun || getWIBTime().getFullYear();
         // Hari efektif per bulan (configurable)
         const hariEfektifPerBulan = {
             7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,  // Jul-Des
@@ -2238,8 +2238,11 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         if (!kelas_id) return res.status(400).json({ error: 'Kelas ID wajib diisi' });
         if (!startDate || !endDate) return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        // Parse dates manually to avoid timezone issues
+        const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+        const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+        const start = new Date(sYear, sMonth - 1, sDay);
+        const end = new Date(eYear, eMonth - 1, eDay);
         const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
 
         if (diffDays > 62) return res.status(400).json({ error: 'Rentang tanggal maksimal 62 hari' });
@@ -2259,7 +2262,11 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         for (let currentDate = new Date(start); currentDate <= end; currentDate.setDate(currentDate.getDate() + 1)) {
             const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
             if (jadwalData.some(j => j.hari === dayName)) {
-                pertemuanDates.push(currentDate.toISOString().split('T')[0]);
+                // Format date manually to avoid timezone shift
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
+                pertemuanDates.push(`${year}-${month}-${day}`);
             }
         }
 
@@ -2273,7 +2280,14 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         `, [guruId, kelas_id, startDate, endDate]);
 
         const allDates = new Set(pertemuanDates);
-        actualDates.forEach(r => { if (r.tanggal) allDates.add(r.tanggal.toISOString().split('T')[0]); });
+        actualDates.forEach(r => {
+            if (r.tanggal) {
+                // Format date manually for MySQL DATE type
+                const d = new Date(r.tanggal);
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                allDates.add(dateStr);
+            }
+        });
         const finalDates = Array.from(allDates).sort();
 
         // Get student summary stats
