@@ -226,16 +226,25 @@ export async function getStudentsForScheduleByDate(req, res) {
     log.requestStart('GetStudentsForScheduleByDate', { scheduleId: id, tanggal });
 
     try {
-        const today = getWIBTime();
-        const thirtyDaysAgo = new Date(today.getTime() - (TEACHER_EDIT_DAYS_LIMIT * 24 * 60 * 60 * 1000));
-        const targetDate = tanggal ? new Date(tanggal) : today;
+        // Use WIB-aware date utilities for proper timezone handling
+        const todayStr = getMySQLDateWIB();
+        const targetDateStr = tanggal || todayStr;
+        
+        // Validate date format
+        if (tanggal && !/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) {
+            log.validationFail('tanggal', tanggal, 'Invalid date format');
+            return sendValidationError(res, 'Format tanggal tidak valid (gunakan YYYY-MM-DD)');
+        }
 
-        if (targetDate > today) {
+        // Use getDaysDifferenceWIB for proper comparison
+        const daysDiff = getDaysDifferenceWIB(targetDateStr, todayStr);
+        
+        if (daysDiff < 0) {
             log.validationFail('tanggal', tanggal, 'Future date not allowed');
             return sendValidationError(res, 'Tidak dapat melihat absen untuk tanggal masa depan');
         }
 
-        if (targetDate < thirtyDaysAgo) {
+        if (daysDiff > TEACHER_EDIT_DAYS_LIMIT) {
             log.validationFail('tanggal', tanggal, 'Date too old');
             return sendValidationError(res, `Tidak dapat melihat absen lebih dari ${TEACHER_EDIT_DAYS_LIMIT} hari yang lalu`);
         }
@@ -251,7 +260,7 @@ export async function getStudentsForScheduleByDate(req, res) {
         }
 
         const kelasId = scheduleData[0].kelas_id;
-        const targetDateStr = tanggal || formatWIBDate();
+        // targetDateStr already defined above
 
         const [students] = await global.dbPool.execute(`
             SELECT 
@@ -983,7 +992,10 @@ export async function getAbsensiHistory(req, res) {
 
         if (req.user.role === 'siswa') {
             const todayWIB = getMySQLDateWIB();
-            const sevenDaysAgoWIB = new Date(new Date(todayWIB).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            // Calculate 7 days ago in WIB
+            const wibNow = getWIBTime();
+            const sevenDaysAgoDate = new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const sevenDaysAgoWIB = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
             whereConditions.push('ag.tanggal >= ?');
             params.push(sevenDaysAgoWIB);
         }

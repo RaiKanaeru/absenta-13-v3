@@ -816,7 +816,7 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
         } else {
             // Monthly or Date Range Report
             const start = tanggal_awal || `${selectedYear}-${bulan.padStart(2, '0')}-01`;
-            const end = tanggal_akhir || new Date(selectedYear, parseInt(bulan), 0).toISOString().split('T')[0];
+            // Calculate end of month without timezone issues\n            const monthEndDate = new Date(selectedYear, parseInt(bulan), 0);\n            const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
             query = `
                 SELECT 
@@ -892,7 +892,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
                 targetYear = selectedYear + 1;
             }
             startDate = `${targetYear}-${bulan.padStart(2, '0')}-01`;
-            endDate = new Date(targetYear, monthIndex, 0).toISOString().split('T')[0];
+            // Calculate end of month without timezone issues\n            const monthEndDate = new Date(targetYear, monthIndex, 0);\n            endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
         } else {
             // Annual (July - June)
             startDate = `${selectedYear}-07-01`;

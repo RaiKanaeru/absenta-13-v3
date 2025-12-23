@@ -256,8 +256,11 @@ export const getJadwalPertemuan = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        // Parse dates manually to avoid timezone issues
+        const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+        const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+        const start = new Date(sYear, sMonth - 1, sDay);
+        const end = new Date(eYear, eMonth - 1, eDay);
         const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
         
         if (diffDays > 62) {
@@ -283,8 +286,12 @@ export const getJadwalPertemuan = async (req, res) => {
             const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
             const daySchedules = jadwalData.filter(j => j.hari === dayName);
             if (daySchedules.length > 0) {
+                // Format date manually to avoid timezone shifts
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
                 pertemuanDates.push({
-                    tanggal: currentDate.toISOString().split('T')[0],
+                    tanggal: `${year}-${month}-${day}`,
                     hari: dayName,
                     jadwal: daySchedules.map(s => ({
                         jam_ke: s.jam_ke, jam_mulai: s.jam_mulai, jam_selesai: s.jam_selesai,

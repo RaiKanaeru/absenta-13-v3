@@ -612,7 +612,10 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
 
     try {
         const todayWIB = getMySQLDateWIB();
-        const thirtyDaysAgoWIB = new Date(new Date(todayWIB).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        // Calculate 30 days ago in WIB timezone
+        const wibNow = getWIBTime();
+        const thirtyDaysAgoDate = new Date(wibNow.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgoWIB = `${thirtyDaysAgoDate.getFullYear()}-${String(thirtyDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgoDate.getDate()).padStart(2, '0')}`;
 
         const countQuery = `
             SELECT COUNT(DISTINCT DATE(absensi.waktu_absen)) as total_days
