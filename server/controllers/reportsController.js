@@ -1049,14 +1049,14 @@ export const getPresensiSiswa = async (req, res) => {
         const query = `
             SELECT 
                 a.siswa_id,
-                a.waktu_absen as tanggal,
+                a.tanggal,
                 a.status,
                 a.keterangan
             FROM absensi_siswa a
             JOIN siswa s ON a.siswa_id = s.id_siswa
             WHERE s.kelas_id = ? 
-              AND DATE(a.waktu_absen) BETWEEN ? AND ?
-            ORDER BY a.waktu_absen ASC
+              AND a.tanggal BETWEEN ? AND ?
+            ORDER BY a.tanggal ASC
         `;
 
         const [rows] = await global.dbPool.execute(query, [kelas_id, startDate, endDate]);
