@@ -71,30 +71,20 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
     }
   };
 
-  const handleDownloadTemplate = async (type: 'basic' | 'friendly') => {
+  const handleDownloadTemplate = async () => {
     try {
-      // Untuk guru, gunakan template yang baru dengan referensi
+      // All entities now use user-friendly template
       let endpoint;
       if (entityType === 'guru') {
-        endpoint = type === 'basic' 
-          ? `/api/admin/guru/template-basic`
-          : `/api/admin/guru/template-friendly`;
+        endpoint = `/api/admin/guru/template-friendly`;
       } else if (entityType === 'teacher-account') {
-        endpoint = type === 'basic' 
-          ? `/api/admin/teacher-account/template-basic`
-          : `/api/admin/teacher-account/template-friendly`;
+        endpoint = `/api/admin/teacher-account/template-friendly`;
       } else if (entityType === 'student-account') {
-        endpoint = type === 'basic' 
-          ? `/api/admin/student-account/template-basic`
-          : `/api/admin/student-account/template-friendly`;
+        endpoint = `/api/admin/student-account/template-friendly`;
       } else if (entityType === 'ruang') {
-        endpoint = type === 'basic' 
-          ? `/api/admin/ruang/template-basic`
-          : `/api/admin/ruang/template-friendly`;
+        endpoint = `/api/admin/ruang/template-friendly`;
       } else {
-        endpoint = type === 'basic' 
-          ? `/api/admin/${entityType}/template-basic`
-          : `/api/admin/${entityType}/template-friendly`;
+        endpoint = `/api/admin/${entityType}/template-friendly`;
       }
       
       const response = await fetch(getApiUrl(endpoint), {
@@ -108,15 +98,20 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = entityType === 'guru' 
-          ? `template-data-guru-${type}.xlsx`
-          : entityType === 'teacher-account'
-          ? `template-akun-guru-${type}.xlsx`
-          : entityType === 'student-account'
-          ? `template-akun-siswa-${type}.xlsx`
-          : entityType === 'ruang'
-          ? `template-ruang-kelas-${type}.xlsx`
-          : `template-${entityType}-${type}.xlsx`;
+        
+        // Simplified filename
+        const entityNames: Record<string, string> = {
+          'guru': 'data-guru',
+          'teacher-account': 'akun-guru',
+          'student-account': 'akun-siswa',
+          'siswa': 'data-siswa',
+          'mapel': 'mata-pelajaran',
+          'kelas': 'kelas',
+          'ruang': 'ruang-kelas',
+          'jadwal': 'jadwal-pelajaran'
+        };
+        a.download = `template-${entityNames[entityType] || entityType}.xlsx`;
+        
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -124,15 +119,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         
         toast({
           title: "Berhasil",
-          description: entityType === 'guru' 
-            ? "Template data guru berhasil didownload dengan referensi mata pelajaran"
-            : entityType === 'teacher-account'
-            ? "Template akun guru berhasil didownload dengan referensi mata pelajaran"
-            : entityType === 'student-account'
-            ? "Template akun siswa berhasil didownload dengan referensi kelas"
-            : entityType === 'ruang'
-            ? "Template ruang kelas berhasil didownload"
-            : `Template ${type === 'basic' ? 'biasa' : 'user-friendly'} berhasil didownload`
+          description: "Template berhasil didownload"
         });
       } else {
         throw new Error('Gagal download template');
@@ -412,51 +399,35 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
           <CardDescription>Download template Excel yang sudah disesuaikan dengan format yang benar</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-lg font-semibold text-blue-900 mb-3">Download Template</h3>
-            <p className="text-sm text-blue-700 mb-4">
-              Pilih template yang sesuai dengan kebutuhan Anda:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-white rounded-lg border border-blue-300">
-                <h4 className="font-semibold text-gray-900 mb-2">Template Biasa (dengan ID)</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  Menggunakan ID untuk referensi. Sheet ke-2 berisi daftar ID yang tersedia.
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-green-900 mb-1">Template Import</h4>
+                <p className="text-sm text-green-700">
+                  Template sudah disesuaikan dengan format yang benar dan mudah digunakan.
+                  {entityType === 'jadwal' && ' Sheet ke-2 berisi referensi mata pelajaran, guru, dan kelas.'}
+                  {(entityType === 'guru' || entityType === 'teacher-account') && ' Sheet ke-2 berisi referensi mata pelajaran.'}
+                  {(entityType === 'siswa' || entityType === 'student-account') && ' Sheet ke-2 berisi referensi kelas.'}
                 </p>
-                <Button 
-                  onClick={() => handleDownloadTemplate('basic')}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Template Biasa
-                </Button>
               </div>
-              
-              <div className="p-4 bg-white rounded-lg border border-green-300">
-                <h4 className="font-semibold text-gray-900 mb-2">Template User-Friendly (dengan Nama)</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  Menggunakan nama untuk referensi. Lebih mudah untuk pemula.
-                </p>
-                {entityType === 'jadwal' && (
-                  <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                    <p className="font-medium text-yellow-800 mb-1">📝 Catatan untuk Jadwal:</p>
-                    <ul className="text-yellow-700 space-y-1">
-                      <li>• Untuk "pelajaran": Mata Pelajaran dan Guru WAJIB</li>
-                      <li>• Untuk "upacara/istirahat": Mata Pelajaran dan Guru boleh KOSONG</li>
-                      <li>• Keterangan Khusus WAJIB untuk non-pelajaran</li>
-                    </ul>
-                  </div>
-                )}
-                <Button 
-                  onClick={() => handleDownloadTemplate('friendly')}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Template User-Friendly
-                </Button>
-              </div>
+              <Button 
+                onClick={() => handleDownloadTemplate()}
+                className="bg-green-600 hover:bg-green-700 ml-4"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Template
+              </Button>
             </div>
+            {entityType === 'jadwal' && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <p className="font-medium text-yellow-800 mb-1">📝 Catatan untuk Jadwal:</p>
+                <ul className="text-yellow-700 space-y-1">
+                  <li>• Untuk "pelajaran": Mata Pelajaran dan Guru WAJIB</li>
+                  <li>• Untuk "upacara/istirahat": Mata Pelajaran dan Guru boleh KOSONG</li>
+                  <li>• Keterangan Khusus WAJIB untuk non-pelajaran</li>
+                </ul>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
