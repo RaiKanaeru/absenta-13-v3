@@ -264,24 +264,46 @@ export const getSiswaJadwalRentang = async (req, res) => {
 
         const kelasId = siswaData[0].kelas_id;
 
-        // Validate date range (max 7 days ago)
-        const today = new Date();
-        const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
-        const targetDate = tanggal ? new Date(tanggal) : today;
+        // Use WIB time for all calculations
+        const todayWIB = getWIBTime();
+        const todayDateStr = getMySQLDateWIB();
+        
+        // Parse target date in WIB context
+        let targetDateStr;
+        let targetDate;
+        
+        if (tanggal) {
+            // Parse the input date string (YYYY-MM-DD format)
+            const [year, month, day] = tanggal.split('-').map(Number);
+            if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+                log.validationFail('tanggal', tanggal, 'Invalid date format');
+                return sendValidationError(res, 'Format tanggal tidak valid (gunakan YYYY-MM-DD)');
+            }
+            // Create date in WIB context (month is 0-indexed)
+            targetDate = new Date(year, month - 1, day);
+            targetDateStr = tanggal;
+        } else {
+            targetDate = todayWIB;
+            targetDateStr = todayDateStr;
+        }
 
-        if (targetDate > today) {
+        // Validate date range (max 7 days ago) using WIB
+        const sevenDaysAgo = new Date(todayWIB.getTime() - (7 * 24 * 60 * 60 * 1000));
+        
+        // Compare dates using date strings to avoid timezone issues
+        if (targetDateStr > todayDateStr) {
             log.validationFail('tanggal', tanggal, 'Future date not allowed');
             return sendValidationError(res, 'Tidak dapat melihat jadwal untuk tanggal masa depan');
         }
 
-        if (targetDate < sevenDaysAgo) {
+        const sevenDaysAgoStr = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgo.getDate()).padStart(2, '0')}`;
+        if (targetDateStr < sevenDaysAgoStr) {
             log.validationFail('tanggal', tanggal, 'Date more than 7 days ago');
             return sendValidationError(res, 'Tidak dapat melihat jadwal lebih dari 7 hari yang lalu');
         }
 
         // Get day name for the target date
         const targetDay = HARI_INDONESIA[targetDate.getDay()];
-        const targetDateStr = targetDate.toISOString().split('T')[0];
 
         log.debug('Target date context', { targetDay, targetDateStr });
 
