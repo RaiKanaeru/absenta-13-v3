@@ -118,7 +118,7 @@ export const exportAbsensi = async (req, res) => {
         res.end();
     } catch (error) {
         logger.error('Excel export error', { error: error.message });
-        res.status(500).json({ error: 'Failed to export data to Excel' });
+        return sendDatabaseError(res, error, 'Gagal mengekspor data ke Excel');
     }
 };
 

@@ -222,7 +222,7 @@ const importKelas = async (req, res) => {
         res.json({ success: true, inserted_or_updated: valid.length, invalid: errors.length, errors });
     } catch (err) {
         logger.error('Import kelas error', { error: err.message });
-        res.status(500).json({ error: 'Gagal impor kelas' });
+        return sendDatabaseError(res, err, 'Gagal impor kelas');
     }
 };
 
@@ -332,7 +332,7 @@ const importRuang = async (req, res) => {
         res.json({ success: true, inserted_or_updated: valid.length, invalid: errors.length, errors });
     } catch (err) {
         logger.error('Import ruang error', { error: err.message });
-        res.status(500).json({ error: 'Gagal impor ruang' });
+        return sendDatabaseError(res, err, 'Gagal impor ruang');
     }
 };
 
@@ -570,7 +570,7 @@ const importJadwal = async (req, res) => {
         res.json({ success: true, inserted: valid.length, invalid: errors.length, errors });
     } catch (err) {
         logger.error('Import jadwal error', { error: err.message });
-        res.status(500).json({ error: 'Gagal impor jadwal' });
+        return sendDatabaseError(res, err, 'Gagal impor jadwal');
     }
 };
 
