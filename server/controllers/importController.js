@@ -1140,7 +1140,13 @@ const importSiswa = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    // Include row data preview for easier identification
+                    const rowPreview = {
+                        nis: rowData.nis || rowData['NIS *'] || '(kosong)',
+                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+                        kelas: rowData.kelas || rowData['Kelas *'] || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         nis: String(nis).trim(),
@@ -1154,7 +1160,12 @@ const importSiswa = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    nis: rowData.nis || rowData['NIS *'] || '(kosong)',
+                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+                    kelas: rowData.kelas || rowData['Kelas *'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 

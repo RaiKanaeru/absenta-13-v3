@@ -21,6 +21,12 @@ interface ExcelImportViewProps {
 interface ValidationError {
   index: number;
   errors: string[];
+  data?: {
+    nis?: string;
+    nama?: string;
+    kelas?: string;
+    [key: string]: string | undefined;
+  };
 }
 
 interface ImportResult {
@@ -572,7 +578,8 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Baris</TableHead>
+                        <TableHead className="w-16">Baris</TableHead>
+                        <TableHead className="w-48">Data</TableHead>
                         <TableHead>Error</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -580,6 +587,17 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
                       {validationResult.errors.map((error, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{error.index}</TableCell>
+                          <TableCell className="text-xs text-gray-600">
+                            {error.data ? (
+                              <div className="space-y-0.5">
+                                {error.data.nis && <div><span className="font-medium">NIS:</span> {error.data.nis}</div>}
+                                {error.data.nama && <div><span className="font-medium">Nama:</span> {error.data.nama}</div>}
+                                {error.data.kelas && <div><span className="font-medium">Kelas:</span> {error.data.kelas}</div>}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <div className="space-y-1">
                               {error.errors.map((err, i) => (
