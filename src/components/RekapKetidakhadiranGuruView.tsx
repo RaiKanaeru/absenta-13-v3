@@ -522,7 +522,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
       {/* Letterhead Initialization Button */}
       <div className="mt-6">
-        <SimpleLetterheadInit />
+        {/* SimpleLetterheadInit removed - logo initialization handled elsewhere */}
       </div>
     </div>
   );

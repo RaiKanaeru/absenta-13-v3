@@ -580,7 +580,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
 
       {/* Letterhead Initialization Button */}
       <div className="mt-6">
-        <SimpleLetterheadInit />
+        {/* SimpleLetterheadInit removed - logo initialization handled elsewhere */}
       </div>
     </div>
   );
