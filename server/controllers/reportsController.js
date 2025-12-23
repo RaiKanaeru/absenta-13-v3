@@ -1043,7 +1043,8 @@ export const getPresensiSiswa = async (req, res) => {
         const tahunInt = parseInt(tahun) || new Date().getFullYear();
         const bulanInt = parseInt(bulan) || 1;
         const startDate = `${tahunInt}-${String(bulanInt).padStart(2, '0')}-01`;
-        const endDate = new Date(tahunInt, bulanInt, 0).toISOString().split('T')[0];
+        // Calculate end of month without timezone issues\r\n        const monthEndDate = new Date(tahunInt, bulanInt, 0);\r\n        const endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+
 
         const query = `
             SELECT 

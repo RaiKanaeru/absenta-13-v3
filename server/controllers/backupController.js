@@ -784,7 +784,8 @@ const createTestArchiveData = async (req, res) => {
         // Create test data that is 25 months old
         const oldDate = new Date();
         oldDate.setMonth(oldDate.getMonth() - 25);
-        const oldDateStr = oldDate.toISOString().split('T')[0];
+        // Format date manually to avoid timezone issues\r\n        const oldDateStr = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, '0')}-${String(oldDate.getDate()).padStart(2, '0')}`;
+
 
         logger.debug('Creating test data with date', { oldDateStr, monthsOld: 25 });
 
