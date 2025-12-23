@@ -1061,7 +1061,11 @@ export async function getStudentsForPiketAbsen(req, res) {
             return sendValidationError(res, 'Guru belum diabsen untuk jadwal ini');
         }
 
-        if (guruAbsen[0].status === 'Hadir') {
+        // Guru is absent if status is Tidak Hadir, Izin, or Sakit
+        const guruStatus = guruAbsen[0].status;
+        const isGuruAbsent = ['Tidak Hadir', 'Izin', 'Sakit'].includes(guruStatus);
+
+        if (!isGuruAbsent) {
             return sendValidationError(res, 'Guru hadir, absensi siswa dilakukan oleh guru');
         }
 
@@ -1166,7 +1170,11 @@ export async function submitStudentAttendanceByPiket(req, res) {
             return sendValidationError(res, 'Guru belum diabsen. Silakan absen guru terlebih dahulu.');
         }
 
-        if (guruAbsen[0].status === 'Hadir') {
+        // Guru is absent if status is Tidak Hadir, Izin, or Sakit
+        const guruStatus = guruAbsen[0].status;
+        const isGuruAbsent = ['Tidak Hadir', 'Izin', 'Sakit'].includes(guruStatus);
+
+        if (!isGuruAbsent) {
             return sendValidationError(res, 'Guru hadir untuk jadwal ini. Absensi siswa dilakukan oleh guru.');
         }
 
