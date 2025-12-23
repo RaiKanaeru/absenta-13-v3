@@ -73,7 +73,11 @@ const importMapel = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        kode_mapel: kodeMapel || '(kosong)',
+                        nama_mapel: namaMapel || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         kode_mapel: String(kodeMapel).trim(),
@@ -83,7 +87,11 @@ const importMapel = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    kode_mapel: currentRow.kode_mapel || currentRow['Kode Mapel'] || '(kosong)',
+                    nama_mapel: currentRow.nama_mapel || currentRow['Nama Mapel'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
@@ -175,7 +183,11 @@ const importKelas = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        nama_kelas: namaKelas || '(kosong)',
+                        tingkat: tingkat || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         nama_kelas: String(namaKelas).trim(),
@@ -184,7 +196,11 @@ const importKelas = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    nama_kelas: rowData.nama_kelas || rowData['Nama Kelas'] || '(kosong)',
+                    tingkat: rowData.tingkat || rowData.Tingkat || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
@@ -283,7 +299,11 @@ const importRuang = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        kode_ruang: kodeRuang || '(kosong)',
+                        nama_ruang: namaRuang || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         kode_ruang: String(kodeRuang).trim(),
@@ -294,7 +314,11 @@ const importRuang = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    kode_ruang: rowData.kode_ruang || rowData['Kode Ruang'] || '(kosong)',
+                    nama_ruang: rowData.nama_ruang || rowData['Nama Ruang'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
@@ -480,7 +504,14 @@ const importJadwal = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        kelas: kelas || '(kosong)',
+                        mapel: mapel || '(kosong)',
+                        guru: guru_name || '(kosong)',
+                        hari: hari || '(kosong)',
+                        jam_ke: rowData.jam_ke || rowData['Jam Ke'] || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     const jenisAktivitas = rowData.jenis_aktivitas || rowData['Jenis Aktivitas'] || rowData['jenis_aktivitas'] || 'pelajaran';
                     const isAbsenable = jenisAktivitas === 'pelajaran' ? 1 : 0;
@@ -515,7 +546,12 @@ const importJadwal = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    kelas: rowData.kelas || rowData['Kelas'] || '(kosong)',
+                    hari: rowData.hari || rowData['Hari'] || '(kosong)',
+                    jam_ke: rowData.jam_ke || rowData['Jam Ke'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
@@ -676,7 +712,13 @@ const importStudentAccount = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+                        username: rowData.username || rowData['Username *'] || '(kosong)',
+                        nis: rowData.nis || rowData['NIS *'] || '(kosong)',
+                        kelas: rowData.kelas || rowData['Kelas *'] || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
@@ -690,7 +732,12 @@ const importStudentAccount = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+                    username: rowData.username || rowData['Username *'] || '(kosong)',
+                    nis: rowData.nis || rowData['NIS *'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
@@ -932,7 +979,12 @@ const importTeacherAccount = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+                        username: rowData.username || rowData['Username *'] || '(kosong)',
+                        nip: rowData.nip || rowData['NIP *'] || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
@@ -948,7 +1000,12 @@ const importTeacherAccount = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+                    username: rowData.username || rowData['Username *'] || '(kosong)',
+                    nip: rowData.nip || rowData['NIP *'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
@@ -1341,7 +1398,11 @@ const importGuru = async (req, res) => {
                 }
 
                 if (rowErrors.length) {
-                    errors.push({ index: rowNum, errors: rowErrors });
+                    const rowPreview = {
+                        nip: nip || '(kosong)',
+                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)'
+                    };
+                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
                 } else {
                     valid.push({
                         nip: String(nip).trim(),
@@ -1355,7 +1416,11 @@ const importGuru = async (req, res) => {
                     });
                 }
             } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message] });
+                const rowPreview = {
+                    nip: rowData.nip || rowData['NIP *'] || '(kosong)',
+                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)'
+                };
+                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
             }
         }
 
