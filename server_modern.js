@@ -56,6 +56,7 @@ import monitoringRoutes from './server/routes/monitoringRoutes.js';
 import jamPelajaranRoutes from './server/routes/jamPelajaranRoutes.js';
 import templateExportRoutes from './server/routes/templateExportRoutes.js';
 import attendanceSettingsRoutes from './server/routes/attendanceSettingsRoutes.js';
+import kalenderAkademikRoutes from './server/routes/kalenderAkademikRoutes.js';
 import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
     getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
@@ -621,6 +622,7 @@ app.use('/api/admin', letterheadRoutes); // All letterhead endpoints
 app.use('/api/dashboard', dashboardRoutes); // Dashboard stats and chart
 app.use('/api/admin', dashboardRoutes); // Alias: /api/admin/live-summary
 app.use('/api/admin/attendance-settings', attendanceSettingsRoutes); // Attendance settings config
+app.use('/api/admin/kalender-akademik', kalenderAkademikRoutes); // Kalender akademik (hari efektif)
 
 
 // Route Aliases for Frontend Compatibility
