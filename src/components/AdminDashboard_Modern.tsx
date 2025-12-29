@@ -708,8 +708,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
             </div>
           ) : (
             <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Desktop Table View - hidden on mobile and tablet */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -798,8 +798,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
               </Table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
+            {/* Mobile & Tablet Card View */}
+            <div className="lg:hidden space-y-3">
               {filteredTeachers.map((teacher, index) => (
                 <Card key={teacher.id} className="p-3">
                   <div className="space-y-2">
@@ -1283,8 +1283,8 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
             </div>
           ) : (
             <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Desktop Table View - hidden on mobile and tablet */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1379,8 +1379,8 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
               </Table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
+            {/* Mobile & Tablet Card View */}
+            <div className="lg:hidden space-y-3">
               {filteredStudents.map((student, index) => (
                 <Card key={student.id_siswa} className="p-3">
                   <div className="space-y-2">
@@ -2287,8 +2287,8 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
             </div>
           ) : (
             <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* Desktop Table View - hidden on mobile and tablet */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2362,8 +2362,8 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                 </Table>
               </div>
 
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
+              {/* Mobile & Tablet Card View */}
+              <div className="lg:hidden space-y-3">
                 {filteredSubjects.map((subject, index) => (
                   <Card key={subject.id} className="p-4">
                     <div className="space-y-3">
@@ -2644,8 +2644,8 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
             </div>
           ) : (
             <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* Desktop Table View - hidden on mobile and tablet */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2708,8 +2708,8 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
                 </Table>
               </div>
 
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
+              {/* Mobile & Tablet Card View */}
+              <div className="lg:hidden space-y-3">
                 {filteredClasses.map((kelas, index) => (
                   <Card key={kelas.id} className="p-4">
                     <div className="space-y-3">
@@ -3313,8 +3313,8 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
             </div>
           ) : (
             <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Desktop Table View - hidden on mobile and tablet */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -3412,8 +3412,8 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
               </Table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
+            {/* Mobile & Tablet Card View */}
+            <div className="lg:hidden space-y-3">
               {filteredStudents.map((student, index) => (
                 <Card key={student.id} className="p-3">
                   <div className="space-y-2">
@@ -5690,8 +5690,8 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
             </div>
           ) : (
             <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* Desktop Table View - hidden on mobile and tablet */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -5755,8 +5755,8 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                 </Table>
               </div>
 
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3">
+              {/* Mobile & Tablet Card View */}
+              <div className="lg:hidden space-y-3">
                 {filteredRooms.map((room) => (
                   <Card key={room.id} className="p-4">
                     <div className="space-y-3">
