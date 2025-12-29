@@ -1836,8 +1836,8 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
             </div>
           ) : (
             <>
-              {/* Desktop Table View */}
-              <div className="hidden md:block overflow-x-auto">
+              {/* Desktop Table View - hidden on mobile and tablet */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1929,8 +1929,8 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
               </Table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-3">
+            {/* Mobile & Tablet Card View */}
+            <div className="lg:hidden space-y-3">
               {filteredTeachers.map((teacher, index) => (
                 <Card key={teacher.id} className="p-4">
                   <div className="space-y-3">
