@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,7 @@ import {
   Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Bell, Menu, X,
   TrendingUp, BookPlus, Home, Clock, CheckCircle, CheckCircle2, XCircle, AlertCircle, AlertTriangle, MessageCircle, ClipboardList, Activity,
   Database, Archive, Activity, Server, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
-  Printer
+  Printer, Maximize2, Minimize2, Award, Star
 } from "lucide-react";
 
 // Types
@@ -7642,6 +7642,49 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
     const [processingNotif, setProcessingNotif] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const dashboardRef = useRef<HTMLDivElement>(null);
+
+    // Fullscreen toggle handler with cross-browser compatibility
+    const toggleFullscreen = useCallback(() => {
+      const elem = dashboardRef.current;
+      if (!elem) return;
+
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement && !(document as any).msFullscreenElement) {
+        // Enter fullscreen
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if ((elem as any).webkitRequestFullscreen) {
+          (elem as any).webkitRequestFullscreen();
+        } else if ((elem as any).msRequestFullscreen) {
+          (elem as any).msRequestFullscreen();
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).msExitFullscreen) {
+          (document as any).msExitFullscreen();
+        }
+      }
+    }, []);
+
+    // Listen for fullscreen changes
+    useEffect(() => {
+      const handleFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement || !!(document as any).webkitFullscreenElement || !!(document as any).msFullscreenElement);
+      };
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.addEventListener('msfullscreenchange', handleFullscreenChange);
+      return () => {
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+      };
+    }, []);
 
     useEffect(() => {
       const fetchAnalyticsData = async () => {
@@ -7767,10 +7810,10 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
       );
     }
 
-    const { studentAttendance, teacherAttendance, topAbsentStudents, topAbsentTeachers, notifications } = analyticsData;
+    const { studentAttendance, teacherAttendance, topAbsentStudents, topAbsentTeachers, topAttendingStudents, topAttendingTeachers, notifications } = analyticsData;
 
     return (
-      <div className="space-y-6">
+      <div ref={dashboardRef} className={`space-y-6 ${isFullscreen ? 'bg-white p-6 overflow-auto h-screen' : ''}`}>
         {/* Header - Modern */}
         <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
           <div className="flex items-center gap-4">
@@ -7785,9 +7828,15 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
               </h1>
               <p className="text-slate-600">Analisis dan statistik kehadiran siswa dan guru</p>
             </div>
-            <div className="hidden md:block text-right">
-              <p className="text-sm text-slate-500">Tanggal</p>
-              <p className="font-mono text-slate-700">{getCurrentDateWIB()}</p>
+            <div className="hidden md:flex items-center gap-3 text-right">
+              <div>
+                <p className="text-sm text-slate-500">Tanggal</p>
+                <p className="font-mono text-slate-700">{getCurrentDateWIB()}</p>
+              </div>
+              <Button onClick={toggleFullscreen} variant="outline" size="sm" className="bg-white">
+                {isFullscreen ? <Minimize2 className="w-4 h-4 mr-1" /> : <Maximize2 className="w-4 h-4 mr-1" />}
+                {isFullscreen ? 'Keluar' : 'Fullscreen'}
+              </Button>
             </div>
           </div>
         </div>
@@ -8010,6 +8059,81 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                 <div className="text-center py-6 text-gray-500">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">Tidak ada data guru tidak hadir</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top Attending Students - NEW Modern List */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b bg-gradient-to-r from-emerald-50 to-green-50">
+              <CardTitle className="text-emerald-800 flex items-center text-base">
+                <Star className="w-4 h-4 mr-2" />
+                Siswa Sering Hadir
+              </CardTitle>
+              <CardDescription className="text-xs">5 siswa dengan kehadiran tertinggi</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {topAttendingStudents && topAttendingStudents.length > 0 ? (
+                <div className="space-y-3">
+                  {topAttendingStudents.map((student, index) => (
+                    <div key={`top-attending-student-${student.nama}-${index}`} 
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
+                        ${index === 0 ? 'bg-emerald-500' : index === 1 ? 'bg-emerald-400' : 'bg-emerald-300'}`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-700 truncate">{student.nama}</p>
+                        <p className="text-xs text-slate-500">{student.nama_kelas}</p>
+                      </div>
+                      <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-semibold">
+                        {student.total_hadir}x
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Tidak ada data siswa hadir</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top Attending Teachers - NEW Modern List */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b bg-gradient-to-r from-sky-50 to-blue-50">
+              <CardTitle className="text-sky-800 flex items-center text-base">
+                <Award className="w-4 h-4 mr-2" />
+                Guru Sering Hadir
+              </CardTitle>
+              <CardDescription className="text-xs">5 guru dengan kehadiran tertinggi</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {topAttendingTeachers && topAttendingTeachers.length > 0 ? (
+                <div className="space-y-3">
+                  {topAttendingTeachers.map((teacher, index) => (
+                    <div key={`top-attending-teacher-${teacher.nama}-${index}`} 
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
+                        ${index === 0 ? 'bg-sky-500' : index === 1 ? 'bg-sky-400' : 'bg-sky-300'}`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-700 truncate">{teacher.nama}</p>
+                      </div>
+                      <span className="bg-sky-100 text-sky-700 px-2 py-1 rounded-full text-xs font-semibold">
+                        {teacher.total_hadir}x
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Tidak ada data guru hadir</p>
                 </div>
               )}
             </CardContent>
