@@ -7810,10 +7810,10 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
       );
     }
 
-    const { studentAttendance, teacherAttendance, topAbsentStudents, topAbsentTeachers, topAttendingStudents, topAttendingTeachers, notifications } = analyticsData;
+    const { studentAttendance, teacherAttendance, topAbsentStudents, topAbsentTeachers, notifications } = analyticsData;
 
     return (
-      <div ref={dashboardRef} className={`space-y-6 ${isFullscreen ? 'bg-white p-6 overflow-auto h-screen' : ''}`}>
+      <div ref={dashboardRef} className={`space-y-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-gradient-to-br from-slate-50 to-blue-50 p-6 overflow-auto' : ''}`}>
         {/* Header - Modern */}
         <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
           <div className="flex items-center gap-4">
@@ -8059,81 +8059,6 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                 <div className="text-center py-6 text-gray-500">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">Tidak ada data guru tidak hadir</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top Attending Students - NEW Modern List */}
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="border-b bg-gradient-to-r from-emerald-50 to-green-50">
-              <CardTitle className="text-emerald-800 flex items-center text-base">
-                <Star className="w-4 h-4 mr-2" />
-                Siswa Sering Hadir
-              </CardTitle>
-              <CardDescription className="text-xs">5 siswa dengan kehadiran tertinggi</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              {topAttendingStudents && topAttendingStudents.length > 0 ? (
-                <div className="space-y-3">
-                  {topAttendingStudents.map((student, index) => (
-                    <div key={`top-attending-student-${student.nama}-${index}`} 
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
-                        ${index === 0 ? 'bg-emerald-500' : index === 1 ? 'bg-emerald-400' : 'bg-emerald-300'}`}>
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-700 truncate">{student.nama}</p>
-                        <p className="text-xs text-slate-500">{student.nama_kelas}</p>
-                      </div>
-                      <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-semibold">
-                        {student.total_hadir}x
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Tidak ada data siswa hadir</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top Attending Teachers - NEW Modern List */}
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="border-b bg-gradient-to-r from-sky-50 to-blue-50">
-              <CardTitle className="text-sky-800 flex items-center text-base">
-                <Award className="w-4 h-4 mr-2" />
-                Guru Sering Hadir
-              </CardTitle>
-              <CardDescription className="text-xs">5 guru dengan kehadiran tertinggi</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              {topAttendingTeachers && topAttendingTeachers.length > 0 ? (
-                <div className="space-y-3">
-                  {topAttendingTeachers.map((teacher, index) => (
-                    <div key={`top-attending-teacher-${teacher.nama}-${index}`} 
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
-                        ${index === 0 ? 'bg-sky-500' : index === 1 ? 'bg-sky-400' : 'bg-sky-300'}`}>
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-700 truncate">{teacher.nama}</p>
-                      </div>
-                      <span className="bg-sky-100 text-sky-700 px-2 py-1 rounded-full text-xs font-semibold">
-                        {teacher.total_hadir}x
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Tidak ada data guru hadir</p>
                 </div>
               )}
             </CardContent>

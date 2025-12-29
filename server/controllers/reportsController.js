@@ -134,36 +134,6 @@ export const getAnalyticsDashboard = async (req, res) => {
             LIMIT 5
         `;
 
-        // Get top attending students (highest presence) - NEW
-        const topAttendingStudentsQuery = `
-            SELECT 
-                s.nama,
-                k.nama_kelas,
-                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as total_hadir
-            FROM siswa s
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
-            WHERE s.status = 'aktif'
-            GROUP BY s.id_siswa, s.nama, k.nama_kelas
-            HAVING total_hadir > 0
-            ORDER BY total_hadir DESC
-            LIMIT 5
-        `;
-
-        // Get top attending teachers (highest presence) - NEW
-        const topAttendingTeachersQuery = `
-            SELECT 
-                g.nama,
-                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as total_hadir
-            FROM guru g
-            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id
-            WHERE g.status = 'aktif'
-            GROUP BY g.id_guru, g.nama
-            HAVING total_hadir > 0
-            ORDER BY total_hadir DESC
-            LIMIT 5
-        `;
-
         // Get recent notifications/banding absen requests
         const notificationsQuery = `
             SELECT 
@@ -188,8 +158,6 @@ export const getAnalyticsDashboard = async (req, res) => {
             [teacherAttendance],
             [topAbsentStudents],
             [topAbsentTeachers],
-            [topAttendingStudents],
-            [topAttendingTeachers],
             [notifications]
         ] = await Promise.all([
             global.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
@@ -198,8 +166,6 @@ export const getAnalyticsDashboard = async (req, res) => {
             global.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
             global.dbPool.execute(topAbsentStudentsQuery),
             global.dbPool.execute(topAbsentTeachersQuery),
-            global.dbPool.execute(topAttendingStudentsQuery),
-            global.dbPool.execute(topAttendingTeachersQuery),
             global.dbPool.execute(notificationsQuery)
         ]);
         const totalStudents = totalStudentsResult[0]?.total || 0;
@@ -210,8 +176,6 @@ export const getAnalyticsDashboard = async (req, res) => {
             teacherAttendance: teacherAttendance || [],
             topAbsentStudents: topAbsentStudents || [],
             topAbsentTeachers: topAbsentTeachers || [],
-            topAttendingStudents: topAttendingStudents || [],
-            topAttendingTeachers: topAttendingTeachers || [],
             notifications: notifications || [],
             totalStudents: totalStudents,
             totalTeachers: totalTeachers
