@@ -14,7 +14,7 @@ services:
     container_name: absenta13-nginx
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "18081:80"
     depends_on:
       - app
     networks:
