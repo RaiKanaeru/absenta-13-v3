@@ -9900,8 +9900,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="lg:ml-64">
+      {/* Main Content - with background to prevent sidebar text bleeding */}
+      <div className="lg:ml-64 relative z-10 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
         <div className="p-4 lg:p-6">
           {/* Mobile Header */}
           <div className="flex items-center justify-between mb-6 lg:hidden">
