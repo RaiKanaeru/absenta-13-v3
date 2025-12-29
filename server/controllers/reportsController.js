@@ -816,7 +816,9 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
         } else {
             // Monthly or Date Range Report
             const start = tanggal_awal || `${selectedYear}-${bulan.padStart(2, '0')}-01`;
-            // Calculate end of month without timezone issues\n            const monthEndDate = new Date(selectedYear, parseInt(bulan), 0);\n            const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+            // Calculate end of month without timezone issues
+            const monthEndDate = new Date(selectedYear, parseInt(bulan), 0);
+            const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
             query = `
                 SELECT 
@@ -892,7 +894,9 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
                 targetYear = selectedYear + 1;
             }
             startDate = `${targetYear}-${bulan.padStart(2, '0')}-01`;
-            // Calculate end of month without timezone issues\n            const monthEndDate = new Date(targetYear, monthIndex, 0);\n            endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+            // Calculate end of month without timezone issues
+            const monthEndDate = new Date(targetYear, monthIndex, 0);
+            endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
         } else {
             // Annual (July - June)
             startDate = `${selectedYear}-07-01`;
@@ -1043,7 +1047,9 @@ export const getPresensiSiswa = async (req, res) => {
         const tahunInt = parseInt(tahun) || new Date().getFullYear();
         const bulanInt = parseInt(bulan) || 1;
         const startDate = `${tahunInt}-${String(bulanInt).padStart(2, '0')}-01`;
-        // Calculate end of month without timezone issues\r\n        const monthEndDate = new Date(tahunInt, bulanInt, 0);\r\n        const endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+        // Calculate end of month without timezone issues
+        const monthEndDate = new Date(tahunInt, bulanInt, 0);
+        const endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
 
         const query = `
