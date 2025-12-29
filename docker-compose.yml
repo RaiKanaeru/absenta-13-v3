@@ -4,7 +4,7 @@
 
 services:
   # ===========================================
-  # NGINX - Frontend (port 8080)
+  # NGINX - Frontend (port 28080)
   # Build from Dockerfile with frontend included
   # ===========================================
   nginx:
@@ -14,14 +14,14 @@ services:
     container_name: absenta13-nginx
     restart: unless-stopped
     ports:
-      - "18081:80"
+      - "28080:80"
     depends_on:
       - app
     networks:
       - absenta-network
 
   # ===========================================
-  # APPLICATION - Node.js Backend (port 3001)
+  # APPLICATION - Node.js Backend (port 28081)
   # ===========================================
   app:
     build:
@@ -30,7 +30,7 @@ services:
     container_name: absenta13-app
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "28081:3001"
     environment:
       - NODE_ENV=production
       - PORT=3001
