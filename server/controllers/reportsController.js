@@ -1014,7 +1014,19 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
 // Get students by class (for report filters)
 export const getStudentsByClass = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { kelasId } = req.params;
+    let { kelasId } = req.params;
+
+    // Handle cases where kelasId might be in format "id:something" - extract just the ID
+    if (kelasId && kelasId.includes(':')) {
+        kelasId = kelasId.split(':')[0];
+        log.warn('GetStudentsByClass received compound ID, extracted', { original: req.params.kelasId, extracted: kelasId });
+    }
+
+    // Validate kelasId is numeric
+    if (!kelasId || isNaN(parseInt(kelasId))) {
+        log.validationFail('kelasId', kelasId, 'Invalid class ID format');
+        return sendValidationError(res, 'Format ID kelas tidak valid', { received: kelasId });
+    }
 
     log.requestStart('GetStudentsByClass', { kelasId });
 
