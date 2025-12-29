@@ -9800,10 +9800,10 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Sidebar */}
+      {/* Sidebar - with proper visibility handling */}
       <div className={`fixed left-0 top-0 h-full bg-white shadow-xl transition-all duration-300 z-40 flex flex-col ${
         sidebarOpen ? 'w-64' : 'w-16'
-      } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      } lg:w-64 lg:translate-x-0 lg:visible ${sidebarOpen ? 'translate-x-0 visible' : '-translate-x-full invisible lg:visible lg:translate-x-0'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center lg:justify-start'}`}>
