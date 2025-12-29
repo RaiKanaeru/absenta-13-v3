@@ -872,14 +872,20 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
 // Get rekap ketidakhadiran siswa (Per siswa per bulan/periode)
 export const getRekapKetidakhadiranSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
+    let { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
+    
+    // Handle compound ID format (e.g., "2:1") - extract just the ID
+    if (kelas_id && kelas_id.includes(':')) {
+        kelas_id = kelas_id.split(':')[0];
+        log.warn('GetRekapKetidakhadiranSiswa received compound ID, extracted', { original: req.query.kelas_id, extracted: kelas_id });
+    }
     
     log.requestStart('GetRekapKetidakhadiranSiswa', { kelas_id, tahun, bulan, tanggal_awal, tanggal_akhir });
 
     try {
-        if (!kelas_id) {
-            log.validationFail('kelas_id', null, 'Required field missing');
-            return sendValidationError(res, 'Kelas wajib dipilih', { field: 'kelas_id' });
+        if (!kelas_id || isNaN(parseInt(kelas_id))) {
+            log.validationFail('kelas_id', kelas_id, 'Invalid or missing kelas_id');
+            return sendValidationError(res, 'Kelas wajib dipilih dengan format yang valid', { field: 'kelas_id' });
         }
 
         let startDate, endDate;
@@ -1050,7 +1056,13 @@ export const getStudentsByClass = async (req, res) => {
 // Get presensi siswa (Detailed daily log)
 export const getPresensiSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { kelas_id, bulan, tahun } = req.query;
+    let { kelas_id, bulan, tahun } = req.query;
+
+    // Handle compound ID format (e.g., "2:1") - extract just the ID
+    if (kelas_id && kelas_id.includes(':')) {
+        kelas_id = kelas_id.split(':')[0];
+        log.warn('GetPresensiSiswa received compound ID, extracted', { original: req.query.kelas_id, extracted: kelas_id });
+    }
 
     log.requestStart('GetPresensiSiswa', { kelas_id, bulan, tahun });
 
@@ -1058,6 +1070,12 @@ export const getPresensiSiswa = async (req, res) => {
         if (!kelas_id || !bulan || !tahun) {
             log.validationFail('params', { kelas_id, bulan, tahun }, 'Missing required params');
             return sendValidationError(res, 'Kelas, bulan, dan tahun wajib diisi');
+        }
+
+        // Validate kelas_id is numeric
+        if (isNaN(parseInt(kelas_id))) {
+            log.validationFail('kelas_id', kelas_id, 'Invalid format');
+            return sendValidationError(res, 'Format ID kelas tidak valid');
         }
 
         const tahunInt = parseInt(tahun) || new Date().getFullYear();
