@@ -9829,8 +9829,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </Button>
         </div>
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
+        {/* Navigation - flex-1 with min-h-0 for proper flex shrinking */}
+        <nav className="p-4 space-y-2 flex-1 min-h-0 overflow-y-auto">
           {menuItems.map((item) => (
             <Button
               key={item.id}
@@ -9848,8 +9848,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           ))}
         </nav>
 
-        {/* User Info */}
-        <div className="p-4 border-t border-gray-200 bg-white">
+        {/* User Info - shrink-0 to keep at bottom */}
+        <div className="p-4 border-t border-gray-200 bg-white shrink-0">
           {/* Font Size Control - Above Profile Buttons */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
             <div className="mb-4">
