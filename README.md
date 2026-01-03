@@ -91,6 +91,14 @@ Frontend: http://localhost:5173
 Backend API: http://localhost:3001
 ```
 
+## 🧪 Testing
+
+Jalankan suite test untuk helper kehadiran dengan perintah berikut:
+
+```bash
+npm test
+```
+
 ## 🏗️ Struktur Project
 
 ```
