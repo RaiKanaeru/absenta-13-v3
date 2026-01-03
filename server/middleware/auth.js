@@ -11,7 +11,7 @@ if (!JWT_SECRET) {
 // Middleware to authenticate JWT token
 export function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1] || req.cookies.token;
+    const token = authHeader?.split(' ')[1] || req.cookies?.token;
 
     if (!token) {
         // console.log('❌ Access denied: No token provided');
