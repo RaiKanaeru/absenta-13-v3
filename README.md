@@ -94,33 +94,22 @@ Backend API: http://localhost:3001
 ## 🏗️ Struktur Project
 
 ```
-absenta-optimize/
-├── 📁 src/                    # Frontend React Components
-│   ├── components/            # React Components
-│   │   ├── AdminDashboard_Modern.tsx
-│   │   ├── TeacherDashboard_Modern.tsx
-│   │   ├── StudentDashboard_Modern.tsx
-│   │   └── ui/               # UI Components (shadcn/ui)
-│   ├── pages/                # Halaman utama
-│   ├── hooks/                # Custom hooks
-│   └── lib/                  # Utilities
-├── 📁 backups/               # Database backups
-├── 📁 downloads/             # Excel exports
-├── 📁 logs/                  # System logs
-├── 📁 redis/                 # Redis server files
-├── 🚀 server_modern.js       # Backend API server (OPTIMIZED)
-├── 📊 absenta13.sql          # Database schema (OPTIMIZED)
-├── 🔧 database-optimization.js    # Database optimization
-├── 🔧 query-optimizer.js          # Query optimization
-├── 🔧 backup-system.js            # Backup system
-├── 🔧 queue-system.js             # Download queue
-├── 🔧 cache-system.js             # Redis caching
-├── 🔧 load-balancer.js            # Load balancing
-├── 🔧 monitoring-system.js        # System monitoring
-├── 🔧 security-system.js          # Security system
-├── 🔧 disaster-recovery-system.js # Disaster recovery
-└── 📋 package.json           # Project configuration
+absenta-13-v3/
+├── src/                # Frontend React (components, pages, contexts, hooks)
+├── public/             # Static assets untuk Vite
+├── server/             # Backend Express (routes, controllers, services, middleware)
+├── backend/            # Utilitas pendukung backend (config, export, scripts, utils)
+├── migrations/         # Migrasi/seed database
+├── docs/               # Dokumentasi tambahan
+├── scripts/            # Script deployment/otomasi
+├── redis/              # Konfigurasi dan resource Redis
+├── server_modern.js    # Entry server legacy/standalone
+├── absenta13.sql       # Dump skema database
+├── package.json        # Konfigurasi project dan dependency
+└── docker-compose.yml  # Orkestrasi container
 ```
+
+📌 **Catatan**: Direktori runtime seperti `logs/` atau `exports/` dapat dibuat secara otomatis ketika server berjalan (mis. untuk menyimpan log atau hasil unduhan). Jika belum menjalankan aplikasi, folder ini mungkin belum muncul setelah clone.
 
 ## 👥 User Roles & Permissions
 
