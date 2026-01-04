@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useRef,
+  useCallback,
+} from 'react';
 
 export type FontSize = 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl';
 
@@ -23,13 +31,23 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
     const saved = localStorage.getItem('fontSize');
     return (saved as FontSize) || DEFAULT_FONT_SIZE;
   });
+  const activeFontClassRef = useRef<string | null>(null);
+
+  const applyFontSizeClass = useCallback((size: FontSize) => {
+    const className = `font-size-${size}`;
+    const { classList } = document.documentElement;
+
+    if (activeFontClassRef.current) {
+      classList.remove(activeFontClassRef.current);
+    }
+
+    classList.add(className);
+    activeFontClassRef.current = className;
+  }, []);
 
   const setFontSize = (size: FontSize) => {
     setFontSizeState(size);
     localStorage.setItem('fontSize', size);
-    
-    // Apply to document root for global font size
-    document.documentElement.className = `font-size-${size}`;
   };
 
   const increaseFontSize = () => {
@@ -56,8 +74,8 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     // Apply font size on mount
-    document.documentElement.className = `font-size-${fontSize}`;
-  }, [fontSize]);
+    applyFontSizeClass(fontSize);
+  }, [applyFontSizeClass, fontSize]);
 
   const value: FontSizeContextType = {
     fontSize,
