@@ -18,18 +18,44 @@ const FONT_SIZES: FontSize[] = ['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl'];
 const DEFAULT_FONT_SIZE: FontSize = 'base';
 
 export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [fontSize, setFontSizeState] = useState<FontSize>(() => {
-    // Load from localStorage if available
-    const saved = localStorage.getItem('fontSize');
-    return (saved as FontSize) || DEFAULT_FONT_SIZE;
-  });
+  const getStoredFontSize = (): FontSize => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_FONT_SIZE;
+    }
+
+    const saved =
+      window.localStorage.getItem('fontSize') || window.sessionStorage.getItem('fontSize');
+
+    return (FONT_SIZES.includes(saved as FontSize) ? saved : DEFAULT_FONT_SIZE) as FontSize;
+  };
+
+  const updateDocumentFontSize = (size: FontSize) => {
+    const root = document.documentElement;
+    const fontSizeClasses = Array.from(root.classList).filter((className) =>
+      className.startsWith('font-size-'),
+    );
+
+    fontSizeClasses.forEach((className) => root.classList.remove(className));
+    root.classList.add(`font-size-${size}`);
+  };
+
+  const persistFontSize = (size: FontSize) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem('fontSize', size);
+    window.sessionStorage.setItem('fontSize', size);
+  };
+
+  const [fontSize, setFontSizeState] = useState<FontSize>(() => getStoredFontSize());
 
   const setFontSize = (size: FontSize) => {
     setFontSizeState(size);
-    localStorage.setItem('fontSize', size);
-    
+    persistFontSize(size);
+
     // Apply to document root for global font size
-    document.documentElement.className = `font-size-${size}`;
+    updateDocumentFontSize(size);
   };
 
   const increaseFontSize = () => {
@@ -56,7 +82,7 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     // Apply font size on mount
-    document.documentElement.className = `font-size-${fontSize}`;
+    updateDocumentFontSize(fontSize);
   }, [fontSize]);
 
   const value: FontSizeContextType = {
