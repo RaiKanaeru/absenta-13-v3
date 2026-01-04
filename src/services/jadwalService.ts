@@ -5,14 +5,25 @@
 
 import { getApiUrl } from '@/config/api';
 
+type JadwalRole = 'admin' | 'guru' | 'siswa';
+type JadwalArrayResponse = any[];
+type JadwalEnvelopeResponse = { success?: boolean; data?: JadwalArrayResponse };
+
 export class JadwalService {
-  
+
   /**
-   * Get jadwal berdasarkan role
+   * Get jadwal berdasarkan role.
+   *
+   * Backend memberikan variasi bentuk respons:
+   * - Admin/siswa: umumnya langsung mengembalikan array jadwal.
+   * - Guru: dapat mengembalikan objek seperti `{ success: true, data: [...] }`,
+   *   sehingga method ini mengekstrak `data` ketika tersedia, namun caller masih
+   *   perlu mengantisipasi objek non-array jika backend berubah.
+   *
    * @param role - 'admin', 'guru', atau 'siswa'
-   * @returns Promise<any[]> - Array jadwal atau object dengan format {success: true, data: any[]}
+   * @returns Promise<JadwalArrayResponse | JadwalEnvelopeResponse>
    */
-  static async getJadwal(role: string): Promise<any[]> {
+  static async getJadwal(role: JadwalRole): Promise<JadwalArrayResponse | JadwalEnvelopeResponse> {
     const endpoints = {
       admin: '/admin/jadwal',
       guru: '/guru/jadwal',
