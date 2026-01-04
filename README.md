@@ -55,7 +55,7 @@
 1. **Clone atau download project ini**
 ```bash
 git clone <repository-url>
-cd absenta-optimize
+cd absenta-13-v3
 ```
 
 2. **Install dependencies**
