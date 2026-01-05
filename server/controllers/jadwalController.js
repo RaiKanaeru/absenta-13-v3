@@ -16,12 +16,23 @@ const logger = createLogger('Jadwal');
 // HELPER FUNCTIONS
 // ================================================
 
-// Fungsi untuk cek overlap rentang waktu
+/**
+ * Check if two time ranges overlap
+ * @param {string} start1 - Start time of first range (HH:MM)
+ * @param {string} end1 - End time of first range (HH:MM)
+ * @param {string} start2 - Start time of second range (HH:MM)
+ * @param {string} end2 - End time of second range (HH:MM)
+ * @returns {boolean} True if ranges overlap
+ */
 function isTimeOverlap(start1, end1, start2, end2) {
     return start1 < end2 && start2 < end1;
 }
 
-// Fungsi validasi format jam 24 jam
+/**
+ * Validate 24-hour time format (HH:MM)
+ * @param {string} timeString - Time string to validate
+ * @returns {boolean} True if valid format
+ */
 function validateTimeFormat(timeString) {
     if (!timeString || typeof timeString !== 'string') {
         return false;
@@ -30,7 +41,12 @@ function validateTimeFormat(timeString) {
     return timeRegex.test(timeString.trim());
 }
 
-// Fungsi validasi logika waktu
+/**
+ * Validate time logic (end time must be after start time)
+ * @param {string} startTime - Start time (HH:MM)
+ * @param {string} endTime - End time (HH:MM)
+ * @returns {{valid: boolean, error?: string}} Validation result
+ */
 function validateTimeLogic(startTime, endTime) {
     if (!validateTimeFormat(startTime) || !validateTimeFormat(endTime)) {
         return { valid: false, error: 'Format waktu tidak valid. Gunakan format 24 jam (HH:MM)' };
@@ -46,7 +62,11 @@ function validateTimeLogic(startTime, endTime) {
     return { valid: true };
 }
 
-// Fungsi konversi waktu ke menit
+/**
+ * Convert time string to minutes since midnight
+ * @param {string} timeString - Time in HH:MM format
+ * @returns {number} Minutes since midnight
+ */
 function timeToMinutes(timeString) {
     const [hours, minutes] = timeString.split(':').map(Number);
     return hours * 60 + minutes;
@@ -600,15 +620,25 @@ export const getJadwalToday = async (req, res) => {
         let params = [];
 
         if (req.user.role === 'guru') {
+            const guruId = req.user.guru_id;
+            if (!guruId) {
+                log.validationFail('guru_id', null, 'Not found in token');
+                return sendValidationError(res, 'guru_id tidak ditemukan pada token pengguna');
+            }
+            
             query = `
                 SELECT j.*, k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel
                 FROM jadwal j
                 JOIN kelas k ON j.kelas_id = k.id_kelas
                 LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
                 WHERE j.hari = ? AND j.status = 'aktif'
+                  AND (j.guru_id = ? OR EXISTS (
+                      SELECT 1 FROM jadwal_guru jg 
+                      WHERE jg.jadwal_id = j.id_jadwal AND jg.guru_id = ?
+                  ))
                 ORDER BY j.jam_ke
             `;
-            params = [todayDayName];
+            params = [todayDayName, guruId, guruId];
         } else if (req.user.role === 'siswa') {
             query = `
                 SELECT j.*, COALESCE(g.nama, 'Sistem') as nama_guru, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel

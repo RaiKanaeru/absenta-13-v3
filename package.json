@@ -33,6 +33,7 @@
     "optimize-db": "node scripts/run-database-optimization.js",
     "test-performance": "node test-performance.js",
     "test:config": "node scripts/test-config.js",
+    "test": "node --test server/__tests__/*.test.js",
     "generate:secrets": "node scripts/generate-secrets.js",
     "deploy:setup": "npm install --production && npm run build:production",
     "deploy:start": "pm2 start ecosystem.config.js --env production"
