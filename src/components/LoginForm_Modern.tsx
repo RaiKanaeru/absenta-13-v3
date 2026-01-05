@@ -154,7 +154,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [lockoutRemaining > 0]);
+  }, [lockoutRemaining]);
 
   // Check if form is locked out
   const isLockedOut = lockoutRemaining > 0;

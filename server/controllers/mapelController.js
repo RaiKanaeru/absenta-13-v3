@@ -1,6 +1,6 @@
 /**
  * Mapel Controller
- * CRUD operations for subject (mata pelajaran) management
+ * Mengelola operasi CRUD untuk mata pelajaran
  */
 
 import dotenv from 'dotenv';
@@ -11,7 +11,13 @@ dotenv.config();
 
 const logger = createLogger('Mapel');
 
-// Get All Mapel
+/**
+ * Mengambil semua data mata pelajaran
+ * GET /api/admin/mapel
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Daftar semua mata pelajaran
+ */
 export const getMapel = async (req, res) => {
     const log = logger.withRequest(req, res);
     
@@ -33,7 +39,13 @@ export const getMapel = async (req, res) => {
     }
 };
 
-// Create Mapel
+/**
+ * Menambahkan mata pelajaran baru
+ * POST /api/admin/mapel
+ * @param {Object} req - Express request dengan body {kode_mapel, nama_mapel, deskripsi?, status?}
+ * @param {Object} res - Express response object
+ * @returns {Object} ID mata pelajaran yang dibuat
+ */
 export const createMapel = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { kode_mapel, nama_mapel, deskripsi, status } = req.body;
@@ -82,7 +94,13 @@ export const createMapel = async (req, res) => {
     }
 };
 
-// Update Mapel
+/**
+ * Memperbarui data mata pelajaran
+ * PUT /api/admin/mapel/:id
+ * @param {Object} req - Express request dengan params.id dan body
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const updateMapel = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -136,7 +154,13 @@ export const updateMapel = async (req, res) => {
     }
 };
 
-// Delete Mapel
+/**
+ * Menghapus mata pelajaran
+ * DELETE /api/admin/mapel/:id
+ * @param {Object} req - Express request dengan params.id
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const deleteMapel = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
