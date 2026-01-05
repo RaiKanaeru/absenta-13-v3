@@ -21,7 +21,7 @@ dotenv.config();
 
 // Configuration with fallbacks for local execution
 const config = {
-    host: process.env.DB_HOST === 'mysql' ? 'localhost' : (process.env.DB_HOST || 'localhost'),
+    host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'absenta13',
