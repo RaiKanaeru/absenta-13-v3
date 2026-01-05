@@ -43,6 +43,7 @@ export const addTeacherData = async (req, res) => {
     const connection = await global.dbPool.getConnection();
     try {
         if (!nip || !nama || !jenis_kelamin) {
+            connection.release(); // Release before early return
             log.validationFail('required_fields', null, 'NIP, nama, jenis_kelamin required');
             return sendValidationError(res, 'NIP, nama, dan jenis kelamin wajib diisi', { fields: ['nip', 'nama', 'jenis_kelamin'] });
         }
@@ -111,6 +112,7 @@ export const updateTeacherData = async (req, res) => {
     const connection = await global.dbPool.getConnection();
     try {
         if (!nip || !nama || !jenis_kelamin) {
+            connection.release(); // Release before early return
             log.validationFail('required_fields', null, 'NIP, nama, jenis_kelamin required');
             return sendValidationError(res, 'NIP, nama, dan jenis kelamin wajib diisi', { fields: ['nip', 'nama', 'jenis_kelamin'] });
         }

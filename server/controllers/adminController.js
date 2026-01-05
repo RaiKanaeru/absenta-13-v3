@@ -1,6 +1,6 @@
 /**
  * Admin Controller
- * Handles admin profile and password operations
+ * Mengelola operasi profil dan password admin
  */
 
 import bcrypt from 'bcrypt';
@@ -14,7 +14,13 @@ dotenv.config();
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('Admin');
 
-// Update profile for admin
+/**
+ * Memperbarui profil admin
+ * PUT /api/admin/profile
+ * @param {Object} req - Express request dengan body {nama, username, email?}
+ * @param {Object} res - Express response object
+ * @returns {Object} Data profil yang diperbarui
+ */
 export const updateAdminProfile = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nama, username, email } = req.body;
@@ -78,7 +84,13 @@ export const updateAdminProfile = async (req, res) => {
     }
 };
 
-// Change password for admin
+/**
+ * Mengubah password admin
+ * PUT /api/admin/change-password
+ * @param {Object} req - Express request dengan body {newPassword}
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const changeAdminPassword = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { newPassword } = req.body;

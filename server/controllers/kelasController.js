@@ -1,6 +1,6 @@
 /**
  * Kelas Controller
- * CRUD operations for class management
+ * Mengelola operasi CRUD untuk manajemen kelas
  */
 
 import dotenv from 'dotenv';
@@ -11,7 +11,13 @@ dotenv.config();
 
 const logger = createLogger('Kelas');
 
-// Get Active Kelas (Public - for dropdowns)
+/**
+ * Mengambil kelas aktif (untuk dropdown)
+ * GET /api/kelas/aktif
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Daftar kelas aktif
+ */
 export const getActiveKelas = async (req, res) => {
     const log = logger.withRequest(req, res);
     
@@ -34,7 +40,13 @@ export const getActiveKelas = async (req, res) => {
     }
 };
 
-// Get All Kelas (Admin)
+/**
+ * Mengambil semua kelas (admin)
+ * GET /api/admin/kelas
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Daftar semua kelas
+ */
 export const getKelas = async (req, res) => {
     const log = logger.withRequest(req, res);
     
@@ -56,7 +68,13 @@ export const getKelas = async (req, res) => {
     }
 };
 
-// Create Kelas
+/**
+ * Menambahkan kelas baru
+ * POST /api/admin/kelas
+ * @param {Object} req - Express request dengan body {nama_kelas}
+ * @param {Object} res - Express response object
+ * @returns {Object} ID kelas yang dibuat
+ */
 export const createKelas = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nama_kelas } = req.body;
@@ -89,7 +107,13 @@ export const createKelas = async (req, res) => {
     }
 };
 
-// Update Kelas
+/**
+ * Memperbarui data kelas
+ * PUT /api/admin/kelas/:id
+ * @param {Object} req - Express request dengan params.id dan body
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const updateKelas = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -127,7 +151,13 @@ export const updateKelas = async (req, res) => {
     }
 };
 
-// Delete Kelas
+/**
+ * Menghapus kelas
+ * DELETE /api/admin/kelas/:id
+ * @param {Object} req - Express request dengan params.id
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const deleteKelas = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -135,6 +165,34 @@ export const deleteKelas = async (req, res) => {
     log.requestStart('Delete', { id });
 
     try {
+        // Check if class is used by students
+        const [siswaUsage] = await global.dbPool.execute(
+            'SELECT COUNT(*) as count FROM siswa WHERE kelas_id = ?',
+            [id]
+        );
+
+        if (siswaUsage[0].count > 0) {
+            log.warn('Delete failed - class has students', { id, siswaCount: siswaUsage[0].count });
+            return sendValidationError(res, 'Tidak dapat menghapus kelas yang masih memiliki siswa', {
+                reason: 'has_students',
+                siswaCount: siswaUsage[0].count
+            });
+        }
+
+        // Check if class is used in schedules
+        const [jadwalUsage] = await global.dbPool.execute(
+            'SELECT COUNT(*) as count FROM jadwal WHERE kelas_id = ?',
+            [id]
+        );
+
+        if (jadwalUsage[0].count > 0) {
+            log.warn('Delete failed - class has schedules', { id, jadwalCount: jadwalUsage[0].count });
+            return sendValidationError(res, 'Tidak dapat menghapus kelas yang masih memiliki jadwal', {
+                reason: 'has_jadwal',
+                jadwalCount: jadwalUsage[0].count
+            });
+        }
+
         const [result] = await global.dbPool.execute(
             'DELETE FROM kelas WHERE id_kelas = ?',
             [id]

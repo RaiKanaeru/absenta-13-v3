@@ -1,6 +1,6 @@
 /**
  * Ruang Controller
- * CRUD operations for classroom/room management
+ * Mengelola operasi CRUD untuk manajemen ruang kelas
  */
 
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
@@ -8,7 +8,13 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Ruang');
 
-// Get all rooms
+/**
+ * Mengambil semua data ruang
+ * GET /api/admin/ruang
+ * @param {Object} req - Express request dengan query {search?}
+ * @param {Object} res - Express response object
+ * @returns {Array} Daftar ruang kelas
+ */
 export const getRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { search } = req.query;
@@ -46,7 +52,13 @@ export const getRuang = async (req, res) => {
     }
 };
 
-// Get single room
+/**
+ * Mengambil data ruang berdasarkan ID
+ * GET /api/admin/ruang/:id
+ * @param {Object} req - Express request dengan params.id
+ * @param {Object} res - Express response object
+ * @returns {Object} Data ruang
+ */
 export const getRuangById = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -72,7 +84,13 @@ export const getRuangById = async (req, res) => {
     }
 };
 
-// Create new room
+/**
+ * Menambahkan ruang baru
+ * POST /api/admin/ruang
+ * @param {Object} req - Express request dengan body {kode_ruang, nama_ruang?, lokasi?, kapasitas?, status?}
+ * @param {Object} res - Express response object
+ * @returns {Object} ID ruang yang dibuat
+ */
 export const createRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
@@ -123,7 +141,13 @@ export const createRuang = async (req, res) => {
     }
 };
 
-// Update room
+/**
+ * Memperbarui data ruang
+ * PUT /api/admin/ruang/:id
+ * @param {Object} req - Express request dengan params.id dan body
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const updateRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -180,7 +204,13 @@ export const updateRuang = async (req, res) => {
     }
 };
 
-// Delete room
+/**
+ * Menghapus ruang
+ * DELETE /api/admin/ruang/:id
+ * @param {Object} req - Express request dengan params.id
+ * @param {Object} res - Express response object
+ * @returns {null} Success message
+ */
 export const deleteRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
