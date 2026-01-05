@@ -93,7 +93,7 @@ Backend API: http://localhost:3001
 
 ## 🧪 Testing
 
-Jalankan suite test untuk helper kehadiran dengan perintah berikut:
+`npm test` akan menjalankan Vitest yang meng-cover test frontend serta konfigurasi backend. Gunakan perintah berikut:
 
 ```bash
 npm test
