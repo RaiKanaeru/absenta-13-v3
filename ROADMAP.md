@@ -8,69 +8,65 @@
 
 | Metric | Nilai |
 |--------|-------|
-| Tests | 119 passing |
-| Test Files | 8 |
-| Documented Functions | 40+ |
+| Tests | 137 passing |
+| Test Files | 9 |
 
 ---
 
 ## ✅ Completed Fixes
 
-### Sixth Round (Latest)
+### Round 7 (Latest)
 
 | Category | Fix |
 |----------|-----|
-| 🐛 Bug | Fixed undefined vars in `importController.js` (line 508) |
-| � Docs | JSDoc for 4 `guruController` functions |
-| 🔤 Typos | Indonesian headers (guruController, importController) |
-| 🧪 Tests | Added `guru.test.js` (22 tests), `authLogin.test.js` (17 tests) |
+| 🐛 Bug | Fixed malformed comment in `backupController.js` (line 784) |
+| 🔤 Typos | Indonesian headers (2 files) |
+| 🧪 Tests | Added `jamPelajaran.test.js` (18 tests) |
 
 ### Previous Rounds
 
-| Round | Fixes |
-|-------|-------|
-| 1 | Bug fix getJadwalToday, JSDoc jadwalController |
-| 2 | Bug fix useEffect, JSDoc mapelController |
-| 3 | Bug fix deleteKelas, connection leaks |
-| 4 | Bug fix getChart period, JSDoc bandingAbsenController |
-| 5 | SALT_ROUNDS bug, JSDoc adminDashboardController |
+| Round | Tests Added |
+|-------|-------------|
+| 6 | guru.test.js, authLogin.test.js (39 tests) |
+| 5 | siswa.test.js, timeUtils.test.js (37 tests) |
+| 1-4 | Core validation tests (61 tests) |
 
 ---
 
-## 📋 Backlog (Future)
+## 📋 Backlog
 
 ### High Priority
 
 - Integration tests dengan database mock
-- API endpoint testing dengan supertest
+- API endpoint testing
 
 ### Medium Priority
 
-- JSDoc untuk remaining 50+ functions
-- Performance optimization untuk pagination queries
+- JSDoc untuk remaining functions
+- Performance optimization
 
 ### Low Priority
 
-- Convert remaining English comments
-- Setup CI/CD pipeline
+- CI/CD pipeline
 
 ---
 
-## 🚀 How to Run Tests
+## 🚀 Run Tests
 
 ```bash
 npm test
 ```
 
-## 📁 Test Files
+## 📁 Test Files (9)
 
-| File | Tests | Area |
-|------|-------|------|
-| auth.test.js | 6 | Rate limiting |
-| authLogin.test.js | 17 | Login logic, JWT |
-| studentData.test.js | 11 | Student validation |
-| kelasRuang.test.js | 10 | Kelas/Ruang |
-| formatUtils.test.js | 15 | Format utilities |
-| timeUtils.test.js | 14 | WIB timezone |
-| siswa.test.js | 23 | Siswa validation |
-| guru.test.js | 22 | Guru validation |
+| File | Tests |
+|------|-------|
+| auth.test.js | 6 |
+| authLogin.test.js | 17 |
+| studentData.test.js | 11 |
+| kelasRuang.test.js | 10 |
+| formatUtils.test.js | 15 |
+| timeUtils.test.js | 14 |
+| siswa.test.js | 23 |
+| guru.test.js | 22 |
+| jamPelajaran.test.js | 18 |
