@@ -84,6 +84,11 @@ export class AppError extends Error {
     }
 
     getHttpStatus(code) {
+        // Special case for Not Found (DB)
+        if (code === ERROR_CODES.DB_NOT_FOUND.code) return 404;
+        // Special case for Duplicate Entry (DB)
+        if (code === ERROR_CODES.DB_DUPLICATE_ENTRY.code) return 409;
+
         const codePrefix = Math.floor(code / 1000);
         switch (codePrefix) {
             case 1: return 500; // Database errors

@@ -1,6 +1,6 @@
 /**
  * Teacher Data Controller
- * Handles CRUD operations for Teacher Data (Profile + User Account Sync)
+ * Mengelola operasi CRUD untuk Data Guru (Profil + Sinkronisasi Akun User)
  */
 
 import bcrypt from 'bcrypt';
@@ -10,7 +10,13 @@ import { createLogger } from '../utils/logger.js';
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('TeacherData');
 
-// Get teachers data for admin dashboard
+/**
+ * Mengambil data semua guru untuk dashboard admin
+ * GET /api/admin/teachers/data
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Daftar data guru lengkap
+ */
 export const getTeachersData = async (req, res) => {
     const log = logger.withRequest(req, res);
     log.requestStart('GetAll');
@@ -33,7 +39,13 @@ export const getTeachersData = async (req, res) => {
     }
 };
 
-// Add teacher data
+/**
+ * Menambahkan data guru baru
+ * POST /api/admin/teachers/data
+ * @param {Object} req - Express request body {nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status}
+ * @param {Object} res - Express response object
+ * @returns {Object} ID guru yang berhasil dibuat
+ */
 export const addTeacherData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = req.body;
@@ -101,7 +113,13 @@ export const addTeacherData = async (req, res) => {
     }
 };
 
-// Update teacher data
+/**
+ * Memperbarui data guru
+ * PUT /api/admin/teachers/data/:id
+ * @param {Object} req - Express request params {id} dan body
+ * @param {Object} res - Express response object
+ * @returns {null} Status sukses
+ */
 export const updateTeacherData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -177,7 +195,13 @@ export const updateTeacherData = async (req, res) => {
     }
 };
 
-// Delete teacher data
+/**
+ * Menghapus data guru
+ * DELETE /api/admin/teachers/data/:id
+ * @param {Object} req - Express request params {id}
+ * @param {Object} res - Express response object
+ * @returns {null} Status sukses
+ */
 export const deleteTeacherData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;

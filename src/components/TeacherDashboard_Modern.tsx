@@ -990,7 +990,7 @@ const LaporanKehadiranSiswaView = ({ user }: { user: TeacherDashboardProps['user
       setPeriode(res.periode || null);
     } catch (err) {
       console.error('Error fetching report data:', err);
-      setError('Gagal memuat data laporan');
+      setError(err instanceof Error ? err.message : 'Gagal memuat data laporan');
     } finally {
       setLoading(false);
     }
@@ -1285,7 +1285,7 @@ const RiwayatBandingAbsenView = ({ user }: { user: TeacherDashboardProps['userDa
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Error fetching banding absen history:', err);
-      setError('Gagal memuat data riwayat banding absen');
+      setError(err instanceof Error ? err.message : 'Gagal memuat data riwayat banding absen');
     } finally {
       setLoading(false);
     }
@@ -1542,7 +1542,7 @@ const PresensiSiswaSMKN13View = ({ user }: { user: TeacherDashboardProps['userDa
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Error fetching presensi siswa SMKN 13:', err);
-      setError('Gagal memuat data presensi siswa');
+      setError(err instanceof Error ? err.message : 'Gagal memuat data presensi siswa');
     } finally {
       setLoading(false);
     }
@@ -1779,7 +1779,7 @@ const RekapKetidakhadiranView = ({ user }: { user: TeacherDashboardProps['userDa
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Error fetching rekap ketidakhadiran:', err);
-      setError('Gagal memuat data rekap ketidakhadiran');
+      setError(err instanceof Error ? err.message : 'Gagal memuat data rekap ketidakhadiran');
     } finally {
       setLoading(false);
     }

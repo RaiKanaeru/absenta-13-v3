@@ -79,7 +79,9 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
   const fetchRekapData = useCallback(async (tahun: string, bulan?: string, tanggalAwal?: string, tanggalAkhir?: string) => {
     if (!tahun) return;
     
+    
     try {
+      setError(null);
       setLoading(true);
       const params = new URLSearchParams({
         tahun: tahun
@@ -103,7 +105,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       setRekapData(data);
     } catch (error) {
       console.error('Error fetching rekap data:', error);
-      setError('Gagal memuat data rekap');
+      setError(error instanceof Error ? error.message : 'Gagal memuat data rekap');
     } finally {
       setLoading(false);
     }

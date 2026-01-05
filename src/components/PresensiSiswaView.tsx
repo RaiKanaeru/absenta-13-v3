@@ -51,6 +51,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
   // Fetch classes
   const fetchClasses = useCallback(async () => {
     try {
+      setError(null);
       const data = await apiCall('/api/kelas', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
@@ -60,7 +61,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       setClasses(data);
     } catch (error) {
       console.error('Error fetching classes:', error);
-      setError('Gagal memuat data kelas');
+      setError(error instanceof Error ? error.message : 'Gagal memuat data kelas');
     }
   }, []);
 
@@ -70,6 +71,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
     
     try {
       setLoading(true);
+      setError(null);
       const data = await apiCall(`/api/admin/students-by-class/${kelasId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
@@ -79,7 +81,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
-      setError('Gagal memuat data siswa');
+      setError(error instanceof Error ? error.message : 'Gagal memuat data siswa');
     } finally {
       setLoading(false);
     }
@@ -91,6 +93,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
     
     try {
       setLoading(true);
+      setError(null);
       const params = new URLSearchParams({
         kelas_id: kelasId,
         bulan: bulan,
@@ -106,7 +109,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       setPresensiData(data);
     } catch (error) {
       console.error('Error fetching presensi data:', error);
-      setError('Gagal memuat data presensi');
+      setError(error instanceof Error ? error.message : 'Gagal memuat data presensi');
     } finally {
       setLoading(false);
     }

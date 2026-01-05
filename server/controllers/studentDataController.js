@@ -1,6 +1,6 @@
 /**
  * Student Data Controller
- * Handles CRUD operations for Student Data (Profile + User Account Sync) and Promotion
+ * Mengelola operasi CRUD untuk Data Siswa (Profil + Sinkronisasi Akun User) dan Promosi (Kenaikan Kelas)
  */
 
 import bcrypt from 'bcrypt';
@@ -11,7 +11,13 @@ import { createLogger } from '../utils/logger.js';
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('StudentData');
 
-// Get students data for admin dashboard
+/**
+ * Mengambil data semua siswa untuk dashboard admin
+ * GET /api/admin/students/data
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Daftar data siswa lengkap
+ */
 export const getStudentsData = async (req, res) => {
     const log = logger.withRequest(req, res);
     log.requestStart('GetAll');
@@ -44,7 +50,13 @@ export const getStudentsData = async (req, res) => {
     }
 };
 
-// Add student data
+/**
+ * Menambahkan data siswa baru
+ * POST /api/admin/students/data
+ * @param {Object} req - Express request body {nis, nama, kelas_id, jenis_kelamin, ...}
+ * @param {Object} res - Express response object
+ * @returns {Object} Data siswa baru yang dibuat
+ */
 export const addStudentData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, nomor_telepon_siswa, status } = req.body;
@@ -133,7 +145,13 @@ export const addStudentData = async (req, res) => {
     }
 };
 
-// Update student data
+/**
+ * Memperbarui data siswa
+ * PUT /api/admin/students/data/:id
+ * @param {Object} req - Express request params {id} dan body
+ * @param {Object} res - Express response object
+ * @returns {null} Status sukses
+ */
 export const updateStudentData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -233,7 +251,13 @@ export const updateStudentData = async (req, res) => {
     }
 };
 
-// Delete student data
+/**
+ * Menghapus data siswa
+ * DELETE /api/admin/students/data/:id
+ * @param {Object} req - Express request params {id}
+ * @param {Object} res - Express response object
+ * @returns {null} Status sukses
+ */
 export const deleteStudentData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -289,7 +313,13 @@ export const deleteStudentData = async (req, res) => {
     }
 };
 
-// Student promotion (naik kelas)
+/**
+ * Mempromosikan siswa (Kenaikan Kelas)
+ * POST /api/admin/students/promote
+ * @param {Object} req - Express request body {fromClassId, toClassId, studentIds}
+ * @param {Object} res - Express response object
+ * @returns {Object} Hasil promosi (jumlah siswa dipindahkan)
+ */
 export const promoteStudents = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { fromClassId, toClassId, studentIds } = req.body;

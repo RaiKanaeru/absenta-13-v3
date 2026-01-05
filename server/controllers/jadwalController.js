@@ -1,6 +1,6 @@
 /**
  * Jadwal Controller
- * Handles schedule management, multi-guru support, and daily schedule queries
+ * Menangani manajemen jadwal, dukungan multi-guru, dan query jadwal harian
  */
 
 import dotenv from 'dotenv';
@@ -13,25 +13,25 @@ dotenv.config();
 const logger = createLogger('Jadwal');
 
 // ================================================
-// HELPER FUNCTIONS
+// FUNGSI PEMBANTU (HELPER FUNCTIONS)
 // ================================================
 
 /**
- * Check if two time ranges overlap
- * @param {string} start1 - Start time of first range (HH:MM)
- * @param {string} end1 - End time of first range (HH:MM)
- * @param {string} start2 - Start time of second range (HH:MM)
- * @param {string} end2 - End time of second range (HH:MM)
- * @returns {boolean} True if ranges overlap
+ * Memeriksa apakah dua rentang waktu tumpang tindih (overlap)
+ * @param {string} start1 - Jam mulai rentang 1 (HH:MM)
+ * @param {string} end1 - Jam selesai rentang 1 (HH:MM)
+ * @param {string} start2 - Jam mulai rentang 2 (HH:MM)
+ * @param {string} end2 - Jam selesai rentang 2 (HH:MM)
+ * @returns {boolean} True jika rentang waktu overlap
  */
 function isTimeOverlap(start1, end1, start2, end2) {
     return start1 < end2 && start2 < end1;
 }
 
 /**
- * Validate 24-hour time format (HH:MM)
- * @param {string} timeString - Time string to validate
- * @returns {boolean} True if valid format
+ * Validasi format waktu 24 jam (HH:MM)
+ * @param {string} timeString - String waktu untuk divalidasi
+ * @returns {boolean} True jika format valid
  */
 function validateTimeFormat(timeString) {
     if (!timeString || typeof timeString !== 'string') {
@@ -42,10 +42,10 @@ function validateTimeFormat(timeString) {
 }
 
 /**
- * Validate time logic (end time must be after start time)
- * @param {string} startTime - Start time (HH:MM)
- * @param {string} endTime - End time (HH:MM)
- * @returns {{valid: boolean, error?: string}} Validation result
+ * Validasi logika waktu (jam selesai harus setelah jam mulai)
+ * @param {string} startTime - Jam mulai (HH:MM)
+ * @param {string} endTime - Jam selesai (HH:MM)
+ * @returns {{valid: boolean, error?: string}} Hasil validasi
  */
 function validateTimeLogic(startTime, endTime) {
     if (!validateTimeFormat(startTime) || !validateTimeFormat(endTime)) {
@@ -63,16 +63,21 @@ function validateTimeLogic(startTime, endTime) {
 }
 
 /**
- * Convert time string to minutes since midnight
- * @param {string} timeString - Time in HH:MM format
- * @returns {number} Minutes since midnight
+ * Konversi string waktu ke menit sejak tengah malam
+ * @param {string} timeString - Waktu dalam format HH:MM
+ * @returns {number} Menit sejak tengah malam
  */
 function timeToMinutes(timeString) {
     const [hours, minutes] = timeString.split(':').map(Number);
     return hours * 60 + minutes;
 }
 
-// Helper function untuk build query jadwal yang standar untuk semua role
+/**
+ * Helper function untuk build query jadwal yang standar untuk semua role
+ * @param {string} role - Role pengguna (admin/guru)
+ * @param {number|null} guruId - ID guru (jika role guru)
+ * @returns {{query: string, params: Array}} Query SQL dan parameter
+ */
 function buildJadwalQuery(role = 'admin', guruId = null) {
     const baseQuery = `
         SELECT 
@@ -113,7 +118,15 @@ function buildJadwalQuery(role = 'admin', guruId = null) {
     return { query: baseQuery + whereClause + orderBy, params };
 }
 
-// Validate teacher schedule conflicts
+/**
+ * Validasi konflik jadwal guru
+ * @param {Array<number>} guruIds - Array ID Guru
+ * @param {string} hari - Hari (Senin, Selasa, dst)
+ * @param {string} jam_mulai - Jam mulai (HH:MM)
+ * @param {string} jam_selesai - Jam selesai (HH:MM)
+ * @param {number|null} excludeJadwalId - ID Jadwal untuk dikecualikan (saat update)
+ * @returns {Promise<{hasConflict: boolean, guruId?: number, conflict?: Object}>} Hasil validasi konflik
+ */
 async function validateScheduleConflicts(guruIds, hari, jam_mulai, jam_selesai, excludeJadwalId = null) {
     for (const guruId of guruIds) {
         const conflictQuery = `
@@ -162,7 +175,15 @@ async function validateScheduleConflicts(guruIds, hari, jam_mulai, jam_selesai, 
 // CONTROLLER FUNCTIONS
 // ================================================
 
-// Get All Jadwal
+// ================================================
+// FUNGSI CONTROLLER (CONTROLLER FUNCTIONS)
+// ================================================
+
+/**
+ * Mengambil semua jadwal pelajaran
+ * GET /api/jadwal
+ * @returns {Array} Daftar jadwal lengkap
+ */
 export const getJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     log.requestStart('GetJadwal', {});
@@ -179,7 +200,12 @@ export const getJadwal = async (req, res) => {
     }
 };
 
-// Create Jadwal
+/**
+ * Membuat jadwal pelajaran baru
+ * POST /api/jadwal
+ * @param {Object} req.body - Data jadwal (kelas_id, mapel_id, hari, jam, dll)
+ * @returns {Object} Data jadwal yang baru dibuat
+ */
 export const createJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const {
@@ -326,7 +352,13 @@ export const createJadwal = async (req, res) => {
     }
 };
 
-// Update Jadwal
+/**
+ * Memperbarui jadwal pelajaran
+ * PUT /api/jadwal/:id
+ * @param {string} req.params.id - ID Jadwal
+ * @param {Object} req.body - Data jadwal update
+ * @returns {Object} Konfirmasi update
+ */
 export const updateJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -450,7 +482,12 @@ export const updateJadwal = async (req, res) => {
     }
 };
 
-// Delete Jadwal
+/**
+ * Menghapus jadwal pelajaran
+ * DELETE /api/jadwal/:id
+ * @param {string} req.params.id - ID Jadwal
+ * @returns {Object} Konfirmasi penghapusan
+ */
 export const deleteJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -477,10 +514,15 @@ export const deleteJadwal = async (req, res) => {
 };
 
 // ================================================
-// MULTI-GURU JADWAL MANAGEMENT
+// MANAJEMEN JADWAL MULTI-GURU
 // ================================================
 
-// Get teachers in a schedule
+/**
+ * Mengambil daftar guru dalam satu jadwal
+ * GET /api/jadwal/:id/guru
+ * @param {string} req.params.id - ID Jadwal
+ * @returns {Array} Daftar guru yang mengajar di jadwal ini
+ */
 export const getJadwalGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -504,7 +546,13 @@ export const getJadwalGuru = async (req, res) => {
     }
 };
 
-// Add teacher to schedule
+/**
+ * Menambahkan guru ke jadwal (Team Teaching)
+ * POST /api/jadwal/:id/guru
+ * @param {string} req.params.id - ID Jadwal
+ * @param {string} req.body.guru_id - ID Guru
+ * @returns {Object} Konfirmasi
+ */
 export const addJadwalGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { guru_id } = req.body;
@@ -551,7 +599,13 @@ export const addJadwalGuru = async (req, res) => {
     }
 };
 
-// Remove teacher from schedule
+/**
+ * Menghapus guru dari jadwal
+ * DELETE /api/jadwal/:id/guru/:guruId
+ * @param {string} req.params.id - ID Jadwal
+ * @param {string} req.params.guruId - ID Guru
+ * @returns {Object} Konfirmasi
+ */
 export const removeJadwalGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id: jadwal_id, guruId } = req.params;
@@ -605,10 +659,14 @@ export const removeJadwalGuru = async (req, res) => {
 };
 
 // ================================================
-// TODAY'S JADWAL
+// JADWAL HARI INI
 // ================================================
 
-// Get today's schedule for guru or siswa
+/**
+ * Mengambil jadwal hari ini untuk guru atau siswa
+ * GET /api/jadwal/today
+ * @returns {Array} Daftar jadwal hari ini
+ */
 export const getJadwalToday = async (req, res) => {
     const log = logger.withRequest(req, res);
     const todayDayName = getDayNameWIB();
