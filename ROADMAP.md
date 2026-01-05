@@ -8,94 +8,69 @@
 
 | Metric | Nilai |
 |--------|-------|
-| **Tests** | 56 passing |
-| **Test Files** | 5 |
-| **Documented Functions** | 30+ |
+| Tests | 119 passing |
+| Test Files | 8 |
+| Documented Functions | 40+ |
 
 ---
 
-## 🔧 Tugas Perbaikan Fifth Round
+## ✅ Completed Fixes
 
-### 1. 🔤 Typo/Comment Fix
+### Sixth Round (Latest)
 
-| File | Issue | Priority |
-|------|-------|----------|
-| `siswaController.js` | English header "CRUD operations for student..." | Low |
-| `adminDashboardController.js` | English comments throughout | Low |
+| Category | Fix |
+|----------|-----|
+| 🐛 Bug | Fixed undefined vars in `importController.js` (line 508) |
+| � Docs | JSDoc for 4 `guruController` functions |
+| 🔤 Typos | Indonesian headers (guruController, importController) |
+| 🧪 Tests | Added `guru.test.js` (22 tests), `authLogin.test.js` (17 tests) |
 
-### 2. 🐛 Bug Fix
-
-| File | Issue | Priority |
-|------|-------|----------|
-| `adminDashboardController.js:14` | Menggunakan `BCRYPT_SALT_ROUNDS` bukan `SALT_ROUNDS` (inkonsisten) | Medium |
-| `adminDashboardController.js:97` | Default `jenis_kelamin = 'L'` untuk guru baru (hardcoded) | Low |
-
-### 3. 📝 Documentation Fix
-
-| File | Issue |
-|------|-------|
-| `siswaController.js` | Missing JSDoc di 7 functions (getSiswa, createSiswa, updateSiswa, deleteSiswa, updateProfile, changePassword, validateSiswaPayload) |
-| `adminDashboardController.js` | Missing JSDoc di 4 functions (getTeachers, addTeacher, updateTeacher, deleteTeacher) |
-
-### 4. 🧪 Testing Improvement
-
-| Test File | Coverage Needed |
-|-----------|-----------------|
-| `siswa.test.js` | Validation logic untuk NIS, username, email |
-| `adminDashboard.test.js` | Teacher CRUD validation |
-
----
-
-## 📋 Backlog Perbaikan Masa Depan
-
-### High Priority
-- [ ] Integration tests dengan database mock
-- [ ] API endpoint testing dengan supertest
-- [ ] Error handling consistency audit
-
-### Medium Priority
-- [ ] Performance optimization untuk queries dengan pagination
-- [ ] Add request rate limiting per endpoint
-- [ ] Implement request/response logging middleware
-
-### Low Priority
-- [ ] Convert remaining English comments to Indonesian
-- [ ] Add JSDoc to utility functions
-- [ ] Setup CI/CD pipeline untuk automated testing
-
----
-
-## ✅ Completed (Previous Rounds)
+### Previous Rounds
 
 | Round | Fixes |
 |-------|-------|
-| 1 | Bug fix getJadwalToday, JSDoc jadwalController, auth.test.js |
-| 2 | Bug fix useEffect, JSDoc mapelController, studentData.test.js |
-| 3 | Bug fix deleteKelas, connection leaks, kelasRuang.test.js, formatUtils.test.js |
-| 4 | Bug fix getChart period, JSDoc bandingAbsenController, timeUtils.test.js |
+| 1 | Bug fix getJadwalToday, JSDoc jadwalController |
+| 2 | Bug fix useEffect, JSDoc mapelController |
+| 3 | Bug fix deleteKelas, connection leaks |
+| 4 | Bug fix getChart period, JSDoc bandingAbsenController |
+| 5 | SALT_ROUNDS bug, JSDoc adminDashboardController |
+
+---
+
+## 📋 Backlog (Future)
+
+### High Priority
+
+- Integration tests dengan database mock
+- API endpoint testing dengan supertest
+
+### Medium Priority
+
+- JSDoc untuk remaining 50+ functions
+- Performance optimization untuk pagination queries
+
+### Low Priority
+
+- Convert remaining English comments
+- Setup CI/CD pipeline
 
 ---
 
 ## 🚀 How to Run Tests
 
 ```bash
-# Run all tests
 npm test
-
-# Run specific test file
-node --test server/__tests__/auth.test.js
 ```
 
----
+## 📁 Test Files
 
-## 📁 Test File Structure
-
-```
-server/
-└── __tests__/
-    ├── auth.test.js        # Rate limiting, time validation
-    ├── studentData.test.js # Student validation, promotion rules
-    ├── kelasRuang.test.js  # Kelas extraction, ruang validation
-    ├── formatUtils.test.js # formatBytes, formatNumber, formatPercentage
-    └── timeUtils.test.js   # WIB timezone functions
-```
+| File | Tests | Area |
+|------|-------|------|
+| auth.test.js | 6 | Rate limiting |
+| authLogin.test.js | 17 | Login logic, JWT |
+| studentData.test.js | 11 | Student validation |
+| kelasRuang.test.js | 10 | Kelas/Ruang |
+| formatUtils.test.js | 15 | Format utilities |
+| timeUtils.test.js | 14 | WIB timezone |
+| siswa.test.js | 23 | Siswa validation |
+| guru.test.js | 22 | Guru validation |
