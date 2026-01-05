@@ -1038,7 +1038,7 @@ export const getStudentsByClass = async (req, res) => {
 
     try {
         const query = `
-            SELECT id_siswa as id, nama, nis, nisn, jenis_kelamin, kelas_id 
+            SELECT id_siswa as id, nama, nis, jenis_kelamin, kelas_id 
             FROM siswa 
             WHERE kelas_id = ? AND status = 'aktif'
             ORDER BY nama ASC
