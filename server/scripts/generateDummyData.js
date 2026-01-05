@@ -152,9 +152,9 @@ async function main() {
             const username = `guru_${nip}`;
             
             // Check if user/guru exists
-            const [existing] = await connection.execute('SELECT id FROM guru WHERE nip = ?', [nip]);
+            const [existing] = await connection.execute('SELECT id_guru FROM guru WHERE nip = ?', [nip]);
             if (existing.length > 0) {
-                teacherIds.push(existing[0].id);
+                teacherIds.push(existing[0].id_guru);
                 continue;
             }
 
@@ -173,15 +173,14 @@ async function main() {
             const [mapelData] = await connection.execute('SELECT nama_mapel FROM mapel WHERE id_mapel = ?', [randomMapelId]);
             const namaMapel = mapelData[0]?.nama_mapel || 'Umum';
 
-            const [guruRes] = await connection.execute(
+            await connection.execute(
                 `INSERT INTO guru (id_guru, user_id, username, nip, nama, mata_pelajaran, mapel_id, no_telp, status)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [nextGuruId, userRes.insertId, username, nip, name, namaMapel, randomMapelId, generatePhone(), 'aktif']
             );
             
-            // id column in guru table is AI, but id_guru is manual. unique constraint on id_guru.
-            // insertId returns the AI value (id).
-            teacherIds.push(guruRes.insertId);
+            // Push LOGICAL ID (id_guru) because that's what foreign keys reference
+            teacherIds.push(nextGuruId);
         }
         console.log(`   Ensured 15 teachers exist.`);
 
@@ -219,10 +218,11 @@ async function main() {
                 const nextSiswaId = maxId[0].next_id;
 
                 // Create Profile
+                // Note: 'id' column is AI, we let MySQL handle it. We explicitly insert 'id_siswa'.
                 await connection.execute(
-                    `INSERT INTO siswa (id, id_siswa, user_id, username, nis, nama, kelas_id, jenis_kelamin, status)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [nextSiswaId, nextSiswaId, userRes.insertId, username, nis, name, cls.id, Math.random() > 0.5 ? 'L' : 'P', 'aktif']
+                    `INSERT INTO siswa (id_siswa, user_id, username, nis, nama, kelas_id, jenis_kelamin, status)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [nextSiswaId, userRes.insertId, username, nis, name, cls.id, Math.random() > 0.5 ? 'L' : 'P', 'aktif']
                 );
             }
             
