@@ -1,7 +1,7 @@
 /**
  * Dashboard Controller
- * Handles dashboard statistics and chart data
- * Migrated from server_modern.js
+ * Menangani statistik dashboard dan data chart
+ * Dimigrasi dari server_modern.js
  */
 
 import { getWIBTime, formatWIBDate, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.js';

@@ -1,18 +1,18 @@
 /**
  * Absensi Controller
- * Handles all attendance-related operations for both students and teachers
+ * Menangani semua operasi absensi untuk siswa dan guru
  * 
- * @description This controller manages:
- * - Student attendance tracking (recorded by teachers)
- * - Teacher attendance tracking (recorded by class representatives/siswa perwakilan)
- * - Attendance history and statistics
- * - Multi-guru schedule support
+ * @description Controller ini mengelola:
+ * - Pencatatan kehadiran siswa (oleh guru)
+ * - Pencatatan kehadiran guru (oleh siswa perwakilan)
+ * - Riwayat dan statistik absensi
+ * - Dukungan jadwal multi-guru
  * 
  * @tables
- * - absensi_siswa: Student attendance records
- * - absensi_guru: Teacher attendance records (recorded by class representatives)
- * - jadwal: Schedule information with multi-guru support
- * - jadwal_guru: Multi-teacher schedule assignments
+ * - absensi_siswa: Catatan kehadiran siswa
+ * - absensi_guru: Catatan kehadiran guru (dicatat siswa perwakilan)
+ * - jadwal: Informasi jadwal dengan dukungan multi-guru
+ * - jadwal_guru: Penugasan jadwal multi-guru
  */
 
 import {

@@ -1,7 +1,7 @@
 /**
  * Export Controller
- * Handles Excel/report generation logic
- * Refactored from server_modern.js
+ * Menangani logika pembuatan Excel/laporan
+ * Direfaktor dari server_modern.js
  */
 
 import ExcelJS from 'exceljs';

@@ -1,6 +1,6 @@
 /**
  * Letterhead Controller
- * Handles all letterhead/KOP related operations
+ * Menangani operasi kop surat/KOP
  */
 
 import path from 'path';
