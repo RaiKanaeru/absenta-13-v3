@@ -1,6 +1,6 @@
 /**
  * Monitoring Controller
- * Handles system monitoring, security, and performance endpoints
+ * Menangani monitoring sistem, keamanan, dan performa
  */
 
 import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';

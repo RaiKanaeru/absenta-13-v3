@@ -1,7 +1,7 @@
 /**
  * Backup Controller
- * Handles all backup, restore, and archive operations
- * Migrated from server_modern.js - Batch 15
+ * Menangani operasi backup, restore, dan arsip
+ * Dimigrasi dari server_modern.js - Batch 15
  */
 
 import path from 'path';
@@ -781,7 +781,8 @@ const createTestArchiveData = async (req, res) => {
         // Create test data that is 25 months old
         const oldDate = new Date();
         oldDate.setMonth(oldDate.getMonth() - 25);
-        // Format date manually to avoid timezone issues\r\n        const oldDateStr = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, '0')}-${String(oldDate.getDate()).padStart(2, '0')}`;
+        // Format date manually to avoid timezone issues
+        const oldDateStr = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, '0')}-${String(oldDate.getDate()).padStart(2, '0')}`;
 
 
         logger.debug('Creating test data with date', { oldDateStr, monthsOld: 25 });
