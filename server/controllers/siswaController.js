@@ -1,6 +1,6 @@
 /**
  * Siswa Controller
- * CRUD operations for student management with account creation
+ * Operasi CRUD untuk manajemen siswa dengan pembuatan akun
  */
 
 import bcrypt from 'bcrypt';

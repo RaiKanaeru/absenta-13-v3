@@ -1,6 +1,6 @@
 /**
  * Admin Dashboard Controller
- * Teacher and student management for admin dashboard
+ * Mengelola akun guru dan siswa untuk dashboard admin
  */
 
 import bcrypt from 'bcrypt';
@@ -11,13 +11,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const logger = createLogger('AdminDashboard');
-const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
+const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 
 // ================================================
 // ADMIN DASHBOARD ENDPOINTS - TEACHER ACCOUNTS
 // ================================================
 
-// Get teachers for admin dashboard
+/**
+ * Mengambil daftar guru untuk dashboard admin
+ * GET /api/admin/teachers
+ * @returns {Array} Daftar guru dengan data akun
+ */
 export const getTeachers = async (req, res) => {
     const log = logger.withRequest(req, res);
     log.requestStart('GetTeachers', {});
@@ -51,7 +55,12 @@ export const getTeachers = async (req, res) => {
     }
 };
 
-// Add teacher account
+/**
+ * Menambahkan akun guru baru
+ * POST /api/admin/teachers
+ * @param {Object} req.body - {nama, username, password}
+ * @returns {Object} ID guru yang dibuat
+ */
 export const addTeacher = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nama, username, password } = req.body;
@@ -112,7 +121,12 @@ export const addTeacher = async (req, res) => {
     }
 };
 
-// Update teacher account
+/**
+ * Memperbarui akun guru
+ * PUT /api/admin/teachers/:id
+ * @param {Object} req.body - {nama, username, password?}
+ * @returns {null} Success message
+ */
 export const updateTeacher = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -192,7 +206,11 @@ export const updateTeacher = async (req, res) => {
     }
 };
 
-// Delete teacher account
+/**
+ * Menghapus akun guru
+ * DELETE /api/admin/teachers/:id
+ * @returns {null} Success message
+ */
 export const deleteTeacher = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
