@@ -126,6 +126,7 @@ export const getStats = async (req, res) => {
 /**
  * Get dashboard chart data
  * GET /api/dashboard/chart
+ * @param {Object} req.query.period - Period: '7days', '30days', '90days' (default: 7days)
  */
 export const getChart = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -134,19 +135,27 @@ export const getChart = async (req, res) => {
     
     log.requestStart('GetChart', { role: req.user.role, period });
 
+    // Calculate days based on period parameter
+    const periodDays = {
+        '7days': 7,
+        '30days': 30,
+        '90days': 90
+    };
+    const days = periodDays[period] || 7;
+
     try {
         let chartData = [];
 
         if (req.user.role === 'admin') {
             // Admin chart - Weekly attendance overview
-            const sevenDaysAgoWIB = formatWIBDate(new Date(getWIBTime().getTime() - 7 * 24 * 60 * 60 * 1000));
+            const startDateWIB = formatWIBDate(new Date(getWIBTime().getTime() - days * 24 * 60 * 60 * 1000));
             const [weeklyData] = await global.dbPool.execute(
                 `SELECT DATE(tanggal) as tanggal,
                     SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) as hadir,
                     SUM(CASE WHEN status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END) as tidak_hadir
                  FROM absensi_guru WHERE tanggal >= ?
                  GROUP BY DATE(tanggal) ORDER BY tanggal`,
-                [sevenDaysAgoWIB]
+                [startDateWIB]
             );
 
             chartData = weeklyData.map(row => ({
@@ -158,14 +167,14 @@ export const getChart = async (req, res) => {
 
         } else if (req.user.role === 'guru') {
             // Guru chart - Personal attendance
-            const sevenDaysAgoWIB = formatWIBDate(new Date(getWIBTime().getTime() - 7 * 24 * 60 * 60 * 1000));
+            const startDateWIB = formatWIBDate(new Date(getWIBTime().getTime() - days * 24 * 60 * 60 * 1000));
             const [personalData] = await global.dbPool.execute(
                 `SELECT DATE(tanggal) as tanggal,
                     SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) as hadir,
                     SUM(CASE WHEN status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END) as tidak_hadir
                  FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?
                  GROUP BY DATE(tanggal) ORDER BY tanggal`,
-                [req.user.guru_id, sevenDaysAgoWIB]
+                [req.user.guru_id, startDateWIB]
             );
 
             chartData = personalData.map(row => ({
@@ -175,7 +184,7 @@ export const getChart = async (req, res) => {
             }));
         }
 
-        log.timed('GetChart', startTime, { role: req.user.role, dataPoints: chartData.length });
+        log.timed('GetChart', startTime, { role: req.user.role, period, dataPoints: chartData.length });
         return sendSuccessResponse(res, chartData, 'Data chart berhasil diambil');
 
     } catch (error) {

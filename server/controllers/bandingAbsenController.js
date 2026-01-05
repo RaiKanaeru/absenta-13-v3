@@ -1,6 +1,6 @@
 /**
  * Banding Absen Controller
- * Attendance appeal report endpoints
+ * Endpoint untuk laporan banding absensi
  */
 
 import { sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
@@ -8,7 +8,12 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('BandingAbsen');
 
-// Get banding absen history report
+/**
+ * Mengambil laporan riwayat banding absen
+ * GET /api/laporan/banding-absen
+ * @param {Object} req.query - Filter: startDate, endDate, kelas_id, status
+ * @returns {Array} Daftar banding absen
+ */
 export const getBandingAbsenReport = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id, status } = req.query;
@@ -73,7 +78,12 @@ export const getBandingAbsenReport = async (req, res) => {
     }
 };
 
-// Download banding absen report as CSV
+/**
+ * Download laporan banding absen sebagai CSV
+ * GET /api/laporan/banding-absen/download
+ * @param {Object} req.query - Filter: startDate, endDate, kelas_id, status
+ * @returns {CSV} File CSV dengan data banding absen
+ */
 export const downloadBandingAbsen = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id, status } = req.query;
@@ -148,7 +158,11 @@ export const downloadBandingAbsen = async (req, res) => {
     }
 };
 
-// Get subjects (alias for /api/admin/mapel)
+/**
+ * Mengambil daftar mata pelajaran (alias endpoint)
+ * GET /api/mapel
+ * @returns {Array} Daftar mata pelajaran
+ */
 export const getSubjects = async (req, res) => {
     const log = logger.withRequest(req, res);
     
@@ -175,7 +189,11 @@ export const getSubjects = async (req, res) => {
     }
 };
 
-// Get classes (alias for /api/admin/kelas)
+/**
+ * Mengambil daftar kelas (alias endpoint)
+ * GET /api/kelas
+ * @returns {Array} Daftar kelas
+ */
 export const getClasses = async (req, res) => {
     const log = logger.withRequest(req, res);
     
