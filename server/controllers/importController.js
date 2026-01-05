@@ -1,7 +1,7 @@
 /**
  * Import Controller
- * Handles Excel import for mapel, kelas, ruang, jadwal, students, teachers
- * Migrated from server_modern.js - Batch 16
+ * Menangani impor Excel untuk mapel, kelas, ruang, jadwal, siswa, guru
+ * Dimigrasi dari server_modern.js - Batch 16
  */
 
 import ExcelJS from 'exceljs';
@@ -505,9 +505,9 @@ const importJadwal = async (req, res) => {
 
                 if (rowErrors.length) {
                     const rowPreview = {
-                        kelas: kelas || '(kosong)',
-                        mapel: mapel || '(kosong)',
-                        guru: guru_name || '(kosong)',
+                        kelas: rowData.Kelas || rowData.kelas || kelas_id || '(kosong)',
+                        mapel: rowData['Mata Pelajaran'] || rowData.mapel || mapel_id || '(kosong)',
+                        guru: rowData.Guru || rowData.guru || guru_id || '(kosong)',
                         hari: hari || '(kosong)',
                         jam_ke: rowData.jam_ke || rowData['Jam Ke'] || '(kosong)'
                     };

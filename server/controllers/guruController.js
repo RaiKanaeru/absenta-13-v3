@@ -1,6 +1,6 @@
 /**
  * Guru Controller
- * Handles all guru/teacher management and self-service operations
+ * Mengelola operasi CRUD guru dan layanan mandiri profil
  */
 
 import bcrypt from 'bcrypt';
@@ -124,7 +124,12 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
     }
 }
 
-// Get All Guru
+/**
+ * Mengambil daftar semua guru
+ * GET /api/admin/guru
+ * @param {Object} req.query - Filter: page, limit, search
+ * @returns {Array} Daftar guru dengan pagination
+ */
 export const getGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { page = 1, limit = 10, search = '' } = req.query;
@@ -171,7 +176,12 @@ export const getGuru = async (req, res) => {
     }
 };
 
-// Create Guru
+/**
+ * Membuat guru baru dengan akun user
+ * POST /api/admin/guru
+ * @param {Object} req.body - Data guru (nip, nama, username, password, mapel_id, dll)
+ * @returns {Object} ID guru yang dibuat
+ */
 export const createGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat, status = 'aktif' } = req.body;
@@ -234,7 +244,12 @@ export const createGuru = async (req, res) => {
     }
 };
 
-// Update Guru
+/**
+ * Memperbarui data guru
+ * PUT /api/admin/guru/:id
+ * @param {Object} req.body - Data guru yang diupdate
+ * @returns {null} Success message
+ */
 export const updateGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
@@ -343,7 +358,11 @@ export const updateGuru = async (req, res) => {
     }
 };
 
-// Delete Guru
+/**
+ * Menghapus guru
+ * DELETE /api/admin/guru/:id
+ * @returns {null} Success message
+ */
 export const deleteGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
