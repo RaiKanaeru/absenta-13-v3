@@ -34,7 +34,9 @@ if (config.user === 'root' && !config.password) {
 }
 
 const saltRounds = 10;
-const GLOBAL_PASSWORD = 'password123'; // Default password for all users
+// Default password for dummy data generation - read from env or use dev fallback
+// WARNING: This is for development/testing only, not for production
+const GLOBAL_PASSWORD = process.env.DUMMY_DATA_PASSWORD || 'password123';
 
 // Data Constants
 const JURUSAN = ['RPL', 'TKJ', 'AK'];
