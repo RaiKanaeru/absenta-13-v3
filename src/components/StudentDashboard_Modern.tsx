@@ -3289,7 +3289,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
               {error.includes('server backend') && (
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-yellow-700 text-xs">
-                    💡 <strong>Tips:</strong> Pastikan server backend sudah berjalan di port 3001
+                    <strong>Tips:</strong> Pastikan server backend sudah berjalan di port 3001
                   </p>
                 </div>
               )}

@@ -653,7 +653,7 @@ const AttendanceView = ({ schedule, user, onBack }: {
               Guru lain yang mengajar: {schedule.other_teachers.split('||').map(guru => guru.split(':')[1]).join(', ')}
               <br />
               <span className="text-xs text-green-600 font-medium">
-                ✨ Auto-Absensi: Ketika Anda input absensi, semua guru lain akan otomatis ter-absensi dengan status yang sama
+                Auto-Absensi: Saat Anda input absensi, guru lain ikut terabsensi dengan status yang sama
               </span>
             </AlertDescription>
           </Alert>

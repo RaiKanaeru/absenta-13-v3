@@ -536,7 +536,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
                 <h4 className="font-medium text-red-600">Error yang ditemukan:</h4>
                 {entityType === 'jadwal' && (
                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                    <p className="font-medium text-yellow-800 mb-1">💡 Tips untuk memperbaiki error:</p>
+                    <p className="font-medium text-yellow-800 mb-1">Tips untuk memperbaiki error:</p>
                     <ul className="text-yellow-700 space-y-1">
                       <li>• Pastikan nama kelas, mata pelajaran, dan guru sesuai dengan data yang ada</li>
                       <li>• Untuk upacara/istirahat: biarkan Mata Pelajaran dan Guru kosong, isi Keterangan Khusus</li>
@@ -681,7 +681,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
               </div>
               {entityType === 'jadwal' && (
                 <div className="text-xs text-blue-600">
-                  💡 Validasi: Pelajaran memerlukan mata pelajaran dan guru, upacara/istirahat memerlukan keterangan khusus
+                  Validasi: Pelajaran memerlukan mata pelajaran dan guru, upacara/istirahat memerlukan keterangan khusus
                 </div>
               )}
             </div>

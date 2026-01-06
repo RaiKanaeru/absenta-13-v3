@@ -9197,7 +9197,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                      🧠 Auto-Detected Target Class
+                      Kelas Tujuan Terdeteksi
                     </p>
                     <p className="text-sm sm:text-lg font-bold text-gray-900 break-words">
                       {fromClass?.nama_kelas} → <span className="text-green-700">{toClass?.nama_kelas}</span>
@@ -9216,7 +9216,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <Home className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">🧠 Sistem Promosi Cerdas</h3>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Sistem Promosi Otomatis</h3>
               <p className="text-sm sm:text-base text-gray-500 mb-2 px-2">Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan</p>
               <p className="text-xs sm:text-sm text-gray-400 break-words">Contoh: X IPA 1 → XI IPA 1</p>
             </div>
