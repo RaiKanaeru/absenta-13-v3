@@ -425,7 +425,7 @@ CREATE TABLE IF NOT EXISTS presensi (
                 <Progress value={uploadProgress} className="w-full" />
                 {restoreStatus === 'restoring' && (
                   <div className="text-xs text-gray-500 text-center">
-                    ⚠️ Proses restore sedang berjalan, harap tunggu...
+                    Proses restore sedang berjalan, harap tunggu...
                   </div>
                 )}
               </div>

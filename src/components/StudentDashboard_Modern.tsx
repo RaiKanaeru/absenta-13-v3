@@ -1707,12 +1707,12 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                           <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
                           <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
                           <Badge variant="secondary" className="text-xs">
-                            {jadwal.jenis_aktivitas === 'upacara' ? '🏳️ Upacara' :
-                             jadwal.jenis_aktivitas === 'istirahat' ? '☕ Istirahat' :
-                             jadwal.jenis_aktivitas === 'kegiatan_khusus' ? '🎯 Kegiatan Khusus' :
-                             jadwal.jenis_aktivitas === 'libur' ? '🏖️ Libur' :
-                             jadwal.jenis_aktivitas === 'ujian' ? '📝 Ujian' :
-                             '📋 ' + (jadwal.jenis_aktivitas || 'Khusus')}
+                            {jadwal.jenis_aktivitas === 'upacara' ? 'Upacara' :
+                             jadwal.jenis_aktivitas === 'istirahat' ? 'Istirahat' :
+                             jadwal.jenis_aktivitas === 'kegiatan_khusus' ? 'Kegiatan Khusus' :
+                             jadwal.jenis_aktivitas === 'libur' ? 'Libur' :
+                             jadwal.jenis_aktivitas === 'ujian' ? 'Ujian' :
+                             (jadwal.jenis_aktivitas || 'Khusus')}
                           </Badge>
                           <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
                             Tidak perlu absen
@@ -3275,7 +3275,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                 }} 
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
-                🔄 Coba Lagi
+                Coba Lagi
               </Button>
               
               <Button 

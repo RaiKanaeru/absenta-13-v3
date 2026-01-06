@@ -420,7 +420,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
             </div>
             {entityType === 'jadwal' && (
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                <p className="font-medium text-yellow-800 mb-1">📝 Catatan untuk Jadwal:</p>
+                <p className="font-medium text-yellow-800 mb-1">Catatan untuk Jadwal:</p>
                 <ul className="text-yellow-700 space-y-1">
                   <li>• Untuk "pelajaran": Mata Pelajaran dan Guru WAJIB</li>
                   <li>• Untuk "upacara/istirahat": Mata Pelajaran dan Guru boleh KOSONG</li>
@@ -444,7 +444,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         <CardContent className="space-y-4">
           {entityType === 'jadwal' && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">📝 Panduan Import Jadwal</h3>
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">Panduan Import Jadwal</h3>
               <div className="text-sm text-blue-700 space-y-2">
                 <p><strong>Field Wajib untuk Semua Jenis Aktivitas:</strong></p>
                 <ul className="list-disc list-inside ml-4 space-y-1">
@@ -592,7 +592,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
                 <h4 className="font-medium text-green-600">Preview Data yang Akan Diimport:</h4>
                 {entityType === 'jadwal' && (
                   <div className="p-3 bg-green-50 border border-green-200 rounded text-sm">
-                    <p className="font-medium text-green-800 mb-1">✅ Data yang akan diimport:</p>
+                    <p className="font-medium text-green-800 mb-1">Data yang akan diimport:</p>
                     <ul className="text-green-700 space-y-1">
                       <li>• Data dengan jenis "pelajaran" akan memiliki mata pelajaran dan guru</li>
                       <li>• Data dengan jenis "upacara/istirahat" akan memiliki keterangan khusus</li>
@@ -646,7 +646,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
             </Alert>
             {entityType === 'jadwal' && (
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-                <p className="font-medium text-blue-800 mb-1">📊 Informasi Import Jadwal:</p>
+                <p className="font-medium text-blue-800 mb-1">Informasi Import Jadwal:</p>
                 <ul className="text-blue-700 space-y-1">
                   <li>• Data pelajaran telah disimpan dengan mata pelajaran dan guru</li>
                   <li>• Data upacara/istirahat telah disimpan dengan keterangan khusus</li>
