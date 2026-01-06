@@ -91,9 +91,59 @@ Frontend: http://localhost:5173
 Backend API: http://localhost:3001
 ```
 
-## 🧪 Testing
+## 🔐 Environment Variables
 
-`npm test` akan menjalankan Vitest yang meng-cover test frontend serta konfigurasi backend. Gunakan perintah berikut:
+Buat file `.env` di root directory dengan konfigurasi berikut:
+
+```env
+# Database Configuration
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=absenta13
+DB_PORT=3306
+
+# JWT Authentication (WAJIB untuk production)
+JWT_SECRET=your-very-strong-secret-key-minimum-32-characters
+
+# Redis Configuration
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Server Configuration
+PORT=3001
+NODE_ENV=production
+
+# Optional: Dummy data password (untuk development)
+DUMMY_DATA_PASSWORD=secure_dev_password
+```
+
+> ⚠️ **PENTING**: `JWT_SECRET` **WAJIB** diset di production. Server akan gagal start jika tidak diset.
+
+## 🛡️ Security Features
+
+### Authentication & Authorization
+- **JWT-based authentication** dengan token expiry 24 jam
+- **Role-based access control** (Admin, Guru, Siswa)
+- **Rate limiting** untuk mencegah brute force
+
+### Input Validation
+- **SQL Injection protection** dengan parameterized queries
+- **XSS protection** dengan input sanitization
+- **Request validation** untuk semua endpoints
+
+### Security Monitoring
+- **Audit logging** untuk semua aksi penting
+- **IP-based rate limiting** dengan auto-blocking
+- **DDoS protection** dengan burst detection
+- **Suspicious activity tracking**
+
+### Cryptography
+- **bcrypt** untuk password hashing (salt rounds: 10)
+- **crypto.randomBytes** untuk secure ID generation
+- **No hardcoded secrets** - semua dari environment variables
+
+## 🧪 Testing
 
 ```bash
 npm test
