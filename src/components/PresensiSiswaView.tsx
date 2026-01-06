@@ -12,20 +12,7 @@ import { useLetterhead } from '../hooks/useLetterhead';
 import SimpleLetterheadInit from './SimpleLetterheadInit';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
-
-interface Kelas {
-  id: number;
-  nama_kelas: string;
-}
-
-interface Siswa {
-  id: number;
-  nama: string;
-  nis: string;
-  nisn: string;
-  jenis_kelamin: 'L' | 'P';
-  kelas_id: number;
-}
+import { Kelas, Siswa } from '@/types/school';
 
 interface PresensiData {
   siswa_id: number;
