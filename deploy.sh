@@ -7,8 +7,8 @@ set -e
 
 echo "🚀 Starting ABSENTA 13 Deployment..."
 
-# Check if .env exists
-if [ ! -f ".env" ]; then
+# Check if .env exists (using [[ for bash compatibility)
+if [[ ! -f ".env" ]]; then
     echo "❌ Error: .env file not found!"
     echo "📝 Please copy .env.example to .env and update values"
     exit 1
@@ -33,7 +33,7 @@ npm run build
 echo "📁 Creating directories..."
 mkdir -p logs backups temp downloads reports archives public/uploads/letterheads
 
-# Restart PM2 (if using PM2)
+# Restart PM2 (if using PM2) - using [[ for bash compatibility
 if command -v pm2 &> /dev/null; then
     echo "🔄 Restarting PM2..."
     pm2 restart ecosystem.config.cjs --env production 2>/dev/null || \
