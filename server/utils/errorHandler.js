@@ -123,7 +123,7 @@ export class AppError extends Error {
  * Generate request ID for tracking
  */
 export function generateRequestId() {
-    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `req_${Date.now()}_${uuidv4().substring(0, 8)}`;
 }
 
 /**

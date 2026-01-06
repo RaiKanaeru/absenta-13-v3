@@ -16,6 +16,8 @@
  *   logger.error('Database failed', error, { query: 'SELECT...' });
  */
 
+import { randomBytes } from 'crypto';
+
 // ================================================
 // LOG LEVELS
 // ================================================
@@ -80,7 +82,7 @@ export class Logger {
      * Generate short request ID
      */
     _generateId() {
-        return `req_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 6)}`;
+        return `req_${Date.now().toString(36)}_${randomBytes(4).toString('hex')}`;
     }
 
     /**

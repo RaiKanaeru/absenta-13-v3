@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import AdmZip from 'adm-zip';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import { randomBytes } from 'crypto';
 
 const logger = createLogger('Backup');
 
@@ -1214,7 +1215,7 @@ const createCustomSchedule = async (req, res) => {
         }
 
         const newSchedule = {
-            id: `schedule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `schedule_${Date.now()}_${randomBytes(6).toString('hex')}`,
             name,
             date,
             time,

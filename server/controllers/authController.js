@@ -20,8 +20,12 @@ import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
 
-/** Secret key untuk signing JWT token */
-const JWT_SECRET = process.env.JWT_SECRET || 'absenta-super-secret-key-2025';
+/** Secret key untuk signing JWT token - WAJIB diset via environment variable */
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+}
 const logger = createLogger('Auth');
 
 // ============================================================
