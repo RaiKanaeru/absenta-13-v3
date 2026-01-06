@@ -52,16 +52,15 @@ class SecuritySystem extends EventEmitter {
                     /(ON\s+CLICK\s*=)/i
                 ],
                 xssPatterns: options.inputValidation?.xssPatterns || [
-                    /<script[^>]*>.*?<\/script>/gi,
-                    /<script[^>]*>/gi,
-                    /javascript:/gi,
-                    /on\w+\s*=/gi,
-                    /<iframe[^>]*>.*?<\/iframe>/gi,
-                    /<object[^>]*>.*?<\/object>/gi,
-                    /<embed[^>]*>.*?<\/embed>/gi,
-                    /<link[^>]*>.*?<\/link>/gi,
-                    /<meta[^>]*>.*?<\/meta>/gi,
-                    /<style[^>]*>.*?<\/style>/gi
+                    /<script\b/gi,                    // Detect script tag opening (safe)
+                    /javascript:/gi,                   // Detect javascript: protocol
+                    /on\w+\s*=/gi,                     // Detect event handlers
+                    /<iframe\b/gi,                     // Detect iframe tag opening
+                    /<object\b/gi,                     // Detect object tag opening
+                    /<embed\b/gi,                      // Detect embed tag opening
+                    /<link\b[^>]*href/gi,              // Detect link with href
+                    /<meta\b[^>]*content/gi,           // Detect meta with content
+                    /<style\b/gi                       // Detect style tag opening
                 ]
             },
             auditLogging: {
