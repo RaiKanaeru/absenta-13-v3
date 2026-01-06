@@ -548,9 +548,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                 <p className="text-sm text-gray-600">Kelola header/kop untuk semua laporan sistem</p>
               </div>
             </div>
-            <Button variant="outline" onClick={onLogout}>
-              Logout
-            </Button>
           </div>
         </div>
       </div>

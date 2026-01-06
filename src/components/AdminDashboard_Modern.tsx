@@ -9216,9 +9216,9 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <Home className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">🧠 Sistem Promosi Cerdas</h3>
-              <p className="text-gray-500 mb-2">Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan</p>
-              <p className="text-sm text-gray-400">Contoh: X IPA 1 → XI IPA 1 (otomatis)</p>
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">🧠 Sistem Promosi Cerdas</h3>
+              <p className="text-sm sm:text-base text-gray-500 mb-2 px-2">Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan</p>
+              <p className="text-xs sm:text-sm text-gray-400 break-words">Contoh: X IPA 1 → XI IPA 1</p>
             </div>
           </CardContent>
         </Card>
