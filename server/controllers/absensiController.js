@@ -103,6 +103,108 @@ function parseAttendanceData(attendanceData) {
 }
 
 /**
+ * Validates required piket attendance submission data
+ * @returns {Object|null} Error object or null if valid
+ */
+function validatePiketData(siswa_pencatat_id, jadwal_id, attendance_data) {
+    if (!siswa_pencatat_id || !jadwal_id || !attendance_data) {
+        return { error: 'siswa_pencatat_id, jadwal_id, dan attendance_data wajib diisi' };
+    }
+    return null;
+}
+
+/**
+ * Validates if piket can access this schedule
+ * @returns {Object|null} Error object or null if valid
+ */
+async function validatePiketAccess(pool, siswa_pencatat_id, jadwal_id) {
+    // Get piket's class
+    const [piketData] = await pool.execute(
+        'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
+        [siswa_pencatat_id]
+    );
+
+    if (piketData.length === 0) {
+        return { error: 'Siswa pencatat tidak ditemukan', notFound: true };
+    }
+
+    const kelasId = piketData[0].kelas_id;
+
+    // Verify jadwal belongs to this class
+    const [jadwalData] = await pool.execute(
+        'SELECT kelas_id, jam_ke FROM jadwal WHERE id_jadwal = ?',
+        [jadwal_id]
+    );
+
+    if (jadwalData.length === 0 || jadwalData[0].kelas_id !== kelasId) {
+        return { error: 'Jadwal tidak valid untuk kelas ini' };
+    }
+
+    return { kelasId };
+}
+
+/**
+ * Validates if guru is absent (required for piket to submit)
+ * @returns {Object} Validation result with error or guruStatus
+ */
+async function validateGuruAbsentStatus(pool, jadwal_id, targetDate) {
+    const [guruAbsen] = await pool.execute(`
+        SELECT status FROM absensi_guru 
+        WHERE jadwal_id = ? AND tanggal = ?
+        LIMIT 1
+    `, [jadwal_id, targetDate]);
+
+    if (guruAbsen.length === 0) {
+        return { error: 'Guru belum diabsen. Silakan absen guru terlebih dahulu.' };
+    }
+
+    const guruStatus = guruAbsen[0].status;
+    const isGuruAbsent = ['Tidak Hadir', 'Izin', 'Sakit'].includes(guruStatus);
+
+    if (!isGuruAbsent) {
+        return { error: 'Guru hadir untuk jadwal ini. Absensi siswa dilakukan oleh guru.' };
+    }
+
+    return { guruStatus, isGuruAbsent };
+}
+
+/**
+ * Process attendance record for a single student
+ */
+async function processStudentAttendanceRecord(connection, studentId, data, jadwal_id, targetDate, siswa_pencatat_id, waktuAbsen) {
+    const { status, keterangan } = typeof data === 'string'
+        ? { status: data, keterangan: null }
+        : data;
+
+    // Validate status
+    if (!VALID_STUDENT_STATUSES.includes(status)) {
+        return false; // Skip invalid status
+    }
+
+    // Check existing record
+    const [existing] = await connection.execute(
+        'SELECT id FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND tanggal = ?',
+        [studentId, jadwal_id, targetDate]
+    );
+
+    if (existing.length > 0) {
+        await connection.execute(`
+            UPDATE absensi_siswa 
+            SET status = ?, keterangan = ?, siswa_pencatat_id = ?, pencatat_type = 'siswa', waktu_absen = ?
+            WHERE siswa_id = ? AND jadwal_id = ? AND tanggal = ?
+        `, [status, keterangan || null, siswa_pencatat_id, waktuAbsen, studentId, jadwal_id, targetDate]);
+    } else {
+        await connection.execute(`
+            INSERT INTO absensi_siswa 
+            (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, siswa_pencatat_id, pencatat_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'siswa')
+        `, [studentId, jadwal_id, targetDate, status, keterangan || null, waktuAbsen, siswa_pencatat_id]);
+    }
+
+    return true;
+}
+
+/**
  * Gets the primary or first teacher for a multi-guru schedule
  */
 async function getPrimaryTeacherForSchedule(connection, jadwalId) {
@@ -1124,61 +1226,35 @@ export async function submitStudentAttendanceByPiket(req, res) {
     });
 
     try {
-        // Validations
-        if (!siswa_pencatat_id || !jadwal_id || !attendance_data) {
-            return sendValidationError(res, 'siswa_pencatat_id, jadwal_id, dan attendance_data wajib diisi');
+        // Step 1: Validate required data
+        const dataValidation = validatePiketData(siswa_pencatat_id, jadwal_id, attendance_data);
+        if (dataValidation) {
+            return sendValidationError(res, dataValidation.error);
         }
 
         const targetDate = tanggal_absen || getMySQLDateWIB();
-
-        // Validate date range (only today for piket - guru tidak hadir case)
         const todayStr = getMySQLDateWIB();
+
+        // Step 2: Validate date (only today allowed for piket)
         if (targetDate !== todayStr) {
             return sendValidationError(res, 'Absensi oleh piket hanya bisa untuk hari ini');
         }
 
-        // Get piket's class
-        const [piketData] = await global.dbPool.execute(
-            'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
-            [siswa_pencatat_id]
-        );
-
-        if (piketData.length === 0) {
-            return sendNotFoundError(res, 'Siswa pencatat tidak ditemukan');
+        // Step 3: Validate piket access to this jadwal
+        const accessResult = await validatePiketAccess(global.dbPool, siswa_pencatat_id, jadwal_id);
+        if (accessResult.error) {
+            return accessResult.notFound 
+                ? sendNotFoundError(res, accessResult.error)
+                : sendValidationError(res, accessResult.error);
         }
 
-        const kelasId = piketData[0].kelas_id;
-
-        // Verify jadwal belongs to this class
-        const [jadwalData] = await global.dbPool.execute(
-            'SELECT kelas_id, jam_ke FROM jadwal WHERE id_jadwal = ?',
-            [jadwal_id]
-        );
-
-        if (jadwalData.length === 0 || jadwalData[0].kelas_id !== kelasId) {
-            return sendValidationError(res, 'Jadwal tidak valid untuk kelas ini');
+        // Step 4: Validate guru is absent (required for piket to submit)
+        const guruValidation = await validateGuruAbsentStatus(global.dbPool, jadwal_id, targetDate);
+        if (guruValidation.error) {
+            return sendValidationError(res, guruValidation.error);
         }
 
-        // Check if guru is marked as "Tidak Hadir" - REQUIRED
-        const [guruAbsen] = await global.dbPool.execute(`
-            SELECT status FROM absensi_guru 
-            WHERE jadwal_id = ? AND tanggal = ?
-            LIMIT 1
-        `, [jadwal_id, targetDate]);
-
-        if (guruAbsen.length === 0) {
-            return sendValidationError(res, 'Guru belum diabsen. Silakan absen guru terlebih dahulu.');
-        }
-
-        // Guru is absent if status is Tidak Hadir, Izin, or Sakit
-        const guruStatus = guruAbsen[0].status;
-        const isGuruAbsent = ['Tidak Hadir', 'Izin', 'Sakit'].includes(guruStatus);
-
-        if (!isGuruAbsent) {
-            return sendValidationError(res, 'Guru hadir untuk jadwal ini. Absensi siswa dilakukan oleh guru.');
-        }
-
-        // Process attendance
+        // Step 5: Process attendance records
         const connection = await global.dbPool.getConnection();
         const waktuAbsen = getMySQLDateTimeWIB();
         let processed = 0;
@@ -1187,38 +1263,10 @@ export async function submitStudentAttendanceByPiket(req, res) {
             await connection.beginTransaction();
 
             for (const [studentId, data] of Object.entries(attendance_data)) {
-                const { status, keterangan } = typeof data === 'string' 
-                    ? { status: data, keterangan: null }
-                    : data;
-
-                // Validate status
-                if (!VALID_STUDENT_STATUSES.includes(status)) {
-                    continue; // Skip invalid status
-                }
-
-                // Check existing record
-                const [existing] = await connection.execute(
-                    'SELECT id FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND tanggal = ?',
-                    [studentId, jadwal_id, targetDate]
+                const success = await processStudentAttendanceRecord(
+                    connection, studentId, data, jadwal_id, targetDate, siswa_pencatat_id, waktuAbsen
                 );
-
-                if (existing.length > 0) {
-                    // Update existing
-                    await connection.execute(`
-                        UPDATE absensi_siswa 
-                        SET status = ?, keterangan = ?, siswa_pencatat_id = ?, pencatat_type = 'siswa', waktu_absen = ?
-                        WHERE siswa_id = ? AND jadwal_id = ? AND tanggal = ?
-                    `, [status, keterangan || null, siswa_pencatat_id, waktuAbsen, studentId, jadwal_id, targetDate]);
-                } else {
-                    // Insert new
-                    await connection.execute(`
-                        INSERT INTO absensi_siswa 
-                        (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, siswa_pencatat_id, pencatat_type)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'siswa')
-                    `, [studentId, jadwal_id, targetDate, status, keterangan || null, waktuAbsen, siswa_pencatat_id]);
-                }
-
-                processed++;
+                if (success) processed++;
             }
 
             await connection.commit();
@@ -1249,3 +1297,4 @@ export async function submitStudentAttendanceByPiket(req, res) {
         return sendDatabaseError(res, error, 'Gagal menyimpan absensi siswa');
     }
 }
+

@@ -54,6 +54,51 @@ const getToken = () => {
 };
 
 /**
+ * Validates if response is valid JSON content
+ * @returns error message if invalid, null if valid
+ */
+const validateJsonResponse = (contentType: string | null, responseText: string): string | null => {
+  if (!contentType || !contentType.includes('application/json')) {
+    return 'Server mengirim respons yang tidak valid. Pastikan server berjalan dengan baik.';
+  }
+  if (!responseText.trim()) {
+    return 'Server mengirim respons kosong. Periksa koneksi ke server.';
+  }
+  return null;
+};
+
+/**
+ * Safely parses JSON string
+ * @returns parsed object or null if invalid
+ */
+const safeParseJson = (text: string): unknown | null => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Extracts error message from API response
+ */
+const extractErrorMessage = (result: Record<string, unknown>): string => {
+  if (result.error) {
+    if (typeof result.error === 'string') {
+      return result.error;
+    }
+    if (typeof result.error === 'object' && result.error !== null) {
+      const errorObj = result.error as Record<string, unknown>;
+      return String(errorObj.message || errorObj.error || JSON.stringify(result.error));
+    }
+  }
+  if (result.message) {
+    return String(result.message);
+  }
+  return 'Login gagal';
+};
+
+/**
  * Menyimpan token autentikasi ke storage
  * Mencoba localStorage terlebih dahulu, jika gagal fallback ke sessionStorage
  * Berguna untuk perangkat mobile yang memiliki keterbatasan storage
@@ -218,61 +263,41 @@ const Index = () => {
     try {
       const response = await fetch(getApiUrl('/api/login'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(credentials),
       });
 
-      // Check if the response is JSON
+      // Validate and parse response
       const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server mengirim respons yang tidak valid. Pastikan server berjalan dengan baik.');
-      }
-
-      // Parse response
       const responseText = await response.text();
-      if (!responseText.trim()) {
-        throw new Error('Server mengirim respons kosong. Periksa koneksi ke server.');
+      
+      const validationError = validateJsonResponse(contentType, responseText);
+      if (validationError) {
+        throw new Error(validationError);
       }
 
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
+      const result = safeParseJson(responseText) as Record<string, unknown> | null;
+      if (!result) {
         throw new Error('Server mengirim respons yang tidak dapat dibaca.');
       }
 
+      // Handle successful login
       if (response.ok && result.success) {
-        setUserData(result.user);
+        setUserData(result.user as UserData);
         setCurrentState('dashboard');
         setError(null);
         
-        // Store token with mobile fallback
         if (result.token) {
-          setToken(result.token);
+          setToken(result.token as string);
         }
         
         toast({
           title: "Login Berhasil!",
-          description: `Selamat datang, ${result.user.nama}!`,
+          description: `Selamat datang, ${(result.user as UserData).nama}!`,
         });
       } else {
-        // Extract error message properly from response
-        let errorMessage = 'Login gagal';
-        if (result.error) {
-          if (typeof result.error === 'string') {
-            errorMessage = result.error;
-          } else if (typeof result.error === 'object') {
-            // Handle structured error: {code, message, details}
-            errorMessage = result.error.message || result.error.error || JSON.stringify(result.error);
-          }
-        } else if (result.message) {
-          errorMessage = result.message;
-        }
-        throw new Error(errorMessage);
+        throw new Error(extractErrorMessage(result));
       }
     } catch (error) {
       console.error('Login error:', error);
