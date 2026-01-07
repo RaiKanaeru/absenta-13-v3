@@ -17,7 +17,12 @@ import {
     mapGuruByName,
     mapRuangByKode,
     validateTimeFormat,
-    validateTimeLogic
+    validateTimeLogic,
+    getFieldValue,
+    parseGuruIdsFromString,
+    parseGuruNamesFromString,
+    validateRequiredJadwalFields,
+    buildJadwalObject
 } from '../utils/importHelper.js';
 
 // ================================================
@@ -365,6 +370,130 @@ const importRuang = async (req, res) => {
 // ================================================
 
 /**
+ * Parse jadwal row in basic format (uses IDs directly)
+ */
+async function parseJadwalBasicFormat(rowData) {
+    const kelas_id = rowData.kelas_id;
+    const mapel_id = rowData.mapel_id || null;
+    const guru_id = rowData.guru_id || null;
+    const ruang_id = rowData.ruang_id || null;
+    const guru_ids_array = parseGuruIdsFromString(rowData.guru_ids);
+    
+    return { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array, errors: [] };
+}
+
+/**
+ * Parse jadwal row in friendly format (maps names to IDs)
+ */
+async function parseJadwalFriendlyFormat(rowData) {
+    const errors = [];
+    
+    const kelas_id = await mapKelasByName(getFieldValue(rowData, ['Kelas', 'kelas']));
+    const mapel_id = await mapMapelByName(getFieldValue(rowData, ['Mata Pelajaran', 'mapel']));
+    const ruang_id = await mapRuangByKode(getFieldValue(rowData, ['Kode Ruang', 'ruang']));
+    
+    // Parse primary guru(s)
+    let guru_ids_array = await parseGuruNamesFromString(getFieldValue(rowData, ['Guru', 'guru']));
+    
+    // Parse additional gurus
+    const guruTambahan = await parseGuruNamesFromString(getFieldValue(rowData, ['Guru Tambahan', 'guru_tambahan']));
+    for (const gid of guruTambahan) {
+        if (!guru_ids_array.includes(gid)) {
+            guru_ids_array.push(gid);
+        }
+    }
+    
+    // Set primary guru_id
+    const guru_id = guru_ids_array.length > 0 ? guru_ids_array[0] : await mapGuruByName(getFieldValue(rowData, ['Guru', 'guru']));
+    
+    // Validation
+    if (!kelas_id) {
+        errors.push(`Kelas "${getFieldValue(rowData, ['Kelas', 'kelas'])}" tidak ditemukan`);
+    }
+    
+    const jenisAktivitas = getFieldValue(rowData, ['jenis_aktivitas', 'Jenis Aktivitas']) || 'pelajaran';
+    if (jenisAktivitas === 'pelajaran') {
+        if (!mapel_id) {
+            errors.push(`Mata pelajaran "${getFieldValue(rowData, ['Mata Pelajaran', 'mapel'])}" tidak ditemukan`);
+        }
+        if (!guru_id && guru_ids_array.length === 0) {
+            errors.push(`Guru "${getFieldValue(rowData, ['Guru', 'guru'])}" tidak ditemukan`);
+        }
+    } else {
+        const keteranganKhusus = getFieldValue(rowData, ['keterangan_khusus', 'Keterangan Khusus']);
+        if (!keteranganKhusus || keteranganKhusus.toString().trim() === '') {
+            errors.push(`Keterangan khusus wajib untuk jenis aktivitas "${jenisAktivitas}"`);
+        }
+    }
+    
+    return { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array, errors };
+}
+
+/**
+ * Process single jadwal row and validate
+ */
+async function processJadwalRow(rowData, isBasicFormat) {
+    // Parse based on format
+    const parsed = isBasicFormat 
+        ? await parseJadwalBasicFormat(rowData)
+        : await parseJadwalFriendlyFormat(rowData);
+    
+    // Validate required fields
+    const fieldErrors = validateRequiredJadwalFields(rowData);
+    const allErrors = [...parsed.errors, ...fieldErrors];
+    
+    if (allErrors.length > 0) {
+        return { valid: false, errors: allErrors, data: null };
+    }
+    
+    // Build valid jadwal object
+    const jadwalObj = buildJadwalObject(
+        rowData, 
+        parsed.kelas_id, 
+        parsed.mapel_id, 
+        parsed.guru_id, 
+        parsed.ruang_id, 
+        parsed.guru_ids_array
+    );
+    
+    return { valid: true, errors: [], data: jadwalObj };
+}
+
+/**
+ * Insert jadwal records with multi-guru support
+ */
+async function insertJadwalRecords(conn, validRecords) {
+    for (const v of validRecords) {
+        const [insertRes] = await conn.execute(
+            `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.status, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus]
+        );
+        
+        const jadwalId = insertRes?.insertId;
+        if (!jadwalId) continue;
+        
+        // Insert jadwal_guru relations for pelajaran with guru_ids
+        if (v.jenis_aktivitas === 'pelajaran' && Array.isArray(v.guru_ids) && v.guru_ids.length > 0) {
+            const validGuruIds = v.guru_ids.filter(gid => gid && !isNaN(gid) && gid > 0);
+            if (validGuruIds.length > 0) {
+                const values = validGuruIds.map((gid, idx) => [jadwalId, gid, idx === 0 ? 1 : 0]);
+                const placeholders = values.map(() => '(?, ?, ?)').join(', ');
+                const flatValues = values.flat();
+                await conn.execute(
+                    `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
+                    flatValues
+                );
+                
+                if (validGuruIds.length > 1) {
+                    await conn.execute('UPDATE jadwal SET is_multi_guru = 1 WHERE id_jadwal = ?', [jadwalId]);
+                }
+            }
+        }
+    }
+}
+
+/**
  * Import jadwal from Excel file with multi-guru support
  * POST /api/admin/import/jadwal
  */
@@ -378,183 +507,33 @@ const importJadwal = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        // Detect format (basic or friendly)
+        // Detect format
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kelas_id');
-
         const errors = [];
         const valid = [];
-        const allowedDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
+        // Process each row
         for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowErrors = [];
-            const rowNum = i + 2; // Excel row number
-
+            const rowNum = i + 2;
             try {
-                let kelas_id, mapel_id, guru_id, ruang_id;
-                let guru_ids_array = [];
-
-                if (isBasicFormat) {
-                    // Format biasa - langsung pakai ID
-                    kelas_id = rowData.kelas_id;
-                    mapel_id = rowData.mapel_id || null;
-                    guru_id = rowData.guru_id || null;
-                    ruang_id = rowData.ruang_id || null;
-
-                    // Dukungan multi-guru via kolom guru_ids (comma-separated IDs)
-                    if (rowData.guru_ids) {
-                        const raw = String(rowData.guru_ids).split(',');
-                        guru_ids_array = raw
-                            .map(v => Number(String(v).trim()))
-                            .filter(v => Number.isFinite(v));
-                    }
+                const result = await processJadwalRow(rows[i], isBasicFormat);
+                
+                if (result.valid) {
+                    valid.push(result.data);
                 } else {
-                    // Format friendly - mapping nama ke ID
-                    kelas_id = await mapKelasByName(rowData.Kelas || rowData.kelas);
-                    mapel_id = await mapMapelByName(rowData['Mata Pelajaran'] || rowData.mapel);
-                    
-                    // Bisa multi nama guru dipisah koma dari kolom Guru
-                    if (rowData.Guru || rowData.guru) {
-                        const guruNames = String(rowData.Guru || rowData.guru)
-                            .split(',')
-                            .map(s => s.trim())
-                            .filter(s => s.length > 0);
-                        for (const name of guruNames) {
-                            const gid = await mapGuruByName(name);
-                            if (gid) guru_ids_array.push(Number(gid));
-                        }
-                    }
-
-                    // Dukungan guru tambahan dari kolom "Guru Tambahan"
-                    if (rowData['Guru Tambahan'] || rowData.guru_tambahan) {
-                        const guruTambahanNames = String(rowData['Guru Tambahan'] || rowData.guru_tambahan)
-                            .split(',')
-                            .map(s => s.trim())
-                            .filter(s => s.length > 0);
-                        for (const name of guruTambahanNames) {
-                            const gid = await mapGuruByName(name);
-                            if (gid && !guru_ids_array.includes(Number(gid))) {
-                                guru_ids_array.push(Number(gid));
-                            }
-                        }
-                    }
-                    
-                    // Jika tidak ada daftar, fallback single guru
-                    if (guru_ids_array.length === 0) {
-                        guru_id = await mapGuruByName(rowData.Guru || rowData.guru);
-                    } else {
-                        guru_id = guru_ids_array[0];
-                    }
-                    ruang_id = await mapRuangByKode(rowData['Kode Ruang'] || rowData.ruang);
-
-                    // Validasi mapping
-                    if (!kelas_id) {
-                        rowErrors.push(`Kelas "${rowData.Kelas || rowData.kelas}" tidak ditemukan`);
-                    }
-
-                    const jenisAktivitas = rowData.jenis_aktivitas || rowData['Jenis Aktivitas'] || 'pelajaran';
-                    if (jenisAktivitas === 'pelajaran') {
-                        // Untuk pelajaran, mata pelajaran dan guru wajib
-                        if (!mapel_id) {
-                            rowErrors.push(`Mata pelajaran "${rowData['Mata Pelajaran'] || rowData.mapel}" tidak ditemukan`);
-                        }
-                        // Minimal 1 guru (dari guru_id atau guru_ids)
-                        if (!guru_id && guru_ids_array.length === 0) {
-                            rowErrors.push(`Guru "${rowData.Guru || rowData.guru || rowData.guru_ids}" tidak ditemukan`);
-                        }
-                    } else {
-                        // Untuk non-pelajaran, mata pelajaran dan guru opsional
-                        // Keterangan khusus wajib untuk non-pelajaran
-                        const keteranganKhusus = rowData.keterangan_khusus || rowData['Keterangan Khusus'] || rowData['keterangan_khusus'];
-                        if (!keteranganKhusus || keteranganKhusus.trim() === '') {
-                            rowErrors.push(`Keterangan khusus wajib untuk jenis aktivitas "${jenisAktivitas}"`);
-                        }
-                    }
-                }
-
-                // Validasi umum - perbaiki field mapping
-                if (!rowData.hari && !rowData.Hari && !rowData['hari']) rowErrors.push('hari wajib');
-                if (!rowData.jam_ke && !rowData['Jam Ke'] && !rowData['jam_ke']) rowErrors.push('jam_ke wajib');
-                if (!rowData.jam_mulai && !rowData['Jam Mulai'] && !rowData['jam_mulai']) rowErrors.push('jam_mulai wajib');
-                if (!rowData.jam_selesai && !rowData['Jam Selesai'] && !rowData['jam_selesai']) rowErrors.push('jam_selesai wajib');
-
-                const hari = rowData.hari || rowData.Hari || rowData['hari'];
-                if (hari && !allowedDays.includes(String(hari))) {
-                    rowErrors.push('hari tidak valid');
-                }
-
-                // Validasi format jam 24 jam
-                const jamMulai = rowData.jam_mulai || rowData['Jam Mulai'] || rowData['jam_mulai'];
-                const jamSelesai = rowData.jam_selesai || rowData['Jam Selesai'] || rowData['jam_selesai'];
-
-                if (jamMulai && !validateTimeFormat(String(jamMulai))) {
-                    rowErrors.push(`Format jam mulai "${jamMulai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
-                }
-
-                if (jamSelesai && !validateTimeFormat(String(jamSelesai))) {
-                    rowErrors.push(`Format jam selesai "${jamSelesai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
-                }
-
-                // Validasi logika waktu
-                if (jamMulai && jamSelesai && validateTimeFormat(String(jamMulai)) && validateTimeFormat(String(jamSelesai))) {
-                    const timeValidation = validateTimeLogic(String(jamMulai), String(jamSelesai));
-                    if (!timeValidation.valid) {
-                        rowErrors.push(timeValidation.error);
-                    }
-                }
-
-                if (rowErrors.length) {
                     const rowPreview = {
-                        kelas: rowData.Kelas || rowData.kelas || kelas_id || '(kosong)',
-                        mapel: rowData['Mata Pelajaran'] || rowData.mapel || mapel_id || '(kosong)',
-                        guru: rowData.Guru || rowData.guru || guru_id || '(kosong)',
-                        hari: hari || '(kosong)',
-                        jam_ke: rowData.jam_ke || rowData['Jam Ke'] || '(kosong)'
+                        kelas: getFieldValue(rows[i], ['Kelas', 'kelas', 'kelas_id']) || '(kosong)',
+                        hari: getFieldValue(rows[i], ['hari', 'Hari']) || '(kosong)',
+                        jam_ke: getFieldValue(rows[i], ['jam_ke', 'Jam Ke']) || '(kosong)'
                     };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
-                } else {
-                    const jenisAktivitas = rowData.jenis_aktivitas || rowData['Jenis Aktivitas'] || rowData['jenis_aktivitas'] || 'pelajaran';
-                    const isAbsenable = jenisAktivitas === 'pelajaran' ? 1 : 0;
-                    const keteranganKhusus = rowData.keterangan_khusus || rowData['Keterangan Khusus'] || rowData['keterangan_khusus'] || null;
-                    
-                    // Normalisasi guru_ids untuk kedua format
-                    if (guru_ids_array.length === 0 && rowData.guru_ids) {
-                        const raw = String(rowData.guru_ids).split(',');
-                        guru_ids_array = raw
-                            .map(v => Number(String(v).trim()))
-                            .filter(v => Number.isFinite(v));
-                    }
-                    
-                    // Hilangkan duplikasi & pastikan primary di index 0 jika ada
-                    const uniqueGuruIds = Array.from(new Set(guru_ids_array));
-                    const primaryGuru = (guru_id ? Number(guru_id) : (uniqueGuruIds[0] || null));
-
-                    valid.push({
-                        kelas_id: Number(kelas_id),
-                        mapel_id: mapel_id ? Number(mapel_id) : null,
-                        guru_id: primaryGuru ? Number(primaryGuru) : null,
-                        ruang_id: ruang_id ? Number(ruang_id) : null,
-                        hari: String(hari),
-                        jam_ke: Number(rowData.jam_ke || rowData['Jam Ke'] || rowData['jam_ke']),
-                        jam_mulai: String(rowData.jam_mulai || rowData['Jam Mulai'] || rowData['jam_mulai']),
-                        jam_selesai: String(rowData.jam_selesai || rowData['Jam Selesai'] || rowData['jam_selesai']),
-                        jenis_aktivitas: jenisAktivitas,
-                        is_absenable: isAbsenable,
-                        keterangan_khusus: keteranganKhusus,
-                        status: 'aktif',
-                        guru_ids: uniqueGuruIds
-                    });
+                    errors.push({ index: rowNum, errors: result.errors, data: rowPreview });
                 }
             } catch (error) {
-                const rowPreview = {
-                    kelas: rowData.kelas || rowData['Kelas'] || '(kosong)',
-                    hari: rowData.hari || rowData['Hari'] || '(kosong)',
-                    jam_ke: rowData.jam_ke || rowData['Jam Ke'] || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
+                errors.push({ index: rowNum, errors: [error.message], data: {} });
             }
         }
 
+        // Dry run mode
         if (req.query.dryRun === 'true') {
             return res.json({
                 total: rows.length,
@@ -565,36 +544,16 @@ const importJadwal = async (req, res) => {
                 message: 'Dry run completed. No data was imported.'
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
+        
+        if (valid.length === 0) {
+            return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
+        }
 
+        // Insert to database
         const conn = await global.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-            for (const v of valid) {
-                const [insertRes] = await conn.execute(
-                    `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus)
-					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.status, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus]
-                );
-                const jadwalId = insertRes && insertRes.insertId ? insertRes.insertId : null;
-                
-                // Jika pelajaran dan ada guru_ids, isi tabel relasi jadwal_guru (batch insert for performance)
-                if (jadwalId && v.jenis_aktivitas === 'pelajaran' && Array.isArray(v.guru_ids) && v.guru_ids.length > 0) {
-                    const validGuruIds = v.guru_ids.filter(gid => gid && !isNaN(gid) && gid > 0);
-                    if (validGuruIds.length > 0) {
-                        const values = validGuruIds.map((gid, idx) => [jadwalId, gid, idx === 0 ? 1 : 0]);
-                        const placeholders = values.map(() => '(?, ?, ?)').join(', ');
-                        const flatValues = values.flat();
-                        await conn.execute(
-                            `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
-                            flatValues
-                        );
-                        if (validGuruIds.length > 1) {
-                            await conn.execute('UPDATE jadwal SET is_multi_guru = 1 WHERE id_jadwal = ?', [jadwalId]);
-                        }
-                    }
-                }
-            }
+            await insertJadwalRecords(conn, valid);
             await conn.commit();
         } catch (e) {
             await conn.rollback();
