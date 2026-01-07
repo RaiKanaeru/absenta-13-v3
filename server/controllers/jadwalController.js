@@ -171,6 +171,122 @@ async function validateScheduleConflicts(guruIds, hari, jam_mulai, jam_selesai, 
     return { hasConflict: false };
 }
 
+/**
+ * Validate that all guru IDs exist in database
+ * @returns {Object} { valid: boolean, invalidIds?: number[], error?: string }
+ */
+async function validateGuruIdsExist(guruIds) {
+    if (!guruIds || guruIds.length === 0) return { valid: true };
+    
+    const validGuruIds = guruIds.filter(id => id && !isNaN(id) && id > 0);
+    if (validGuruIds.length === 0) {
+        return { valid: false, error: 'Tidak ada guru yang valid dipilih' };
+    }
+
+    const placeholders = validGuruIds.map(() => '?').join(',');
+    const [existingGurus] = await global.dbPool.execute(
+        `SELECT id_guru FROM guru WHERE id_guru IN (${placeholders})`,
+        validGuruIds
+    );
+
+    if (existingGurus.length !== validGuruIds.length) {
+        const existingIds = existingGurus.map(g => g.id_guru);
+        const invalidIds = validGuruIds.filter(id => !existingIds.includes(id));
+        return { 
+            valid: false, 
+            invalidIds,
+            error: `Guru dengan ID ${invalidIds.join(', ')} tidak ditemukan di database`
+        };
+    }
+
+    return { valid: true, validGuruIds };
+}
+
+/**
+ * Validate required fields for jadwal based on activity type
+ */
+function validateJadwalFields(data, jenisAktivitas, guruIds) {
+    const { kelas_id, mapel_id, hari, jam_ke, jam_mulai, jam_selesai } = data;
+
+    if (jenisAktivitas === 'pelajaran') {
+        if (!kelas_id || !mapel_id || !hari || !jam_ke || !jam_mulai || !jam_selesai) {
+            return { valid: false, error: 'Semua field wajib diisi untuk jadwal pelajaran' };
+        }
+        if (guruIds.length === 0) {
+            return { valid: false, error: 'Minimal satu guru harus dipilih untuk jadwal pelajaran' };
+        }
+    } else {
+        if (!kelas_id || !hari || !jam_mulai || !jam_selesai) {
+            return { valid: false, error: 'Kelas, hari, dan waktu wajib diisi' };
+        }
+    }
+
+    return { valid: true };
+}
+
+/**
+ * Check class schedule conflicts
+ */
+async function checkClassConflicts(kelas_id, hari, jam_mulai, jam_selesai) {
+    const [conflicts] = await global.dbPool.execute(
+        `SELECT id_jadwal, jam_mulai, jam_selesai FROM jadwal 
+         WHERE kelas_id = ? AND hari = ? AND status = 'aktif' AND jenis_aktivitas = 'pelajaran'`,
+        [kelas_id, hari]
+    );
+
+    for (const conflict of conflicts) {
+        if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
+            return { 
+                hasConflict: true, 
+                error: `Kelas sudah memiliki jadwal pelajaran pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`
+            };
+        }
+    }
+
+    return { hasConflict: false };
+}
+
+/**
+ * Check room schedule conflicts
+ */
+async function checkRoomConflicts(ruang_id, hari, jam_mulai, jam_selesai) {
+    if (!ruang_id) return { hasConflict: false };
+
+    const [conflicts] = await global.dbPool.execute(
+        `SELECT id_jadwal, jam_mulai, jam_selesai FROM jadwal 
+         WHERE ruang_id = ? AND hari = ? AND status = 'aktif' AND jenis_aktivitas = 'pelajaran'`,
+        [ruang_id, hari]
+    );
+
+    for (const conflict of conflicts) {
+        if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
+            return { 
+                hasConflict: true, 
+                error: `Ruang sudah digunakan pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`
+            };
+        }
+    }
+
+    return { hasConflict: false };
+}
+
+/**
+ * Insert guru relations for a jadwal (batch insert)
+ */
+async function insertJadwalGuru(jadwalId, guruIds) {
+    const validGuruIds = guruIds.filter(id => id && !isNaN(id) && id > 0);
+    if (validGuruIds.length === 0) return;
+
+    const values = validGuruIds.map((id, i) => [jadwalId, id, i === 0 ? 1 : 0]);
+    const placeholders = values.map(() => '(?, ?, ?)').join(', ');
+    const flatValues = values.flat();
+    
+    await global.dbPool.execute(
+        `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
+        flatValues
+    );
+}
+
 // ================================================
 // CONTROLLER FUNCTIONS
 // ================================================
@@ -216,112 +332,69 @@ export const createJadwal = async (req, res) => {
     log.requestStart('CreateJadwal', { kelas_id, mapel_id, hari, jam_ke });
 
     try {
-        // Validasi format jam 24 jam
+        // Step 1: Validate time format
         const timeValidation = validateTimeLogic(jam_mulai, jam_selesai);
         if (!timeValidation.valid) {
             log.validationFail('time', { jam_mulai, jam_selesai }, timeValidation.error);
             return sendValidationError(res, timeValidation.error);
         }
 
+        // Step 2: Normalize guru IDs
         const finalGuruIds = guru_ids && guru_ids.length > 0 ? guru_ids : (guru_id ? [guru_id] : []);
-
         log.debug('Multi-Guru validation', { finalGuruIds, guru_ids_original: guru_ids });
 
-        // Validasi guru_ids sebelum insert (untuk aktivitas pelajaran)
+        // Step 3: Validate required fields
+        const fieldValidation = validateJadwalFields(
+            { kelas_id, mapel_id, hari, jam_ke, jam_mulai, jam_selesai },
+            jenis_aktivitas,
+            finalGuruIds
+        );
+        if (!fieldValidation.valid) {
+            log.validationFail('required_fields', null, fieldValidation.error);
+            return sendValidationError(res, fieldValidation.error);
+        }
+
+        // Step 4: Validate guru IDs exist (for pelajaran)
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
-            const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
-
-            if (validGuruIds.length === 0) {
-                log.validationFail('guru_ids', finalGuruIds, 'No valid guru selected');
-                return sendValidationError(res, 'Tidak ada guru yang valid dipilih');
-            }
-
-            // Validasi apakah guru_ids benar-benar ada di database
-            const placeholders = validGuruIds.map(() => '?').join(',');
-            const [existingGurus] = await global.dbPool.execute(
-                `SELECT id_guru, nama FROM guru WHERE id_guru IN (${placeholders})`,
-                validGuruIds
-            );
-
-            if (existingGurus.length !== validGuruIds.length) {
-                const existingIds = existingGurus.map(g => g.id_guru);
-                const invalidIds = validGuruIds.filter(id => !existingIds.includes(id));
-                log.validationFail('guru_ids', invalidIds, 'Guru not found');
-                return sendValidationError(res, `Guru dengan ID ${invalidIds.join(', ')} tidak ditemukan di database`);
+            const guruValidation = await validateGuruIdsExist(finalGuruIds);
+            if (!guruValidation.valid) {
+                log.validationFail('guru_ids', guruValidation.invalidIds, guruValidation.error);
+                return sendValidationError(res, guruValidation.error);
             }
         }
 
-        // Validation berbeda untuk aktivitas khusus
-        if (jenis_aktivitas === 'pelajaran') {
-            if (!kelas_id || !mapel_id || !hari || !jam_ke || !jam_mulai || !jam_selesai) {
-                log.validationFail('required_fields', null, 'Missing required fields');
-                return sendValidationError(res, 'Semua field wajib diisi untuk jadwal pelajaran');
-            }
-            if (finalGuruIds.length === 0) {
-                log.validationFail('guru', null, 'Guru required');
-                return sendValidationError(res, 'Minimal satu guru harus dipilih untuk jadwal pelajaran');
-            }
-        } else {
-            if (!kelas_id || !hari || !jam_mulai || !jam_selesai) {
-                log.validationFail('required_fields', null, 'Missing required fields');
-                return sendValidationError(res, 'Kelas, hari, dan waktu wajib diisi');
-            }
-        }
-
-        const finalMapelId = jenis_aktivitas === 'pelajaran' ? mapel_id : null;
-        let primaryGuruId = null;
-        if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
-            const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
-            if (validGuruIds.length > 0) {
-                primaryGuruId = validGuruIds[0];
-            }
-        }
-
-        // Check conflicts hanya untuk aktivitas yang membutuhkan ruang/guru
+        // Step 5: Check conflicts (only for pelajaran)
         if (jenis_aktivitas === 'pelajaran') {
             // Check class conflicts
-            const [classConflicts] = await global.dbPool.execute(
-                `SELECT id_jadwal, jam_mulai, jam_selesai FROM jadwal 
-                 WHERE kelas_id = ? AND hari = ? AND status = 'aktif' AND jenis_aktivitas = 'pelajaran'`,
-                [kelas_id, hari]
-            );
-
-            for (const conflict of classConflicts) {
-                if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
-                    log.validationFail('class_conflict', { hari, jam_mulai, jam_selesai }, 'Class already scheduled');
-                    return sendValidationError(res, `Kelas sudah memiliki jadwal pelajaran pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`);
-                }
+            const classConflict = await checkClassConflicts(kelas_id, hari, jam_mulai, jam_selesai);
+            if (classConflict.hasConflict) {
+                log.validationFail('class_conflict', { hari, jam_mulai, jam_selesai }, classConflict.error);
+                return sendValidationError(res, classConflict.error);
             }
 
-            // Validate teacher schedule conflicts
+            // Check teacher conflicts
             if (finalGuruIds.length > 0) {
-                const conflictValidation = await validateScheduleConflicts(finalGuruIds, hari, jam_mulai, jam_selesai);
-
-                if (conflictValidation.hasConflict) {
-                    const { guruId, conflict } = conflictValidation;
+                const teacherConflict = await validateScheduleConflicts(finalGuruIds, hari, jam_mulai, jam_selesai);
+                if (teacherConflict.hasConflict) {
+                    const { guruId, conflict } = teacherConflict;
                     log.validationFail('teacher_conflict', { guruId, conflict }, 'Teacher schedule conflict');
                     return sendValidationError(res, `Guru dengan ID ${guruId} sudah memiliki jadwal bentrok: ${conflict.mata_pelajaran} di ${conflict.kelas} pada ${conflict.hari} ${conflict.jam_mulai}-${conflict.jam_selesai}`);
                 }
             }
 
             // Check room conflicts
-            if (ruang_id) {
-                const [roomConflicts] = await global.dbPool.execute(
-                    `SELECT id_jadwal, jam_mulai, jam_selesai FROM jadwal 
-                     WHERE ruang_id = ? AND hari = ? AND status = 'aktif' AND jenis_aktivitas = 'pelajaran'`,
-                    [ruang_id, hari]
-                );
-
-                for (const conflict of roomConflicts) {
-                    if (isTimeOverlap(jam_mulai, jam_selesai, conflict.jam_mulai, conflict.jam_selesai)) {
-                        log.validationFail('room_conflict', { ruang_id, hari }, 'Room already in use');
-                        return sendValidationError(res, `Ruang sudah digunakan pada ${hari} jam ${conflict.jam_mulai}-${conflict.jam_selesai}`);
-                    }
-                }
+            const roomConflict = await checkRoomConflicts(ruang_id, hari, jam_mulai, jam_selesai);
+            if (roomConflict.hasConflict) {
+                log.validationFail('room_conflict', { ruang_id, hari }, roomConflict.error);
+                return sendValidationError(res, roomConflict.error);
             }
         }
 
-        // Insert jadwal dengan guru utama
+        // Step 6: Prepare data and insert
+        const finalMapelId = jenis_aktivitas === 'pelajaran' ? mapel_id : null;
+        const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
+        const primaryGuruId = validGuruIds.length > 0 ? validGuruIds[0] : null;
+
         const [result] = await global.dbPool.execute(
             `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
@@ -330,18 +403,9 @@ export const createJadwal = async (req, res) => {
 
         const jadwalId = result.insertId;
 
-        // Insert semua guru ke jadwal_guru (batch insert for performance)
+        // Step 7: Insert guru relations
         if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
-            const validGuruIds = finalGuruIds.filter(id => id && !isNaN(id) && id > 0);
-            if (validGuruIds.length > 0) {
-                const values = validGuruIds.map((id, i) => [jadwalId, id, i === 0 ? 1 : 0]);
-                const placeholders = values.map(() => '(?, ?, ?)').join(', ');
-                const flatValues = values.flat();
-                await global.dbPool.execute(
-                    `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
-                    flatValues
-                );
-            }
+            await insertJadwalGuru(jadwalId, finalGuruIds);
         }
 
         log.success('CreateJadwal', { jadwalId, hari, jam_ke, guruCount: finalGuruIds.length });
