@@ -22,6 +22,22 @@ const getCommonExcelSetup = async (reportKey) => {
     return { letterhead };
 };
 
+/**
+ * Map attendance status string to single-letter code
+ * @param {string} status - Attendance status
+ * @returns {string} Single letter code (H, I, S, A, D, or -)
+ */
+const mapStatusToCode = (status) => {
+    const statusMap = {
+        'Hadir': 'H',
+        'Izin': 'I',
+        'Sakit': 'S',
+        'Alpa': 'A',
+        'Dispen': 'D'
+    };
+    return statusMap[status] || '-';
+};
+
 // NOTE: addLetterheadToWorksheet, addReportTitle, addHeaders are imported from excelLetterhead.js
 // at line ~608 for exports that use them. Top-level imports removed to avoid redeclaration.
 
@@ -2409,7 +2425,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
             const basic = [idx + 1, s.nama, s.nis, s.jenis_kelamin];
             const daily = finalDates.map(dateStr => {
                 const attendanceStatus = attendanceMap[s.id_siswa]?.[dateStr];
-                return attendanceStatus === 'Hadir' ? 'H' : attendanceStatus === 'Izin' ? 'I' : attendanceStatus === 'Sakit' ? 'S' : attendanceStatus === 'Alpa' ? 'A' : attendanceStatus === 'Dispen' ? 'D' : '-';
+                return mapStatusToCode(attendanceStatus);
             });
             const summary = [s.total_hadir, s.total_izin, s.total_sakit, s.total_alpa, s.total_dispen, s.persentase_kehadiran];
             

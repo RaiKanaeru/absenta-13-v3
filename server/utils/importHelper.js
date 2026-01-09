@@ -443,11 +443,13 @@ function validateStudentAccountRow(rowData, validRecords, existingNis, existingU
     const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
     
     // Validate individual fields
-    errors.push(...validateNIS(nis, validRecords, existingNis));
-    errors.push(...validateUsername(username, validRecords, existingUsernames));
-    errors.push(...validatePassword(password));
-    errors.push(...validateEmail(email));
-    errors.push(...validateGender(jenisKelamin));
+    errors.push(
+        ...validateNIS(nis, validRecords, existingNis),
+        ...validateUsername(username, validRecords, existingUsernames),
+        ...validatePassword(password),
+        ...validateEmail(email),
+        ...validateGender(jenisKelamin)
+    );
     
     if (errors.length > 0) {
         return { valid: false, errors, data: null };
@@ -597,13 +599,15 @@ function validateTeacherAccountRow(rowData, validRecords, existingNips, existing
     const status = rowData.status || rowData.Status;
     
     // Validate individual fields
-    errors.push(...validateNIP(nip, validRecords, existingNips));
-    errors.push(...validateUsername(username, validRecords, existingUsernames));
-    errors.push(...validatePassword(password));
-    errors.push(...validateEmail(email));
-    errors.push(...validateGender(jenisKelamin));
-    errors.push(...validatePhone(noTelp));
-    errors.push(...validateStatus(status));
+    errors.push(
+        ...validateNIP(nip, validRecords, existingNips),
+        ...validateUsername(username, validRecords, existingUsernames),
+        ...validatePassword(password),
+        ...validateEmail(email),
+        ...validateGender(jenisKelamin),
+        ...validatePhone(noTelp),
+        ...validateStatus(status)
+    );
     
     if (errors.length > 0) {
         return { valid: false, errors, data: null };
