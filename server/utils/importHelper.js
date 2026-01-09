@@ -456,6 +456,162 @@ function validateStudentAccountRow(rowData, validRecords, existingNis, existingU
     return { valid: true, errors: [], data: buildStudentObject(rowData) };
 }
 
+// ================================================
+// TEACHER ACCOUNT IMPORT HELPER FUNCTIONS
+// ================================================
+
+/**
+ * Validate required fields for teacher account
+ * @param {Object} rowData - Row data from Excel
+ * @returns {string[]} Array of error messages
+ */
+function validateRequiredTeacherFields(rowData) {
+    const errors = [];
+    if (!rowData.nama && !rowData['Nama Lengkap *']) errors.push('Nama lengkap wajib diisi');
+    if (!rowData.username && !rowData['Username *']) errors.push('Username wajib diisi');
+    if (!rowData.password && !rowData['Password *']) errors.push('Password wajib diisi');
+    if (!rowData.nip && !rowData['NIP *']) errors.push('NIP wajib diisi');
+    return errors;
+}
+
+/**
+ * Validate NIP field
+ * @param {string|number} nip - NIP value
+ * @param {Object[]} validRecords - Already validated records for file duplicate check
+ * @param {Set} existingNips - Set of existing NIPs from database
+ * @returns {string[]} Array of error messages
+ */
+function validateNIP(nip, validRecords, existingNips) {
+    const errors = [];
+    if (!nip) return errors;
+    
+    const nipValue = String(nip).trim();
+    if (nipValue.length < 8) errors.push('NIP minimal 8 karakter');
+    if (nipValue.length > 20) errors.push('NIP maksimal 20 karakter');
+    
+    // Check file duplicate
+    if (validRecords.some(v => v.nip === nipValue)) {
+        errors.push('NIP duplikat dalam file');
+    }
+    
+    // Check database duplicate
+    if (existingNips && existingNips.has(nipValue)) {
+        errors.push('NIP sudah digunakan di database');
+    }
+    
+    return errors;
+}
+
+/**
+ * Validate phone number field
+ * @param {string} noTelp - Phone number value
+ * @returns {string[]} Array of error messages
+ */
+function validatePhone(noTelp) {
+    const errors = [];
+    if (noTelp && String(noTelp).length < 10) {
+        errors.push('Nomor telepon minimal 10 digit');
+    }
+    return errors;
+}
+
+/**
+ * Validate status field
+ * @param {string} status - Status value
+ * @returns {string[]} Array of error messages
+ */
+function validateStatus(status) {
+    const errors = [];
+    if (status && !['aktif', 'nonaktif'].includes(String(status).toLowerCase())) {
+        errors.push('Status harus aktif atau nonaktif');
+    }
+    return errors;
+}
+
+/**
+ * Build teacher account object from validated row data
+ * @param {Object} rowData - Row data from Excel
+ * @returns {Object} Valid teacher account object
+ */
+function buildTeacherObject(rowData) {
+    const username = rowData.username || rowData['Username *'];
+    const password = rowData.password || rowData['Password *'];
+    const nip = rowData.nip || rowData['NIP *'];
+    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
+    const email = rowData.email || rowData.Email;
+    const noTelp = rowData.no_telp || rowData['No. Telepon'];
+    const status = rowData.status || rowData.Status;
+    
+    return {
+        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
+        nip: String(nip).trim(),
+        username: String(username).trim(),
+        password: String(password).trim(),
+        email: email ? String(email).trim() : null,
+        no_telp: noTelp ? String(noTelp).trim() : null,
+        jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
+        mata_pelajaran: (rowData.mata_pelajaran || rowData['Mata Pelajaran']) 
+            ? String(rowData.mata_pelajaran || rowData['Mata Pelajaran']).trim() 
+            : null,
+        alamat: (rowData.alamat || rowData.Alamat) 
+            ? String(rowData.alamat || rowData.Alamat).trim() 
+            : null,
+        status: status ? String(status) : 'aktif'
+    };
+}
+
+/**
+ * Create row preview object for teacher error reporting
+ * @param {Object} rowData - Row data from Excel
+ * @returns {Object} Preview object with key fields
+ */
+function createTeacherRowPreview(rowData) {
+    return {
+        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+        username: rowData.username || rowData['Username *'] || '(kosong)',
+        nip: rowData.nip || rowData['NIP *'] || '(kosong)'
+    };
+}
+
+/**
+ * Validate a complete teacher account row
+ * @param {Object} rowData - Row data from Excel
+ * @param {Object[]} validRecords - Already validated records
+ * @param {Set} existingNips - Set of existing NIPs from database
+ * @param {Set} existingUsernames - Set of existing usernames from database
+ * @returns {{valid: boolean, errors: string[], data: Object|null}}
+ */
+function validateTeacherAccountRow(rowData, validRecords, existingNips, existingUsernames) {
+    const errors = [];
+    
+    // Validate required fields
+    errors.push(...validateRequiredTeacherFields(rowData));
+    
+    // Extract field values
+    const nip = rowData.nip || rowData['NIP *'];
+    const username = rowData.username || rowData['Username *'];
+    const password = rowData.password || rowData['Password *'];
+    const email = rowData.email || rowData.Email;
+    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
+    const noTelp = rowData.no_telp || rowData['No. Telepon'];
+    const status = rowData.status || rowData.Status;
+    
+    // Validate individual fields
+    errors.push(...validateNIP(nip, validRecords, existingNips));
+    errors.push(...validateUsername(username, validRecords, existingUsernames));
+    errors.push(...validatePassword(password));
+    errors.push(...validateEmail(email));
+    errors.push(...validateGender(jenisKelamin));
+    errors.push(...validatePhone(noTelp));
+    errors.push(...validateStatus(status));
+    
+    if (errors.length > 0) {
+        return { valid: false, errors, data: null };
+    }
+    
+    return { valid: true, errors: [], data: buildTeacherObject(rowData) };
+}
+
 // ES Module exports
 export {
     sheetToJsonByHeader,
@@ -477,6 +633,10 @@ export {
     validateStudentAccountRow,
     createStudentRowPreview,
     buildStudentObject,
-    GENDER_ENUM
+    GENDER_ENUM,
+    // Teacher account helpers
+    validateTeacherAccountRow,
+    createTeacherRowPreview,
+    buildTeacherObject
 };
 

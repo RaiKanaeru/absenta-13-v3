@@ -22,7 +22,9 @@ import {
     validateRequiredJadwalFields,
     buildJadwalObject,
     validateStudentAccountRow,
-    createStudentRowPreview
+    createStudentRowPreview,
+    validateTeacherAccountRow,
+    createTeacherRowPreview
 } from '../utils/importHelper.js';
 
 // ================================================
@@ -765,26 +767,100 @@ const importStudentAccount = async (req, res) => {
  * Import teacher accounts from Excel file
  * POST /api/admin/import/teacher-account
  */
+/**
+ * Process teacher account records to database
+ */
+async function processTeacherAccountRecords(conn, validRecords) {
+    let successCount = 0;
+    let duplicateCount = 0;
+
+    for (const v of validRecords) {
+        const [existingGuru] = await conn.execute(
+            'SELECT id_guru, user_id FROM guru WHERE nip = ?',
+            [v.nip]
+        );
+
+        const [existingUser] = await conn.execute(
+            'SELECT id FROM users WHERE username = ?',
+            [v.username]
+        );
+
+        if (existingUser.length > 0 && !existingGuru.length) {
+            throw new Error(`Username '${v.username}' sudah digunakan oleh user lain`);
+        }
+
+        if (existingGuru.length > 0) {
+            await updateExistingTeacher(conn, v, existingGuru[0].user_id);
+            duplicateCount++;
+        } else {
+            await insertNewTeacher(conn, v);
+            successCount++;
+        }
+    }
+
+    return { successCount, duplicateCount };
+}
+
+/**
+ * Update existing teacher record
+ */
+async function updateExistingTeacher(conn, v, userId) {
+    await conn.execute(
+        `UPDATE guru SET 
+         nama = ?, jenis_kelamin = ?, email = ?, no_telepon = ?,
+         alamat = ?, jabatan = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE nip = ?`,
+        [v.nama, v.jenis_kelamin, v.email, v.no_telp, v.alamat, v.mata_pelajaran, v.status, v.nip]
+    );
+
+    const hashedPassword = await bcrypt.hash(v.password, 10);
+    await conn.execute(
+        `UPDATE users SET 
+         username = ?, password = ?, nama = ?, email = ?, 
+         updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [v.username, hashedPassword, v.nama, v.email, userId]
+    );
+}
+
+/**
+ * Insert new teacher record
+ */
+async function insertNewTeacher(conn, v) {
+    const hashedPassword = await bcrypt.hash(v.password, 10);
+    const [userResult] = await conn.execute(
+        `INSERT INTO users (username, password, role, nama, email, status, created_at, updated_at)
+         VALUES (?, ?, 'guru', ?, ?, 'aktif', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [v.username, hashedPassword, v.nama, v.email]
+    );
+
+    const userId = userResult.insertId;
+
+    await conn.execute(
+        `INSERT INTO guru (nip, nama, jenis_kelamin, email, no_telepon, alamat, jabatan, user_id, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [v.nip, v.nama, v.jenis_kelamin, v.email, v.no_telp, v.alamat, v.mata_pelajaran, userId, v.status]
+    );
+}
+
 const importTeacherAccount = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
-        // Parse Excel file
+
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
         const errors = [];
         const valid = [];
-        const genderEnum = ['L', 'P'];
 
-        // Cek duplikasi username dan NIP di database sebelum validasi
+        // Get existing data from database
         const existingUsernames = new Set();
         const existingNips = new Set();
 
         try {
             const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "guru"');
             const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
-
             dbUsernames.forEach(row => existingUsernames.add(row.username));
             dbNips.forEach(row => existingNips.add(row.nip));
         } catch (dbError) {
@@ -795,107 +871,17 @@ const importTeacherAccount = async (req, res) => {
             });
         }
 
+        // Validate each row using helper function
         for (let i = 0; i < rows.length; i++) {
             const rowData = rows[i];
-            const rowErrors = [];
             const rowNum = i + 2;
 
-            try {
-                // Validasi field wajib
-                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
-                if (!rowData.username && !rowData['Username *']) rowErrors.push('Username wajib diisi');
-                if (!rowData.password && !rowData['Password *']) rowErrors.push('Password wajib diisi');
-                if (!rowData.nip && !rowData['NIP *']) rowErrors.push('NIP wajib diisi');
-
-                // Validasi NIP
-                const nip = rowData.nip || rowData['NIP *'];
-                if (nip) {
-                    const nipValue = String(nip).trim();
-                    if (nipValue.length < 8) rowErrors.push('NIP minimal 8 karakter');
-                    if (nipValue.length > 20) rowErrors.push('NIP maksimal 20 karakter');
-
-                    // Cek duplikasi NIP dalam file
-                    const duplicateNip = valid.find(v => v.nip === nipValue);
-                    if (duplicateNip) rowErrors.push('NIP duplikat dalam file');
-
-                    // Cek duplikasi NIP di database
-                    if (existingNips.has(nipValue)) rowErrors.push('NIP sudah digunakan di database');
-                }
-
-                // Validasi Username
-                const username = rowData.username || rowData['Username *'];
-                if (username) {
-                    const usernameValue = String(username).trim();
-                    if (usernameValue.length < 4) rowErrors.push('Username minimal 4 karakter');
-                    if (usernameValue.length > 50) rowErrors.push('Username maksimal 50 karakter');
-                    if (!/^[a-z0-9._-]+$/.test(usernameValue)) rowErrors.push('Username harus huruf kecil, angka, titik, underscore, strip');
-
-                    // Cek duplikasi username dalam file
-                    const duplicateUsername = valid.find(v => v.username === usernameValue);
-                    if (duplicateUsername) rowErrors.push('Username duplikat dalam file');
-
-                    // Cek duplikasi username di database
-                    if (existingUsernames.has(usernameValue)) rowErrors.push('Username sudah digunakan di database');
-                }
-
-                // Validasi Password
-                const password = rowData.password || rowData['Password *'];
-                if (password && String(password).trim().length < 6) {
-                    rowErrors.push('Password minimal 6 karakter');
-                }
-
-                // Validasi email
-                const email = rowData.email || rowData.Email;
-                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-                    rowErrors.push('Format email tidak valid');
-                }
-
-                // Validasi jenis kelamin
-                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
-                if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
-                    rowErrors.push('Jenis kelamin harus L atau P');
-                }
-
-                // Validasi no telepon
-                const noTelp = rowData.no_telp || rowData['No. Telepon'];
-                if (noTelp && String(noTelp).length < 10) {
-                    rowErrors.push('Nomor telepon minimal 10 digit');
-                }
-
-                // Validasi status
-                const status = rowData.status || rowData.Status;
-                if (status && !['aktif', 'nonaktif'].includes(String(status).toLowerCase())) {
-                    rowErrors.push('Status harus aktif atau nonaktif');
-                }
-
-                if (rowErrors.length) {
-                    const rowPreview = {
-                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
-                        username: rowData.username || rowData['Username *'] || '(kosong)',
-                        nip: rowData.nip || rowData['NIP *'] || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
-                } else {
-                    valid.push({
-                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
-                        nip: String(nip).trim(),
-                        username: String(username).trim(),
-                        password: String(password).trim(),
-                        email: email ? String(email).trim() : null,
-                        no_telp: noTelp ? String(noTelp).trim() : null,
-                        jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-                        mata_pelajaran: (rowData.mata_pelajaran || rowData['Mata Pelajaran']) ? String(rowData.mata_pelajaran || rowData['Mata Pelajaran']).trim() : null,
-                        alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
-                        status: status ? String(status) : 'aktif'
-                    });
-                }
-            } catch (error) {
-                const rowPreview = {
-                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
-                    username: rowData.username || rowData['Username *'] || '(kosong)',
-                    nip: rowData.nip || rowData['NIP *'] || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
+            const result = validateTeacherAccountRow(rowData, valid, existingNips, existingUsernames);
+            
+            if (result.valid) {
+                valid.push(result.data);
+            } else {
+                errors.push({ index: rowNum, errors: result.errors, data: createTeacherRowPreview(rowData) });
             }
         }
 
@@ -922,73 +908,7 @@ const importTeacherAccount = async (req, res) => {
         try {
             await conn.beginTransaction();
 
-            let successCount = 0;
-            let duplicateCount = 0;
-
-            for (const v of valid) {
-                try {
-                    // Cek apakah NIP sudah ada di database
-                    const [existingGuru] = await conn.execute(
-                        'SELECT id_guru, user_id FROM guru WHERE nip = ?',
-                        [v.nip]
-                    );
-
-                    // Cek apakah username sudah ada di database
-                    const [existingUser] = await conn.execute(
-                        'SELECT id FROM users WHERE username = ?',
-                        [v.username]
-                    );
-
-                    if (existingUser.length > 0 && !existingGuru.length) {
-                        throw new Error(`Username '${v.username}' sudah digunakan oleh user lain`);
-                    }
-
-                    if (existingGuru.length > 0) {
-                        // Update data guru yang sudah ada
-                        await conn.execute(
-                            `UPDATE guru SET 
-                             nama = ?, jenis_kelamin = ?, email = ?, no_telepon = ?,
-                             alamat = ?, jabatan = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-                             WHERE nip = ?`,
-                            [v.nama, v.jenis_kelamin, v.email, v.no_telp, v.alamat, v.mata_pelajaran, v.status, v.nip]
-                        );
-
-                        // Update data user yang sudah ada
-                        const hashedPassword = await bcrypt.hash(v.password, 10);
-                        await conn.execute(
-                            `UPDATE users SET 
-                             username = ?, password = ?, nama = ?, email = ?, 
-                             updated_at = CURRENT_TIMESTAMP
-                             WHERE id = ?`,
-                            [v.username, hashedPassword, v.nama, v.email, existingGuru[0].user_id]
-                        );
-
-                        duplicateCount++;
-                    } else {
-                        // Insert user baru terlebih dahulu
-                        const hashedPassword = await bcrypt.hash(v.password, 10);
-                        const [userResult] = await conn.execute(
-                            `INSERT INTO users (username, password, role, nama, email, status, created_at, updated_at)
-                             VALUES (?, ?, 'guru', ?, ?, 'aktif', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [v.username, hashedPassword, v.nama, v.email]
-                        );
-
-                        const userId = userResult.insertId;
-
-                        // Insert guru baru dengan user_id
-                        await conn.execute(
-                            `INSERT INTO guru (nip, nama, jenis_kelamin, email, no_telepon, alamat, jabatan, user_id, status, created_at, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [v.nip, v.nama, v.jenis_kelamin, v.email, v.no_telp, v.alamat, v.mata_pelajaran, userId, v.status]
-                        );
-
-                        successCount++;
-                    }
-                } catch (insertError) {
-                    logger.error('Error processing teacher account', { nama: v.nama, error: insertError.message });
-                    throw insertError;
-                }
-            }
+            const { successCount, duplicateCount } = await processTeacherAccountRecords(conn, valid);
 
             await conn.commit();
 
