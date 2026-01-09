@@ -112,7 +112,7 @@ const importMapel = async (req, res) => {
         }
         if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
             for (const validRecord of valid) {
@@ -221,7 +221,7 @@ const importKelas = async (req, res) => {
         }
         if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
             for (const v of valid) {
@@ -339,7 +339,7 @@ const importRuang = async (req, res) => {
         }
         if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
             for (const v of valid) {
@@ -550,7 +550,7 @@ const importJadwal = async (req, res) => {
         }
 
         // Insert to database
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
             await insertJadwalRecords(conn, valid);
@@ -594,8 +594,8 @@ const importStudentAccount = async (req, res) => {
         const existingNis = new Set();
 
         try {
-            const [dbUsernames] = await global.dbPool.execute('SELECT username FROM users WHERE role = "siswa"');
-            const [dbNis] = await global.dbPool.execute('SELECT nis FROM siswa');
+            const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "siswa"');
+            const [dbNis] = await globalThis.dbPool.execute('SELECT nis FROM siswa');
 
             dbUsernames.forEach(row => existingUsernames.add(row.username));
             dbNis.forEach(row => existingNis.add(row.nis));
@@ -719,7 +719,7 @@ const importStudentAccount = async (req, res) => {
             });
         }
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
 
@@ -851,8 +851,8 @@ const importTeacherAccount = async (req, res) => {
         const existingNips = new Set();
 
         try {
-            const [dbUsernames] = await global.dbPool.execute('SELECT username FROM users WHERE role = "guru"');
-            const [dbNips] = await global.dbPool.execute('SELECT nip FROM guru');
+            const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "guru"');
+            const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
 
             dbUsernames.forEach(row => existingUsernames.add(row.username));
             dbNips.forEach(row => existingNips.add(row.nip));
@@ -987,7 +987,7 @@ const importTeacherAccount = async (req, res) => {
             });
         }
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
 
@@ -1106,7 +1106,7 @@ const importSiswa = async (req, res) => {
         const existingNis = new Set();
 
         try {
-            const [dbNis] = await global.dbPool.execute('SELECT nis FROM siswa');
+            const [dbNis] = await globalThis.dbPool.execute('SELECT nis FROM siswa');
             dbNis.forEach(row => existingNis.add(row.nis));
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
@@ -1203,7 +1203,7 @@ const importSiswa = async (req, res) => {
             });
         }
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
 
@@ -1303,7 +1303,7 @@ const importGuru = async (req, res) => {
         const existingNips = new Set();
 
         try {
-            const [dbNips] = await global.dbPool.execute('SELECT nip FROM guru');
+            const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
             dbNips.forEach(row => existingNips.add(row.nip));
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
@@ -1401,7 +1401,7 @@ const importGuru = async (req, res) => {
             });
         }
 
-        const conn = await global.dbPool.getConnection();
+        const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
 

@@ -30,7 +30,7 @@ export const getMapel = async (req, res) => {
             ORDER BY nama_mapel
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
         log.success('GetAll', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -61,7 +61,7 @@ export const createMapel = async (req, res) => {
         }
 
         // Check if kode_mapel already exists
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await globalThis.dbPool.execute(
             'SELECT id_mapel FROM mapel WHERE kode_mapel = ?',
             [kode_mapel]
         );
@@ -76,7 +76,7 @@ export const createMapel = async (req, res) => {
             VALUES (?, ?, ?, ?)
         `;
 
-        const [result] = await global.dbPool.execute(insertQuery, [
+        const [result] = await globalThis.dbPool.execute(insertQuery, [
             kode_mapel,
             nama_mapel,
             deskripsi || null,
@@ -117,7 +117,7 @@ export const updateMapel = async (req, res) => {
         }
 
         // Check if kode_mapel already exists for other records
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await globalThis.dbPool.execute(
             'SELECT id_mapel FROM mapel WHERE kode_mapel = ? AND id_mapel != ?',
             [kode_mapel, id]
         );
@@ -133,7 +133,7 @@ export const updateMapel = async (req, res) => {
             WHERE id_mapel = ?
         `;
 
-        const [result] = await global.dbPool.execute(updateQuery, [
+        const [result] = await globalThis.dbPool.execute(updateQuery, [
             kode_mapel,
             nama_mapel,
             deskripsi || null,
@@ -168,7 +168,7 @@ export const deleteMapel = async (req, res) => {
     log.requestStart('Delete', { id });
 
     try {
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             'DELETE FROM mapel WHERE id_mapel = ?',
             [id]
         );

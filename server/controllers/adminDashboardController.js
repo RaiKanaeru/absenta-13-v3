@@ -46,7 +46,7 @@ export const getTeachers = async (req, res) => {
             ORDER BY g.nama ASC
         `;
 
-        const [results] = await global.dbPool.execute(query);
+        const [results] = await globalThis.dbPool.execute(query);
         log.success('GetTeachers', { count: results.length });
         res.json(results);
     } catch (error) {
@@ -71,7 +71,7 @@ export const addTeacher = async (req, res) => {
         return sendValidationError(res, 'Nama, username, dan password wajib diisi');
     }
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
 
     try {
         // Check if username already exists
@@ -138,7 +138,7 @@ export const updateTeacher = async (req, res) => {
         return sendValidationError(res, 'Nama dan username wajib diisi');
     }
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
 
     try {
         // Check if username already exists (excluding current user)
@@ -216,7 +216,7 @@ export const deleteTeacher = async (req, res) => {
     const { id } = req.params;
     log.requestStart('DeleteTeacher', { id });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
 
     try {
         await connection.beginTransaction();

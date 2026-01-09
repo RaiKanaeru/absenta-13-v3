@@ -35,7 +35,7 @@ export const getKalenderAkademik = async (req, res) => {
 
         query += ' ORDER BY tahun DESC, bulan ASC';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         log.success('GetKalenderAkademik', { count: rows.length });
         res.json(rows);
@@ -61,7 +61,7 @@ export const getHariEfektif = async (req, res) => {
             return sendValidationError(res, 'Parameter bulan wajib diisi');
         }
 
-        const bulanNum = parseInt(bulan);
+        const bulanNum = Number.parseInt(bulan);
         
         let query, params;
         
@@ -70,7 +70,7 @@ export const getHariEfektif = async (req, res) => {
             params = [tahun_pelajaran, bulanNum];
         } else if (tahun) {
             query = 'SELECT hari_efektif, keterangan FROM kalender_akademik WHERE bulan = ? AND tahun = ?';
-            params = [bulanNum, parseInt(tahun)];
+            params = [bulanNum, Number.parseInt(tahun)];
         } else {
             // Fallback to default
             const defaultDays = DEFAULT_HARI_EFEKTIF[bulanNum] || 20;
@@ -81,7 +81,7 @@ export const getHariEfektif = async (req, res) => {
             });
         }
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         if (rows.length === 0) {
             const defaultDays = DEFAULT_HARI_EFEKTIF[bulanNum] || 20;
@@ -120,7 +120,7 @@ export const upsertKalenderAkademik = async (req, res) => {
             return sendValidationError(res, 'hari_efektif harus antara 0-31');
         }
 
-        const [result] = await global.dbPool.execute(`
+        const [result] = await globalThis.dbPool.execute(`
             INSERT INTO kalender_akademik 
                 (tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -130,9 +130,9 @@ export const upsertKalenderAkademik = async (req, res) => {
                 keterangan = VALUES(keterangan)
         `, [
             tahun_pelajaran,
-            parseInt(bulan),
-            parseInt(tahun),
-            parseInt(hari_efektif) || 20,
+            Number.parseInt(bulan),
+            Number.parseInt(tahun),
+            Number.parseInt(hari_efektif) || 20,
             is_libur_semester ? 1 : 0,
             keterangan || null
         ]);
@@ -164,14 +164,14 @@ export const updateKalenderAkademik = async (req, res) => {
             return sendValidationError(res, 'hari_efektif harus antara 0-31');
         }
 
-        const [result] = await global.dbPool.execute(`
+        const [result] = await globalThis.dbPool.execute(`
             UPDATE kalender_akademik 
             SET hari_efektif = COALESCE(?, hari_efektif),
                 is_libur_semester = COALESCE(?, is_libur_semester),
                 keterangan = COALESCE(?, keterangan)
             WHERE id = ?
         `, [
-            hari_efektif !== undefined ? parseInt(hari_efektif) : null,
+            hari_efektif !== undefined ? Number.parseInt(hari_efektif) : null,
             is_libur_semester !== undefined ? (is_libur_semester ? 1 : 0) : null,
             keterangan !== undefined ? keterangan : null,
             id
@@ -200,7 +200,7 @@ export const deleteKalenderAkademik = async (req, res) => {
     log.requestStart('DeleteKalenderAkademik', { id });
 
     try {
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             'DELETE FROM kalender_akademik WHERE id = ?',
             [id]
         );
@@ -253,7 +253,7 @@ export const seedKalenderAkademik = async (req, res) => {
 
         let seeded = 0;
         for (const item of data) {
-            await global.dbPool.execute(`
+            await globalThis.dbPool.execute(`
                 INSERT INTO kalender_akademik 
                     (tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -291,7 +291,7 @@ export const seedKalenderAkademik = async (req, res) => {
  */
 export const getEffectiveDays = async (bulan, tahun) => {
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT hari_efektif FROM kalender_akademik WHERE bulan = ? AND tahun = ?',
             [bulan, tahun]
         );
@@ -315,7 +315,7 @@ export const getEffectiveDays = async (bulan, tahun) => {
  */
 export const getEffectiveDaysMap = async (tahunPelajaran) => {
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT bulan, hari_efektif FROM kalender_akademik WHERE tahun_pelajaran = ?',
             [tahunPelajaran]
         );

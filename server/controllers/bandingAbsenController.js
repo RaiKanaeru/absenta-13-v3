@@ -69,7 +69,7 @@ export const getBandingAbsenReport = async (req, res) => {
 
         query += ' ORDER BY pba.tanggal_pengajuan DESC';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetReport', { count: rows.length, filters: { startDate, endDate, kelas_id, status } });
         res.json(rows);
     } catch (error) {
@@ -137,7 +137,7 @@ export const downloadBandingAbsen = async (req, res) => {
 
         query += ' ORDER BY pba.tanggal_pengajuan DESC';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Enhanced CSV format with UTF-8 BOM for Excel compatibility
         let csvContent = '\uFEFF'; // UTF-8 BOM
@@ -180,7 +180,7 @@ export const getSubjects = async (req, res) => {
             ORDER BY nama_mapel
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
         log.success('GetSubjects', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -206,7 +206,7 @@ export const getClasses = async (req, res) => {
             ORDER BY tingkat, nama_kelas
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
         log.success('GetClasses', { count: rows.length });
         res.json(rows);
     } catch (error) {

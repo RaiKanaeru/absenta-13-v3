@@ -31,7 +31,7 @@ export const getActiveKelas = async (req, res) => {
             ORDER BY tingkat, nama_kelas
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
         log.success('GetActive', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -59,7 +59,7 @@ export const getKelas = async (req, res) => {
             ORDER BY tingkat, nama_kelas
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
         log.success('GetAll', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -95,7 +95,7 @@ export const createKelas = async (req, res) => {
             VALUES (?, ?, 'aktif')
         `;
 
-        const [result] = await global.dbPool.execute(insertQuery, [nama_kelas, tingkat]);
+        const [result] = await globalThis.dbPool.execute(insertQuery, [nama_kelas, tingkat]);
         log.success('Create', { id: result.insertId, nama_kelas, tingkat });
         return sendSuccessResponse(res, { id: result.insertId }, 'Kelas berhasil ditambahkan', 201);
     } catch (error) {
@@ -136,7 +136,7 @@ export const updateKelas = async (req, res) => {
             WHERE id_kelas = ?
         `;
 
-        const [result] = await global.dbPool.execute(updateQuery, [nama_kelas, tingkat, id]);
+        const [result] = await globalThis.dbPool.execute(updateQuery, [nama_kelas, tingkat, id]);
 
         if (result.affectedRows === 0) {
             log.warn('Update failed - not found', { id });
@@ -166,7 +166,7 @@ export const deleteKelas = async (req, res) => {
 
     try {
         // Check if class is used by students
-        const [siswaUsage] = await global.dbPool.execute(
+        const [siswaUsage] = await globalThis.dbPool.execute(
             'SELECT COUNT(*) as count FROM siswa WHERE kelas_id = ?',
             [id]
         );
@@ -180,7 +180,7 @@ export const deleteKelas = async (req, res) => {
         }
 
         // Check if class is used in schedules
-        const [jadwalUsage] = await global.dbPool.execute(
+        const [jadwalUsage] = await globalThis.dbPool.execute(
             'SELECT COUNT(*) as count FROM jadwal WHERE kelas_id = ?',
             [id]
         );
@@ -193,7 +193,7 @@ export const deleteKelas = async (req, res) => {
             });
         }
 
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             'DELETE FROM kelas WHERE id_kelas = ?',
             [id]
         );

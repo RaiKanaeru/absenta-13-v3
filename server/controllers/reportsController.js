@@ -27,14 +27,14 @@ const HARI_EFEKTIF_MAP = {
  * @returns {Object} startDate and endDate
  */
 function calculateDateRange(tahun, bulan, tanggal_awal, tanggal_akhir) {
-    const selectedYear = parseInt(tahun) || new Date().getFullYear();
+    const selectedYear = Number.parseInt(tahun) || new Date().getFullYear();
 
     if (tanggal_awal && tanggal_akhir) {
         return { startDate: tanggal_awal, endDate: tanggal_akhir };
     }
 
     if (bulan) {
-        const monthIndex = parseInt(bulan) || 1;
+        const monthIndex = Number.parseInt(bulan) || 1;
         let targetYear = selectedYear;
         // If month is Jan-Jun, use next year
         if (monthIndex <= 6) {
@@ -69,7 +69,7 @@ function parseAttendanceDetails(detailString) {
  */
 function mapAttendanceRow(row) {
     const effectiveDays = HARI_EFEKTIF_MAP[row.bulan] || 20;
-    const absences = parseInt(row.total_ketidakhadiran) || 0;
+    const absences = Number.parseInt(row.total_ketidakhadiran) || 0;
     const presencePk = Math.max(0, effectiveDays - absences);
     const details = parseAttendanceDetails(row.detail_string);
 
@@ -274,13 +274,13 @@ export const getAnalyticsDashboard = async (req, res) => {
             [topAbsentTeachers],
             [notifications]
         ] = await Promise.all([
-            global.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
-            global.dbPool.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
-            global.dbPool.execute(studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            global.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            global.dbPool.execute(topAbsentStudentsQuery),
-            global.dbPool.execute(topAbsentTeachersQuery),
-            global.dbPool.execute(notificationsQuery)
+            globalThis.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
+            globalThis.dbPool.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
+            globalThis.dbPool.execute(studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            globalThis.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            globalThis.dbPool.execute(topAbsentStudentsQuery),
+            globalThis.dbPool.execute(topAbsentTeachersQuery),
+            globalThis.dbPool.execute(notificationsQuery)
         ]);
         const totalStudents = totalStudentsResult[0]?.total || 0;
         const totalTeachers = totalTeachersResult[0]?.total || 0;
@@ -359,7 +359,7 @@ export const getLiveTeacherAttendance = async (req, res) => {
                 g.nama
         `;
 
-        const [rows] = await global.dbPool.execute(query, [todayWIB, currentDayWIB]);
+        const [rows] = await globalThis.dbPool.execute(query, [todayWIB, currentDayWIB]);
         log.success('GetLiveTeacherAttendance', { count: rows.length, day: currentDayWIB });
         res.json(rows);
     } catch (error) {
@@ -417,7 +417,7 @@ export const getLiveStudentAttendance = async (req, res) => {
                 s.nama
         `;
 
-        const [rows] = await global.dbPool.execute(query, [todayWIB]);
+        const [rows] = await globalThis.dbPool.execute(query, [todayWIB]);
         log.success('GetLiveStudentAttendance', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -473,7 +473,7 @@ export const getTeacherAttendanceReport = async (req, res) => {
 
         query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetTeacherReport', { count: rows.length, startDate, endDate });
         res.json(rows);
     } catch (error) {
@@ -529,7 +529,7 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
 
         query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Enhanced CSV format with UTF-8 BOM for Excel compatibility
         let csvContent = '\uFEFF'; // UTF-8 BOM
@@ -592,7 +592,7 @@ export const getStudentAttendanceReport = async (req, res) => {
 
         query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetStudentReport', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -643,7 +643,7 @@ export const downloadStudentAttendanceReport = async (req, res) => {
 
         query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Enhanced CSV format with UTF-8 BOM for Excel compatibility
         let csvContent = '\uFEFF'; // UTF-8 BOM
@@ -705,7 +705,7 @@ export const getStudentAttendanceSummary = async (req, res) => {
         }
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetStudentSummary', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -732,7 +732,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
         const startDateObj = new Date(startDate);
         const endDateObj = new Date(endDate);
 
-        if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+        if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
             log.validationFail('dateFormat', { startDate, endDate }, 'Invalid format');
             return sendValidationError(res, 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD');
         }
@@ -779,7 +779,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
 
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         log.debug('Building Excel export', { studentCount: rows.length });
 
@@ -871,7 +871,7 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         const params = [startDate, endDate];
         query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
         
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetTeacherSummary', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -885,7 +885,7 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
     const { year, tahun, bulan, tanggal_awal, tanggal_akhir } = req.query;
     
     // Support both 'year' and 'tahun' params with validation
-    const selectedYear = parseInt(year || tahun) || new Date().getFullYear();
+    const selectedYear = Number.parseInt(year || tahun) || new Date().getFullYear();
     
     log.requestStart('GetRekapKetidakhadiranGuru', { selectedYear, bulan, tanggal_awal, tanggal_akhir });
 
@@ -935,7 +935,7 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
             // Monthly or Date Range Report
             const start = tanggal_awal || `${selectedYear}-${bulan.padStart(2, '0')}-01`;
             // Calculate end of month without timezone issues
-            const monthEndDate = new Date(selectedYear, parseInt(bulan), 0);
+            const monthEndDate = new Date(selectedYear, Number.parseInt(bulan), 0);
             const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
             query = `
@@ -955,14 +955,14 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
             params = [start, end];
         }
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Post-processing for percentages (since we can't easily get total effective days dynamically in SQL without a calendar table)
         // Default assumption: ~240 effective days/year or ~20 days/month
         const effectiveDays = isAnnual ? 240 : 20;
 
         const processedRows = rows.map(row => {
-            const absences = parseInt(row.total_ketidakhadiran) || 0;
+            const absences = Number.parseInt(row.total_ketidakhadiran) || 0;
             const presence = Math.max(0, effectiveDays - absences);
             
             return {
@@ -999,7 +999,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
 
     try {
         // Validate kelas_id
-        if (!kelas_id || isNaN(parseInt(kelas_id))) {
+        if (!kelas_id || Number.isNaN(Number.parseInt(kelas_id))) {
             log.validationFail('kelas_id', kelas_id, 'Invalid or missing kelas_id');
             return sendValidationError(res, 'Kelas wajib dipilih dengan format yang valid', { field: 'kelas_id' });
         }
@@ -1028,7 +1028,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
             ORDER BY a.siswa_id, YEAR(a.tanggal), MONTH(a.tanggal)
         `;
 
-        const [rows] = await global.dbPool.execute(query, [kelas_id, startDate, endDate]);
+        const [rows] = await globalThis.dbPool.execute(query, [kelas_id, startDate, endDate]);
 
         // Map rows to result objects using helper function
         const result = rows.map(mapAttendanceRow);
@@ -1066,7 +1066,7 @@ export const getStudentsByClass = async (req, res) => {
     }
 
     // Validate kelasId is numeric
-    if (!kelasId || isNaN(parseInt(kelasId))) {
+    if (!kelasId || Number.isNaN(Number.parseInt(kelasId))) {
         log.validationFail('kelasId', kelasId, 'Invalid class ID format');
         return sendValidationError(res, 'Format ID kelas tidak valid', { received: kelasId });
     }
@@ -1080,7 +1080,7 @@ export const getStudentsByClass = async (req, res) => {
             WHERE kelas_id = ? AND status = 'aktif'
             ORDER BY nama ASC
         `;
-        const [rows] = await global.dbPool.execute(query, [kelasId]);
+        const [rows] = await globalThis.dbPool.execute(query, [kelasId]);
         
         log.success('GetStudentsByClass', { count: rows.length });
         res.json(rows);
@@ -1110,13 +1110,13 @@ export const getPresensiSiswa = async (req, res) => {
         }
 
         // Validate kelas_id is numeric
-        if (isNaN(parseInt(kelas_id))) {
+        if (Number.isNaN(Number.parseInt(kelas_id))) {
             log.validationFail('kelas_id', kelas_id, 'Invalid format');
             return sendValidationError(res, 'Format ID kelas tidak valid');
         }
 
-        const tahunInt = parseInt(tahun) || new Date().getFullYear();
-        const bulanInt = parseInt(bulan) || 1;
+        const tahunInt = Number.parseInt(tahun) || new Date().getFullYear();
+        const bulanInt = Number.parseInt(bulan) || 1;
         const startDate = `${tahunInt}-${String(bulanInt).padStart(2, '0')}-01`;
         // Calculate end of month without timezone issues
         const monthEndDate = new Date(tahunInt, bulanInt, 0);
@@ -1136,7 +1136,7 @@ export const getPresensiSiswa = async (req, res) => {
             ORDER BY a.tanggal ASC
         `;
 
-        const [rows] = await global.dbPool.execute(query, [kelas_id, startDate, endDate]);
+        const [rows] = await globalThis.dbPool.execute(query, [kelas_id, startDate, endDate]);
 
         log.success('GetPresensiSiswa', { count: rows.length });
         res.json(rows);

@@ -365,7 +365,7 @@ export const initializeDefaults = async (req, res) => {
 
     try {
         // Check if letterhead already exists
-        const [existingRows] = await global.dbPool.execute(
+        const [existingRows] = await globalThis.dbPool.execute(
             'SELECT id FROM kop_laporan WHERE cakupan = "global" AND kode_laporan IS NULL AND aktif = 1 LIMIT 1'
         );
 
@@ -401,7 +401,7 @@ export const initializeDefaults = async (req, res) => {
             '/logo-kanan.png'
         ];
 
-        await global.dbPool.execute(query, params);
+        await globalThis.dbPool.execute(query, params);
 
         log.success('InitDefaults', {});
         return sendSuccessResponse(res, null, 'Letterhead default berhasil diinisialisasi');

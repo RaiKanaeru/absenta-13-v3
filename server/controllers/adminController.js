@@ -42,7 +42,7 @@ export const updateAdminProfile = async (req, res) => {
         }
 
         // Check if username is already taken by another user
-        const [existingUser] = await global.dbPool.execute(
+        const [existingUser] = await globalThis.dbPool.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
@@ -53,7 +53,7 @@ export const updateAdminProfile = async (req, res) => {
         }
 
         // Update profile in users table
-        const [updateResult] = await global.dbPool.execute(
+        const [updateResult] = await globalThis.dbPool.execute(
             `UPDATE users SET 
                 nama = ?, 
                 username = ?, 
@@ -66,7 +66,7 @@ export const updateAdminProfile = async (req, res) => {
         log.debug('Profile update result', { affectedRows: updateResult.affectedRows });
 
         // Get updated user data
-        const [updatedUser] = await global.dbPool.execute(
+        const [updatedUser] = await globalThis.dbPool.execute(
             'SELECT id, username, nama, email, role, created_at, updated_at FROM users WHERE id = ?',
             [userId]
         );
@@ -114,7 +114,7 @@ export const changeAdminPassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
         // Update password
-        await global.dbPool.execute(
+        await globalThis.dbPool.execute(
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );

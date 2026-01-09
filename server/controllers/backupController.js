@@ -9,7 +9,7 @@ import fs from 'fs/promises';
 import AdmZip from 'adm-zip';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 
 const logger = createLogger('Backup');
 
@@ -63,7 +63,7 @@ async function restoreDatabaseFromSqlFile(filePath) {
 
         // Execute SQL commands in transaction for better performance
         const commands = sqlContent.split(';').filter(cmd => cmd.trim());
-        const connection = await global.dbPool.pool.getConnection();
+        const connection = await globalThis.dbPool.pool.getConnection();
         
         try {
             await connection.beginTransaction();
@@ -117,7 +117,7 @@ async function restoreDatabaseFromZipArchive(filePath) {
 
         // Execute SQL commands in transaction for better performance
         const commands = sqlContent.split(';').filter(cmd => cmd.trim());
-        const connection = await global.dbPool.pool.getConnection();
+        const connection = await globalThis.dbPool.pool.getConnection();
         
         try {
             await connection.beginTransaction();
@@ -179,7 +179,7 @@ const createSemesterBackup = async (req, res) => {
     try {
         logger.info('Creating semester backup');
 
-        if (!global.backupSystem) {
+        if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
@@ -197,14 +197,14 @@ const createSemesterBackup = async (req, res) => {
             });
         }
 
-        if (!year || isNaN(year) || year < 2020 || year > 2030) {
+        if (!year || Number.isNaN(Number(year)) || year < 2020 || year > 2030) {
             return res.status(400).json({
                 error: 'Invalid input',
                 message: 'Tahun harus antara 2020-2030'
             });
         }
 
-        const backupResult = await global.backupSystem.createSemesterBackup(semester, year);
+        const backupResult = await globalThis.backupSystem.createSemesterBackup(semester, year);
 
         // Update backup settings with last backup date
         try {
@@ -241,7 +241,7 @@ const createSemesterBackup = async (req, res) => {
             success: true,
             message: `Semester backup created successfully for ${semester} ${year}`,
             data: backupResult,
-            backupSystemStatus: global.backupSystem ? 'initialized' : 'not initialized'
+            backupSystemStatus: globalThis.backupSystem ? 'initialized' : 'not initialized'
         });
     } catch (error) {
         logger.error('Error creating semester backup', error);
@@ -257,7 +257,7 @@ const createDateBackup = async (req, res) => {
     try {
         logger.info('Creating date-based backup');
 
-        if (!global.backupSystem) {
+        if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
@@ -282,7 +282,7 @@ const createDateBackup = async (req, res) => {
         const startDateObj = new Date(startDate);
         const endDateObj = new Date(actualEndDate);
 
-        if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+        if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
             return res.status(400).json({
                 error: 'Invalid date format',
                 message: 'Please provide valid dates in YYYY-MM-DD format'
@@ -308,7 +308,7 @@ const createDateBackup = async (req, res) => {
 
         logger.info('Creating date backup', { startDate, endDate: actualEndDate });
 
-        const backupResult = await global.backupSystem.createDateBackup(startDate, actualEndDate);
+        const backupResult = await globalThis.backupSystem.createDateBackup(startDate, actualEndDate);
 
         // Update backup settings
         try {
@@ -366,7 +366,7 @@ const createDateBackup = async (req, res) => {
  */
 const getBackupList = async (req, res) => {
     try {
-        const backupList = await global.backupSystem.listBackups();
+        const backupList = await globalThis.backupSystem.listBackups();
 
         res.json({
             success: true,
@@ -391,8 +391,8 @@ const getBackups = async (req, res) => {
     try {
         logger.info('Fetching backups via BackupSystem');
 
-        if (global.backupSystem) {
-            const backups = await global.backupSystem.listBackups();
+        if (globalThis.backupSystem) {
+            const backups = await globalThis.backupSystem.listBackups();
             logger.debug('BackupSystem returned backups', { count: backups.length });
             
             return res.status(200).json({
@@ -452,7 +452,7 @@ const deleteBackup = async (req, res) => {
 
         logger.info('Attempting to delete backup', { backupId });
 
-        if (!global.backupSystem) {
+        if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
@@ -462,7 +462,7 @@ const deleteBackup = async (req, res) => {
 
         // Try to delete using backup system first
         try {
-            const result = await global.backupSystem.deleteBackup(backupId);
+            const result = await globalThis.backupSystem.deleteBackup(backupId);
             logger.info('Backup deleted via backup system', { backupId });
 
             res.json({
@@ -680,7 +680,7 @@ const restoreBackupById = async (req, res) => {
             });
         }
 
-        const result = await global.backupSystem.restoreFromBackup(backupId);
+        const result = await globalThis.backupSystem.restoreFromBackup(backupId);
 
         res.json({
             success: true,
@@ -771,7 +771,7 @@ const createTestArchiveData = async (req, res) => {
     try {
         logger.info('Creating test archive data');
 
-        if (!global.dbPool || !global.dbPool.pool) {
+        if (!globalThis.dbPool || !globalThis.dbPool.pool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -789,20 +789,20 @@ const createTestArchiveData = async (req, res) => {
         logger.debug('Creating test data with date', { oldDateStr, monthsOld: 25 });
 
         // Clean up existing test data
-        await global.dbPool.pool.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
-        await global.dbPool.pool.execute(`DELETE FROM absensi_guru WHERE keterangan = 'Test data for archive'`);
-        await global.dbPool.pool.execute(`DELETE FROM absensi_siswa_archive WHERE keterangan = 'Test data for archive'`);
-        await global.dbPool.pool.execute(`DELETE FROM absensi_guru_archive WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_guru WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_siswa_archive WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_guru_archive WHERE keterangan = 'Test data for archive'`);
 
         // Get valid jadwal_id and guru_id
-        const [jadwalRows] = await global.dbPool.pool.execute(`SELECT id_jadwal FROM jadwal LIMIT 1`);
-        const [guruRows] = await global.dbPool.pool.execute(`SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1`);
+        const [jadwalRows] = await globalThis.dbPool.pool.execute(`SELECT id_jadwal FROM jadwal LIMIT 1`);
+        const [guruRows] = await globalThis.dbPool.pool.execute(`SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1`);
 
         const validJadwalId = jadwalRows.length > 0 ? jadwalRows[0].id_jadwal : null;
         const validGuruId = guruRows.length > 0 ? guruRows[0].id_guru : null;
 
         // Insert test student attendance records
-        const [studentResult] = await global.dbPool.pool.execute(`
+        const [studentResult] = await globalThis.dbPool.pool.execute(`
             INSERT INTO absensi_siswa (siswa_id, jadwal_id, tanggal, status, keterangan, guru_id)
             SELECT 
                 s.id_siswa as siswa_id,
@@ -850,7 +850,7 @@ const archiveOldData = async (req, res) => {
 
         logger.info('Archiving data older than months', { monthsOld });
 
-        if (!global.backupSystem) {
+        if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
             return res.status(503).json({
                 error: 'Backup system not ready',
@@ -858,7 +858,7 @@ const archiveOldData = async (req, res) => {
             });
         }
 
-        if (!global.dbPool || !global.dbPool.pool) {
+        if (!globalThis.dbPool || !globalThis.dbPool.pool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -866,7 +866,7 @@ const archiveOldData = async (req, res) => {
             });
         }
 
-        const archiveResult = await global.backupSystem.archiveOldData(monthsOld);
+        const archiveResult = await globalThis.backupSystem.archiveOldData(monthsOld);
 
         res.json({
             success: true,
@@ -891,7 +891,7 @@ const getArchiveStats = async (req, res) => {
     try {
         logger.info('Getting archive statistics');
 
-        if (!global.dbPool || !global.dbPool.pool) {
+        if (!globalThis.dbPool || !globalThis.dbPool.pool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -902,7 +902,7 @@ const getArchiveStats = async (req, res) => {
         // Get student archive count
         let studentArchiveCount = 0;
         try {
-            const [studentArchive] = await global.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
+            const [studentArchive] = await globalThis.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
             studentArchiveCount = studentArchive[0]?.count || 0;
         } catch (error) {
             logger.warn('Student archive table not found, using 0');
@@ -911,7 +911,7 @@ const getArchiveStats = async (req, res) => {
         // Get teacher archive count
         let teacherArchiveCount = 0;
         try {
-            const [teacherArchive] = await global.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
+            const [teacherArchive] = await globalThis.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
             teacherArchiveCount = teacherArchive[0]?.count || 0;
         } catch (error) {
             logger.warn('Teacher archive table not found, using 0');
@@ -923,11 +923,11 @@ const getArchiveStats = async (req, res) => {
         // Get last archive date
         let lastArchive = null;
         try {
-            const [lastArchiveResult] = await global.dbPool.pool.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
+            const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
             lastArchive = lastArchiveResult[0]?.last_archive || null;
         } catch (error) {
             try {
-                const [lastArchiveResult] = await global.dbPool.pool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
+                const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
                 lastArchive = lastArchiveResult[0]?.last_archive || null;
             } catch (err) {
                 // Table doesn't exist
@@ -966,17 +966,17 @@ const getArchiveStats = async (req, res) => {
 const getDatabaseStatus = async (req, res) => {
     try {
         const status = {
-            dbPool: !!global.dbPool,
-            dbPoolType: typeof global.dbPool,
-            dbPoolPool: !!global.dbPool?.pool,
-            dbPoolPoolType: typeof global.dbPool?.pool,
-            queryOptimizer: !!global.queryOptimizer,
-            backupSystem: !!global.backupSystem,
-            backupSystemType: typeof global.backupSystem,
-            backupSystemConfig: global.backupSystem ? {
-                backupDir: global.backupSystem.backupDir,
-                archiveDir: global.backupSystem.archiveDir,
-                pool: !!global.backupSystem.pool
+            dbPool: !!globalThis.dbPool,
+            dbPoolType: typeof globalThis.dbPool,
+            dbPoolPool: !!globalThis.dbPool?.pool,
+            dbPoolPoolType: typeof globalThis.dbPool?.pool,
+            queryOptimizer: !!globalThis.queryOptimizer,
+            backupSystem: !!globalThis.backupSystem,
+            backupSystemType: typeof globalThis.backupSystem,
+            backupSystemConfig: globalThis.backupSystem ? {
+                backupDir: globalThis.backupSystem.backupDir,
+                archiveDir: globalThis.backupSystem.archiveDir,
+                pool: !!globalThis.backupSystem.pool
             } : null,
             timestamp: new Date().toISOString()
         };
@@ -1122,9 +1122,9 @@ const saveBackupSettings = async (req, res) => {
         await fs.writeFile(settingsPath, JSON.stringify(validSettings, null, 2));
 
         // Update backup system configuration
-        if (global.backupSystem) {
-            global.backupSystem.backupConfig = {
-                ...global.backupSystem.backupConfig,
+        if (globalThis.backupSystem) {
+            globalThis.backupSystem.backupConfig = {
+                ...globalThis.backupSystem.backupConfig,
                 maxBackups: validSettings.maxBackups,
                 maxArchiveAge: validSettings.archiveAge,
                 compressionEnabled: validSettings.compression
@@ -1380,8 +1380,8 @@ const runCustomSchedule = async (req, res) => {
         }
 
         // Run the scheduled backup
-        if (global.backupSystem) {
-            const backupResult = await global.backupSystem.createScheduledBackup(schedule);
+        if (globalThis.backupSystem) {
+            const backupResult = await globalThis.backupSystem.createScheduledBackup(schedule);
 
             // Update schedule with last run time
             schedule.lastRun = new Date().toISOString();
@@ -1442,7 +1442,7 @@ const createManualBackup = async (req, res) => {
                 for (const table of tables) {
                     try {
                         // Get table structure
-                        const [createResult] = await global.dbPool.pool.execute(`SHOW CREATE TABLE ${table}`);
+                        const [createResult] = await globalThis.dbPool.pool.execute(`SHOW CREATE TABLE ${table}`);
                         if (createResult.length > 0) {
                             backupContent += `\n-- Table: ${table}\n`;
                             backupContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
@@ -1450,7 +1450,7 @@ const createManualBackup = async (req, res) => {
                         }
 
                         // Get table data
-                        const [rows] = await global.dbPool.pool.execute(`SELECT * FROM ${table}`);
+                        const [rows] = await globalThis.dbPool.pool.execute(`SELECT * FROM ${table}`);
                         if (rows.length > 0) {
                             for (const row of rows) {
                                 const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
@@ -1523,7 +1523,7 @@ const createManualBackup = async (req, res) => {
  */
 const getDisasterRecoveryStatus = async (req, res) => {
     try {
-        const status = global.disasterRecoverySystem.getSystemHealth();
+        const status = globalThis.disasterRecoverySystem.getSystemHealth();
         res.json({ success: true, data: status });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1536,7 +1536,7 @@ const getDisasterRecoveryStatus = async (req, res) => {
  */
 const setupBackupSchedule = async (req, res) => {
     try {
-        const result = await global.disasterRecoverySystem.setupBackupSchedule();
+        const result = await globalThis.disasterRecoverySystem.setupBackupSchedule();
         res.json({ success: true, message: 'Backup schedule setup completed successfully', data: result });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1550,7 +1550,7 @@ const setupBackupSchedule = async (req, res) => {
 const verifyBackup = async (req, res) => {
     try {
         const { backupPath, backupType } = req.body;
-        const verificationResult = await global.disasterRecoverySystem.verifyBackupFile(backupPath, backupType);
+        const verificationResult = await globalThis.disasterRecoverySystem.verifyBackupFile(backupPath, backupType);
         res.json({ success: true, message: 'Backup verification completed', data: verificationResult });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1565,7 +1565,7 @@ const testBackupRestoration = async (req, res) => {
     try {
         const { backupPath, testDatabase } = req.body;
         const startTime = Date.now();
-        const restorationResult = await global.disasterRecoverySystem.testBackupRestoration(backupPath, testDatabase);
+        const restorationResult = await globalThis.disasterRecoverySystem.testBackupRestoration(backupPath, testDatabase);
         const duration = Date.now() - startTime;
         res.json({ success: true, message: 'Backup restoration test completed', data: { ...restorationResult, duration } });
     } catch (error) {
@@ -1579,7 +1579,7 @@ const testBackupRestoration = async (req, res) => {
  */
 const getDisasterRecoveryDocs = async (req, res) => {
     try {
-        const documentation = await global.disasterRecoverySystem.getDocumentation();
+        const documentation = await globalThis.disasterRecoverySystem.getDocumentation();
         res.json({ success: true, data: documentation });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1593,7 +1593,7 @@ const getDisasterRecoveryDocs = async (req, res) => {
 const createDisasterBackup = async (req, res) => {
     try {
         const { backupType = 'full' } = req.body;
-        const backupResult = await global.disasterRecoverySystem.createBackup(backupType);
+        const backupResult = await globalThis.disasterRecoverySystem.createBackup(backupType);
         res.json({ success: true, message: 'Disaster backup created successfully', data: backupResult });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1606,7 +1606,7 @@ const createDisasterBackup = async (req, res) => {
  */
 const getDisasterBackupList = async (req, res) => {
     try {
-        const backups = await global.disasterRecoverySystem.getBackupList();
+        const backups = await globalThis.disasterRecoverySystem.getBackupList();
         res.json({ success: true, data: backups });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1620,7 +1620,7 @@ const getDisasterBackupList = async (req, res) => {
 const verifyBackupById = async (req, res) => {
     try {
         const { backupId } = req.params;
-        const verificationResult = await global.disasterRecoverySystem.verifyBackupById(backupId);
+        const verificationResult = await globalThis.disasterRecoverySystem.verifyBackupById(backupId);
         res.json({ success: true, data: verificationResult });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1634,7 +1634,7 @@ const verifyBackupById = async (req, res) => {
 const testRecoveryProcedure = async (req, res) => {
     try {
         const { procedureId } = req.params;
-        const testResult = await global.disasterRecoverySystem.testProcedure(procedureId);
+        const testResult = await globalThis.disasterRecoverySystem.testProcedure(procedureId);
         res.json({ success: true, data: testResult });
     } catch (error) {
         return sendDatabaseError(res, error);
@@ -1647,7 +1647,7 @@ const testRecoveryProcedure = async (req, res) => {
  */
 const getRecoveryProcedures = async (req, res) => {
     try {
-        const procedures = await global.disasterRecoverySystem.getProcedures();
+        const procedures = await globalThis.disasterRecoverySystem.getProcedures();
         res.json({ success: true, data: procedures });
     } catch (error) {
         return sendDatabaseError(res, error);

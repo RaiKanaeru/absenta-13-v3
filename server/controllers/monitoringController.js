@@ -22,7 +22,7 @@ export const getSecurityStats = async (req, res) => {
     log.requestStart('GetSecurityStats', {});
 
     try {
-        const stats = global.securitySystem.getSecurityStats();
+        const stats = globalThis.securitySystem.getSecurityStats();
         log.success('GetSecurityStats', { blockedIPs: stats?.blockedIPs?.length || 0 });
         return sendSuccessResponse(res, stats);
     } catch (error) {
@@ -42,7 +42,7 @@ export const getSecurityEvents = async (req, res) => {
     log.requestStart('GetSecurityEvents', { limit, type });
 
     try {
-        const events = global.securitySystem.getSecurityEvents(parseInt(limit), type);
+        const events = globalThis.securitySystem.getSecurityEvents(parseInt(limit), type);
         log.success('GetSecurityEvents', { count: events?.length || 0 });
         return sendSuccessResponse(res, events);
     } catch (error) {
@@ -60,7 +60,7 @@ export const getBlockedIPs = async (req, res) => {
     log.requestStart('GetBlockedIPs', {});
 
     try {
-        const blockedIPs = global.securitySystem.getBlockedIPs();
+        const blockedIPs = globalThis.securitySystem.getBlockedIPs();
         log.success('GetBlockedIPs', { count: blockedIPs?.length || 0 });
         return sendSuccessResponse(res, blockedIPs);
     } catch (error) {
@@ -84,7 +84,7 @@ export const blockIP = async (req, res) => {
             log.validationFail('ip', null, 'Required');
             return sendValidationError(res, 'IP address is required', { field: 'ip' });
         }
-        global.securitySystem.blockIP(ip, reason || 'Manual block by admin');
+        globalThis.securitySystem.blockIP(ip, reason || 'Manual block by admin');
         log.success('BlockIP', { ip });
         return sendSuccessResponse(res, null, `IP ${ip} blocked successfully`);
     } catch (error) {
@@ -108,7 +108,7 @@ export const unblockIP = async (req, res) => {
             log.validationFail('ip', null, 'Required');
             return sendValidationError(res, 'IP address is required', { field: 'ip' });
         }
-        global.securitySystem.unblockIP(ip);
+        globalThis.securitySystem.unblockIP(ip);
         log.success('UnblockIP', { ip });
         return sendSuccessResponse(res, null, `IP ${ip} unblocked successfully`);
     } catch (error) {
@@ -126,7 +126,7 @@ export const clearSecurityEvents = async (req, res) => {
     log.requestStart('ClearSecurityEvents', {});
 
     try {
-        global.securitySystem.clearSecurityEvents();
+        globalThis.securitySystem.clearSecurityEvents();
         log.success('ClearSecurityEvents', {});
         return sendSuccessResponse(res, null, 'Security events cleared successfully');
     } catch (error) {
@@ -148,7 +148,7 @@ export const getSystemMetrics = async (req, res) => {
     log.requestStart('GetSystemMetrics', {});
 
     try {
-        const metrics = global.systemMonitor.getMetrics();
+        const metrics = globalThis.systemMonitor.getMetrics();
         log.success('GetSystemMetrics', {});
         return sendSuccessResponse(res, metrics);
     } catch (error) {
@@ -166,7 +166,7 @@ export const getSystemAlerts = async (req, res) => {
     log.requestStart('GetSystemAlerts', {});
 
     try {
-        const alerts = global.systemMonitor.getAlerts();
+        const alerts = globalThis.systemMonitor.getAlerts();
         log.success('GetSystemAlerts', { count: alerts?.length || 0 });
         return sendSuccessResponse(res, alerts);
     } catch (error) {
@@ -184,7 +184,7 @@ export const getPerformanceHistory = async (req, res) => {
     log.requestStart('GetPerformanceHistory', {});
 
     try {
-        const history = global.systemMonitor.getPerformanceHistory();
+        const history = globalThis.systemMonitor.getPerformanceHistory();
         log.success('GetPerformanceHistory', { dataPoints: history?.length || 0 });
         return sendSuccessResponse(res, history);
     } catch (error) {
@@ -202,7 +202,7 @@ export const clearAlerts = async (req, res) => {
     log.requestStart('ClearAlerts', {});
 
     try {
-        global.systemMonitor.clearAlerts();
+        globalThis.systemMonitor.clearAlerts();
         log.success('ClearAlerts', {});
         return sendSuccessResponse(res, null, 'Alerts cleared successfully');
     } catch (error) {
@@ -220,8 +220,8 @@ export const getLoadBalancerStats = async (req, res) => {
     log.requestStart('GetLoadBalancerStats', {});
 
     try {
-        const stats = global.loadBalancer ? global.loadBalancer.getStats() : null;
-        log.success('GetLoadBalancerStats', { available: !!global.loadBalancer });
+        const stats = globalThis.loadBalancer ? globalThis.loadBalancer.getStats() : null;
+        log.success('GetLoadBalancerStats', { available: !!globalThis.loadBalancer });
         return sendSuccessResponse(res, stats);
     } catch (error) {
         log.error('GetLoadBalancerStats failed', { error: error.message });
@@ -238,8 +238,8 @@ export const populateCache = async (req, res) => {
     log.requestStart('PopulateCache', {});
 
     try {
-        if (global.cacheSystem) {
-            await global.cacheSystem.warmUp();
+        if (globalThis.cacheSystem) {
+            await globalThis.cacheSystem.warmUp();
             log.success('PopulateCache', {});
             return sendSuccessResponse(res, null, 'Cache populated successfully');
         } else {
@@ -261,8 +261,8 @@ export const clearCache = async (req, res) => {
     log.requestStart('ClearCache', {});
 
     try {
-        if (global.cacheSystem) {
-            global.cacheSystem.clear();
+        if (globalThis.cacheSystem) {
+            globalThis.cacheSystem.clear();
             log.success('ClearCache', {});
             return sendSuccessResponse(res, null, 'Cache cleared successfully');
         } else {
@@ -284,8 +284,8 @@ export const getPerformanceMetrics = async (req, res) => {
     log.requestStart('GetPerformanceMetrics', {});
 
     try {
-        const metrics = global.performanceOptimizer ? global.performanceOptimizer.getMetrics() : null;
-        log.success('GetPerformanceMetrics', { available: !!global.performanceOptimizer });
+        const metrics = globalThis.performanceOptimizer ? globalThis.performanceOptimizer.getMetrics() : null;
+        log.success('GetPerformanceMetrics', { available: !!globalThis.performanceOptimizer });
         return sendSuccessResponse(res, metrics);
     } catch (error) {
         log.error('GetPerformanceMetrics failed', { error: error.message });
@@ -302,8 +302,8 @@ export const clearPerformanceCache = async (req, res) => {
     log.requestStart('ClearPerformanceCache', {});
 
     try {
-        if (global.performanceOptimizer) {
-            global.performanceOptimizer.clearCache();
+        if (globalThis.performanceOptimizer) {
+            globalThis.performanceOptimizer.clearCache();
             log.success('ClearPerformanceCache', {});
             return sendSuccessResponse(res, null, 'Performance cache cleared successfully');
         } else {
@@ -327,11 +327,11 @@ export const toggleLoadBalancer = async (req, res) => {
     log.requestStart('ToggleLoadBalancer', { enabled });
 
     try {
-        if (global.loadBalancer) {
+        if (globalThis.loadBalancer) {
             if (enabled) {
-                await global.loadBalancer.enable();
+                await globalThis.loadBalancer.enable();
             } else {
-                await global.loadBalancer.disable();
+                await globalThis.loadBalancer.disable();
             }
             log.success('ToggleLoadBalancer', { enabled });
             return sendSuccessResponse(res, null, `Load balancer ${enabled ? 'enabled' : 'disabled'}`);
@@ -354,8 +354,8 @@ export const getCircuitBreakerStatus = async (req, res) => {
     log.requestStart('GetCircuitBreakerStatus', {});
 
     try {
-        const status = global.circuitBreaker ? global.circuitBreaker.getStatus() : null;
-        log.success('GetCircuitBreakerStatus', { available: !!global.circuitBreaker });
+        const status = globalThis.circuitBreaker ? globalThis.circuitBreaker.getStatus() : null;
+        log.success('GetCircuitBreakerStatus', { available: !!globalThis.circuitBreaker });
         return sendSuccessResponse(res, status);
     } catch (error) {
         log.error('GetCircuitBreakerStatus failed', { error: error.message });
@@ -372,8 +372,8 @@ export const resetCircuitBreaker = async (req, res) => {
     log.requestStart('ResetCircuitBreaker', {});
 
     try {
-        if (global.circuitBreaker) {
-            global.circuitBreaker.reset();
+        if (globalThis.circuitBreaker) {
+            globalThis.circuitBreaker.reset();
             log.success('ResetCircuitBreaker', {});
             return sendSuccessResponse(res, null, 'Circuit breaker reset successfully');
         } else {
@@ -397,8 +397,8 @@ export const resolveAlert = async (req, res) => {
     log.requestStart('ResolveAlert', { alertId });
 
     try {
-        if (global.systemMonitor) {
-            global.systemMonitor.resolveAlert(alertId);
+        if (globalThis.systemMonitor) {
+            globalThis.systemMonitor.resolveAlert(alertId);
             log.success('ResolveAlert', { alertId });
             return sendSuccessResponse(res, null, `Alert ${alertId} resolved`);
         } else {
@@ -420,8 +420,8 @@ export const testAlert = async (req, res) => {
     log.requestStart('TestAlert', {});
 
     try {
-        if (global.systemMonitor) {
-            global.systemMonitor.createTestAlert();
+        if (globalThis.systemMonitor) {
+            globalThis.systemMonitor.createTestAlert();
             log.success('TestAlert', {});
             return sendSuccessResponse(res, null, 'Test alert created');
         } else {
@@ -443,8 +443,8 @@ export const getQueueStats = async (req, res) => {
     log.requestStart('GetQueueStats', {});
 
     try {
-        const stats = global.downloadQueue ? await global.downloadQueue.getQueueStats() : null;
-        log.success('GetQueueStats', { available: !!global.downloadQueue });
+        const stats = globalThis.downloadQueue ? await globalThis.downloadQueue.getQueueStats() : null;
+        log.success('GetQueueStats', { available: !!globalThis.downloadQueue });
         return sendSuccessResponse(res, stats);
     } catch (error) {
         log.error('GetQueueStats failed', { error: error.message });
@@ -462,7 +462,7 @@ export const getSystemPerformance = async (req, res) => {
 
     try {
         // Get load balancer stats
-        const loadBalancerStats = global.loadBalancer ? global.loadBalancer.getStats() : {
+        const loadBalancerStats = globalThis.loadBalancer ? globalThis.loadBalancer.getStats() : {
             totalRequests: 0,
             activeRequests: 0,
             completedRequests: 0,
@@ -477,9 +477,9 @@ export const getSystemPerformance = async (req, res) => {
         };
 
         // Get query optimizer stats
-        const queryOptimizerStats = global.loadBalancer ? {
-            queryStats: global.loadBalancer.getQueryStats(),
-            cacheStats: global.loadBalancer.getCacheStats()
+        const queryOptimizerStats = globalThis.loadBalancer ? {
+            queryStats: globalThis.loadBalancer.getQueryStats(),
+            cacheStats: globalThis.loadBalancer.getCacheStats()
         } : {
             queryStats: {},
             cacheStats: { size: 0, entries: [] }
@@ -499,17 +499,17 @@ export const getSystemPerformance = async (req, res) => {
 
         // Calculate CPU usage
         let cpuUsagePercent = 0;
-        if (global.lastCpuUsage) {
-            const userDiff = cpuUsageData.user - global.lastCpuUsage.user;
-            const systemDiff = cpuUsageData.system - global.lastCpuUsage.system;
+        if (globalThis.lastCpuUsage) {
+            const userDiff = cpuUsageData.user - globalThis.lastCpuUsage.user;
+            const systemDiff = cpuUsageData.system - globalThis.lastCpuUsage.system;
             const totalDiff = userDiff + systemDiff;
-            const timeElapsed = Date.now() - (global.lastCpuTime || Date.now());
+            const timeElapsed = Date.now() - (globalThis.lastCpuTime || Date.now());
             if (timeElapsed > 0) {
                 cpuUsagePercent = Math.min(100, Math.max(0, (totalDiff / (timeElapsed * 1000)) * 100));
             }
         }
-        global.lastCpuUsage = cpuUsageData;
-        global.lastCpuTime = Date.now();
+        globalThis.lastCpuUsage = cpuUsageData;
+        globalThis.lastCpuTime = Date.now();
 
         // Use shared formatBytes utility
 
@@ -547,9 +547,9 @@ export const getSystemPerformance = async (req, res) => {
 
         // Get Redis stats
         let redisStats = { connected: false, error: 'Redis not available' };
-        if (global.redis && global.redis.isOpen) {
+        if (globalThis.redis && globalThis.redis.isOpen) {
             try {
-                const info = await global.redis.info();
+                const info = await globalThis.redis.info();
                 redisStats = { connected: true, info };
             } catch (err) {
                 redisStats = { connected: false, error: err.message };
@@ -588,17 +588,17 @@ export const getMonitoringDashboard = async (req, res) => {
         const loadAverage = os.loadavg();
 
         let cpuUsage = 0;
-        if (global.lastCpuUsage) {
-            const userDiff = cpuUsageData.user - global.lastCpuUsage.user;
-            const systemDiff = cpuUsageData.system - global.lastCpuUsage.system;
+        if (globalThis.lastCpuUsage) {
+            const userDiff = cpuUsageData.user - globalThis.lastCpuUsage.user;
+            const systemDiff = cpuUsageData.system - globalThis.lastCpuUsage.system;
             const totalDiff = userDiff + systemDiff;
-            const timeElapsed = Date.now() - (global.lastCpuTime || Date.now());
+            const timeElapsed = Date.now() - (globalThis.lastCpuTime || Date.now());
             if (timeElapsed > 0) {
                 cpuUsage = Math.min(100, Math.max(0, (totalDiff / (timeElapsed * 1000)) * 100));
             }
         }
-        global.lastCpuUsage = cpuUsageData;
-        global.lastCpuTime = Date.now();
+        globalThis.lastCpuUsage = cpuUsageData;
+        globalThis.lastCpuTime = Date.now();
         
         // Fallback to load average for CPU usage
         if (cpuUsage === 0 && loadAverage[0] > 0) {
@@ -606,7 +606,7 @@ export const getMonitoringDashboard = async (req, res) => {
         }
 
         // Get load balancer stats
-        const loadBalancerStats = global.loadBalancer ? global.loadBalancer.getStats() : {
+        const loadBalancerStats = globalThis.loadBalancer ? globalThis.loadBalancer.getStats() : {
             totalRequests: 0,
             activeRequests: 0,
             completedRequests: 0,
@@ -619,8 +619,8 @@ export const getMonitoringDashboard = async (req, res) => {
 
         // Get database connection stats
         let dbConnectionStats = { active: 0, idle: 0, total: 0 };
-        if (global.dbOptimization && global.dbOptimization.pool) {
-            const pool = global.dbOptimization.pool;
+        if (globalThis.dbOptimization && globalThis.dbOptimization.pool) {
+            const pool = globalThis.dbOptimization.pool;
             dbConnectionStats = {
                 active: pool._allConnections?.length || 0,
                 idle: pool._freeConnections?.length || 0,
@@ -629,9 +629,9 @@ export const getMonitoringDashboard = async (req, res) => {
         }
 
         // Get system monitor data
-        const systemMonitorMetrics = global.systemMonitor ? global.systemMonitor.getMetrics() : null;
-        const alerts = global.systemMonitor ? global.systemMonitor.getAlerts() : [];
-        const healthStatus = global.systemMonitor ? global.systemMonitor.getHealthStatus() : { status: 'unknown', issues: [] };
+        const systemMonitorMetrics = globalThis.systemMonitor ? globalThis.systemMonitor.getMetrics() : null;
+        const alerts = globalThis.systemMonitor ? globalThis.systemMonitor.getAlerts() : [];
+        const healthStatus = globalThis.systemMonitor ? globalThis.systemMonitor.getHealthStatus() : { status: 'unknown', issues: [] };
 
         // Structure response to match frontend expectations
         const responseData = {
@@ -761,14 +761,14 @@ export const getDDoSStats = async (req, res) => {
     log.requestStart('GetDDoSStats', {});
 
     try {
-        if (!global.ddosProtection) {
+        if (!globalThis.ddosProtection) {
             return res.json({
                 enabled: false,
                 message: 'DDoS Protection tidak diaktifkan'
             });
         }
 
-        const stats = global.ddosProtection.getStats();
+        const stats = globalThis.ddosProtection.getStats();
         log.success('GetDDoSStats', { 
             totalRequests: stats.totalRequests,
             blockedRequests: stats.blockedRequests,
@@ -800,14 +800,14 @@ export const unblockDDoSIP = async (req, res) => {
             return sendValidationError(res, 'IP address diperlukan');
         }
 
-        if (!global.ddosProtection) {
+        if (!globalThis.ddosProtection) {
             return res.json({
                 success: false,
                 message: 'DDoS Protection tidak diaktifkan'
             });
         }
 
-        const result = global.ddosProtection.unblockIP(ip);
+        const result = globalThis.ddosProtection.unblockIP(ip);
         
         if (result) {
             log.success('UnblockDDoSIP', { ip });

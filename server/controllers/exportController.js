@@ -69,7 +69,7 @@ export const exportAbsensi = async (req, res) => {
 
         query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -134,7 +134,7 @@ export const exportTeacherList = async (req, res) => {
         const exportSystem = new AbsentaExportSystem();
 
         // Query data guru dari database
-        const [teachers] = await global.dbPool.execute(`
+        const [teachers] = await globalThis.dbPool.execute(`
             SELECT 
                 nama,
                 nip
@@ -189,7 +189,7 @@ export const exportStudentSummary = async (req, res) => {
 
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
 
-        const [students] = await global.dbPool.execute(query, params);
+        const [students] = await globalThis.dbPool.execute(query, params);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -242,7 +242,7 @@ export const exportStudentSummary = async (req, res) => {
 export const exportTeacherSummary = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        const [teachers] = await global.dbPool.execute(`
+        const [teachers] = await globalThis.dbPool.execute(`
             SELECT 
                 g.nama,
                 g.nip,
@@ -354,7 +354,7 @@ export const exportBandingAbsen = async (req, res) => {
 
         query += ' ORDER BY pba.tanggal_pengajuan DESC';
 
-        const [bandingData] = await global.dbPool.execute(query, params);
+        const [bandingData] = await globalThis.dbPool.execute(query, params);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -452,7 +452,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const [rows] = await global.dbPool.execute(query, [tahunAjaran, tahunAjaran]);
+        const [rows] = await globalThis.dbPool.execute(query, [tahunAjaran, tahunAjaran]);
 
         // Build Excel using ExcelJS directly
         const ExcelJS = (await import('exceljs')).default;
@@ -648,12 +648,12 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 
         query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Get class name for title
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await global.dbPool.execute(
+            const [kelasRows] = await globalThis.dbPool.execute(
                 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
                 [kelas_id]
             );
@@ -769,12 +769,12 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
             ORDER BY a.tanggal DESC, j.jam_mulai
         `;
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Get class name for title
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await global.dbPool.execute(
+            const [kelasRows] = await globalThis.dbPool.execute(
                 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
                 [kelas_id]
             );
@@ -927,12 +927,12 @@ export const exportRekapKetidakhadiran = async (req, res) => {
             query += ` GROUP BY YEAR(a.tanggal), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
         }
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Get class name
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await global.dbPool.execute(
+            const [kelasRows] = await globalThis.dbPool.execute(
                 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
                 [kelas_id]
             );
@@ -1038,7 +1038,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         }
         query += ` GROUP BY s.id_siswa, s.nis, s.nama, k.nama_kelas ORDER BY k.nama_kelas, s.nama`;
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         // Calculate percentage
         const dataWithPercentage = rows.map(row => {
@@ -1050,7 +1050,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         // Get class name
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+            const [kelasRows] = await globalThis.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
             if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
         }
 
@@ -1140,7 +1140,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const [rows] = await global.dbPool.execute(query, [tahun]);
+        const [rows] = await globalThis.dbPool.execute(query, [tahun]);
 
         // Calculate percentages
         const hariEfektifPerBulan = { 7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17, 1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20 };
@@ -1215,7 +1215,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
         const { kelas_id, tahun, semester = 'gasal' } = req.query;
         // Get class info and wali kelas
-        const [kelasRows] = await global.dbPool.execute(`
+        const [kelasRows] = await globalThis.dbPool.execute(`
             SELECT k.nama_kelas, g.nama as wali_kelas 
             FROM kelas k 
             LEFT JOIN guru g ON k.id_kelas = g.id_guru 
@@ -1225,7 +1225,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         const waliKelas = kelasRows.length > 0 ? kelasRows[0].wali_kelas : '-';
 
         // Get students
-        const [studentsRows] = await global.dbPool.execute(
+        const [studentsRows] = await globalThis.dbPool.execute(
             'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
             [kelas_id]
         );
@@ -1241,7 +1241,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         };
 
         // Get attendance data with S/I/A breakdown per month
-        const [presensiData] = await global.dbPool.execute(`
+        const [presensiData] = await globalThis.dbPool.execute(`
             SELECT 
                 a.siswa_id, 
                 MONTH(a.tanggal) as bulan,
@@ -1515,17 +1515,17 @@ export const exportPresensiSiswa = async (req, res) => {
     try {
         const { kelas_id, bulan, tahun } = req.query;
         // Get class name
-        const [kelasRows] = await global.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+        const [kelasRows] = await globalThis.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
         const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
 
         // Get students
-        const [studentsRows] = await global.dbPool.execute(
+        const [studentsRows] = await globalThis.dbPool.execute(
             'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
             [kelas_id]
         );
 
         // Get presensi data for the month
-        const [presensiRows] = await global.dbPool.execute(`
+        const [presensiRows] = await globalThis.dbPool.execute(`
             SELECT a.siswa_id, DATE_FORMAT(a.tanggal, '%Y-%m-%d') as tanggal, a.status, a.keterangan
             FROM absensi_siswa a INNER JOIN siswa s ON a.siswa_id = s.id_siswa
             WHERE s.kelas_id = ? AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) = ?
@@ -1594,7 +1594,7 @@ export const exportAdminAttendance = async (req, res) => {
             ORDER BY a.tanggal DESC, k.nama_kelas, s.nama
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
 
         let csvContent = '\uFEFF'; // UTF-8 BOM
         csvContent += 'Tanggal,Nama Siswa,NIS,Kelas,Status,Keterangan,Waktu Absen\n';
@@ -1649,7 +1649,7 @@ export const exportJadwalMatrix = async (req, res) => {
         if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
         query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
 
-        const [schedules] = await global.dbPool.execute(query, params);
+        const [schedules] = await globalThis.dbPool.execute(query, params);
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Jadwal Pelajaran Matrix');
@@ -1843,7 +1843,7 @@ export const exportJadwalGrid = async (req, res) => {
         // Order by Class, Day, Time
         query += ` ORDER BY k.nama_kelas, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke`;
 
-        const [schedules] = await global.dbPool.execute(query, params);
+        const [schedules] = await globalThis.dbPool.execute(query, params);
 
         if (schedules.length === 0) {
             throw new Error('Tidak ada data jadwal untuk diexport');
@@ -2073,7 +2073,7 @@ export const exportJadwalPrint = async (req, res) => {
         if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
         query += ` ORDER BY k.nama_kelas, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke`;
 
-        const [schedules] = await global.dbPool.execute(query, params);
+        const [schedules] = await globalThis.dbPool.execute(query, params);
 
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
@@ -2153,7 +2153,7 @@ export const requestExcelDownload = async (req, res) => {
             timestamp: new Date().toISOString()
         };
 
-        const job = await global.downloadQueue.addDownloadJob(jobData);
+        const job = await globalThis.downloadQueue.addDownloadJob(jobData);
 
         res.json({
             success: true,
@@ -2179,7 +2179,7 @@ export const getDownloadStatus = async (req, res) => {
         const { jobId } = req.params;
         const userId = req.user.id;
 
-        const jobStatus = await global.downloadQueue.getJobStatus(jobId, userId);
+        const jobStatus = await globalThis.downloadQueue.getJobStatus(jobId, userId);
 
         res.json({
             success: true,
@@ -2204,7 +2204,7 @@ export const downloadFile = async (req, res) => {
         const path = await import('path');
         const fs = await import('fs/promises');
 
-        const filePath = path.default.join(global.downloadQueue.downloadDir, filename);
+        const filePath = path.default.join(globalThis.downloadQueue.downloadDir, filename);
 
         // Check if file exists
         try {
@@ -2214,7 +2214,7 @@ export const downloadFile = async (req, res) => {
         }
 
         // Verify user has access to this file
-        const hasAccess = await global.downloadQueue.verifyFileAccess(filename, userId);
+        const hasAccess = await globalThis.downloadQueue.verifyFileAccess(filename, userId);
         if (!hasAccess) {
             return res.status(403).json({ error: 'Access denied' });
         }
@@ -2248,13 +2248,13 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         if (diffDays > 62) return res.status(400).json({ error: 'Rentang tanggal maksimal 62 hari' });
 
         // Get mapel info
-        const [mapelInfo] = await global.dbPool.execute(`
+        const [mapelInfo] = await globalThis.dbPool.execute(`
             SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
             FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
         `, [guruId]);
 
         // Get scheduled dates
-        const [jadwalData] = await global.dbPool.execute(`
+        const [jadwalData] = await globalThis.dbPool.execute(`
             SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
         `, [guruId, kelas_id]);
 
@@ -2271,7 +2271,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         }
 
         // Get actual attendance dates
-        const [actualDates] = await global.dbPool.execute(`
+        const [actualDates] = await globalThis.dbPool.execute(`
             SELECT DISTINCT DATE(a.tanggal) as tanggal
             FROM absensi_siswa a
             WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
@@ -2291,7 +2291,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const finalDates = Array.from(allDates).sort();
 
         // Get student summary stats
-        const [siswaData] = await global.dbPool.execute(`
+        const [siswaData] = await globalThis.dbPool.execute(`
             SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
                 COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
                 COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
@@ -2312,7 +2312,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         `, [finalDates.length, finalDates.length, startDate, endDate, guruId, kelas_id, kelas_id]);
 
         // Get detailed daily attendance
-        const [detailKehadiran] = await global.dbPool.execute(`
+        const [detailKehadiran] = await globalThis.dbPool.execute(`
             SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
@@ -2457,7 +2457,7 @@ export const exportRekapJadwalGuru = async (req, res) => {
             ORDER BY g.nama, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')
         `;
 
-        const [rows] = await global.dbPool.execute(query);
+        const [rows] = await globalThis.dbPool.execute(query);
 
         // Transform Data
         const teachers = {};
@@ -2615,7 +2615,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
         `;
 
         const tahunInt = parseInt(tahun);
-        const [rows] = await global.dbPool.execute(query, [tahunInt, tahunInt]);
+        const [rows] = await globalThis.dbPool.execute(query, [tahunInt, tahunInt]);
 
         // Transform data for template
         const templateData = rows.map((row, index) => ({
@@ -2672,7 +2672,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         }
 
         // Get kelas info
-        const [kelasRows] = await global.dbPool.execute(
+        const [kelasRows] = await globalThis.dbPool.execute(
             'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
             [kelas_id]
         );
@@ -2713,7 +2713,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
             templateExportService.setCell(worksheet, mapping.headerCells.namaKelas, namaKelas);
             
             // Get wali kelas from DB
-            const [waliKelasResult] = await global.dbPool.execute(
+            const [waliKelasResult] = await globalThis.dbPool.execute(
                 `SELECT g.nama as wali_kelas_nama
                  FROM kelas k 
                  LEFT JOIN guru g ON k.wali_kelas_id = g.id_guru 
@@ -2760,7 +2760,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
             ORDER BY s.nama
         `;
 
-        const [siswaRows] = await global.dbPool.execute(query, [tahun, kelas_id]);
+        const [siswaRows] = await globalThis.dbPool.execute(query, [tahun, kelas_id]);
 
         // Transform data
         const templateData = siswaRows.map((row, index) => ({

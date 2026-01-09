@@ -154,7 +154,7 @@ export const login = async (req, res) => {
         // Select 'id' (real column) AND 'id as id_user' (alias) because:
         // 1. 'user.id' is used in token generation (fixes 500 error)
         // 2. 'id_user' is expected by some parts of the backend
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT id, id as id_user, username, password, nama, role, email, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
             [username]
         );
@@ -204,7 +204,7 @@ export const login = async (req, res) => {
         let additionalData = {};
 
         if (user.role === 'guru') {
-            const [guruData] = await global.dbPool.execute(
+            const [guruData] = await globalThis.dbPool.execute(
                 `SELECT g.*, m.nama_mapel 
                  FROM guru g 
                  LEFT JOIN mapel m ON g.mapel_id = m.id_mapel 
@@ -219,7 +219,7 @@ export const login = async (req, res) => {
                 };
             }
         } else if (user.role === 'siswa') {
-            const [siswaData] = await global.dbPool.execute(
+            const [siswaData] = await globalThis.dbPool.execute(
                 `SELECT s.*, k.nama_kelas 
                  FROM siswa s 
                  JOIN kelas k ON s.kelas_id = k.id_kelas 

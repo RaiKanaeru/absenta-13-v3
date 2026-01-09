@@ -59,7 +59,7 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
       ORDER BY a.tanggal DESC, j.jam_mulai
     `;
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         log.success('GetPresensiSiswaSmkn13', { count: rows.length, guruId });
         res.json(rows);
@@ -148,7 +148,7 @@ export const getRekapKetidakhadiran = async (req, res) => {
       `;
         }
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
 
         log.success('GetRekapKetidakhadiran', { count: rows.length, reportType });
         res.json(rows);
@@ -169,7 +169,7 @@ export const getGuruClasses = async (req, res) => {
     log.requestStart('GetGuruClasses', { guruId });
 
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
              FROM jadwal j JOIN kelas k ON j.kelas_id = k.id_kelas 
              WHERE j.guru_id = ? AND j.status = 'aktif' ORDER BY k.nama_kelas`,
@@ -225,7 +225,7 @@ export const getAttendanceSummary = async (req, res) => {
         }
 
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         
         log.success('GetAttendanceSummary', { count: rows.length, guruId });
         res.json(rows);
@@ -268,7 +268,7 @@ export const getJadwalPertemuan = async (req, res) => {
             return sendValidationError(res, 'Rentang tanggal maksimal 62 hari', { maxDays: 62, requestedDays: diffDays });
         }
 
-        const [jadwalData] = await global.dbPool.execute(`
+        const [jadwalData] = await globalThis.dbPool.execute(`
             SELECT j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai,
                 COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
                 mp.kode_mapel, k.nama_kelas, rk.kode_ruang, rk.nama_ruang
@@ -343,14 +343,14 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        const [siswaData] = await global.dbPool.execute(
+        const [siswaData] = await globalThis.dbPool.execute(
             `SELECT s.id_siswa, s.nis, s.nama, k.nama_kelas
              FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas
              WHERE s.kelas_id = ? AND s.status = 'aktif' ORDER BY s.nama`,
             [kelas_id]
         );
 
-        const [absensiData] = await global.dbPool.execute(`
+        const [absensiData] = await globalThis.dbPool.execute(`
             SELECT a.siswa_id, a.status, DATE(a.waktu_absen) as tanggal, j.jam_ke
             FROM absensi_siswa a
             JOIN jadwal j ON a.jadwal_id = j.id_jadwal

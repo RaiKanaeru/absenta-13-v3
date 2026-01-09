@@ -21,7 +21,7 @@ export const getAttendanceSettings = async (req, res) => {
     log.requestStart('GetAttendanceSettings');
 
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT setting_key, setting_value, description, updated_at FROM attendance_settings ORDER BY setting_key'
         );
 
@@ -58,7 +58,7 @@ export const getSettingByKey = async (req, res) => {
     log.requestStart('GetSettingByKey', { key });
 
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT setting_key, setting_value, description, updated_at FROM attendance_settings WHERE setting_key = ?',
             [key]
         );
@@ -137,7 +137,7 @@ export const updateSetting = async (req, res) => {
         }
 
         // Upsert
-        await global.dbPool.execute(`
+        await globalThis.dbPool.execute(`
             INSERT INTO attendance_settings (setting_key, setting_value, description)
             VALUES (?, ?, ?)
             ON DUPLICATE KEY UPDATE 
@@ -168,7 +168,7 @@ export const updateMultipleSettings = async (req, res) => {
             return sendValidationError(res, 'Settings object wajib diisi');
         }
 
-        const connection = await global.dbPool.getConnection();
+        const connection = await globalThis.dbPool.getConnection();
         try {
             await connection.beginTransaction();
 
@@ -219,7 +219,7 @@ function getDefaultSettings() {
  */
 export async function getSettingValue(key, defaultValue = null) {
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT setting_value FROM attendance_settings WHERE setting_key = ?',
             [key]
         );

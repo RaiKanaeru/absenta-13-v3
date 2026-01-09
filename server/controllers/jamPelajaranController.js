@@ -60,7 +60,7 @@ export const getJamPelajaranByKelas = async (req, res) => {
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
         
-        const [rows] = await global.dbPool.execute(`
+        const [rows] = await globalThis.dbPool.execute(`
             SELECT jp.*, k.nama_kelas
             FROM jam_pelajaran jp
             JOIN kelas k ON jp.kelas_id = k.id_kelas
@@ -87,7 +87,7 @@ export const getAllJamPelajaran = async (req, res) => {
     log.requestStart('GetAll');
     
     try {
-        const [rows] = await global.dbPool.execute(`
+        const [rows] = await globalThis.dbPool.execute(`
             SELECT jp.*, k.nama_kelas, k.tingkat
             FROM jam_pelajaran jp
             JOIN kelas k ON jp.kelas_id = k.id_kelas
@@ -172,7 +172,7 @@ export const upsertJamPelajaran = async (req, res) => {
         }
         
         // Verify kelas exists
-        const [kelas] = await global.dbPool.execute(
+        const [kelas] = await globalThis.dbPool.execute(
             'SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas = ?',
             [kelasId]
         );
@@ -269,7 +269,7 @@ export const upsertJamPelajaran = async (req, res) => {
         
         let upsertedCount = 0;
         for (const jam of jam_pelajaran) {
-            await global.dbPool.execute(`
+            await globalThis.dbPool.execute(`
                 INSERT INTO jam_pelajaran (kelas_id, jam_ke, jam_mulai, jam_selesai, keterangan)
                 VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
@@ -312,13 +312,13 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
         }
         
         // Get kelas name for logging
-        const [kelas] = await global.dbPool.execute(
+        const [kelas] = await globalThis.dbPool.execute(
             'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
             [kelasId]
         );
         const kelasName = kelas.length > 0 ? kelas[0].nama_kelas : `ID ${kelasId}`;
         
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             'DELETE FROM jam_pelajaran WHERE kelas_id = ?',
             [kelasId]
         );
@@ -375,7 +375,7 @@ export const copyJamPelajaran = async (req, res) => {
         }
         
         // Check if source kelas has jam pelajaran
-        const [sourceJam] = await global.dbPool.execute(
+        const [sourceJam] = await globalThis.dbPool.execute(
             'SELECT jam_ke, jam_mulai, jam_selesai, keterangan FROM jam_pelajaran WHERE kelas_id = ? ORDER BY jam_ke',
             [sourceKelasId]
         );
@@ -386,7 +386,7 @@ export const copyJamPelajaran = async (req, res) => {
         }
         
         // Get source kelas name
-        const [sourceKelas] = await global.dbPool.execute(
+        const [sourceKelas] = await globalThis.dbPool.execute(
             'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
             [sourceKelasId]
         );
@@ -400,7 +400,7 @@ export const copyJamPelajaran = async (req, res) => {
         
         for (const targetId of targetKelasIds) {
             // Get target kelas name
-            const [targetKelas] = await global.dbPool.execute(
+            const [targetKelas] = await globalThis.dbPool.execute(
                 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
                 [targetId]
             );
@@ -411,7 +411,7 @@ export const copyJamPelajaran = async (req, res) => {
             }
             
             for (const jam of sourceJam) {
-                await global.dbPool.execute(`
+                await globalThis.dbPool.execute(`
                     INSERT INTO jam_pelajaran (kelas_id, jam_ke, jam_mulai, jam_selesai, keterangan)
                     VALUES (?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE

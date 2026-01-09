@@ -53,7 +53,7 @@ export const getSiswaBandingAbsen = async (req, res) => {
             ORDER BY ba.tanggal_pengajuan DESC
         `;
 
-        const [rows] = await global.dbPool.execute(query, [siswaId]);
+        const [rows] = await globalThis.dbPool.execute(query, [siswaId]);
         log.success('GetSiswaBanding', { count: rows.length, siswaId });
         res.json(rows);
     } catch (error) {
@@ -92,7 +92,7 @@ export const submitSiswaBandingAbsen = async (req, res) => {
             return sendValidationError(res, `Status harus salah satu dari: ${validStatuses.join(', ')}`);
         }
 
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await globalThis.dbPool.execute(
             'SELECT id_banding, status_banding FROM pengajuan_banding_absen WHERE siswa_id = ? AND jadwal_id = ? AND tanggal_absen = ?',
             [siswaId, jadwal_id, tanggal_absen]
         );
@@ -107,7 +107,7 @@ export const submitSiswaBandingAbsen = async (req, res) => {
             }
         }
 
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             `INSERT INTO pengajuan_banding_absen 
             (siswa_id, jadwal_id, tanggal_absen, status_asli, status_diajukan, alasan_banding, jenis_banding)
              VALUES (?, ?, ?, ?, ?, ?, 'individual')`,
@@ -130,7 +130,7 @@ export const getDaftarSiswa = async (req, res) => {
     log.requestStart('GetDaftarSiswa', { siswaId });
 
     try {
-        const [siswaData] = await global.dbPool.execute(
+        const [siswaData] = await globalThis.dbPool.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ? AND status = "aktif"',
             [siswaId]
         );
@@ -142,7 +142,7 @@ export const getDaftarSiswa = async (req, res) => {
 
         const kelasId = siswaData[0].kelas_id;
 
-        const [rows] = await global.dbPool.execute(`
+        const [rows] = await globalThis.dbPool.execute(`
             SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin, k.nama_kelas, u.username, u.status as user_status
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -189,11 +189,11 @@ export const getGuruBandingAbsen = async (req, res) => {
         }
 
         const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
-        const [countResult] = await global.dbPool.execute(countQuery, [guruId]);
+        const [countResult] = await globalThis.dbPool.execute(countQuery, [guruId]);
         const totalRecords = countResult[0].total;
 
         const pendingCountQuery = `SELECT COUNT(*) as total ${baseQuery} AND ba.status_banding = 'pending'`;
-        const [pendingCountResult] = await global.dbPool.execute(pendingCountQuery, [guruId]);
+        const [pendingCountResult] = await globalThis.dbPool.execute(pendingCountQuery, [guruId]);
         const totalPending = pendingCountResult[0].total;
 
         const mainQuery = `
@@ -206,7 +206,7 @@ export const getGuruBandingAbsen = async (req, res) => {
             LIMIT ? OFFSET ?
         `;
 
-        const [rows] = await global.dbPool.execute(mainQuery, [guruId, parseInt(limit), offset]);
+        const [rows] = await globalThis.dbPool.execute(mainQuery, [guruId, parseInt(limit), offset]);
         const totalPages = Math.ceil(totalRecords / parseInt(limit));
 
         log.success('GetGuruBanding', { count: rows.length, totalRecords, totalPending, guruId });
@@ -238,7 +238,7 @@ export const respondBandingAbsen = async (req, res) => {
 
         const tanggalKeputusanWIB = getMySQLDateTimeWIB();
 
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             `UPDATE pengajuan_banding_absen 
              SET status_banding = ?, catatan_guru = ?, tanggal_keputusan = ?, diproses_oleh = ?
              WHERE id_banding = ?`,
@@ -295,7 +295,7 @@ export const getGuruBandingAbsenHistory = async (req, res) => {
 
         query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetBandingHistory', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {

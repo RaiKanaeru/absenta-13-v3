@@ -40,12 +40,12 @@ export const getStats = async (req, res) => {
                 [absensiHariIni],
                 [persentaseKehadiran]
             ] = await Promise.all([
-                global.dbPool.execute('SELECT COUNT(*) as count FROM siswa WHERE status = "aktif"'),
-                global.dbPool.execute('SELECT COUNT(*) as count FROM guru WHERE status = "aktif"'),
-                global.dbPool.execute('SELECT COUNT(*) as count FROM kelas WHERE status = "aktif"'),
-                global.dbPool.execute('SELECT COUNT(*) as count FROM mapel WHERE status = "aktif"'),
-                global.dbPool.execute('SELECT COUNT(*) as count FROM absensi_guru WHERE tanggal = ?', [todayWIB]),
-                global.dbPool.execute(
+                globalThis.dbPool.execute('SELECT COUNT(*) as count FROM siswa WHERE status = "aktif"'),
+                globalThis.dbPool.execute('SELECT COUNT(*) as count FROM guru WHERE status = "aktif"'),
+                globalThis.dbPool.execute('SELECT COUNT(*) as count FROM kelas WHERE status = "aktif"'),
+                globalThis.dbPool.execute('SELECT COUNT(*) as count FROM mapel WHERE status = "aktif"'),
+                globalThis.dbPool.execute('SELECT COUNT(*) as count FROM absensi_guru WHERE tanggal = ?', [todayWIB]),
+                globalThis.dbPool.execute(
                     `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
                      FROM absensi_guru WHERE tanggal >= ?`,
                     [sevenDaysAgoWIB]
@@ -71,15 +71,15 @@ export const getStats = async (req, res) => {
                 [absensiMingguIni],
                 [persentaseKehadiran]
             ] = await Promise.all([
-                global.dbPool.execute(
+                globalThis.dbPool.execute(
                     `SELECT COUNT(*) as count FROM jadwal WHERE guru_id = ? AND hari = ? AND status = 'aktif'`,
                     [req.user.guru_id, currentDayWIB]
                 ),
-                global.dbPool.execute(
+                globalThis.dbPool.execute(
                     `SELECT COUNT(*) as count FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
                     [req.user.guru_id, sevenDaysAgoWIB]
                 ),
-                global.dbPool.execute(
+                globalThis.dbPool.execute(
                     `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
                      FROM absensi_guru WHERE guru_id = ? AND tanggal >= ?`,
                     [req.user.guru_id, thirtyDaysAgoWIB]
@@ -100,11 +100,11 @@ export const getStats = async (req, res) => {
                 [jadwalHariIni],
                 [absensiMingguIni]
             ] = await Promise.all([
-                global.dbPool.execute(
+                globalThis.dbPool.execute(
                     `SELECT COUNT(*) as count FROM jadwal WHERE kelas_id = ? AND hari = ? AND status = 'aktif'`,
                     [req.user.kelas_id, currentDayWIB]
                 ),
-                global.dbPool.execute(
+                globalThis.dbPool.execute(
                     `SELECT COUNT(*) as count FROM absensi_guru WHERE kelas_id = ? AND tanggal >= ?`,
                     [req.user.kelas_id, sevenDaysAgoWIB]
                 )
@@ -149,7 +149,7 @@ export const getChart = async (req, res) => {
         if (req.user.role === 'admin') {
             // Admin chart - Weekly attendance overview
             const startDateWIB = formatWIBDate(new Date(getWIBTime().getTime() - days * 24 * 60 * 60 * 1000));
-            const [weeklyData] = await global.dbPool.execute(
+            const [weeklyData] = await globalThis.dbPool.execute(
                 `SELECT DATE(tanggal) as tanggal,
                     SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) as hadir,
                     SUM(CASE WHEN status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END) as tidak_hadir
@@ -168,7 +168,7 @@ export const getChart = async (req, res) => {
         } else if (req.user.role === 'guru') {
             // Guru chart - Personal attendance
             const startDateWIB = formatWIBDate(new Date(getWIBTime().getTime() - days * 24 * 60 * 60 * 1000));
-            const [personalData] = await global.dbPool.execute(
+            const [personalData] = await globalThis.dbPool.execute(
                 `SELECT DATE(tanggal) as tanggal,
                     SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) as hadir,
                     SUM(CASE WHEN status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END) as tidak_hadir
@@ -210,7 +210,7 @@ export const getLiveSummary = async (req, res) => {
         const todayWIB = getMySQLDateWIB();
 
         // Get ongoing classes (current time between jam_mulai and jam_selesai)
-        const [ongoingClasses] = await global.dbPool.execute(`
+        const [ongoingClasses] = await globalThis.dbPool.execute(`
             SELECT 
                 j.id_jadwal,
                 j.jam_ke,
@@ -237,7 +237,7 @@ export const getLiveSummary = async (req, res) => {
         `, [todayWIB, currentDayWIB, currentTimeWIB, currentTimeWIB]);
 
         // Get overall attendance percentage for today
-        const [attendanceStats] = await global.dbPool.execute(`
+        const [attendanceStats] = await globalThis.dbPool.execute(`
             SELECT 
                 ROUND(
                     (SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0) / 
