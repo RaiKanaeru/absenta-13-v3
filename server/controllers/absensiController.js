@@ -624,7 +624,7 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
 
     if (key.includes('-')) {
         [jadwalId, guru_id] = key.split('-');
-        guru_id = parseInt(guru_id);
+        guru_id =.parseInt(guru_id);
     } else {
         jadwalId = key;
 
@@ -1107,7 +1107,7 @@ export async function getAbsensiHistory(req, res) {
         }
 
         query += ' ORDER BY ag.tanggal DESC, ag.waktu_catat DESC LIMIT ?';
-        params.push(parseInt(limit));
+        params.push.parseInt(limit));
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 

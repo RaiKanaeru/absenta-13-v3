@@ -503,7 +503,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         Object.assign(worksheet.getCell('A2'), titleStyle);
 
         worksheet.mergeCells('A3:Q3');
-        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahunAjaran}-${parseInt(tahunAjaran) + 1}`;
+        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahunAjaran}-$.parseInt(tahunAjaran) + 1}`;
         Object.assign(worksheet.getCell('A3'), titleStyle);
 
         // Header Row 1 - BULAN / JUMLAH HARI EFEKTIF KERJA (Row 5)
@@ -564,7 +564,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         let dataRow = 8;
         rows.forEach((guru, index) => {
             const monthlyData = [guru.jul, guru.agt, guru.sep, guru.okt, guru.nov, guru.des, guru.jan, guru.feb, guru.mar, guru.apr, guru.mei, guru.jun];
-            const totalKetidakhadiran = monthlyData.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+            const totalKetidakhadiran = monthlyData.reduce((sum, val) => sum + .parseInt(val) || 0), 0);
             const persenKetidakhadiran = totalHariEfektif > 0 ? ((totalKetidakhadiran / totalHariEfektif) * 100).toFixed(2) : '0.00';
             const persenKehadiran = (100 - parseFloat(persenKetidakhadiran)).toFixed(2);
 
@@ -574,7 +574,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             Object.assign(worksheet.getCell(`B${dataRow}`), { ...dataStyle, alignment: { horizontal: 'left', vertical: 'middle' } });
 
             monthCols.forEach((col, idx) => {
-                worksheet.getCell(dataRow, col).value = parseInt(monthlyData[idx]) || 0;
+                worksheet.getCell(dataRow, col).value =.parseInt(monthlyData[idx]) || 0;
                 Object.assign(worksheet.getCell(dataRow, col), { ...dataStyle, fill: idx < 6 ? lightGreenFill : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0FFFF' } } });
             });
 
@@ -599,7 +599,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         worksheet.getRow(headerRow2).height = 20;
         worksheet.getRow(headerRow3).height = 20;
 
-        const filename = `Rekap_Ketidakhadiran_Guru_${tahunAjaran}-${parseInt(tahunAjaran) + 1}`;
+        const filename = `Rekap_Ketidakhadiran_Guru_${tahunAjaran}-$.parseInt(tahunAjaran) + 1}`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
 
@@ -1313,7 +1313,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         worksheet.getCell('A2').alignment = { horizontal: 'center' };
 
         worksheet.mergeCells('A3:AH3');
-        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahun}-${parseInt(tahun) + 1}`;
+        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahun}-$.parseInt(tahun) + 1}`;
         worksheet.getCell('A3').font = { bold: true, size: 11, color: { argb: 'FFCC0000' } };
         worksheet.getCell('A3').alignment = { horizontal: 'center' };
 
@@ -1426,9 +1426,9 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
 
             months.forEach(month => {
                 const monthData = studentPresensi.find(p => p.bulan === month) || { S: 0, I: 0, A: 0 };
-                const sakitCount = parseInt(monthData.S) || 0;
-                const izinCount = parseInt(monthData.I) || 0;
-                const alpaCount = parseInt(monthData.A) || 0;
+                const sakitCount =.parseInt(monthData.S) || 0;
+                const izinCount =.parseInt(monthData.I) || 0;
+                const alpaCount =.parseInt(monthData.A) || 0;
                 const monthlyTotal = sakitCount + izinCount + alpaCount;
 
                 worksheet.getCell(dataRow, col).value = sakitCount || 0;
@@ -1549,7 +1549,7 @@ export const exportPresensiSiswa = async (req, res) => {
         `, [kelas_id, tahun, bulan]);
 
         // Prepare export data
-        const daysInMonth = new Date(parseInt(tahun), parseInt(bulan), 0).getDate();
+        const daysInMonth = new Date.parseInt(tahun),.parseInt(bulan), 0).getDate();
         const exportData = studentsRows.map(student => {
             const studentPresensi = presensiRows.filter(p => p.siswa_id === student.id);
             const attendanceRecord = {};
@@ -1730,7 +1730,7 @@ export const exportJadwalMatrix = async (req, res) => {
             if (!guruList) return [];
             return guruList.split('||').map(item => {
                 const [id, name] = item.split(':');
-                return { id: parseInt(id), name: name || 'Unknown' };
+                return { id:.parseInt(id), name: name || 'Unknown' };
             }).filter(g => g.name);
         };
 
@@ -2630,7 +2630,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const tahunInt = parseInt(tahun);
+        const tahunInt =.parseInt(tahun);
         const [rows] = await globalThis.dbPool.execute(query, [tahunInt, tahunInt]);
 
         // Transform data for template

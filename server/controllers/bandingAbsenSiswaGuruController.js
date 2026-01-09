@@ -172,7 +172,7 @@ export const getGuruBandingAbsen = async (req, res) => {
     log.requestStart('GetGuruBanding', { guruId, page, limit, filter_pending });
 
     try {
-        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const offset = .parseInt(page) - 1) *.parseInt(limit);
         const isFilterPending = filter_pending === 'true';
 
         let baseQuery = `
@@ -206,13 +206,13 @@ export const getGuruBandingAbsen = async (req, res) => {
             LIMIT ? OFFSET ?
         `;
 
-        const [rows] = await globalThis.dbPool.execute(mainQuery, [guruId, parseInt(limit), offset]);
-        const totalPages = Math.ceil(totalRecords / parseInt(limit));
+        const [rows] = await globalThis.dbPool.execute(mainQuery, [guruId,.parseInt(limit), offset]);
+        const totalPages = Math.ceil(totalRecords /.parseInt(limit));
 
         log.success('GetGuruBanding', { count: rows.length, totalRecords, totalPending, guruId });
         res.json({
             data: rows,
-            pagination: { currentPage: parseInt(page), totalPages, totalRecords, totalPending, limit: parseInt(limit) },
+            pagination: { currentPage:.parseInt(page), totalPages, totalRecords, totalPending, limit:.parseInt(limit) },
             totalPages, totalPending, totalAll: totalRecords
         });
     } catch (error) {

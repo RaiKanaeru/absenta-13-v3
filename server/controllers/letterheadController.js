@@ -340,7 +340,7 @@ export const deleteLetterheadConfig = async (req, res) => {
     log.requestStart('DeleteLetterhead', { id });
 
     try {
-        const success = await deleteLetterhead(parseInt(id));
+        const success = await deleteLetterhead.parseInt(id));
 
         if (!success) {
             log.warn('DeleteLetterhead - not found', { id });
