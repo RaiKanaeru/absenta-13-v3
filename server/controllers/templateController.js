@@ -315,7 +315,7 @@ async function addKelasReferenceSheet(workbook, sheetName = 'Ref Kelas') {
     ];
 
     try {
-        const [kelas] = await global.dbPool.execute(
+        const [kelas] = await globalThis.dbPool.execute(
             'SELECT id_kelas, nama_kelas, tingkat, status FROM kelas WHERE status = "aktif" ORDER BY nama_kelas'
         );
         kelas.forEach(k => {
@@ -336,25 +336,25 @@ async function addKelasReferenceSheet(workbook, sheetName = 'Ref Kelas') {
 async function addJadwalReferenceSheets(workbook) {
     try {
         // Kelas reference
-        const [kelas] = await global.dbPool.execute('SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"');
+        const [kelas] = await globalThis.dbPool.execute('SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"');
         const kelasSheet = workbook.addWorksheet('Ref Kelas');
         kelasSheet.addRow(['ID', 'Nama Kelas']);
         kelas.forEach(k => kelasSheet.addRow([k.id_kelas, k.nama_kelas]));
 
         // Mapel reference
-        const [mapel] = await global.dbPool.execute('SELECT id_mapel, nama_mapel FROM mapel WHERE status = "aktif"');
+        const [mapel] = await globalThis.dbPool.execute('SELECT id_mapel, nama_mapel FROM mapel WHERE status = "aktif"');
         const mapelSheet = workbook.addWorksheet('Ref Mapel');
         mapelSheet.addRow(['ID', 'Nama Mapel']);
         mapel.forEach(m => mapelSheet.addRow([m.id_mapel, m.nama_mapel]));
 
         // Guru reference
-        const [guru] = await global.dbPool.execute('SELECT id_guru, nama, nip FROM guru WHERE status = "aktif"');
+        const [guru] = await globalThis.dbPool.execute('SELECT id_guru, nama, nip FROM guru WHERE status = "aktif"');
         const guruSheet = workbook.addWorksheet('Ref Guru');
         guruSheet.addRow(['ID', 'Nama', 'NIP']);
         guru.forEach(g => guruSheet.addRow([g.id_guru, g.nama, g.nip]));
 
         // Ruang reference
-        const [ruang] = await global.dbPool.execute('SELECT id_ruang, kode_ruang, nama_ruang FROM ruang_kelas WHERE status = "aktif"');
+        const [ruang] = await globalThis.dbPool.execute('SELECT id_ruang, kode_ruang, nama_ruang FROM ruang_kelas WHERE status = "aktif"');
         const ruangSheet = workbook.addWorksheet('Ref Ruang');
         ruangSheet.addRow(['ID', 'Kode Ruang', 'Nama Ruang']);
         ruang.forEach(r => ruangSheet.addRow([r.id_ruang, r.kode_ruang, r.nama_ruang]));

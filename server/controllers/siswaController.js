@@ -36,7 +36,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                 sql = 'SELECT id FROM siswa WHERE nis = ? AND id != ? LIMIT 1';
                 params.push(excludeStudentId);
             }
-            validationPromises.push(global.dbPool.execute(sql, params));
+            validationPromises.push(globalThis.dbPool.execute(sql, params));
             validationChecks.push({ type: 'nis', errorMsg: 'NIS sudah digunakan' });
         }
     }
@@ -61,7 +61,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                 sql = 'SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1';
                 params.push(excludeUserId);
             }
-            validationPromises.push(global.dbPool.execute(sql, params));
+            validationPromises.push(globalThis.dbPool.execute(sql, params));
             validationChecks.push({ type: 'username', errorMsg: 'Username sudah digunakan' });
         }
     }
@@ -77,7 +77,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                 sql = 'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1';
                 params.push(excludeUserId);
             }
-            validationPromises.push(global.dbPool.execute(sql, params));
+            validationPromises.push(globalThis.dbPool.execute(sql, params));
             validationChecks.push({ type: 'email', errorMsg: 'Email sudah digunakan' });
         }
     }
@@ -87,7 +87,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
         if (!kelas_id || !Number.isInteger(Number(kelas_id)) || Number(kelas_id) <= 0) {
             errors.push('Kelas wajib dipilih');
         } else {
-            validationPromises.push(global.dbPool.execute(
+            validationPromises.push(globalThis.dbPool.execute(
                 'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif" LIMIT 1',
                 [kelas_id]
             ));
@@ -121,7 +121,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
                 sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1';
                 params.push(excludeStudentId);
             }
-            validationPromises.push(global.dbPool.execute(sql, params));
+            validationPromises.push(globalThis.dbPool.execute(sql, params));
             validationChecks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
         }
     }
@@ -193,8 +193,8 @@ export const getSiswa = async (req, res) => {
         query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
         params.push(Number(limit), Number(offset));
 
-        const [rows] = await global.dbPool.query(query, params);
-        const [countResult] = await global.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [rows] = await globalThis.dbPool.query(query, params);
+        const [countResult] = await globalThis.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         log.success('GetAll', { count: rows.length, total: countResult[0].total, page });
 
@@ -221,7 +221,7 @@ export const createSiswa = async (req, res) => {
     
     log.requestStart('Create', { nis, nama, username, kelas_id });
     
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         // Validasi payload
         const validation = await validateSiswaPayload(req.body, { isUpdate: false });
@@ -290,7 +290,7 @@ export const updateSiswa = async (req, res) => {
 
     log.requestStart('Update', { id, nis, nama, username });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
@@ -393,7 +393,7 @@ export const deleteSiswa = async (req, res) => {
 
     log.requestStart('Delete', { id });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
@@ -457,7 +457,7 @@ export const updateProfile = async (req, res) => {
         }
 
         // Check if username is already taken by another user
-        const [existingUser] = await global.dbPool.execute(
+        const [existingUser] = await globalThis.dbPool.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
@@ -469,7 +469,7 @@ export const updateProfile = async (req, res) => {
 
         // Check if nomor_telepon_siswa is already taken
         if (nomor_telepon_siswa && nomor_telepon_siswa.trim()) {
-            const [existingPhone] = await global.dbPool.execute(
+            const [existingPhone] = await globalThis.dbPool.execute(
                 'SELECT user_id FROM siswa WHERE nomor_telepon_siswa = ? AND user_id != ?',
                 [nomor_telepon_siswa.trim(), userId]
             );
@@ -481,7 +481,7 @@ export const updateProfile = async (req, res) => {
         }
 
         // Start transaction
-        const connection = await global.dbPool.getConnection();
+        const connection = await globalThis.dbPool.getConnection();
         await connection.beginTransaction();
 
         try {
@@ -512,7 +512,7 @@ export const updateProfile = async (req, res) => {
             await connection.commit();
 
             // Get updated user data
-            const [updatedUser] = await global.dbPool.execute(
+            const [updatedUser] = await globalThis.dbPool.execute(
                 `SELECT u.id, u.username, u.nama, u.email, u.role, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa,
                         s.nis, k.nama_kelas as kelas, s.jenis_kelamin, u.created_at, u.updated_at
                  FROM users u
@@ -560,7 +560,7 @@ export const changePassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
         // Update password in users table
-        await global.dbPool.execute(
+        await globalThis.dbPool.execute(
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );

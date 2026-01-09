@@ -30,7 +30,7 @@ export const getTeachersData = async (req, res) => {
             ORDER BY g.nama ASC
         `;
 
-        const [results] = await global.dbPool.execute(query);
+        const [results] = await globalThis.dbPool.execute(query);
         log.success('GetAll', { count: results.length });
         res.json(results);
     } catch (error) {
@@ -52,7 +52,7 @@ export const addTeacherData = async (req, res) => {
     
     log.requestStart('Create', { nip, nama, mata_pelajaran });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         if (!nip || !nama || !jenis_kelamin) {
             connection.release(); // Release before early return
@@ -127,7 +127,7 @@ export const updateTeacherData = async (req, res) => {
     
     log.requestStart('Update', { id, nip, nama });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         if (!nip || !nama || !jenis_kelamin) {
             connection.release(); // Release before early return
@@ -208,7 +208,7 @@ export const deleteTeacherData = async (req, res) => {
     
     log.requestStart('Delete', { id });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         await connection.beginTransaction();
 

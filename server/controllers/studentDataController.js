@@ -41,7 +41,7 @@ export const getStudentsData = async (req, res) => {
             ORDER BY s.nama ASC
         `;
 
-        const [results] = await global.dbPool.execute(query);
+        const [results] = await globalThis.dbPool.execute(query);
         log.success('GetAll', { count: results.length });
         res.json(results);
     } catch (error) {
@@ -63,7 +63,7 @@ export const addStudentData = async (req, res) => {
     
     log.requestStart('Create', { nis, nama, kelas_id });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         if (!nis || !nama || !kelas_id || !jenis_kelamin) {
             log.validationFail('required_fields', null, 'NIS, nama, kelas_id, jenis_kelamin required');
@@ -159,7 +159,7 @@ export const updateStudentData = async (req, res) => {
     
     log.requestStart('Update', { id, nis, nama });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         if (!nis || !nama || !kelas_id || !jenis_kelamin) {
             log.validationFail('required_fields', null, 'NIS, nama, kelas_id, jenis_kelamin required');
@@ -264,7 +264,7 @@ export const deleteStudentData = async (req, res) => {
     
     log.requestStart('Delete', { id });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         await connection.beginTransaction();
 
@@ -326,7 +326,7 @@ export const promoteStudents = async (req, res) => {
     
     log.requestStart('PromoteStudents', { fromClassId, toClassId, studentCount: studentIds?.length });
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         // Validasi input yang lebih ketat
         if (!fromClassId || !toClassId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {

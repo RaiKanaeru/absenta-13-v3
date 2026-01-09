@@ -124,8 +124,8 @@ export const updateSetting = async (req, res) => {
         }
 
         if (key === 'late_tolerance_minutes') {
-            const numVal = parseInt(value);
-            if (isNaN(numVal) || numVal < 0 || numVal > 60) {
+            const numVal = Number.parseInt(value);
+            if (Number.isNaN(numVal) || numVal < 0 || numVal > 60) {
                 return sendValidationError(res, 'late_tolerance_minutes harus angka 0-60');
             }
         }

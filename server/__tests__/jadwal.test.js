@@ -18,7 +18,7 @@ const res = {
 };
 
 // Mock Database
-global.dbPool = {
+globalThis.dbPool = {
     execute: mock.fn()
 };
 
@@ -36,7 +36,7 @@ describe('Jadwal Controller', () => {
         
         // glob.dbPool should ideally be mocked at module level properly, but since we are assigning it globally
         // we can just reset its execute method
-        global.dbPool.execute = mock.fn();
+        globalThis.dbPool.execute = mock.fn();
     });
 
     describe('Helper Logic Validation (via createJadwal)', () => {
@@ -70,16 +70,16 @@ describe('Jadwal Controller', () => {
     describe('getJadwal', () => {
         it('should return all schedules', async () => {
             const mockRows = [{ id: 1, hari: 'Senin', mapel: 'Matematika' }];
-            global.dbPool.execute.mock.mockImplementation(() => Promise.resolve([mockRows]));
+            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([mockRows]));
 
             await jadwalController.getJadwal(req, res);
 
-            assert.strictEqual(global.dbPool.execute.mock.callCount(), 1);
+            assert.strictEqual(globalThis.dbPool.execute.mock.callCount(), 1);
             assert.strictEqual(res.json.mock.calls[0].arguments[0], mockRows);
         });
 
         it('should handle database errors', async () => {
-            global.dbPool.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
+            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
 
             await jadwalController.getJadwal(req, res);
 
@@ -99,7 +99,7 @@ describe('Jadwal Controller', () => {
             };
 
             // Mock implementation sequence...
-            global.dbPool.execute.mock.mockImplementation(async (query) => {
+            globalThis.dbPool.execute.mock.mockImplementation(async (query) => {
                 if (query.includes('FROM guru WHERE id_guru IN')) return [[{ id_guru: 1 }]];
                 if (query.includes('FROM jadwal') && query.includes('kelas_id = ?')) return [[]]; // No class conflict
                 if (query.includes('FROM jadwal') && query.includes('guru_id = ?')) return [[]]; // No teacher conflict
@@ -132,7 +132,7 @@ describe('Jadwal Controller', () => {
     describe('deleteJadwal', () => {
         it('should delete existing schedule', async () => {
             req.params.id = 1;
-            global.dbPool.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 1 }]));
+            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 1 }]));
 
             await jadwalController.deleteJadwal(req, res);
 
@@ -142,7 +142,7 @@ describe('Jadwal Controller', () => {
 
         it('should return 404 if not found', async () => {
             req.params.id = 999;
-            global.dbPool.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 0 }]));
+            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 0 }]));
 
             await jadwalController.deleteJadwal(req, res);
 

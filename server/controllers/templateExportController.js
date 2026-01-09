@@ -43,17 +43,17 @@ export const downloadRekapKelasGasal = async (req, res) => {
         const tahunAjaran = tahun_ajaran || TAHUN_PELAJARAN;
         
         // Get class info
-        const kelasInfo = await getKelasInfo(global.dbPool, kelas_id);
+        const kelasInfo = await getKelasInfo(globalThis.dbPool, kelas_id);
         if (!kelasInfo) {
             log.warn('RekapKelasGasal - kelas not found', { kelas_id });
             return sendValidationError(res, `Kelas dengan ID ${kelas_id} tidak ditemukan`);
         }
         
         // Get wali kelas
-        const waliKelas = await getWaliKelas(global.dbPool, kelas_id);
+        const waliKelas = await getWaliKelas(globalThis.dbPool, kelas_id);
         
         // Fetch rekap data
-        const siswaData = await fetchRekapSiswaByKelas(global.dbPool, kelas_id, 'gasal', tahunAjaran);
+        const siswaData = await fetchRekapSiswaByKelas(globalThis.dbPool, kelas_id, 'gasal', tahunAjaran);
         
         log.debug('Fetched data for export', { studentCount: siswaData.length, kelas: kelasInfo.nama_kelas });
         
@@ -99,7 +99,7 @@ export const downloadRekapGuruTahunan = async (req, res) => {
 
     try {
         // Fetch rekap data
-        const guruData = await fetchRekapGuru(global.dbPool, tahunAjaran);
+        const guruData = await fetchRekapGuru(globalThis.dbPool, tahunAjaran);
         
         log.debug('Fetched guru data', { guruCount: guruData.length });
         
@@ -141,7 +141,7 @@ export const downloadRekapGuruMingguan = async (req, res) => {
 
     try {
         // Fetch guru jadwal data
-        const guruData = await fetchGuruJadwalMingguan(global.dbPool);
+        const guruData = await fetchGuruJadwalMingguan(globalThis.dbPool);
         
         log.debug('Fetched guru jadwal data', { guruCount: guruData.length });
         
@@ -184,7 +184,7 @@ export const downloadJadwalPelajaran = async (req, res) => {
     try {
         // Fetch jadwal data from DB
         const { fetchJadwalForExport } = await import('../services/export/templateExcelService.js');
-        const jadwalData = await fetchJadwalForExport(global.dbPool);
+        const jadwalData = await fetchJadwalForExport(globalThis.dbPool);
         
         log.debug('Fetched jadwal data', { jadwalCount: jadwalData.length });
         

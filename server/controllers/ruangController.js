@@ -43,7 +43,7 @@ export const getRuang = async (req, res) => {
 
         query += ` ORDER BY kode_ruang`;
 
-        const [rows] = await global.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetAll', { count: rows.length, hasSearch: !!search });
         res.json(rows);
     } catch (error) {
@@ -66,7 +66,7 @@ export const getRuangById = async (req, res) => {
     log.requestStart('GetById', { id });
 
     try {
-        const [rows] = await global.dbPool.execute(
+        const [rows] = await globalThis.dbPool.execute(
             'SELECT id_ruang as id, kode_ruang, nama_ruang, lokasi, kapasitas, status, created_at FROM ruang_kelas WHERE id_ruang = ? LIMIT 1',
             [id]
         );
@@ -116,7 +116,7 @@ export const createRuang = async (req, res) => {
         }
 
         // Check for duplicate kode_ruang
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await globalThis.dbPool.execute(
             'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ?',
             [kodeUpper]
         );
@@ -127,7 +127,7 @@ export const createRuang = async (req, res) => {
         }
 
         // Insert new room
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             `INSERT INTO ruang_kelas (kode_ruang, nama_ruang, lokasi, kapasitas, status) 
              VALUES (?, ?, ?, ?, ?)`,
             [kodeUpper, nama_ruang || null, lokasi || null, kapasitas || null, status || 'aktif']
@@ -173,7 +173,7 @@ export const updateRuang = async (req, res) => {
         }
 
         // Check for duplicate kode_ruang (excluding current room)
-        const [existing] = await global.dbPool.execute(
+        const [existing] = await globalThis.dbPool.execute(
             'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ? AND id_ruang != ?',
             [kodeUpper, id]
         );
@@ -184,7 +184,7 @@ export const updateRuang = async (req, res) => {
         }
 
         // Update room
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             `UPDATE ruang_kelas 
              SET kode_ruang = ?, nama_ruang = ?, lokasi = ?, kapasitas = ?, status = ?
              WHERE id_ruang = ?`,
@@ -219,7 +219,7 @@ export const deleteRuang = async (req, res) => {
 
     try {
         // Check if room is used in jadwal
-        const [jadwalUsage] = await global.dbPool.execute(
+        const [jadwalUsage] = await globalThis.dbPool.execute(
             'SELECT COUNT(*) as count FROM jadwal WHERE ruang_id = ?',
             [id]
         );
@@ -233,7 +233,7 @@ export const deleteRuang = async (req, res) => {
         }
 
         // Delete room
-        const [result] = await global.dbPool.execute(
+        const [result] = await globalThis.dbPool.execute(
             'DELETE FROM ruang_kelas WHERE id_ruang = ?',
             [id]
         );

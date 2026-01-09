@@ -42,7 +42,7 @@ export async function processMissingAttendance() {
         return;
     }
 
-    const connection = await global.dbPool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     
     try {
         await connection.beginTransaction();

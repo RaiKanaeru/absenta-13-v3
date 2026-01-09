@@ -48,7 +48,7 @@ function sheetToJsonByHeader(worksheet) {
  */
 const mapKelasByName = async (namaKelas) => {
     if (!namaKelas || namaKelas === '-') return null;
-    const [rows] = await global.dbPool.execute(
+    const [rows] = await globalThis.dbPool.execute(
         'SELECT id_kelas FROM kelas WHERE nama_kelas = ? AND status = "aktif"',
         [namaKelas.trim()]
     );
@@ -60,7 +60,7 @@ const mapKelasByName = async (namaKelas) => {
  */
 const mapMapelByName = async (namaMapel) => {
     if (!namaMapel || namaMapel === '-') return null;
-    const [rows] = await global.dbPool.execute(
+    const [rows] = await globalThis.dbPool.execute(
         'SELECT id_mapel FROM mapel WHERE nama_mapel = ? AND status = "aktif"',
         [namaMapel.trim()]
     );
@@ -72,7 +72,7 @@ const mapMapelByName = async (namaMapel) => {
  */
 const mapGuruByName = async (namaGuru) => {
     if (!namaGuru || namaGuru === '-') return null;
-    const [rows] = await global.dbPool.execute(
+    const [rows] = await globalThis.dbPool.execute(
         'SELECT id_guru FROM guru WHERE nama = ? AND status = "aktif"',
         [namaGuru.trim()]
     );
@@ -84,7 +84,7 @@ const mapGuruByName = async (namaGuru) => {
  */
 const mapRuangByKode = async (kodeRuang) => {
     if (!kodeRuang || kodeRuang === '-') return null;
-    const [rows] = await global.dbPool.execute(
+    const [rows] = await globalThis.dbPool.execute(
         'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ? AND status = "aktif"',
         [kodeRuang.trim()]
     );
