@@ -31,13 +31,11 @@ LABEL version="1.0"
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies and PM2
 RUN apk add --no-cache wget curl tzdata \
     && cp /usr/share/zoneinfo/Asia/Jakarta /etc/localtime \
-    && echo "Asia/Jakarta" > /etc/timezone
-
-# Install PM2
-RUN npm install -g pm2
+    && echo "Asia/Jakarta" > /etc/timezone \
+    && npm install -g pm2
 
 # Copy package files
 COPY package*.json ./
