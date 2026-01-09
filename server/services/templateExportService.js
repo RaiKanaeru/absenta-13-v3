@@ -9,8 +9,8 @@
  */
 
 import ExcelJS from 'exceljs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('TemplateExport');
@@ -48,7 +48,7 @@ export async function loadTemplate(templateName) {
 export async function templateExists(templateName) {
     const templatePath = path.join(TEMPLATE_DIR, templateName);
     try {
-        const fs = await import('fs/promises');
+        const fs = await import('node:fs/promises');
         await fs.access(templatePath);
         return true;
     } catch {
@@ -144,7 +144,7 @@ export async function toBuffer(workbook) {
  */
 export async function listTemplates() {
     try {
-        const fs = await import('fs/promises');
+        const fs = await import('node:fs/promises');
         const files = await fs.readdir(TEMPLATE_DIR);
         return files.filter(f => f.endsWith('.xlsx'));
     } catch {
