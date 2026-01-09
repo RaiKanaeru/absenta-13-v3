@@ -10,7 +10,7 @@ import { describe, it, beforeEach, mock } from 'node:test';
 import * as teacherDataController from '../controllers/teacherDataController.js';
 
 // Mock DB Pool
-global.dbPool = {
+globalThis.dbPool = {
     execute: mock.fn(),
     getConnection: mock.fn()
 };
@@ -32,8 +32,8 @@ describe('Teacher Data Controller', () => {
         // Reset mocks
         res.status.mock.restore();
         res.json.mock.restore();
-        global.dbPool.execute.mock.restore();
-        global.dbPool.getConnection.mock.restore();
+        globalThis.dbPool.execute.mock.restore();
+        globalThis.dbPool.getConnection.mock.restore();
         
         // Reset defaults
         res.status = mock.fn(() => res);
@@ -45,16 +45,16 @@ describe('Teacher Data Controller', () => {
     describe('getTeachersData', () => {
         it('should return teacher list', async () => {
             const mockTeachers = [{ id: 1, nama: 'Guru A' }, { id: 2, nama: 'Guru B' }];
-            global.dbPool.execute.mock.mockImplementation(() => Promise.resolve([mockTeachers]));
+            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([mockTeachers]));
 
             await teacherDataController.getTeachersData(req, res);
 
-            assert.strictEqual(global.dbPool.execute.mock.callCount(), 1);
+            assert.strictEqual(globalThis.dbPool.execute.mock.callCount(), 1);
             assert.deepStrictEqual(res.json.mock.calls[0].arguments[0], mockTeachers);
         });
 
         it('should handle database errors', async () => {
-            global.dbPool.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
+            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
 
             await teacherDataController.getTeachersData(req, res);
 
@@ -68,7 +68,7 @@ describe('Teacher Data Controller', () => {
             req.body = { nama: 'Guru Baru' }; // Missing NIP, jenis_kelamin
             
             const release = mock.fn();
-            global.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({ release }));
+            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({ release }));
             
             await teacherDataController.addTeacherData(req, res);
             
@@ -85,7 +85,7 @@ describe('Teacher Data Controller', () => {
             const execute = mock.fn();
             
             // Mock connection & execute sequence
-            global.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({ 
+            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({ 
                 release, 
                 execute 
             }));
@@ -110,7 +110,7 @@ describe('Teacher Data Controller', () => {
             const commit = mock.fn();
             const execute = mock.fn();
 
-            global.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release, beginTransaction, commit, execute
             }));
 
@@ -139,7 +139,7 @@ describe('Teacher Data Controller', () => {
             const commit = mock.fn();
             const execute = mock.fn();
 
-            global.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release, beginTransaction, commit, execute
             }));
 
@@ -164,7 +164,7 @@ describe('Teacher Data Controller', () => {
             const rollback = mock.fn();
             const execute = mock.fn(); // Define execute mock
 
-            global.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release, beginTransaction, rollback, execute
             }));
 
