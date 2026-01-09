@@ -566,7 +566,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             const monthlyData = [guru.jul, guru.agt, guru.sep, guru.okt, guru.nov, guru.des, guru.jan, guru.feb, guru.mar, guru.apr, guru.mei, guru.jun];
             const totalKetidakhadiran = monthlyData.reduce((sum, val) => sum + .parseInt(val) || 0), 0);
             const persenKetidakhadiran = totalHariEfektif > 0 ? ((totalKetidakhadiran / totalHariEfektif) * 100).toFixed(2) : '0.00';
-            const persenKehadiran = (100 - parseFloat(persenKetidakhadiran)).toFixed(2);
+            const persenKehadiran = (100 -.parseFloat(persenKetidakhadiran)).toFixed(2);
 
             worksheet.getCell(`A${dataRow}`).value = index + 1;
             worksheet.getCell(`B${dataRow}`).value = guru.nama;
@@ -579,8 +579,8 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             });
 
             worksheet.getCell(`O${dataRow}`).value = totalKetidakhadiran;
-            worksheet.getCell(`P${dataRow}`).value = parseFloat(persenKetidakhadiran);
-            worksheet.getCell(`Q${dataRow}`).value = parseFloat(persenKehadiran);
+            worksheet.getCell(`P${dataRow}`).value =.parseFloat(persenKetidakhadiran);
+            worksheet.getCell(`Q${dataRow}`).value =.parseFloat(persenKehadiran);
             ['O', 'P', 'Q'].forEach(c => Object.assign(worksheet.getCell(`${c}${dataRow}`), dataStyle));
 
             dataRow++;
@@ -1060,7 +1060,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         const dataWithPercentage = rows.map(row => {
             const total = row.H + row.I + row.S + row.A + row.D;
             const presentase = total > 0 ? ((row.H / total) * 100).toFixed(2) : '0.00';
-            return { ...row, presentase: parseFloat(presentase) };
+            return { ...row, presentase:.parseFloat(presentase) };
         });
 
         // Get class name
@@ -1104,7 +1104,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
             worksheet.getCell(row, 8).value = siswa.A || 0;
             worksheet.getCell(row, 9).value = siswa.D || 0;
             worksheet.getCell(row, 10).value = total;
-            worksheet.getCell(row, 11).value = `${parseFloat(siswa.presentase || 0).toFixed(2)}%`;
+            worksheet.getCell(row, 11).value = `$.parseFloat(siswa.presentase || 0).toFixed(2)}%`;
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -1178,8 +1178,8 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
 
             return {
                 ...row,
-                persentase_ketidakhadiran: parseFloat(persentaseKetidakhadiran.toFixed(2)),
-                persentase_kehadiran: parseFloat(persentaseKehadiran.toFixed(2))
+                persentase_ketidakhadiran:.parseFloat(persentaseKetidakhadiran.toFixed(2)),
+                persentase_kehadiran:.parseFloat(persentaseKehadiran.toFixed(2))
             };
         });
 
@@ -1461,10 +1461,10 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             worksheet.getCell(dataRow, col + 3).value = jumlahTotal;
 
             const persenTidakHadir = TOTAL_HARI_EFEKTIF > 0 ? ((jumlahTotal / TOTAL_HARI_EFEKTIF) * 100).toFixed(2) : '0.00';
-            const persenHadir = (100 - parseFloat(persenTidakHadir)).toFixed(2);
+            const persenHadir = (100 -.parseFloat(persenTidakHadir)).toFixed(2);
 
-            worksheet.getCell(dataRow, col + 4).value = parseFloat(persenTidakHadir);
-            worksheet.getCell(dataRow, col + 5).value = parseFloat(persenHadir);
+            worksheet.getCell(dataRow, col + 4).value =.parseFloat(persenTidakHadir);
+            worksheet.getCell(dataRow, col + 5).value =.parseFloat(persenHadir);
 
             // Apply styles to summary columns
             for (let columnOffset = 0; columnOffset < 6; columnOffset++) {
@@ -1495,7 +1495,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             : '100.00';
 
         const lastCol = col + 5;
-        worksheet.getCell(dataRow, lastCol).value = parseFloat(avgPersenHadir);
+        worksheet.getCell(dataRow, lastCol).value =.parseFloat(avgPersenHadir);
         Object.assign(worksheet.getCell(dataRow, lastCol), { ...dataStyle, font: { bold: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B6B' } } });
 
         // Set column widths

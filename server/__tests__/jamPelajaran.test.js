@@ -40,7 +40,7 @@ function isValidTimeRange(jamMulai, jamSelesai) {
 function isValidJamKe(jamKe) {
     if (jamKe === undefined || jamKe === null) return false;
     const num = Number.parseInt(jamKe);
-    return !isNaN(num) && num >= MIN_JAM_KE && num <= MAX_JAM_KE;
+    return .isNaN(num) && num >= MIN_JAM_KE && num <= MAX_JAM_KE;
 }
 
 /**

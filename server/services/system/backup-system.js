@@ -366,7 +366,7 @@ class BackupSystem {
                                     if (value === null) return 'NULL';
                                     if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
                                     if (value instanceof Date) {
-                                        if (isNaN(value.getTime())) {
+                                        if .isNaN(value.getTime())) {
                                             return 'NULL';
                                         }
                                         return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
@@ -474,7 +474,7 @@ class BackupSystem {
                                     if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
                                     if (value instanceof Date) {
                                         // Check if date is valid
-                                        if (isNaN(value.getTime())) {
+                                        if .isNaN(value.getTime())) {
                                             return 'NULL';
                                         }
                                         return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
