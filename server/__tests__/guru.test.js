@@ -19,7 +19,7 @@ function validateNIP(nip) {
     if (!nip || typeof nip !== 'string') {
         return { valid: false, error: 'NIP wajib diisi' };
     }
-    if (!/^[0-9]{10,20}$/.test(nip)) {
+    if (!/^\\d{10,20}$/.test(nip)) {
         return { valid: false, error: 'NIP harus berupa angka 10-20 digit' };
     }
     return { valid: true };

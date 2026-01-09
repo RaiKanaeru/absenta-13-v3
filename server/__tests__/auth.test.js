@@ -107,7 +107,7 @@ describe('Rate Limiting', () => {
 });
 
 describe('Time Validation', () => {
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    const timeRegex = /^([01]?\\d|2[0-3]):[0-5]\\d$/;
     
     function validateTimeFormat(timeString) {
         if (!timeString || typeof timeString !== 'string') return false;

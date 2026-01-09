@@ -24,7 +24,7 @@ function validateStudentData({ nis, nama, kelas_id, jenis_kelamin }) {
     if (!nama || typeof nama !== 'string' || nama.trim().length < 2) {
         errors.push('Nama wajib diisi minimal 2 karakter');
     }
-    if (!kelas_id || isNaN(parseInt(kelas_id))) {
+    if (!kelas_id || isNaN(Number.parseInt(kelas_id))) {
         errors.push('Kelas wajib dipilih');
     }
     if (!jenis_kelamin || !['L', 'P'].includes(jenis_kelamin)) {
@@ -39,7 +39,7 @@ function validateStudentData({ nis, nama, kelas_id, jenis_kelamin }) {
  */
 function validatePhoneNumber(phone) {
     if (!phone) return { isValid: true }; // Optional field
-    if (!/^[0-9]{10,15}$/.test(phone)) {
+    if (!/^\d{10,15}$/.test(phone)) {
         return { isValid: false, error: 'Nomor telepon harus 10-15 digit' };
     }
     return { isValid: true };

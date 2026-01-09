@@ -12,7 +12,7 @@ import { describe, it } from 'node:test';
 // MOCK: Jam Pelajaran Validation Functions
 // ============================================================
 
-const TIME_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const MIN_JAM_KE = 1;
 const MAX_JAM_KE = 15;
 
@@ -31,7 +31,7 @@ function isValidTimeRange(jamMulai, jamSelesai) {
     if (!jamMulai || !jamSelesai) return false;
     const start = jamMulai.replace(/:/g, '');
     const end = jamSelesai.replace(/:/g, '');
-    return parseInt(start) < parseInt(end);
+    return Number.parseInt(start) < Number.parseInt(end);
 }
 
 /**
@@ -39,7 +39,7 @@ function isValidTimeRange(jamMulai, jamSelesai) {
  */
 function isValidJamKe(jamKe) {
     if (jamKe === undefined || jamKe === null) return false;
-    const num = parseInt(jamKe);
+    const num = Number.parseInt(jamKe);
     return !isNaN(num) && num >= MIN_JAM_KE && num <= MAX_JAM_KE;
 }
 
