@@ -80,7 +80,8 @@ export async function addLetterheadToWorksheet(workbook, worksheet, letterhead, 
     letterhead.lines.forEach((line, index) => {
         const lineRow = worksheet.getRow(currentRow);
         const text = typeof line === 'string' ? line : line.text;
-        const fontWeight = typeof line === 'object' ? line.fontWeight : (index === 0 ? 'bold' : 'normal');
+        const isFirstLine = index === 0;
+        const fontWeight = typeof line === 'object' ? line.fontWeight : (isFirstLine ? 'bold' : 'normal');
 
         lineRow.getCell(1).value = text;
         lineRow.getCell(1).font = fontWeight === 'bold' 

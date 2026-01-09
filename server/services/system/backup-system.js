@@ -1762,7 +1762,7 @@ class BackupSystem {
                                      const dirStats = await fs.stat(path.join(filePath, dirFile));
                                      if (dirStats.isFile()) totalSize += dirStats.size;
                                  }
-                             } catch(e) {}
+                             } catch(e) { /* Size calculation non-critical, continue with 0 */ }
 
                              backups.push({
                                  ...backupData,
@@ -1796,7 +1796,7 @@ class BackupSystem {
                                          const dirFileStat = await fs.stat(path.join(filePath, dirFile));
                                          if (dirFileStat.isFile()) size += dirFileStat.size;
                                      }
-                                 } catch(e) {}
+                                 } catch(e) { /* Size calculation non-critical, continue with 0 */ }
                              }
 
                              backups.push({
