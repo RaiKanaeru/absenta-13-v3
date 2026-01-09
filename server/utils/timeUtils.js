@@ -41,12 +41,12 @@ export function getWIBTime() {
 
     // Create date object with WIB values
     const wibDate = new Date(
-        parseInt(getValue('year')),
-        parseInt(getValue('month')) - 1,
-        parseInt(getValue('day')),
-        parseInt(getValue('hour')),
-        parseInt(getValue('minute')),
-        parseInt(getValue('second'))
+       .parseInt(getValue('year')),
+       .parseInt(getValue('month')) - 1,
+       .parseInt(getValue('day')),
+       .parseInt(getValue('hour')),
+       .parseInt(getValue('minute')),
+       .parseInt(getValue('second'))
     );
 
     return wibDate;
