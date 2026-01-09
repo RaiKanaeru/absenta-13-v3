@@ -11,7 +11,7 @@
  * - Challenge system triggers
  */
 
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { EventEmitter } from 'events';
 import { createLogger } from './logger.js';
 

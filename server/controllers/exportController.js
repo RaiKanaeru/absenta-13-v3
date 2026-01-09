@@ -2682,7 +2682,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
  */
 export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
     try {
-        const { kelas_id, semester, tahun } = req.query;
+        const { kelas_id, tahun } = req.query;
         if (!kelas_id || !tahun) {
             return res.status(400).json({ error: 'kelas_id dan tahun harus diisi' });
         }

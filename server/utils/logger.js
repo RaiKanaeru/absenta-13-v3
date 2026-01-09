@@ -16,7 +16,7 @@
  *   logger.error('Database failed', error, { query: 'SELECT...' });
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 
 // ================================================
 // LOG LEVELS

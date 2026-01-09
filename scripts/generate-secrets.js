@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 console.log('🔐 Security Keys Generator');
 console.log('═══════════════════════════════════════════════════════\n');
