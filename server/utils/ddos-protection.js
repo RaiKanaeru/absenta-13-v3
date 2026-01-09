@@ -340,7 +340,7 @@ class DDoSProtection extends EventEmitter {
         // 2. Sequential scanning (incrementing IDs)
         const numericPaths = record.paths.filter(p => /\/\d+$/.test(p));
         if (numericPaths.length > 20) {
-            const numbers = numericPaths.map(p =>.parseInt(p.match(/\/(\d+)$/)[1]));
+            const numbers = numericPaths.map(p => Number.parseInt(p.match(/\/(\d+)$/)[1]));
             let sequential = 0;
             for (let i = 1; i < numbers.length; i++) {
                 if (numbers[i] === numbers[i-1] + 1) sequential++;

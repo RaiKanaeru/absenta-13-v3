@@ -24,7 +24,7 @@ async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = nul
         if (!isUpdate || nip !== undefined) {
             if (!nip || typeof nip !== 'string') {
                 errors.push('NIP wajib diisi');
-            } else if (!/^[0-9]{10,20}$/.test(nip)) {
+            } else if (!/^\d{10,20}$/.test(nip)) {
                 errors.push('NIP harus berupa angka 10-20 digit');
             } else {
                 // Cek unik NIP

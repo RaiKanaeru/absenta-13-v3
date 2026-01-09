@@ -984,7 +984,7 @@ const importSiswa = async (req, res) => {
                     const nisValue = String(nis).trim();
                     if (nisValue.length < 8) rowErrors.push('NIS minimal 8 karakter');
                     if (nisValue.length > 15) rowErrors.push('NIS maksimal 15 karakter');
-                    if (!/^[0-9]+$/.test(nisValue)) rowErrors.push('NIS harus berupa angka');
+                    if (!/^\d+$/.test(nisValue)) rowErrors.push('NIS harus berupa angka');
 
                     // Cek duplikasi NIS dalam file
                     const duplicateNis = valid.find(v => v.nis === nisValue);

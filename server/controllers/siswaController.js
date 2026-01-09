@@ -112,7 +112,7 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
 
     // Validasi nomor telepon siswa (opsional)
     if (nomor_telepon_siswa !== undefined && nomor_telepon_siswa !== null && nomor_telepon_siswa !== '') {
-        if (!/^[0-9]{10,15}$/.test(nomor_telepon_siswa)) {
+        if (!/^\d{10,15}$/.test(nomor_telepon_siswa)) {
             errors.push('Nomor telepon siswa harus berupa angka 10-15 digit');
         } else {
             let sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';

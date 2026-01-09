@@ -37,7 +37,7 @@ function validateTimeFormat(timeString) {
     if (!timeString || typeof timeString !== 'string') {
         return false;
     }
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
     return timeRegex.test(timeString.trim());
 }
 

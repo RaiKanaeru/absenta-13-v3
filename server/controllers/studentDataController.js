@@ -167,7 +167,7 @@ export const updateStudentData = async (req, res) => {
         }
 
         // Validasi nomor telepon jika diisi
-        if (nomor_telepon_siswa && !/^[0-9]{10,15}$/.test(nomor_telepon_siswa)) {
+        if (nomor_telepon_siswa && !/^\d{10,15}$/.test(nomor_telepon_siswa)) {
             log.validationFail('nomor_telepon_siswa', nomor_telepon_siswa, 'Invalid phone format');
             return sendValidationError(res, 'Nomor telepon harus berupa angka 10-15 digit', { field: 'nomor_telepon_siswa' });
         }
