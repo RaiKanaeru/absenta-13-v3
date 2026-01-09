@@ -16,7 +16,7 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
     log.requestStart('GetSiswaPerwakilanInfo', { userId: req.user.id });
 
     try {
-        const [siswaData] = await global.dbPool.execute(
+        const [siswaData] = await globalThis.dbPool.execute(
             `SELECT u.id, u.username, u.nama, u.email, u.role, s.id_siswa, s.nis, s.kelas_id, 
                     k.nama_kelas, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa, s.jenis_kelamin, s.jabatan, 
                     u.created_at, u.updated_at
@@ -68,7 +68,7 @@ export const getGuruInfo = async (req, res) => {
     log.requestStart('GetGuruInfo', { userId: req.user.id });
 
     try {
-        const [guruData] = await global.dbPool.execute(
+        const [guruData] = await globalThis.dbPool.execute(
             `SELECT u.id, u.username, u.nama, u.email, u.role, g.id_guru, g.nip, g.mapel_id, 
                     m.nama_mapel, g.alamat, g.no_telp, g.jenis_kelamin, g.status, 
                     u.created_at, u.updated_at
@@ -119,7 +119,7 @@ export const getAdminInfo = async (req, res) => {
     log.requestStart('GetAdminInfo', { userId: req.user.id });
 
     try {
-        const [adminData] = await global.dbPool.execute(
+        const [adminData] = await globalThis.dbPool.execute(
             `SELECT id, username, nama, email, role, created_at, updated_at
              FROM users
              WHERE id = ?`,
@@ -166,7 +166,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
         log.debug('Date context', { currentDay, todayWIB });
 
         // Get siswa's class
-        const [siswaData] = await global.dbPool.execute(
+        const [siswaData] = await globalThis.dbPool.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
             [siswa_id]
         );
@@ -179,7 +179,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
         const kelasId = siswaData[0].kelas_id;
 
         // Get today's schedule for the class with multi-guru support
-        const [jadwalData] = await global.dbPool.execute(`
+        const [jadwalData] = await globalThis.dbPool.execute(`
             SELECT 
                 j.id_jadwal,
                 j.guru_id,
@@ -252,7 +252,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
 
     try {
         // Get siswa's class
-        const [siswaData] = await global.dbPool.execute(
+        const [siswaData] = await globalThis.dbPool.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
             [siswa_id]
         );
@@ -275,7 +275,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
         if (tanggal) {
             // Parse the input date string (YYYY-MM-DD format)
             const [year, month, day] = tanggal.split('-').map(Number);
-            if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+            if (!year || !month || !day || Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
                 log.validationFail('tanggal', tanggal, 'Invalid date format');
                 return sendValidationError(res, 'Format tanggal tidak valid (gunakan YYYY-MM-DD)');
             }
@@ -308,7 +308,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
         log.debug('Target date context', { targetDay, targetDateStr });
 
         // Get schedule for the target date with multi-guru support
-        const [jadwalData] = await global.dbPool.execute(`
+        const [jadwalData] = await globalThis.dbPool.execute(`
             SELECT 
                 j.id_jadwal,
                 j.guru_id,

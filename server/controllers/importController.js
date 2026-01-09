@@ -293,7 +293,7 @@ const importRuang = async (req, res) => {
                     rowErrors.push('status tidak valid');
                 }
 
-                if (kapasitas && isNaN(Number(kapasitas))) {
+                if (kapasitas && Number.isNaN(Number(kapasitas))) {
                     rowErrors.push('kapasitas harus berupa angka');
                 }
 
@@ -477,7 +477,7 @@ async function insertJadwalRecords(conn, validRecords) {
         
         // Insert jadwal_guru relations for pelajaran with guru_ids
         if (v.jenis_aktivitas === 'pelajaran' && Array.isArray(v.guru_ids) && v.guru_ids.length > 0) {
-            const validGuruIds = v.guru_ids.filter(gid => gid && !isNaN(gid) && gid > 0);
+            const validGuruIds = v.guru_ids.filter(gid => gid && !Number.isNaN(gid) && gid > 0);
             if (validGuruIds.length > 0) {
                 const values = validGuruIds.map((gid, idx) => [jadwalId, gid, idx === 0 ? 1 : 0]);
                 const placeholders = values.map(() => '(?, ?, ?)').join(', ');
