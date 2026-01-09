@@ -554,13 +554,23 @@ const downloadBackup = async (req, res) => {
         const { backupId } = req.params;
         const backupDir = path.join(process.cwd(), 'backups');
 
-        logger.info('Downloading backup', { backupId });
+        // Sanitize backupId to prevent path traversal attacks
+        const sanitizedBackupId = path.basename(backupId);
+        if (sanitizedBackupId !== backupId || !backupId || backupId.includes('..')) {
+            logger.warn('Invalid backup ID detected', { backupId });
+            return res.status(400).json({
+                error: 'Invalid backup ID',
+                message: 'Backup ID contains invalid characters'
+            });
+        }
+
+        logger.info('Downloading backup', { backupId: sanitizedBackupId });
 
         let filePath = null;
         let filename = null;
 
         // First, check if backupId is a directory
-        const backupSubDir = path.join(backupDir, backupId);
+        const backupSubDir = path.join(backupDir, sanitizedBackupId);
         try {
             const stats = await fs.stat(backupSubDir);
             if (stats.isDirectory()) {

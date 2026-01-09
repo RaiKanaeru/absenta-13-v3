@@ -20,7 +20,9 @@ const uploadLogo = multer({
         },
         filename(req, file, cb) {
             const ext = path.extname(file.originalname);
-            const prefix = req.body.logoType || 'logo';
+            // Sanitize logoType to prevent path traversal
+            const rawPrefix = req.body.logoType || 'logo';
+            const prefix = rawPrefix.replace(/[^a-zA-Z0-9_-]/g, '');
             cb(null, `${prefix}_${Date.now()}${ext}`);
         }
     }),

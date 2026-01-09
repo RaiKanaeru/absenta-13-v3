@@ -282,7 +282,8 @@ export const getJadwalPertemuan = async (req, res) => {
         `, [guruId, kelas_id]);
 
         const pertemuanDates = [];
-        for (let currentDate = new Date(start); currentDate <= end; currentDate.setDate(currentDate.getDate() + 1)) {
+        const endTime = end.getTime();
+        for (let currentDate = new Date(start); currentDate.getTime() <= endTime; currentDate.setDate(currentDate.getDate() + 1)) {
             const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
             const daySchedules = jadwalData.filter(j => j.hari === dayName);
             if (daySchedules.length > 0) {
