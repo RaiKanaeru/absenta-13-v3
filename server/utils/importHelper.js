@@ -263,6 +263,199 @@ function buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_
     };
 }
 
+// ================================================
+// STUDENT ACCOUNT IMPORT HELPER FUNCTIONS
+// ================================================
+
+const GENDER_ENUM = ['L', 'P'];
+
+/**
+ * Validate required fields for student account
+ * @param {Object} rowData - Row data from Excel
+ * @returns {string[]} Array of error messages
+ */
+function validateRequiredStudentFields(rowData) {
+    const errors = [];
+    if (!rowData.nama && !rowData['Nama Lengkap *']) errors.push('Nama lengkap wajib diisi');
+    if (!rowData.username && !rowData['Username *']) errors.push('Username wajib diisi');
+    if (!rowData.password && !rowData['Password *']) errors.push('Password wajib diisi');
+    if (!rowData.nis && !rowData['NIS *']) errors.push('NIS wajib diisi');
+    if (!rowData.kelas && !rowData['Kelas *']) errors.push('Kelas wajib diisi');
+    return errors;
+}
+
+/**
+ * Validate NIS field
+ * @param {string|number} nis - NIS value
+ * @param {Object[]} validRecords - Already validated records for file duplicate check
+ * @param {Set} existingNis - Set of existing NIS from database
+ * @returns {string[]} Array of error messages
+ */
+function validateNIS(nis, validRecords, existingNis) {
+    const errors = [];
+    if (!nis) return errors;
+    
+    const nisValue = String(nis).trim();
+    if (nisValue.length < 8) errors.push('NIS minimal 8 karakter');
+    if (nisValue.length > 15) errors.push('NIS maksimal 15 karakter');
+    if (!/^\d+$/.test(nisValue)) errors.push('NIS harus berupa angka');
+    
+    // Check file duplicate
+    if (validRecords.some(v => v.nis === nisValue)) {
+        errors.push('NIS duplikat dalam file');
+    }
+    
+    // Check database duplicate
+    if (existingNis && existingNis.has(nisValue)) {
+        errors.push('NIS sudah digunakan di database');
+    }
+    
+    return errors;
+}
+
+/**
+ * Validate username field
+ * @param {string} username - Username value
+ * @param {Object[]} validRecords - Already validated records for file duplicate check
+ * @param {Set} existingUsernames - Set of existing usernames from database
+ * @returns {string[]} Array of error messages
+ */
+function validateUsername(username, validRecords, existingUsernames) {
+    const errors = [];
+    if (!username) return errors;
+    
+    const usernameValue = String(username).trim();
+    if (usernameValue.length < 4) errors.push('Username minimal 4 karakter');
+    if (usernameValue.length > 50) errors.push('Username maksimal 50 karakter');
+    if (!/^[a-z0-9._-]+$/.test(usernameValue)) {
+        errors.push('Username harus huruf kecil, angka, titik, underscore, strip');
+    }
+    
+    // Check file duplicate
+    if (validRecords.some(v => v.username === usernameValue)) {
+        errors.push('Username duplikat dalam file');
+    }
+    
+    // Check database duplicate
+    if (existingUsernames && existingUsernames.has(usernameValue)) {
+        errors.push('Username sudah digunakan di database');
+    }
+    
+    return errors;
+}
+
+/**
+ * Validate password field
+ * @param {string} password - Password value
+ * @returns {string[]} Array of error messages
+ */
+function validatePassword(password) {
+    const errors = [];
+    if (password && String(password).trim().length < 6) {
+        errors.push('Password minimal 6 karakter');
+    }
+    return errors;
+}
+
+/**
+ * Validate email field
+ * @param {string} email - Email value
+ * @returns {string[]} Array of error messages
+ */
+function validateEmail(email) {
+    const errors = [];
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+        errors.push('Format email tidak valid');
+    }
+    return errors;
+}
+
+/**
+ * Validate gender field
+ * @param {string} jenisKelamin - Gender value
+ * @returns {string[]} Array of error messages
+ */
+function validateGender(jenisKelamin) {
+    const errors = [];
+    if (jenisKelamin && !GENDER_ENUM.includes(String(jenisKelamin).toUpperCase())) {
+        errors.push('Jenis kelamin harus L atau P');
+    }
+    return errors;
+}
+
+/**
+ * Build student account object from validated row data
+ * @param {Object} rowData - Row data from Excel
+ * @returns {Object} Valid student account object
+ */
+function buildStudentObject(rowData) {
+    const username = rowData.username || rowData['Username *'];
+    const password = rowData.password || rowData['Password *'];
+    const nis = rowData.nis || rowData['NIS *'];
+    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
+    const email = rowData.email || rowData.Email;
+    
+    return {
+        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
+        username: String(username).trim(),
+        password: String(password).trim(),
+        nis: String(nis).trim(),
+        kelas: String(rowData.kelas || rowData['Kelas *']).trim(),
+        jabatan: (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null,
+        jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
+        email: email ? String(email).trim() : null
+    };
+}
+
+/**
+ * Create row preview object for error reporting
+ * @param {Object} rowData - Row data from Excel
+ * @returns {Object} Preview object with key fields
+ */
+function createStudentRowPreview(rowData) {
+    return {
+        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
+        username: rowData.username || rowData['Username *'] || '(kosong)',
+        nis: rowData.nis || rowData['NIS *'] || '(kosong)',
+        kelas: rowData.kelas || rowData['Kelas *'] || '(kosong)'
+    };
+}
+
+/**
+ * Validate a complete student account row
+ * @param {Object} rowData - Row data from Excel
+ * @param {Object[]} validRecords - Already validated records
+ * @param {Set} existingNis - Set of existing NIS from database
+ * @param {Set} existingUsernames - Set of existing usernames from database
+ * @returns {{valid: boolean, errors: string[], data: Object|null}}
+ */
+function validateStudentAccountRow(rowData, validRecords, existingNis, existingUsernames) {
+    const errors = [];
+    
+    // Validate required fields
+    errors.push(...validateRequiredStudentFields(rowData));
+    
+    // Extract field values
+    const nis = rowData.nis || rowData['NIS *'];
+    const username = rowData.username || rowData['Username *'];
+    const password = rowData.password || rowData['Password *'];
+    const email = rowData.email || rowData.Email;
+    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
+    
+    // Validate individual fields
+    errors.push(...validateNIS(nis, validRecords, existingNis));
+    errors.push(...validateUsername(username, validRecords, existingUsernames));
+    errors.push(...validatePassword(password));
+    errors.push(...validateEmail(email));
+    errors.push(...validateGender(jenisKelamin));
+    
+    if (errors.length > 0) {
+        return { valid: false, errors, data: null };
+    }
+    
+    return { valid: true, errors: [], data: buildStudentObject(rowData) };
+}
+
 // ES Module exports
 export {
     sheetToJsonByHeader,
@@ -273,12 +466,17 @@ export {
     validateTimeFormat,
     validateTimeLogic,
     timeToMinutes,
-    // New jadwal helpers
+    // Jadwal helpers
     getFieldValue,
     parseGuruIdsFromString,
     parseGuruNamesFromString,
     validateRequiredJadwalFields,
     buildJadwalObject,
-    ALLOWED_DAYS
+    ALLOWED_DAYS,
+    // Student account helpers
+    validateStudentAccountRow,
+    createStudentRowPreview,
+    buildStudentObject,
+    GENDER_ENUM
 };
 
