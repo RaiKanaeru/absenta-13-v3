@@ -25,7 +25,7 @@ const logger = createLogger('JamPelajaran');
 // Constants
 const MIN_JAM_KE = 1;
 const MAX_JAM_KE = 15;
-const TIME_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 /**
  * Validate time format (HH:MM or HH:MM:SS)
@@ -40,7 +40,7 @@ function isValidTimeFormat(time) {
 function isValidTimeRange(jamMulai, jamSelesai) {
     const start = jamMulai.replace(/:/g, '');
     const end = jamSelesai.replace(/:/g, '');
-    return parseInt(start) < parseInt(end);
+    return Number.parseInt(start) < Number.parseInt(end);
 }
 
 /**
@@ -55,7 +55,7 @@ export const getJamPelajaranByKelas = async (req, res) => {
     
     try {
         // Validate kelasId
-        if (!kelasId || isNaN(parseInt(kelasId))) {
+        if (!kelasId || Number.isNaN(Number.parseInt(kelasId))) {
             log.validationFail('kelasId', kelasId, 'Invalid or missing kelas ID');
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
@@ -142,7 +142,7 @@ export const upsertJamPelajaran = async (req, res) => {
         // === VALIDATION ===
         
         // Validate kelasId
-        if (!kelasId || isNaN(parseInt(kelasId))) {
+        if (!kelasId || Number.isNaN(Number.parseInt(kelasId))) {
             log.validationFail('kelasId', kelasId, 'Invalid or missing kelas ID');
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
@@ -284,7 +284,7 @@ export const upsertJamPelajaran = async (req, res) => {
         log.timed('Upsert', startTime, { kelasId, kelasName, upsertedCount });
         return sendSuccessResponse(res, { 
             upsertedCount, 
-            kelasId: parseInt(kelasId),
+            kelasId: Number.parseInt(kelasId),
             kelasName 
         }, `Berhasil menyimpan ${upsertedCount} jam pelajaran untuk kelas ${kelasName}`);
         
@@ -306,7 +306,7 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
     
     try {
         // Validate kelasId
-        if (!kelasId || isNaN(parseInt(kelasId))) {
+        if (!kelasId || Number.isNaN(Number.parseInt(kelasId))) {
             log.validationFail('kelasId', kelasId, 'Invalid or missing kelas ID');
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
@@ -326,7 +326,7 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
         log.success('Delete', { kelasId, kelasName, deletedCount: result.affectedRows });
         return sendSuccessResponse(res, { 
             deletedCount: result.affectedRows,
-            kelasId: parseInt(kelasId),
+            kelasId: Number.parseInt(kelasId),
             kelasName
         }, `Berhasil menghapus ${result.affectedRows} jam pelajaran dari kelas ${kelasName}`);
         
