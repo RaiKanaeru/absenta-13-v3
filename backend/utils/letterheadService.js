@@ -90,7 +90,7 @@ export async function getLetterhead({ reportKey = null } = {}) {
       params = [];
     }
 
-    const [rows] = await global.dbPool.execute(query, params);
+    const [rows] = await globalThis.dbPool.execute(query, params);
     
     if (rows.length === 0) {
       console.warn('⚠️ Tidak ada KOP ditemukan, menggunakan default');
@@ -133,7 +133,7 @@ export async function getLetterhead({ reportKey = null } = {}) {
  */
 export async function setLetterheadGlobal(letterhead) {
   try {
-    if (!global.dbPool) {
+    if (!globalThis.dbPool) {
       throw new Error('Database pool tidak tersedia');
     }
 
@@ -168,7 +168,7 @@ export async function setLetterheadGlobal(letterhead) {
       letterhead.logoRightUrl || null
     ];
 
-    await global.dbPool.execute(query, params);
+    await globalThis.dbPool.execute(query, params);
     return true;
 
   } catch (error) {
@@ -185,7 +185,7 @@ export async function setLetterheadGlobal(letterhead) {
  */
 export async function setLetterheadForReport(reportKey, letterhead) {
   try {
-    if (!global.dbPool) {
+    if (!globalThis.dbPool) {
       throw new Error('Database pool tidak tersedia');
     }
 
