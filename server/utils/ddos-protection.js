@@ -492,35 +492,46 @@ class DDoSProtection extends EventEmitter {
     cleanup() {
         const now = Date.now();
         
-        // Clean old request counts
+        this.cleanupRequestCounts(now);
+        this.cleanupBurstCounts(now);
+        this.cleanupFingerprints(now);
+        this.cleanupRequestPatterns(now);
+        this.cleanupExpiredBlocks(now);
+    }
+    
+    cleanupRequestCounts(now) {
         for (const [ip, record] of this.requestCounts) {
             if (now - record.windowStart >= this.config.windowMs * 2) {
                 this.requestCounts.delete(ip);
             }
         }
-        
-        // Clean old burst counts
+    }
+    
+    cleanupBurstCounts(now) {
         for (const [ip, record] of this.burstCounts) {
             if (record.requests.length === 0 || now - record.requests[record.requests.length - 1] > 60000) {
                 this.burstCounts.delete(ip);
             }
         }
-        
-        // Clean old fingerprints
+    }
+    
+    cleanupFingerprints(now) {
         for (const [fp, record] of this.fingerprints) {
             if (now - record.lastSeen > this.config.fingerprintTTL) {
                 this.fingerprints.delete(fp);
             }
         }
-        
-        // Clean old patterns
+    }
+    
+    cleanupRequestPatterns(now) {
         for (const [ip, record] of this.requestPatterns) {
             if (record.times.length > 0 && now - record.times[record.times.length - 1] > 300000) {
                 this.requestPatterns.delete(ip);
             }
         }
-        
-        // Clean expired blocks
+    }
+    
+    cleanupExpiredBlocks(now) {
         for (const [ip, record] of this.blockedIPs) {
             if (!record.permanent && now - record.blockedAt >= record.duration) {
                 this.blockedIPs.delete(ip);

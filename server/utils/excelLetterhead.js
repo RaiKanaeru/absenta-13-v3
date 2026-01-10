@@ -22,77 +22,83 @@ export async function addLetterheadToWorksheet(workbook, worksheet, letterhead, 
     let currentRow = 1;
     
     if (!letterhead?.enabled || !letterhead?.lines?.length) {
-        // Fallback to hardcoded header
-        worksheet.getCell('A1').value = 'PEMERINTAH DAERAH PROVINSI JAWA BARAT';
-        worksheet.getCell('A2').value = 'DINAS PENDIDIKAN';
-        worksheet.getCell('A3').value = 'CABANG DINAS PENDIDIKAN WILAYAH VII';
-        worksheet.getCell('A4').value = 'SEKOLAH MENENGAH KEJURUAN NEGERI 13';
-        return 6;
+        return addFallbackHeader(worksheet);
     }
 
     const alignment = letterhead.alignment || 'center';
 
     // Add logos if available
     if (letterhead.logoLeftUrl || letterhead.logoRightUrl) {
-        // Left logo
-        if (letterhead.logoLeftUrl) {
-            try {
-                const logoBuffer = await getLogoBuffer(letterhead.logoLeftUrl);
-                if (logoBuffer) {
-                    const logoId = workbook.addImage({
-                        buffer: logoBuffer,
-                        extension: 'png'
-                    });
-                    worksheet.addImage(logoId, {
-                        tl: { col: 0, row: currentRow - 1 },
-                        br: { col: 2, row: currentRow + 2 }
-                    });
-                }
-            } catch (error) {
-                logger.warn('Could not add left logo', { error: error.message });
-            }
-        }
-
-        // Right logo
-        if (letterhead.logoRightUrl) {
-            try {
-                const logoBuffer = await getLogoBuffer(letterhead.logoRightUrl);
-                if (logoBuffer) {
-                    const logoId = workbook.addImage({
-                        buffer: logoBuffer,
-                        extension: 'png'
-                    });
-                    const rightCol = Math.max(columnCount - 2, 3);
-                    worksheet.addImage(logoId, {
-                        tl: { col: rightCol, row: currentRow - 1 },
-                        br: { col: rightCol + 2, row: currentRow + 2 }
-                    });
-                }
-            } catch (error) {
-                logger.warn('Could not add right logo', { error: error.message });
-            }
-        }
-
+        await addLogosToWorksheet(workbook, worksheet, letterhead, columnCount, currentRow);
         currentRow += 4; // Space for logo
     }
 
     // Add letterhead lines
-    letterhead.lines.forEach((line, index) => {
-        const lineRow = worksheet.getRow(currentRow);
+    currentRow = addLetterheadLines(worksheet, letterhead.lines, alignment, currentRow, columnCount);
+
+    return currentRow + 1; // Separator
+}
+
+/**
+ * Add fallback hardcoded header
+ */
+function addFallbackHeader(worksheet) {
+    worksheet.getCell('A1').value = 'PEMERINTAH DAERAH PROVINSI JAWA BARAT';
+    worksheet.getCell('A2').value = 'DINAS PENDIDIKAN';
+    worksheet.getCell('A3').value = 'CABANG DINAS PENDIDIKAN WILAYAH VII';
+    worksheet.getCell('A4').value = 'SEKOLAH MENENGAH KEJURUAN NEGERI 13';
+    return 6;
+}
+
+/**
+ * Add logos to worksheet
+ */
+async function addLogosToWorksheet(workbook, worksheet, letterhead, columnCount, currentRow) {
+    if (letterhead.logoLeftUrl) {
+        await addSingleLogo(workbook, worksheet, letterhead.logoLeftUrl, 0, currentRow);
+    }
+    if (letterhead.logoRightUrl) {
+        const rightCol = Math.max(columnCount - 2, 3);
+        await addSingleLogo(workbook, worksheet, letterhead.logoRightUrl, rightCol, currentRow);
+    }
+}
+
+/**
+ * Add single logo to worksheet
+ */
+async function addSingleLogo(workbook, worksheet, logoUrl, col, row) {
+    try {
+        const logoBuffer = await getLogoBuffer(logoUrl);
+        if (logoBuffer) {
+            const logoId = workbook.addImage({ buffer: logoBuffer, extension: 'png' });
+            worksheet.addImage(logoId, {
+                tl: { col: col, row: row - 1 },
+                br: { col: col + 2, row: row + 2 }
+            });
+        }
+    } catch (error) {
+        logger.warn('Could not add logo', { error: error.message });
+    }
+}
+
+/**
+ * Add letterhead lines to worksheet
+ */
+function addLetterheadLines(worksheet, lines, alignment, startRow, columnCount) {
+    let currentRow = startRow;
+    lines.forEach((line, index) => {
         const text = typeof line === 'string' ? line : line.text;
         const isFirstLine = index === 0;
-        const fontWeight = typeof line === 'object' ? line.fontWeight : (isFirstLine ? 'bold' : 'normal');
+        const defaultWeight = isFirstLine ? 'bold' : 'normal';
+        const fontWeight = typeof line === 'object' ? line.fontWeight : defaultWeight;
 
-        lineRow.getCell(1).value = text;
-        lineRow.getCell(1).font = fontWeight === 'bold' 
-            ? { bold: true, size: 16 } 
-            : { size: 12 };
-        lineRow.getCell(1).alignment = { horizontal: alignment };
+        const cell = worksheet.getRow(currentRow).getCell(1);
+        cell.value = text;
+        cell.font = fontWeight === 'bold' ? { bold: true, size: 16 } : { size: 12 };
+        cell.alignment = { horizontal: alignment };
         worksheet.mergeCells(currentRow, 1, currentRow, columnCount);
         currentRow++;
     });
-
-    currentRow++; // Separator
     return currentRow;
 }
 
