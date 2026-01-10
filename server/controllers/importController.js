@@ -26,7 +26,8 @@ import {
     validateTeacherAccountRow,
     createTeacherRowPreview,
     validateMapelRow,
-    validateKelasRow
+    validateKelasRow,
+    validateRuangRow
 } from '../utils/importHelper.js';
 
 // ================================================
@@ -223,57 +224,16 @@ const importRuang = async (req, res) => {
         const seenKode = new Set();
 
         for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowErrors = [];
             const rowNum = i + 2;
-
             try {
-                const kodeRuang = rowData.kode_ruang || rowData['Kode Ruang'];
-                const namaRuang = rowData.nama_ruang || rowData['Nama Ruang'];
-                const lokasi = rowData.lokasi || rowData.Lokasi;
-                const kapasitas = rowData.kapasitas || rowData.Kapasitas;
-                const status = rowData.status || rowData.Status;
-
-                if (!kodeRuang) rowErrors.push('kode_ruang wajib');
-                if (!namaRuang) rowErrors.push('nama_ruang wajib');
-
-                if (status && !['aktif', 'nonaktif'].includes(String(status))) {
-                    rowErrors.push('status tidak valid');
-                }
-
-                if (kapasitas && Number.isNaN(Number(kapasitas))) {
-                    rowErrors.push('kapasitas harus berupa angka');
-                }
-
-                if (kodeRuang) {
-                    const trimmedValue = String(kodeRuang).trim();
-                    if (seenKode.has(trimmedValue)) {
-                        rowErrors.push('kode_ruang duplikat di file');
-                    }
-                    seenKode.add(trimmedValue);
-                }
-
-                if (rowErrors.length) {
-                    const rowPreview = {
-                        kode_ruang: kodeRuang || '(kosong)',
-                        nama_ruang: namaRuang || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
+                const result = validateRuangRow(rows[i], seenKode);
+                if (result.valid) {
+                    valid.push(result.data);
                 } else {
-                    valid.push({
-                        kode_ruang: String(kodeRuang).trim(),
-                        nama_ruang: String(namaRuang).trim(),
-                        lokasi: lokasi ? String(lokasi).trim() : null,
-                        kapasitas: kapasitas ? Number(kapasitas) : null,
-                        status: status ? String(status).trim() : 'aktif'
-                    });
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 }
             } catch (error) {
-                const rowPreview = {
-                    kode_ruang: rowData.kode_ruang || rowData['Kode Ruang'] || '(kosong)',
-                    nama_ruang: rowData.nama_ruang || rowData['Nama Ruang'] || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
+                errors.push({ index: rowNum, errors: [error.message], data: { kode_ruang: '(error)', nama_ruang: '(error)' } });
             }
         }
 

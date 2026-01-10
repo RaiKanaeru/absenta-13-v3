@@ -718,6 +718,62 @@ function validateKelasRow(rowData, seenNama) {
     };
 }
 
+/**
+ * Validate a ruang row from Excel import
+ * @param {Object} rowData - Row data from Excel
+ * @param {Set} seenKode - Set of already seen kode values
+ * @returns {Object} { valid: boolean, errors: string[], data?: Object, preview?: Object }
+ */
+function validateRuangRow(rowData, seenKode) {
+    const errors = [];
+    
+    const kodeRuang = rowData.kode_ruang || rowData['Kode Ruang'];
+    const namaRuang = rowData.nama_ruang || rowData['Nama Ruang'];
+    const lokasi = rowData.lokasi || rowData.Lokasi;
+    const kapasitas = rowData.kapasitas || rowData.Kapasitas;
+    const status = rowData.status || rowData.Status;
+    
+    if (!kodeRuang) errors.push('kode_ruang wajib');
+    if (!namaRuang) errors.push('nama_ruang wajib');
+    
+    if (status && !isValidStatus(status)) {
+        errors.push('status tidak valid');
+    }
+    
+    if (kapasitas && Number.isNaN(Number(kapasitas))) {
+        errors.push('kapasitas harus berupa angka');
+    }
+    
+    if (kodeRuang) {
+        const trimmedValue = String(kodeRuang).trim();
+        if (seenKode.has(trimmedValue)) {
+            errors.push('kode_ruang duplikat di file');
+        }
+        seenKode.add(trimmedValue);
+    }
+    
+    const preview = {
+        kode_ruang: kodeRuang || '(kosong)',
+        nama_ruang: namaRuang || '(kosong)'
+    };
+    
+    if (errors.length > 0) {
+        return { valid: false, errors, preview };
+    }
+    
+    return {
+        valid: true,
+        errors: [],
+        data: {
+            kode_ruang: String(kodeRuang).trim(),
+            nama_ruang: String(namaRuang).trim(),
+            lokasi: lokasi ? String(lokasi).trim() : null,
+            kapasitas: kapasitas ? Number(kapasitas) : null,
+            status: status ? String(status).trim() : 'aktif'
+        }
+    };
+}
+
 // ES Module exports
 export {
     sheetToJsonByHeader,
@@ -744,9 +800,10 @@ export {
     validateTeacherAccountRow,
     createTeacherRowPreview,
     buildTeacherObject,
-    // Mapel and Kelas helpers
+    // Mapel, Kelas, Ruang helpers
     validateMapelRow,
     validateKelasRow,
+    validateRuangRow,
     isValidStatus
 };
 
