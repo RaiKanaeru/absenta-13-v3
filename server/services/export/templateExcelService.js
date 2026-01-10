@@ -230,21 +230,9 @@ export async function exportRekapGuruTahunan({ guruData }) {
  * @returns {Promise<Array>}
  */
 export async function fetchRekapSiswaByKelas(dbPool, kelasId, semester = 'gasal', tahunAjaran = TAHUN_PELAJARAN) {
-    // Determine date range based on semester
-    const [tahunAwal, tahunAkhir] = tahunAjaran.split('-');
-    
-    let startDate, endDate;
-    if (semester === 'gasal') {
-        startDate = `${tahunAwal}-07-01`; // Juli
-        endDate = `${tahunAwal}-12-31`;   // Desember
-    } else {
-        startDate = `${tahunAkhir}-01-01`; // Januari
-        endDate = `${tahunAkhir}-06-30`;   // Juni
-    }
-    
+    const { startDate, endDate } = getSemesterDateRange(tahunAjaran, semester);
     logger.debug('Fetching data for period', { startDate, endDate });
     
-    // Query untuk mendapatkan siswa dan ketidakhadiran mereka
     const query = `
         SELECT 
             s.id_siswa,
@@ -264,8 +252,22 @@ export async function fetchRekapSiswaByKelas(dbPool, kelasId, semester = 'gasal'
     `;
     
     const [rows] = await dbPool.execute(query, [startDate, endDate, kelasId]);
+    return transformSiswaRows(rows);
+}
+
+function getSemesterDateRange(tahunAjaran, semester) {
+    const [tahunAwal, tahunAkhir] = tahunAjaran.split('-');
     
-    // Transform to required format
+    if (semester === 'gasal') {
+        return { startDate: `${tahunAwal}-07-01`, endDate: `${tahunAwal}-12-31` };
+    }
+    return { startDate: `${tahunAkhir}-01-01`, endDate: `${tahunAkhir}-06-30` };
+}
+
+const BULAN_NAMES = ['', 'JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 
+                     'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+
+function transformSiswaRows(rows) {
     const siswaMap = new Map();
     
     for (const row of rows) {
@@ -278,30 +280,32 @@ export async function fetchRekapSiswaByKelas(dbPool, kelasId, semester = 'gasal'
             });
         }
         
-        // Map bulan number to name
-        const bulanNames = ['', 'JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 
-                           'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
-        const bulanName = bulanNames[row.bulan];
-        
-        if (bulanName && row.status) {
-            const siswa = siswaMap.get(row.id_siswa);
-            if (!siswa.ketidakhadiran[bulanName]) {
-                siswa.ketidakhadiran[bulanName] = { S: 0, I: 0, A: 0 };
-            }
-            
-            // Map status to S/I/A
-            const statusUpper = row.status.toUpperCase();
-            if (statusUpper.startsWith('S')) {
-                siswa.ketidakhadiran[bulanName].S += row.jumlah;
-            } else if (statusUpper.startsWith('I')) {
-                siswa.ketidakhadiran[bulanName].I += row.jumlah;
-            } else if (statusUpper.startsWith('A')) {
-                siswa.ketidakhadiran[bulanName].A += row.jumlah;
-            }
-        }
+        processKetidakhadiranRow(row, siswaMap.get(row.id_siswa));
     }
     
     return Array.from(siswaMap.values());
+}
+
+function processKetidakhadiranRow(row, siswa) {
+    const bulanName = BULAN_NAMES[row.bulan];
+    if (!bulanName || !row.status) return;
+    
+    if (!siswa.ketidakhadiran[bulanName]) {
+        siswa.ketidakhadiran[bulanName] = { S: 0, I: 0, A: 0 };
+    }
+    
+    const statusKey = mapStatusToKey(row.status);
+    if (statusKey) {
+        siswa.ketidakhadiran[bulanName][statusKey] += row.jumlah;
+    }
+}
+
+function mapStatusToKey(status) {
+    const first = status.toUpperCase().charAt(0);
+    if (first === 'S') return 'S';
+    if (first === 'I') return 'I';
+    if (first === 'A') return 'A';
+    return null;
 }
 
 /**
