@@ -187,7 +187,8 @@ function addLetterheadLines(worksheet, lines, alignment, currentRow, columnsCoun
         const lineRow = worksheet.getRow(currentRow);
         const text = typeof line === 'string' ? line : line.text;
         const isFirstLine = index === 0;
-        const fontWeight = typeof line === 'object' ? line.fontWeight : (isFirstLine ? 'bold' : 'normal');
+        const defaultWeight = isFirstLine ? 'bold' : 'normal';
+        const fontWeight = typeof line === 'object' ? line.fontWeight : defaultWeight;
         
         const cell = lineRow.getCell(1);
         cell.value = text;

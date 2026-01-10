@@ -117,9 +117,7 @@ function validateLetterhead(letterhead) {
   }
 
   // Validate lines
-  if (!Array.isArray(letterhead.lines)) {
-    errors.push('Lines must be an array');
-  } else {
+  if (Array.isArray(letterhead.lines)) {
     if (letterhead.lines.length === 0) {
       errors.push('At least one line is required');
     }
@@ -135,6 +133,8 @@ function validateLetterhead(letterhead) {
         errors.push(`Line ${index + 1} exceeds maximum length of 200 characters`);
       }
     });
+  } else {
+    errors.push('Lines must be an array');
   }
 
   // Validate alignment

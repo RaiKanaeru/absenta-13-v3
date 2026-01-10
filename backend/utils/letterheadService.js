@@ -1,4 +1,3 @@
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,7 +52,7 @@ const DEFAULT_LETTERHEAD = {
  */
 export async function getLetterhead({ reportKey = null } = {}) {
   try {
-    if (!global.dbPool) {
+    if (!globalThis.dbPool) {
       console.warn('⚠️ Database pool tidak tersedia, menggunakan default letterhead');
       return DEFAULT_LETTERHEAD;
     }
