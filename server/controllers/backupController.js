@@ -546,6 +546,46 @@ const deleteBackup = async (req, res) => {
 };
 
 /**
+ * Helper to resolve backup file path from ID
+ * @param {string} backupDir
+ * @param {string} backupId
+ * @returns {Promise<{filePath: string|null, filename: string|null}>}
+ */
+const resolveBackupFilePath = async (backupDir, backupId) => {
+    // 1. Check directory
+    const backupSubDir = path.join(backupDir, backupId);
+    try {
+        const stats = await fs.stat(backupSubDir);
+        if (stats.isDirectory()) {
+            const files = await fs.readdir(backupSubDir);
+            
+            // Priority: compressed > sql > other
+            const compressed = files.find(f => /\.(zip|tar\.gz|gz)$/i.test(f));
+            if (compressed) return { filePath: path.join(backupSubDir, compressed), filename: compressed };
+            
+            const sql = files.find(f => /\.sql$/i.test(f));
+            if (sql) return { filePath: path.join(backupSubDir, sql), filename: sql };
+            
+            const other = files.find(f => !/\.(json|txt|log)$/i.test(f));
+            if (other) return { filePath: path.join(backupSubDir, other), filename: other };
+        }
+    } catch (e) {
+        // Directory not found or inaccessible, continue to file check
+    }
+
+    // 2. Check direct files
+    const candidates = [`${backupId}.zip`, backupId, `${backupId}.sql`, `${backupId}.tar.gz`];
+    for (const c of candidates) {
+        const p = path.join(backupDir, c);
+        try {
+            if ((await fs.stat(p)).isFile()) return { filePath: p, filename: c };
+        } catch (e) { /* ignore */ }
+    }
+    
+    return { filePath: null, filename: null };
+};
+
+/**
  * Download backup
  * GET /api/admin/download-backup/:backupId
  */
@@ -566,80 +606,13 @@ const downloadBackup = async (req, res) => {
 
         logger.info('Downloading backup', { backupId: sanitizedBackupId });
 
-        let filePath = null;
-        let filename = null;
-
-        // First, check if backupId is a directory
-        const backupSubDir = path.join(backupDir, sanitizedBackupId);
-        try {
-            const stats = await fs.stat(backupSubDir);
-            if (stats.isDirectory()) {
-                logger.debug('Found backup directory', { backupSubDir });
-
-                const files = await fs.readdir(backupSubDir);
-
-                // Look for compressed files first
-                const compressedFiles = files.filter(file =>
-                    file.endsWith('.zip') || file.endsWith('.tar.gz') || file.endsWith('.gz')
-                );
-
-                if (compressedFiles.length > 0) {
-                    const compressedFile = compressedFiles[0];
-                    filePath = path.join(backupSubDir, compressedFile);
-                    filename = compressedFile;
-                } else {
-                    // Look for SQL files
-                    const sqlFiles = files.filter(file => file.endsWith('.sql'));
-                    if (sqlFiles.length > 0) {
-                        const sqlFile = sqlFiles[0];
-                        filePath = path.join(backupSubDir, sqlFile);
-                        filename = sqlFile;
-                    } else {
-                        // Look for any other files
-                        const otherFiles = files.filter(file =>
-                            !file.endsWith('.json') && !file.endsWith('.txt') && !file.endsWith('.log')
-                        );
-                        if (otherFiles.length > 0) {
-                            const otherFile = otherFiles[0];
-                            filePath = path.join(backupSubDir, otherFile);
-                            filename = otherFile;
-                        }
-                    }
-                }
-            }
-        } catch (error) {
-            logger.warn('Backup directory not found', { backupSubDir });
-        }
-
-        // If not found in subdirectory, try direct files
-        if (!filePath) {
-            const possibleFiles = [
-                `${backupId}.zip`,
-                `${backupId}`,
-                `${backupId}.sql`,
-                `${backupId}.tar.gz`
-            ];
-
-            for (const possibleFile of possibleFiles) {
-                const testPath = path.join(backupDir, possibleFile);
-                try {
-                    const stats = await fs.stat(testPath);
-                    if (stats.isFile()) {
-                        filePath = testPath;
-                        filename = possibleFile;
-                        break;
-                    }
-                } catch (error) {
-                    // File not found, continue
-                }
-            }
-        }
+        const { filePath, filename } = await resolveBackupFilePath(backupDir, sanitizedBackupId);
 
         if (!filePath) {
-            logger.error('No backup file found', { backupId });
+            logger.error('No backup file found', { backupId: sanitizedBackupId });
             return res.status(404).json({
                 error: 'Backup file not found',
-                message: `No backup file found for ID: ${backupId}`
+                message: `No backup file found for ID: ${sanitizedBackupId}`
             });
         }
 
