@@ -560,232 +560,191 @@ function getMapelColor(mapelId, mapelName) {
 export async function exportJadwalPelajaranComplex({ jadwalData }) {
     logger.info('Generating complex jadwal', { count: jadwalData?.length || 0 });
     
-    // Reset color cache for consistent colors
     mapelColorCache.clear();
     
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.default.Workbook();
     const sheet = workbook.addWorksheet('JADWAL');
     
-    // ========== STYLING ==========
-    const headerStyle = {
-        font: { bold: true, size: 8, color: { argb: 'FF000000' } },
-        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-        border: {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } } // Light green header
-    };
-    
-    const cellStyle = {
-        font: { size: 7 },
-        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-        border: {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        }
-    };
-    
-    // ========== CALCULATE COLUMNS ==========
-    // Column A: KELAS
-    // Column B: JAM KE (label row type)
-    // Then for each HARI: 10 columns (one per jam)
-    // Total: 2 + (6 hari * 10 jam) = 62 columns
-    
+    const styles = getJadwalStyles();
     const totalJamPerHari = JAM_PELAJARAN.length;
-    const startDataCol = 3; // Column C
+    const startDataCol = 3;
     
-    // Set column widths
-    sheet.getColumn(1).width = 10; // KELAS
-    sheet.getColumn(2).width = 8;  // JAM KE label
+    setupJadwalColumnWidths(sheet, startDataCol, totalJamPerHari);
+    buildJadwalHeaders(sheet, styles, startDataCol, totalJamPerHari);
     
-    for (let i = startDataCol; i <= startDataCol + (HARI_LIST.length * totalJamPerHari); i++) {
-        sheet.getColumn(i).width = 6;
-    }
-    
-    // ========== ROW 1: HARI HEADER ==========
-    let currentRow = 1;
-    const hariHeaderRow = sheet.getRow(currentRow);
-    
-    // Merge cells for each HARI
-    let colOffset = startDataCol;
-    for (const hari of HARI_LIST) {
-        const startCol = colOffset;
-        const endCol = colOffset + totalJamPerHari - 1;
-        
-        // Merge hari header
-        sheet.mergeCells(currentRow, startCol, currentRow, endCol);
-        const cell = sheet.getCell(currentRow, startCol);
-        cell.value = hari;
-        Object.assign(cell, headerStyle);
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } };
-        
-        colOffset += totalJamPerHari;
-    }
-    hariHeaderRow.height = 18;
-    
-    // ========== ROW 2: JAM KE HEADER ==========
-    currentRow = 2;
-    const jamKeRow = sheet.getRow(currentRow);
-    sheet.getCell(currentRow, 1).value = 'KELAS';
-    Object.assign(sheet.getCell(currentRow, 1), headerStyle);
-    sheet.getCell(currentRow, 2).value = 'JAM KE';
-    Object.assign(sheet.getCell(currentRow, 2), headerStyle);
-    
-    colOffset = startDataCol;
-    for (const hari of HARI_LIST) {
-        for (let j = 0; j < totalJamPerHari; j++) {
-            const cell = sheet.getCell(currentRow, colOffset + j);
-            cell.value = j + 1; // Jam ke 1, 2, 3, ...
-            Object.assign(cell, headerStyle);
-        }
-        colOffset += totalJamPerHari;
-    }
-    jamKeRow.height = 15;
-    
-    // ========== ROW 3: WAKTU HEADER ==========
-    currentRow = 3;
-    const waktuRow = sheet.getRow(currentRow);
-    sheet.getCell(currentRow, 2).value = 'WAKTU';
-    Object.assign(sheet.getCell(currentRow, 2), headerStyle);
-    
-    colOffset = startDataCol;
-    for (const hari of HARI_LIST) {
-        for (let j = 0; j < totalJamPerHari; j++) {
-            const cell = sheet.getCell(currentRow, colOffset + j);
-            const jam = JAM_PELAJARAN[j];
-            cell.value = `${jam.mulai}-${jam.selesai}`;
-            cell.font = { size: 6 };
-            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-            cell.border = headerStyle.border;
-        }
-        colOffset += totalJamPerHari;
-    }
-    waktuRow.height = 20;
-    
-    // ========== GROUP JADWAL BY KELAS ==========
-    const jadwalByKelas = new Map();
-    
-    if (jadwalData && jadwalData.length > 0) {
-        jadwalData.forEach(j => {
-            const kelasKey = j.nama_kelas || `Kelas ${j.kelas_id}`;
-            if (!jadwalByKelas.has(kelasKey)) {
-                jadwalByKelas.set(kelasKey, []);
-            }
-            jadwalByKelas.get(kelasKey).push(j);
-        });
-    }
-    
-    // Sort kelas
+    const jadwalByKelas = groupJadwalByKelas(jadwalData);
     const sortedKelas = Array.from(jadwalByKelas.keys()).sort();
     
-    // ========== DATA ROWS: 3 ROWS PER KELAS ==========
-    currentRow = 4;
-    
+    let currentRow = 4;
     for (const kelasName of sortedKelas) {
-        const kelasJadwal = jadwalByKelas.get(kelasName);
-        
-        // Create lookup: hari -> jam_ke -> jadwal
-        const jadwalLookup = {};
-        for (const hari of HARI_LIST) {
-            jadwalLookup[hari] = {};
-        }
-        
-        kelasJadwal.forEach(j => {
-            const hari = (j.hari || '').toUpperCase();
-            const jamKe = j.jam_ke || 1;
-            if (jadwalLookup[hari]) {
-                jadwalLookup[hari][jamKe] = j;
-            }
-        });
-        
-        // Row 1: MAPEL
-        const mapelRow = sheet.getRow(currentRow);
-        sheet.mergeCells(currentRow, 1, currentRow + 2, 1); // Merge kelas name across 3 rows
-        sheet.getCell(currentRow, 1).value = kelasName;
-        sheet.getCell(currentRow, 1).font = { bold: true, size: 8 };
-        sheet.getCell(currentRow, 1).alignment = { horizontal: 'center', vertical: 'middle' };
-        sheet.getCell(currentRow, 1).border = cellStyle.border;
-        
-        sheet.getCell(currentRow, 2).value = 'MAPEL';
-        Object.assign(sheet.getCell(currentRow, 2), cellStyle);
-        sheet.getCell(currentRow, 2).font = { bold: true, size: 7 };
-        
-        // Row 2: RUANG
-        const ruangRow = sheet.getRow(currentRow + 1);
-        sheet.getCell(currentRow + 1, 2).value = 'RUANG';
-        Object.assign(sheet.getCell(currentRow + 1, 2), cellStyle);
-        sheet.getCell(currentRow + 1, 2).font = { bold: true, size: 7 };
-        
-        // Row 3: GURU
-        const guruRow = sheet.getRow(currentRow + 2);
-        sheet.getCell(currentRow + 2, 2).value = 'GURU';
-        Object.assign(sheet.getCell(currentRow + 2, 2), cellStyle);
-        sheet.getCell(currentRow + 2, 2).font = { bold: true, size: 7 };
-        
-        // Fill data for each hari and jam
-        colOffset = startDataCol;
-        for (const hari of HARI_LIST) {
-            for (let j = 0; j < totalJamPerHari; j++) {
-                const jamKe = j + 1;
-                const jadwal = jadwalLookup[hari][jamKe];
-                
-                const mapelCell = sheet.getCell(currentRow, colOffset + j);
-                const ruangCell = sheet.getCell(currentRow + 1, colOffset + j);
-                const guruCell = sheet.getCell(currentRow + 2, colOffset + j);
-                
-                if (jadwal) {
-                    // MAPEL
-                    mapelCell.value = jadwal.kode_mapel || jadwal.nama_mapel?.substring(0, 6) || '-';
-                    const color = getMapelColor(jadwal.mapel_id, jadwal.nama_mapel);
-                    mapelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
-                    
-                    // RUANG
-                    ruangCell.value = jadwal.nama_ruang?.substring(0, 6) || '-';
-                    ruangCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
-                    
-                    // GURU
-                    guruCell.value = jadwal.nama_guru?.split(' ')[0] || '-'; // First name only
-                    guruCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
-                } else {
-                    mapelCell.value = '';
-                    ruangCell.value = '';
-                    guruCell.value = '';
-                }
-                
-                // Apply cell style
-                [mapelCell, ruangCell, guruCell].forEach(cell => {
-                    cell.font = { size: 6 };
-                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    cell.border = cellStyle.border;
-                });
-            }
-            colOffset += totalJamPerHari;
-        }
-        
-        // Set row heights
-        mapelRow.height = 15;
-        ruangRow.height = 12;
-        guruRow.height = 12;
-        
-        currentRow += 3; // Move to next kelas (3 rows per kelas)
+        fillKelasData(sheet, kelasName, jadwalByKelas.get(kelasName), currentRow, startDataCol, totalJamPerHari, styles.cellStyle);
+        currentRow += 3;
     }
     
-    // If no data
     if (sortedKelas.length === 0) {
         sheet.getCell(4, 1).value = 'Tidak ada data jadwal';
         sheet.mergeCells('A4:G4');
     }
     
     logger.info('Generated complex jadwal', { classCount: sortedKelas.length });
+    return workbook.xlsx.writeBuffer();
+}
+
+function getJadwalStyles() {
+    return {
+        headerStyle: {
+            font: { bold: true, size: 8, color: { argb: 'FF000000' } },
+            alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+            border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } },
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } }
+        },
+        cellStyle: {
+            font: { size: 7 },
+            alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+            border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+        }
+    };
+}
+
+function setupJadwalColumnWidths(sheet, startDataCol, totalJamPerHari) {
+    sheet.getColumn(1).width = 10;
+    sheet.getColumn(2).width = 8;
+    for (let i = startDataCol; i <= startDataCol + (HARI_LIST.length * totalJamPerHari); i++) {
+        sheet.getColumn(i).width = 6;
+    }
+}
+
+function buildJadwalHeaders(sheet, styles, startDataCol, totalJamPerHari) {
+    buildHariHeader(sheet, styles.headerStyle, startDataCol, totalJamPerHari);
+    buildJamKeHeader(sheet, styles.headerStyle, startDataCol, totalJamPerHari);
+    buildWaktuHeader(sheet, styles.headerStyle, startDataCol, totalJamPerHari);
+}
+
+function buildHariHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
+    let colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        sheet.mergeCells(1, colOffset, 1, colOffset + totalJamPerHari - 1);
+        const cell = sheet.getCell(1, colOffset);
+        cell.value = hari;
+        Object.assign(cell, headerStyle);
+        colOffset += totalJamPerHari;
+    }
+    sheet.getRow(1).height = 18;
+}
+
+function buildJamKeHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
+    sheet.getCell(2, 1).value = 'KELAS';
+    Object.assign(sheet.getCell(2, 1), headerStyle);
+    sheet.getCell(2, 2).value = 'JAM KE';
+    Object.assign(sheet.getCell(2, 2), headerStyle);
     
-    const buffer = await workbook.xlsx.writeBuffer();
-    return buffer;
+    let colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        for (let j = 0; j < totalJamPerHari; j++) {
+            const cell = sheet.getCell(2, colOffset + j);
+            cell.value = j + 1;
+            Object.assign(cell, headerStyle);
+        }
+        colOffset += totalJamPerHari;
+    }
+    sheet.getRow(2).height = 15;
+}
+
+function buildWaktuHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
+    sheet.getCell(3, 2).value = 'WAKTU';
+    Object.assign(sheet.getCell(3, 2), headerStyle);
+    
+    let colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        for (let j = 0; j < totalJamPerHari; j++) {
+            const cell = sheet.getCell(3, colOffset + j);
+            cell.value = `${JAM_PELAJARAN[j].mulai}-${JAM_PELAJARAN[j].selesai}`;
+            cell.font = { size: 6 };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = headerStyle.border;
+        }
+        colOffset += totalJamPerHari;
+    }
+    sheet.getRow(3).height = 20;
+}
+
+function groupJadwalByKelas(jadwalData) {
+    const jadwalByKelas = new Map();
+    if (jadwalData && jadwalData.length > 0) {
+        for (const j of jadwalData) {
+            const kelasKey = j.nama_kelas || `Kelas ${j.kelas_id}`;
+            if (!jadwalByKelas.has(kelasKey)) jadwalByKelas.set(kelasKey, []);
+            jadwalByKelas.get(kelasKey).push(j);
+        }
+    }
+    return jadwalByKelas;
+}
+
+function fillKelasData(sheet, kelasName, kelasJadwal, currentRow, startDataCol, totalJamPerHari, cellStyle) {
+    const jadwalLookup = buildJadwalLookup(kelasJadwal);
+    
+    setupKelasLabels(sheet, kelasName, currentRow, cellStyle);
+    fillJadwalCells(sheet, jadwalLookup, currentRow, startDataCol, totalJamPerHari, cellStyle);
+    
+    sheet.getRow(currentRow).height = 15;
+    sheet.getRow(currentRow + 1).height = 12;
+    sheet.getRow(currentRow + 2).height = 12;
+}
+
+function buildJadwalLookup(kelasJadwal) {
+    const lookup = {};
+    for (const hari of HARI_LIST) lookup[hari] = {};
+    for (const j of kelasJadwal) {
+        const hari = (j.hari || '').toUpperCase();
+        if (lookup[hari]) lookup[hari][j.jam_ke || 1] = j;
+    }
+    return lookup;
+}
+
+function setupKelasLabels(sheet, kelasName, currentRow, cellStyle) {
+    sheet.mergeCells(currentRow, 1, currentRow + 2, 1);
+    const kelasCell = sheet.getCell(currentRow, 1);
+    kelasCell.value = kelasName;
+    kelasCell.font = { bold: true, size: 8 };
+    kelasCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    kelasCell.border = cellStyle.border;
+    
+    ['MAPEL', 'RUANG', 'GURU'].forEach((label, idx) => {
+        const cell = sheet.getCell(currentRow + idx, 2);
+        cell.value = label;
+        Object.assign(cell, cellStyle);
+        cell.font = { bold: true, size: 7 };
+    });
+}
+
+function fillJadwalCells(sheet, jadwalLookup, currentRow, startDataCol, totalJamPerHari, cellStyle) {
+    let colOffset = startDataCol;
+    for (const hari of HARI_LIST) {
+        for (let j = 0; j < totalJamPerHari; j++) {
+            const jadwal = jadwalLookup[hari][j + 1];
+            const cells = [
+                sheet.getCell(currentRow, colOffset + j),
+                sheet.getCell(currentRow + 1, colOffset + j),
+                sheet.getCell(currentRow + 2, colOffset + j)
+            ];
+            
+            if (jadwal) {
+                const color = getMapelColor(jadwal.mapel_id, jadwal.nama_mapel);
+                cells[0].value = jadwal.kode_mapel || jadwal.nama_mapel?.substring(0, 6) || '-';
+                cells[1].value = jadwal.nama_ruang?.substring(0, 6) || '-';
+                cells[2].value = jadwal.nama_guru?.split(' ')[0] || '-';
+                cells.forEach(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } }; });
+            }
+            
+            cells.forEach(c => {
+                c.font = { size: 6 };
+                c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                c.border = cellStyle.border;
+            });
+        }
+        colOffset += totalJamPerHari;
+    }
 }
 
 
