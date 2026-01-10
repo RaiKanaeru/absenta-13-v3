@@ -44,6 +44,80 @@ function isValidTimeRange(jamMulai, jamSelesai) {
 }
 
 /**
+ * Validate a single jam pelajaran entry
+ * @param {Object} jam - The jam pelajaran object
+ * @param {number} jamIndex - 1-based index for error messages
+ * @param {Set} seenJamKe - Set of already seen jam_ke values
+ * @param {Array} errors - Array to push errors to
+ */
+function validateJamPelajaranEntry(jam, jamIndex, seenJamKe, errors) {
+    // Required fields check
+    if (!jam.jam_ke) {
+        errors.push({ index: jamIndex, field: 'jam_ke', message: 'Nomor jam wajib diisi' });
+    }
+    if (!jam.jam_mulai) {
+        errors.push({ index: jamIndex, field: 'jam_mulai', message: 'Waktu mulai wajib diisi' });
+    }
+    if (!jam.jam_selesai) {
+        errors.push({ index: jamIndex, field: 'jam_selesai', message: 'Waktu selesai wajib diisi' });
+    }
+    
+    // Skip further validation if required fields missing
+    if (!jam.jam_ke || !jam.jam_mulai || !jam.jam_selesai) return;
+    
+    // jam_ke range check
+    if (jam.jam_ke < MIN_JAM_KE || jam.jam_ke > MAX_JAM_KE) {
+        errors.push({ 
+            index: jamIndex, 
+            field: 'jam_ke', 
+            value: jam.jam_ke,
+            message: `Nomor jam harus antara ${MIN_JAM_KE} dan ${MAX_JAM_KE}` 
+        });
+    }
+    
+    // Duplicate jam_ke check
+    if (seenJamKe.has(jam.jam_ke)) {
+        errors.push({ 
+            index: jamIndex, 
+            field: 'jam_ke', 
+            value: jam.jam_ke,
+            message: `Jam ke-${jam.jam_ke} terduplikat dalam data` 
+        });
+    }
+    seenJamKe.add(jam.jam_ke);
+    
+    // Time format validation
+    if (!isValidTimeFormat(jam.jam_mulai)) {
+        errors.push({ 
+            index: jamIndex, 
+            field: 'jam_mulai', 
+            value: jam.jam_mulai,
+            message: 'Format waktu mulai tidak valid (gunakan HH:MM)' 
+        });
+    }
+    if (!isValidTimeFormat(jam.jam_selesai)) {
+        errors.push({ 
+            index: jamIndex, 
+            field: 'jam_selesai', 
+            value: jam.jam_selesai,
+            message: 'Format waktu selesai tidak valid (gunakan HH:MM)' 
+        });
+    }
+    
+    // Time range validation
+    if (isValidTimeFormat(jam.jam_mulai) && isValidTimeFormat(jam.jam_selesai)) {
+        if (!isValidTimeRange(jam.jam_mulai, jam.jam_selesai)) {
+            errors.push({ 
+                index: jamIndex, 
+                field: 'jam_selesai', 
+                value: `${jam.jam_mulai} - ${jam.jam_selesai}`,
+                message: 'Waktu selesai harus lebih besar dari waktu mulai' 
+            });
+        }
+    }
+}
+
+/**
  * Get all jam pelajaran for a specific kelas
  * GET /api/admin/jam-pelajaran/:kelasId
  */
@@ -190,73 +264,7 @@ export const upsertJamPelajaran = async (req, res) => {
         const seenJamKe = new Set();
         
         for (let i = 0; i < jam_pelajaran.length; i++) {
-            const jam = jam_pelajaran[i];
-            const jamIndex = i + 1;
-            
-            // Required fields check
-            if (!jam.jam_ke) {
-                errors.push({ index: jamIndex, field: 'jam_ke', message: 'Nomor jam wajib diisi' });
-            }
-            if (!jam.jam_mulai) {
-                errors.push({ index: jamIndex, field: 'jam_mulai', message: 'Waktu mulai wajib diisi' });
-            }
-            if (!jam.jam_selesai) {
-                errors.push({ index: jamIndex, field: 'jam_selesai', message: 'Waktu selesai wajib diisi' });
-            }
-            
-            // Skip further validation if required fields missing
-            if (!jam.jam_ke || !jam.jam_mulai || !jam.jam_selesai) continue;
-            
-            // jam_ke range check
-            if (jam.jam_ke < MIN_JAM_KE || jam.jam_ke > MAX_JAM_KE) {
-                errors.push({ 
-                    index: jamIndex, 
-                    field: 'jam_ke', 
-                    value: jam.jam_ke,
-                    message: `Nomor jam harus antara ${MIN_JAM_KE} dan ${MAX_JAM_KE}` 
-                });
-            }
-            
-            // Duplicate jam_ke check
-            if (seenJamKe.has(jam.jam_ke)) {
-                errors.push({ 
-                    index: jamIndex, 
-                    field: 'jam_ke', 
-                    value: jam.jam_ke,
-                    message: `Jam ke-${jam.jam_ke} terduplikat dalam data` 
-                });
-            }
-            seenJamKe.add(jam.jam_ke);
-            
-            // Time format validation
-            if (!isValidTimeFormat(jam.jam_mulai)) {
-                errors.push({ 
-                    index: jamIndex, 
-                    field: 'jam_mulai', 
-                    value: jam.jam_mulai,
-                    message: 'Format waktu mulai tidak valid (gunakan HH:MM)' 
-                });
-            }
-            if (!isValidTimeFormat(jam.jam_selesai)) {
-                errors.push({ 
-                    index: jamIndex, 
-                    field: 'jam_selesai', 
-                    value: jam.jam_selesai,
-                    message: 'Format waktu selesai tidak valid (gunakan HH:MM)' 
-                });
-            }
-            
-            // Time range validation
-            if (isValidTimeFormat(jam.jam_mulai) && isValidTimeFormat(jam.jam_selesai)) {
-                if (!isValidTimeRange(jam.jam_mulai, jam.jam_selesai)) {
-                    errors.push({ 
-                        index: jamIndex, 
-                        field: 'jam_selesai', 
-                        value: `${jam.jam_mulai} - ${jam.jam_selesai}`,
-                        message: 'Waktu selesai harus lebih besar dari waktu mulai' 
-                    });
-                }
-            }
+            validateJamPelajaranEntry(jam_pelajaran[i], i + 1, seenJamKe, errors);
         }
         
         if (errors.length > 0) {
