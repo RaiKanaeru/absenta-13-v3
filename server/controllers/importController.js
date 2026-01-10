@@ -24,7 +24,9 @@ import {
     validateStudentAccountRow,
     createStudentRowPreview,
     validateTeacherAccountRow,
-    createTeacherRowPreview
+    createTeacherRowPreview,
+    validateMapelRow,
+    validateKelasRow
 } from '../utils/importHelper.js';
 
 // ================================================
@@ -54,44 +56,15 @@ const importMapel = async (req, res) => {
 
         for (let i = 0; i < rows.length; i++) {
             const currentRow = rows[i];
-            const rowErrors = [];
             const rowNum = i + 2; // Excel row number
 
             try {
-                // Validasi umum - perbaiki field mapping
-                const kodeMapel = currentRow.kode_mapel || currentRow['Kode Mapel'] || currentRow['kode_mapel'];
-                const namaMapel = currentRow.nama_mapel || currentRow['Nama Mapel'] || currentRow['nama_mapel'];
-                const deskripsi = currentRow.deskripsi || currentRow.Deskripsi || currentRow['deskripsi'];
-                const status = currentRow.status || currentRow.Status || currentRow['status'];
-
-                if (!kodeMapel) rowErrors.push('kode_mapel wajib');
-                if (!namaMapel) rowErrors.push('nama_mapel wajib');
-
-                if (status && !['aktif', 'nonaktif'].includes(String(status))) {
-                    rowErrors.push('status tidak valid');
-                }
-
-                if (kodeMapel) {
-                    const normalizedCode = String(kodeMapel).trim();
-                    if (seenKode.has(normalizedCode)) {
-                        rowErrors.push('kode_mapel duplikat di file');
-                    }
-                    seenKode.add(normalizedCode);
-                }
-
-                if (rowErrors.length) {
-                    const rowPreview = {
-                        kode_mapel: kodeMapel || '(kosong)',
-                        nama_mapel: namaMapel || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
+                const result = validateMapelRow(currentRow, seenKode);
+                
+                if (!result.valid) {
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 } else {
-                    valid.push({
-                        kode_mapel: String(kodeMapel).trim(),
-                        nama_mapel: String(namaMapel).trim(),
-                        deskripsi: deskripsi ? String(deskripsi).trim() : null,
-                        status: status ? String(status).trim() : 'aktif'
-                    });
+                    valid.push(result.data);
                 }
             } catch (error) {
                 const rowPreview = {
@@ -167,40 +140,15 @@ const importKelas = async (req, res) => {
 
         for (let i = 0; i < rows.length; i++) {
             const rowData = rows[i];
-            const rowErrors = [];
             const rowNum = i + 2;
 
             try {
-                const namaKelas = rowData.nama_kelas || rowData['Nama Kelas'];
-                const tingkat = rowData.tingkat || rowData.Tingkat;
-                const status = rowData.status || rowData.Status;
-
-                if (!namaKelas) rowErrors.push('nama_kelas wajib');
-
-                if (status && !['aktif', 'nonaktif'].includes(String(status))) {
-                    rowErrors.push('status tidak valid');
-                }
-
-                if (namaKelas) {
-                    const trimmedValue = String(namaKelas).trim();
-                    if (seenNama.has(trimmedValue)) {
-                        rowErrors.push('nama_kelas duplikat di file');
-                    }
-                    seenNama.add(trimmedValue);
-                }
-
-                if (rowErrors.length) {
-                    const rowPreview = {
-                        nama_kelas: namaKelas || '(kosong)',
-                        tingkat: tingkat || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
+                const result = validateKelasRow(rowData, seenNama);
+                
+                if (!result.valid) {
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 } else {
-                    valid.push({
-                        nama_kelas: String(namaKelas).trim(),
-                        tingkat: tingkat ? String(tingkat).trim() : null,
-                        status: status ? String(status).trim() : 'aktif'
-                    });
+                    valid.push(result.data);
                 }
             } catch (error) {
                 const rowPreview = {

@@ -616,6 +616,108 @@ function validateTeacherAccountRow(rowData, validRecords, existingNips, existing
     return { valid: true, errors: [], data: buildTeacherObject(rowData) };
 }
 
+// ================================================
+// MAPEL & KELAS VALIDATION HELPERS
+// ================================================
+
+/**
+ * Validate status field
+ * @param {string} status - Status value
+ * @returns {boolean} True if valid or empty
+ */
+function isValidStatus(status) {
+    return !status || ['aktif', 'nonaktif'].includes(String(status));
+}
+
+/**
+ * Validate and parse Mapel row data
+ * @param {Object} rowData - Raw row data from Excel
+ * @param {Set} seenKode - Set of already seen kode_mapel values
+ * @returns {Object} { valid, errors, data }
+ */
+function validateMapelRow(rowData, seenKode) {
+    const errors = [];
+    
+    const kodeMapel = rowData.kode_mapel || rowData['Kode Mapel'] || rowData['kode_mapel'];
+    const namaMapel = rowData.nama_mapel || rowData['Nama Mapel'] || rowData['nama_mapel'];
+    const deskripsi = rowData.deskripsi || rowData.Deskripsi || rowData['deskripsi'];
+    const status = rowData.status || rowData.Status || rowData['status'];
+
+    if (!kodeMapel) errors.push('kode_mapel wajib');
+    if (!namaMapel) errors.push('nama_mapel wajib');
+    if (!isValidStatus(status)) errors.push('status tidak valid');
+
+    if (kodeMapel) {
+        const normalizedCode = String(kodeMapel).trim();
+        if (seenKode.has(normalizedCode)) {
+            errors.push('kode_mapel duplikat di file');
+        }
+        seenKode.add(normalizedCode);
+    }
+
+    if (errors.length > 0) {
+        return {
+            valid: false,
+            errors,
+            preview: { kode_mapel: kodeMapel || '(kosong)', nama_mapel: namaMapel || '(kosong)' }
+        };
+    }
+
+    return {
+        valid: true,
+        errors: [],
+        data: {
+            kode_mapel: String(kodeMapel).trim(),
+            nama_mapel: String(namaMapel).trim(),
+            deskripsi: deskripsi ? String(deskripsi).trim() : null,
+            status: status ? String(status).trim() : 'aktif'
+        }
+    };
+}
+
+/**
+ * Validate and parse Kelas row data
+ * @param {Object} rowData - Raw row data from Excel
+ * @param {Set} seenNama - Set of already seen nama_kelas values
+ * @returns {Object} { valid, errors, data }
+ */
+function validateKelasRow(rowData, seenNama) {
+    const errors = [];
+    
+    const namaKelas = rowData.nama_kelas || rowData['Nama Kelas'];
+    const tingkat = rowData.tingkat || rowData.Tingkat;
+    const status = rowData.status || rowData.Status;
+
+    if (!namaKelas) errors.push('nama_kelas wajib');
+    if (!isValidStatus(status)) errors.push('status tidak valid');
+
+    if (namaKelas) {
+        const trimmedValue = String(namaKelas).trim();
+        if (seenNama.has(trimmedValue)) {
+            errors.push('nama_kelas duplikat di file');
+        }
+        seenNama.add(trimmedValue);
+    }
+
+    if (errors.length > 0) {
+        return {
+            valid: false,
+            errors,
+            preview: { nama_kelas: namaKelas || '(kosong)', tingkat: tingkat || '(kosong)' }
+        };
+    }
+
+    return {
+        valid: true,
+        errors: [],
+        data: {
+            nama_kelas: String(namaKelas).trim(),
+            tingkat: tingkat ? String(tingkat).trim() : null,
+            status: status ? String(status).trim() : 'aktif'
+        }
+    };
+}
+
 // ES Module exports
 export {
     sheetToJsonByHeader,
@@ -641,6 +743,10 @@ export {
     // Teacher account helpers
     validateTeacherAccountRow,
     createTeacherRowPreview,
-    buildTeacherObject
+    buildTeacherObject,
+    // Mapel and Kelas helpers
+    validateMapelRow,
+    validateKelasRow,
+    isValidStatus
 };
 
