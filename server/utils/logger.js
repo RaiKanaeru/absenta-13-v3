@@ -101,14 +101,20 @@ export class Logger {
         const timestamp = this._getTimestamp();
         const levelInfo = LOG_LEVELS[level];
         
-        // Build log object
+        const logObj = this._buildLogObject(timestamp, levelInfo, message);
+        this._addDataToLog(logObj, data);
+        this._addErrorToLog(logObj, error);
+
+        return this._formatOutput(logObj, levelInfo, timestamp, data, error);
+    }
+
+    _buildLogObject(timestamp, levelInfo, message) {
         const logObj = {
             time: timestamp,
             level: levelInfo.label.trim(),
             module: this.module
         };
 
-        // Add request context if available
         if (this.requestContext) {
             if (this.requestContext.requestId) logObj.reqId = this.requestContext.requestId;
             if (this.requestContext.method) logObj.method = this.requestContext.method;
@@ -117,37 +123,39 @@ export class Logger {
         }
 
         logObj.msg = message;
+        return logObj;
+    }
 
-        // Add data if provided
+    _addDataToLog(logObj, data) {
         if (data && Object.keys(data).length > 0) {
             logObj.data = data;
         }
+    }
 
-        // Add error details if provided
-        if (error) {
-            logObj.error = {
-                name: error.name,
-                message: error.message,
-                code: error.code
-            };
-            if (!IS_PRODUCTION && error.stack) {
-                logObj.error.stack = error.stack.split('\n').slice(0, 5);
-            }
+    _addErrorToLog(logObj, error) {
+        if (!error) return;
+        
+        logObj.error = {
+            name: error.name,
+            message: error.message,
+            code: error.code
+        };
+        if (!IS_PRODUCTION && error.stack) {
+            logObj.error.stack = error.stack.split('\n').slice(0, 5);
         }
+    }
 
-        // Format output
+    _formatOutput(logObj, levelInfo, timestamp, data, error) {
         if (IS_PRODUCTION) {
-            // JSON format for production (easier to parse by log aggregators)
             return JSON.stringify(logObj);
-        } else {
-            // Colored readable format for development
-            const color = levelInfo.color;
-            const ctx = this.requestContext?.requestId ? `[${this.requestContext.requestId}]` : '';
-            const dataStr = data ? ` ${JSON.stringify(data)}` : '';
-            const errorStr = error ? ` | Error: ${error.message}` : '';
-            
-            return `${color}${timestamp} | ${levelInfo.label} | ${this.module} ${ctx} | ${message}${dataStr}${errorStr}${RESET_COLOR}`;
         }
+        
+        const color = levelInfo.color;
+        const ctx = this.requestContext?.requestId ? `[${this.requestContext.requestId}]` : '';
+        const dataStr = data ? ` ${JSON.stringify(data)}` : '';
+        const errorStr = error ? ` | Error: ${error.message}` : '';
+        
+        return `${color}${timestamp} | ${levelInfo.label} | ${this.module} ${ctx} | ${logObj.msg}${dataStr}${errorStr}${RESET_COLOR}`;
     }
 
     /**
