@@ -308,66 +308,64 @@ class SecuritySystem extends EventEmitter {
      */
     validateInput(data, source) {
         const violations = [];
-        
-        const validateValue = (value, path = '') => {
-            if (typeof value === 'string') {
-                // Check length
-                if (value.length > this.options.inputValidation.maxLength) {
-                    violations.push({
-                        path,
-                        type: 'max_length_exceeded',
-                        message: `Value exceeds maximum length of ${this.options.inputValidation.maxLength}`,
-                        value: value.substring(0, 100) + '...'
-                    });
-                }
-                
-                // Check allowed characters (skip for empty strings)
-                if (value.length > 0 && !this.options.inputValidation.allowedChars.test(value)) {
-                    violations.push({
-                        path,
-                        type: 'invalid_characters',
-                        message: 'Value contains invalid characters',
-                        value: value.substring(0, 100) + '...'
-                    });
-                }
-                
-                // Check for SQL injection patterns
-                for (const pattern of this.options.inputValidation.sqlInjectionPatterns) {
-                    if (pattern.test(value)) {
-                        violations.push({
-                            path,
-                            type: 'sql_injection_attempt',
-                            message: 'Potential SQL injection attempt detected',
-                            value: value.substring(0, 100) + '...'
-                        });
-                    }
-                }
-                
-                // Check for XSS patterns
-                for (const pattern of this.options.inputValidation.xssPatterns) {
-                    if (pattern.test(value)) {
-                        violations.push({
-                            path,
-                            type: 'xss_attempt',
-                            message: 'Potential XSS attempt detected',
-                            value: value.substring(0, 100) + '...'
-                        });
-                    }
-                }
-            } else if (typeof value === 'object' && value !== null) {
-                // Recursively validate object properties
-                for (const [key, val] of Object.entries(value)) {
-                    validateValue(val, path ? `${path}.${key}` : key);
-                }
-            }
-        };
-        
-        validateValue(data);
+        this._validateValue(data, '', violations);
         
         return {
             valid: violations.length === 0,
             violations
         };
+    }
+
+    _validateValue(value, path, violations) {
+        if (typeof value === 'string') {
+            this._validateString(value, path, violations);
+        } else if (typeof value === 'object' && value !== null) {
+            for (const [key, val] of Object.entries(value)) {
+                this._validateValue(val, path ? `${path}.${key}` : key, violations);
+            }
+        }
+    }
+
+    _validateString(value, path, violations) {
+        this._checkLength(value, path, violations);
+        this._checkAllowedChars(value, path, violations);
+        this._checkPatterns(value, path, violations, this.options.inputValidation.sqlInjectionPatterns, 'sql_injection_attempt', 'Potential SQL injection attempt detected');
+        this._checkPatterns(value, path, violations, this.options.inputValidation.xssPatterns, 'xss_attempt', 'Potential XSS attempt detected');
+    }
+
+    _checkLength(value, path, violations) {
+        if (value.length > this.options.inputValidation.maxLength) {
+            violations.push({
+                path,
+                type: 'max_length_exceeded',
+                message: `Value exceeds maximum length of ${this.options.inputValidation.maxLength}`,
+                value: value.substring(0, 100) + '...'
+            });
+        }
+    }
+
+    _checkAllowedChars(value, path, violations) {
+        if (value.length > 0 && !this.options.inputValidation.allowedChars.test(value)) {
+            violations.push({
+                path,
+                type: 'invalid_characters',
+                message: 'Value contains invalid characters',
+                value: value.substring(0, 100) + '...'
+            });
+        }
+    }
+
+    _checkPatterns(value, path, violations, patterns, type, message) {
+        for (const pattern of patterns) {
+            if (pattern.test(value)) {
+                violations.push({
+                    path,
+                    type,
+                    message,
+                    value: value.substring(0, 100) + '...'
+                });
+            }
+        }
     }
     
     /**
