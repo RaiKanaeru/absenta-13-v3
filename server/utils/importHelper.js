@@ -804,6 +804,143 @@ export {
     validateMapelRow,
     validateKelasRow,
     validateRuangRow,
+    // Siswa, Guru data helpers
+    validateSiswaDataRow,
+    validateGuruDataRow,
     isValidStatus
 };
+
+/**
+ * Validate a siswa data row from Excel import (without account creation)
+ * @param {Object} rowData - Row data from Excel
+ * @param {Array} existingValid - Array of already validated records (to check file duplicates)
+ * @param {Set} existingNis - Set of existing NIS values in database
+ * @returns {Object} { valid: boolean, errors: string[], data?: Object, preview?: Object }
+ */
+function validateSiswaDataRow(rowData, existingValid, existingNis) {
+    const errors = [];
+    const genderEnum = ['L', 'P'];
+    
+    const nis = rowData.nis || rowData['NIS *'];
+    const nama = rowData.nama || rowData['Nama Lengkap *'];
+    const kelas = rowData.kelas || rowData['Kelas *'];
+    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
+    const email = rowData.email || rowData.Email;
+    
+    // Required fields
+    if (!nis) errors.push('NIS wajib diisi');
+    if (!nama) errors.push('Nama lengkap wajib diisi');
+    if (!kelas) errors.push('Kelas wajib diisi');
+    
+    // NIS validation
+    if (nis) {
+        const nisValue = String(nis).trim();
+        if (nisValue.length < 8) errors.push('NIS minimal 8 karakter');
+        if (nisValue.length > 15) errors.push('NIS maksimal 15 karakter');
+        if (!/^\d+$/.test(nisValue)) errors.push('NIS harus berupa angka');
+        if (existingValid.some(v => v.nis === nisValue)) errors.push('NIS duplikat dalam file');
+        if (existingNis.has(nisValue)) errors.push('NIS sudah digunakan di database');
+    }
+    
+    // Email validation
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+        errors.push('Format email tidak valid');
+    }
+    
+    // Gender validation
+    if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
+        errors.push('Jenis kelamin harus L atau P');
+    }
+    
+    const preview = {
+        nis: nis || '(kosong)',
+        nama: nama || '(kosong)',
+        kelas: kelas || '(kosong)'
+    };
+    
+    if (errors.length > 0) {
+        return { valid: false, errors, preview };
+    }
+    
+    return {
+        valid: true,
+        errors: [],
+        data: {
+            nis: String(nis).trim(),
+            nama: String(nama).trim(),
+            kelas: String(kelas).trim(),
+            jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
+            telepon_orangtua: (rowData.telepon_orangtua || rowData['Telepon Orang Tua']) ? String(rowData.telepon_orangtua || rowData['Telepon Orang Tua']).trim() : null,
+            nomor_telepon_siswa: (rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']) ? String(rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']).trim() : null,
+            alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
+            status: (rowData.status || rowData.Status) ? String(rowData.status || rowData.Status).trim() : 'aktif'
+        }
+    };
+}
+
+/**
+ * Validate a guru data row from Excel import (without account creation)
+ * @param {Object} rowData - Row data from Excel  
+ * @param {Array} existingValid - Array of already validated records
+ * @param {Set} existingNip - Set of existing NIP values in database
+ * @returns {Object} { valid: boolean, errors: string[], data?: Object, preview?: Object }
+ */
+function validateGuruDataRow(rowData, existingValid, existingNip) {
+    const errors = [];
+    const genderEnum = ['L', 'P'];
+    
+    const nip = rowData.nip || rowData['NIP *'];
+    const nama = rowData.nama || rowData['Nama Lengkap *'];
+    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
+    const email = rowData.email || rowData.Email;
+    const telepon = rowData.nomor_telepon || rowData['Nomor Telepon'];
+    const alamat = rowData.alamat || rowData.Alamat;
+    const status = rowData.status || rowData.Status;
+    
+    // Required fields
+    if (!nip) errors.push('NIP wajib diisi');
+    if (!nama) errors.push('Nama lengkap wajib diisi');
+    
+    // NIP validation
+    if (nip) {
+        const nipValue = String(nip).trim();
+        if (nipValue.length < 8) errors.push('NIP minimal 8 karakter');
+        if (nipValue.length > 20) errors.push('NIP maksimal 20 karakter');
+        if (existingValid.some(v => v.nip === nipValue)) errors.push('NIP duplikat dalam file');
+        if (existingNip.has(nipValue)) errors.push('NIP sudah digunakan di database');
+    }
+    
+    // Email validation
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+        errors.push('Format email tidak valid');
+    }
+    
+    // Gender validation
+    if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
+        errors.push('Jenis kelamin harus L atau P');
+    }
+    
+    const preview = {
+        nip: nip || '(kosong)',
+        nama: nama || '(kosong)'
+    };
+    
+    if (errors.length > 0) {
+        return { valid: false, errors, preview };
+    }
+    
+    return {
+        valid: true,
+        errors: [],
+        data: {
+            nip: String(nip).trim(),
+            nama: String(nama).trim(),
+            jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
+            email: email ? String(email).trim() : null,
+            nomor_telepon: telepon ? String(telepon).trim() : null,
+            alamat: alamat ? String(alamat).trim() : null,
+            status: status ? String(status).trim() : 'aktif'
+        }
+    };
+}
 

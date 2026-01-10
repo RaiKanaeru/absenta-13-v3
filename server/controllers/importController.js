@@ -27,7 +27,9 @@ import {
     createTeacherRowPreview,
     validateMapelRow,
     validateKelasRow,
-    validateRuangRow
+    validateRuangRow,
+    validateSiswaDataRow,
+    validateGuruDataRow
 } from '../utils/importHelper.js';
 
 // ================================================
@@ -876,71 +878,16 @@ const importSiswa = async (req, res) => {
         }
 
         for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowErrors = [];
             const rowNum = i + 2;
-
             try {
-                // Validasi field wajib
-                if (!rowData.nis && !rowData['NIS *']) rowErrors.push('NIS wajib diisi');
-                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
-                if (!rowData.kelas && !rowData['Kelas *']) rowErrors.push('Kelas wajib diisi');
-
-                // Validasi NIS
-                const nis = rowData.nis || rowData['NIS *'];
-                if (nis) {
-                    const nisValue = String(nis).trim();
-                    if (nisValue.length < 8) rowErrors.push('NIS minimal 8 karakter');
-                    if (nisValue.length > 15) rowErrors.push('NIS maksimal 15 karakter');
-                    if (!/^\d+$/.test(nisValue)) rowErrors.push('NIS harus berupa angka');
-
-                    // Cek duplikasi NIS dalam file
-                    const duplicateNis = valid.find(v => v.nis === nisValue);
-                    if (duplicateNis) rowErrors.push('NIS duplikat dalam file');
-
-                    // Cek duplikasi NIS di database
-                    if (existingNis.has(nisValue)) rowErrors.push('NIS sudah digunakan di database');
-                }
-
-                // Validasi email
-                const email = rowData.email || rowData.Email;
-                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-                    rowErrors.push('Format email tidak valid');
-                }
-
-                // Validasi jenis kelamin
-                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
-                if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
-                    rowErrors.push('Jenis kelamin harus L atau P');
-                }
-
-                if (rowErrors.length) {
-                    // Include row data preview for easier identification
-                    const rowPreview = {
-                        nis: rowData.nis || rowData['NIS *'] || '(kosong)',
-                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
-                        kelas: rowData.kelas || rowData['Kelas *'] || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
+                const result = validateSiswaDataRow(rows[i], valid, existingNis);
+                if (result.valid) {
+                    valid.push(result.data);
                 } else {
-                    valid.push({
-                        nis: String(nis).trim(),
-                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
-                        kelas: String(rowData.kelas || rowData['Kelas *']).trim(),
-                        jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-                        telepon_orangtua: (rowData.telepon_orangtua || rowData['Telepon Orang Tua']) ? String(rowData.telepon_orangtua || rowData['Telepon Orang Tua']).trim() : null,
-                        nomor_telepon_siswa: (rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']) ? String(rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']).trim() : null,
-                        alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
-                        status: (rowData.status || rowData.Status) ? String(rowData.status || rowData.Status).trim() : 'aktif'
-                    });
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 }
             } catch (error) {
-                const rowPreview = {
-                    nis: rowData.nis || rowData['NIS *'] || '(kosong)',
-                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)',
-                    kelas: rowData.kelas || rowData['Kelas *'] || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
+                errors.push({ index: rowNum, errors: [error.message], data: { nis: '(error)', nama: '(error)', kelas: '(error)' } });
             }
         }
 
@@ -1073,72 +1020,19 @@ const importGuru = async (req, res) => {
         }
 
         for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowErrors = [];
             const rowNum = i + 2;
-
             try {
-                // Validasi field wajib
-                if (!rowData.nip && !rowData['NIP *']) rowErrors.push('NIP wajib diisi');
-                if (!rowData.nama && !rowData['Nama Lengkap *']) rowErrors.push('Nama lengkap wajib diisi');
-
-                // Validasi NIP
-                const nip = rowData.nip || rowData['NIP *'];
-                if (nip) {
-                    const nipValue = String(nip).trim();
-                    if (nipValue.length < 8) rowErrors.push('NIP minimal 8 karakter');
-                    if (nipValue.length > 20) rowErrors.push('NIP maksimal 20 karakter');
-
-                    // Cek duplikasi NIP dalam file
-                    const duplicateNip = valid.find(v => v.nip === nipValue);
-                    if (duplicateNip) rowErrors.push('NIP duplikat dalam file');
-
-                    // Cek duplikasi NIP di database
-                    if (existingNips.has(nipValue)) rowErrors.push('NIP sudah digunakan di database');
-                }
-
-                // Validasi email
-                const email = rowData.email || rowData.Email;
-                if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-                    rowErrors.push('Format email tidak valid');
-                }
-
-                // Validasi jenis kelamin
-                const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
-                if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
-                    rowErrors.push('Jenis kelamin harus L atau P');
-                }
-
-                // Validasi no telepon
-                const noTelp = rowData.no_telepon || rowData['No. Telepon'];
-                if (noTelp && String(noTelp).length < 10) {
-                    rowErrors.push('Nomor telepon minimal 10 digit');
-                }
-
-                if (rowErrors.length) {
-                    const rowPreview = {
-                        nip: nip || '(kosong)',
-                        nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: rowErrors, data: rowPreview });
+                const result = validateGuruDataRow(rows[i], valid, existingNips);
+                if (result.valid) {
+                    // Add additional fields not in helper
+                    const rowData = rows[i];
+                    result.data.jabatan = (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null;
+                    valid.push(result.data);
                 } else {
-                    valid.push({
-                        nip: String(nip).trim(),
-                        nama: String(rowData.nama || rowData['Nama Lengkap *']).trim(),
-                        jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-                        email: email ? String(email).trim() : null,
-                        no_telepon: noTelp ? String(noTelp).trim() : null,
-                        alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
-                        jabatan: (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null,
-                        status: (rowData.status || rowData.Status) ? String(rowData.status || rowData.Status).trim() : 'aktif'
-                    });
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 }
             } catch (error) {
-                const rowPreview = {
-                    nip: rowData.nip || rowData['NIP *'] || '(kosong)',
-                    nama: rowData.nama || rowData['Nama Lengkap *'] || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
+                errors.push({ index: rowNum, errors: [error.message], data: { nip: '(error)', nama: '(error)' } });
             }
         }
 
