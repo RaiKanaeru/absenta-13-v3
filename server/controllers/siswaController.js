@@ -374,47 +374,64 @@ export const updateSiswa = async (req, res) => {
         await connection.beginTransaction();
 
         try {
+            // Helper to build siswa update fields
+            const buildSiswaUpdateFields = (data) => {
+                const fields = [];
+                const values = [];
+                const fieldMap = {
+                    nis: data.nis, nama: data.nama, kelas_id: data.kelas_id,
+                    jabatan: data.jabatan, telepon_orangtua: data.telepon_orangtua,
+                    nomor_telepon_siswa: data.nomor_telepon_siswa, jenis_kelamin: data.jenis_kelamin,
+                    alamat: data.alamat, status: data.status
+                };
+                for (const [key, value] of Object.entries(fieldMap)) {
+                    if (value !== undefined) {
+                        fields.push(`${key} = ?`);
+                        values.push(value);
+                    }
+                }
+                return { fields, values };
+            };
+
+            // Helper to build user update fields
+            const buildSiswaUserUpdateFields = async (data, bcrypt, saltRounds) => {
+                const fields = [];
+                const values = [];
+                const fieldMap = {
+                    nama: data.nama, username: data.username,
+                    email: data.email, status: data.status
+                };
+                for (const [key, value] of Object.entries(fieldMap)) {
+                    if (value !== undefined) {
+                        fields.push(`${key} = ?`);
+                        values.push(value);
+                    }
+                }
+                if (data.password !== undefined && data.password !== '') {
+                    const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+                    fields.push('password = ?');
+                    values.push(hashedPassword);
+                }
+                return { fields, values };
+            };
+
             // Update siswa record
-            const updateFields = [];
-            const updateValues = [];
-
-            if (nis !== undefined) { updateFields.push('nis = ?'); updateValues.push(nis); }
-            if (nama !== undefined) { updateFields.push('nama = ?'); updateValues.push(nama); }
-            if (kelas_id !== undefined) { updateFields.push('kelas_id = ?'); updateValues.push(kelas_id); }
-            if (jabatan !== undefined) { updateFields.push('jabatan = ?'); updateValues.push(jabatan); }
-            if (telepon_orangtua !== undefined) { updateFields.push('telepon_orangtua = ?'); updateValues.push(telepon_orangtua); }
-            if (nomor_telepon_siswa !== undefined) { updateFields.push('nomor_telepon_siswa = ?'); updateValues.push(nomor_telepon_siswa); }
-            if (jenis_kelamin !== undefined) { updateFields.push('jenis_kelamin = ?'); updateValues.push(jenis_kelamin); }
-            if (alamat !== undefined) { updateFields.push('alamat = ?'); updateValues.push(alamat); }
-            if (status !== undefined) { updateFields.push('status = ?'); updateValues.push(status); }
-
-            if (updateFields.length > 0) {
-                updateValues.push(id);
+            const siswaUpdate = buildSiswaUpdateFields(req.body);
+            if (siswaUpdate.fields.length > 0) {
+                siswaUpdate.values.push(id);
                 await connection.execute(
-                    `UPDATE siswa SET ${updateFields.join(', ')} WHERE id = ?`,
-                    updateValues
+                    `UPDATE siswa SET ${siswaUpdate.fields.join(', ')} WHERE id = ?`,
+                    siswaUpdate.values
                 );
             }
 
             // Update users record
-            const userUpdateFields = [];
-            const userUpdateValues = [];
-
-            if (nama !== undefined) { userUpdateFields.push('nama = ?'); userUpdateValues.push(nama); }
-            if (username !== undefined) { userUpdateFields.push('username = ?'); userUpdateValues.push(username); }
-            if (email !== undefined) { userUpdateFields.push('email = ?'); userUpdateValues.push(email); }
-            if (status !== undefined) { userUpdateFields.push('status = ?'); userUpdateValues.push(status); }
-            if (password !== undefined && password !== '') {
-                const hashedPassword = await bcrypt.hash(password, saltRounds);
-                userUpdateFields.push('password = ?');
-                userUpdateValues.push(hashedPassword);
-            }
-
-            if (userUpdateFields.length > 0 && siswa.user_id) {
-                userUpdateValues.push(siswa.user_id);
+            const userUpdate = await buildSiswaUserUpdateFields(req.body, bcrypt, saltRounds);
+            if (userUpdate.fields.length > 0 && siswa.user_id) {
+                userUpdate.values.push(siswa.user_id);
                 await connection.execute(
-                    `UPDATE users SET ${userUpdateFields.join(', ')} WHERE id = ?`,
-                    userUpdateValues
+                    `UPDATE users SET ${userUpdate.fields.join(', ')} WHERE id = ?`,
+                    userUpdate.values
                 );
             }
 

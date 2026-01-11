@@ -292,25 +292,28 @@ export const deleteLogo = async (req, res) => {
             return sendNotFoundError(res, 'Konfigurasi letterhead tidak ditemukan');
         }
 
+        // Helper to get logo field and file
+        const getLogoFieldAndFile = (config, type) => {
+            const logoMap = {
+                'logo': { field: 'logo', file: config.logo },
+                'logoLeft': { field: 'logoLeftUrl', file: config.logoLeftUrl },
+                'logoRight': { field: 'logoRightUrl', file: config.logoRightUrl }
+            };
+            return logoMap[type] || { field: null, file: null };
+        };
+
         // Clear the specified logo and delete physical file
         const updateData = { ...currentConfig };
-        let fileToDelete = null;
-
-        if (logoType === 'logo') {
-            fileToDelete = currentConfig.logo;
-            updateData.logo = '';
-        } else if (logoType === 'logoLeft') {
-            fileToDelete = currentConfig.logoLeftUrl;
-            updateData.logoLeftUrl = '';
-        } else if (logoType === 'logoRight') {
-            fileToDelete = currentConfig.logoRightUrl;
-            updateData.logoRightUrl = '';
+        const { field, file } = getLogoFieldAndFile(currentConfig, logoType);
+        
+        if (field) {
+            updateData[field] = '';
         }
 
         // Delete physical file if it exists
-        if (fileToDelete && fileToDelete.startsWith('/uploads/letterheads/')) {
+        if (file && file.startsWith('/uploads/letterheads/')) {
             try {
-                const filePath = path.join('public', fileToDelete);
+                const filePath = path.join('public', file);
                 await fs.unlink(filePath);
                 log.debug('Physical file deleted', { filePath });
             } catch (fileError) {

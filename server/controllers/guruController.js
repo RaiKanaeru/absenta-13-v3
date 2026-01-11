@@ -360,47 +360,63 @@ export const updateGuru = async (req, res) => {
         await connection.beginTransaction();
 
         try {
+            // Helper to build update fields
+            const buildGuruUpdateFields = (data) => {
+                const fields = [];
+                const values = [];
+                const fieldMap = {
+                    nip: data.nip, nama: data.nama, username: data.username,
+                    email: data.email, no_telp: data.no_telp, jenis_kelamin: data.jenis_kelamin,
+                    alamat: data.alamat, mapel_id: data.mapel_id, status: data.status
+                };
+                for (const [key, value] of Object.entries(fieldMap)) {
+                    if (value !== undefined) {
+                        fields.push(`${key} = ?`);
+                        values.push(value);
+                    }
+                }
+                return { fields, values };
+            };
+
+            // Helper to build user update fields
+            const buildUserUpdateFields = async (data, bcrypt, saltRounds) => {
+                const fields = [];
+                const values = [];
+                const fieldMap = {
+                    nama: data.nama, username: data.username,
+                    email: data.email, status: data.status
+                };
+                for (const [key, value] of Object.entries(fieldMap)) {
+                    if (value !== undefined) {
+                        fields.push(`${key} = ?`);
+                        values.push(value);
+                    }
+                }
+                if (data.password !== undefined && data.password !== '') {
+                    const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+                    fields.push('password = ?');
+                    values.push(hashedPassword);
+                }
+                return { fields, values };
+            };
+
             // Update guru record
-            const updateFields = [];
-            const updateValues = [];
-
-            if (nip !== undefined) { updateFields.push('nip = ?'); updateValues.push(nip); }
-            if (nama !== undefined) { updateFields.push('nama = ?'); updateValues.push(nama); }
-            if (username !== undefined) { updateFields.push('username = ?'); updateValues.push(username); }
-            if (email !== undefined) { updateFields.push('email = ?'); updateValues.push(email); }
-            if (no_telp !== undefined) { updateFields.push('no_telp = ?'); updateValues.push(no_telp); }
-            if (jenis_kelamin !== undefined) { updateFields.push('jenis_kelamin = ?'); updateValues.push(jenis_kelamin); }
-            if (alamat !== undefined) { updateFields.push('alamat = ?'); updateValues.push(alamat); }
-            if (mapel_id !== undefined) { updateFields.push('mapel_id = ?'); updateValues.push(mapel_id); }
-            if (status !== undefined) { updateFields.push('status = ?'); updateValues.push(status); }
-
-            if (updateFields.length > 0) {
-                updateValues.push(id);
+            const guruUpdate = buildGuruUpdateFields(req.body);
+            if (guruUpdate.fields.length > 0) {
+                guruUpdate.values.push(id);
                 await connection.execute(
-                    `UPDATE guru SET ${updateFields.join(', ')} WHERE id = ?`,
-                    updateValues
+                    `UPDATE guru SET ${guruUpdate.fields.join(', ')} WHERE id = ?`,
+                    guruUpdate.values
                 );
             }
 
             // Update users record
-            const userUpdateFields = [];
-            const userUpdateValues = [];
-
-            if (nama !== undefined) { userUpdateFields.push('nama = ?'); userUpdateValues.push(nama); }
-            if (username !== undefined) { userUpdateFields.push('username = ?'); userUpdateValues.push(username); }
-            if (email !== undefined) { userUpdateFields.push('email = ?'); userUpdateValues.push(email); }
-            if (status !== undefined) { userUpdateFields.push('status = ?'); userUpdateValues.push(status); }
-            if (password !== undefined && password !== '') {
-                const hashedPassword = await bcrypt.hash(password, saltRounds);
-                userUpdateFields.push('password = ?');
-                userUpdateValues.push(hashedPassword);
-            }
-
-            if (userUpdateFields.length > 0 && guru.user_id) {
-                userUpdateValues.push(guru.user_id);
+            const userUpdate = await buildUserUpdateFields(req.body, bcrypt, saltRounds);
+            if (userUpdate.fields.length > 0 && guru.user_id) {
+                userUpdate.values.push(guru.user_id);
                 await connection.execute(
-                    `UPDATE users SET ${userUpdateFields.join(', ')} WHERE id = ?`,
-                    userUpdateValues
+                    `UPDATE users SET ${userUpdate.fields.join(', ')} WHERE id = ?`,
+                    userUpdate.values
                 );
             }
 
