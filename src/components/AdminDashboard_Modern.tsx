@@ -5208,39 +5208,30 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <TableCell>
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
                           <div className="space-y-1">
-                            {/* Display teachers using helper for cleaner code */}
+                            {/* Display teachers using inline conditionals for cleaner code */}
                             <div className="flex flex-wrap gap-1">
-                              {(() => {
-                                // Helper to render teacher badges based on data format
-                                const renderTeacherBadges = () => {
-                                  if (schedule.guru_list && schedule.guru_list.includes('||')) {
-                                    return schedule.guru_list.split('||').map((guru, index) => {
-                                      const [, guruName] = guru.split(':');
-                                      return (
-                                        <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                          {guruName}
-                                        </Badge>
-                                      );
-                                    });
-                                  }
-                                  if (schedule.nama_guru && schedule.nama_guru.includes(',')) {
-                                    return schedule.nama_guru.split(',').map((guru, index) => (
-                                      <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                        {guru.trim()}
-                                      </Badge>
-                                    ));
-                                  }
-                                  if (schedule.nama_guru) {
-                                    return (
-                                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                        {schedule.nama_guru}
-                                      </Badge>
-                                    );
-                                  }
-                                  return <span className="text-sm text-gray-500">-</span>;
-                                };
-                                return renderTeacherBadges();
-                              })()}
+                              {schedule.guru_list && schedule.guru_list.includes('||') ? (
+                                schedule.guru_list.split('||').map((guru, index) => {
+                                  const [, guruName] = guru.split(':');
+                                  return (
+                                    <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                      {guruName}
+                                    </Badge>
+                                  );
+                                })
+                              ) : schedule.nama_guru && schedule.nama_guru.includes(',') ? (
+                                schedule.nama_guru.split(',').map((guru, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                    {guru.trim()}
+                                  </Badge>
+                                ))
+                              ) : schedule.nama_guru ? (
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                  {schedule.nama_guru}
+                                </Badge>
+                              ) : (
+                                <span className="text-sm text-gray-500">-</span>
+                              )}
                             </div>
                             
                             {/* Show multi-guru indicator if applicable */}
