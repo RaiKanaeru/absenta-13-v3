@@ -14,109 +14,179 @@ dotenv.config();
 const logger = createLogger('Guru');
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 
+/**
+ * Validate NIP field for guru
+ * @private
+ */
+async function validateNIPField(nip, isUpdate, excludeGuruId) {
+    if (isUpdate && nip === undefined) return [];
+    
+    const errors = [];
+    if (!nip || typeof nip !== 'string') {
+        errors.push('NIP wajib diisi');
+        return errors;
+    }
+    
+    if (!/^\d{10,20}$/.test(nip)) {
+        errors.push('NIP harus berupa angka 10-20 digit');
+        return errors;
+    }
+    
+    // Check NIP uniqueness
+    let sql = 'SELECT id FROM guru WHERE nip = ?';
+    const params = [nip];
+    if (isUpdate && excludeGuruId) {
+        sql += ' AND id != ?';
+        params.push(excludeGuruId);
+    }
+    const [existing] = await globalThis.dbPool.execute(sql, params);
+    if (existing.length > 0) {
+        errors.push('NIP sudah digunakan');
+    }
+    return errors;
+}
+
+/**
+ * Validate nama field
+ * @private
+ */
+function validateNamaField(nama, isUpdate) {
+    if (isUpdate && nama === undefined) return [];
+    if (!nama || typeof nama !== 'string' || nama.trim().length < 2) {
+        return ['Nama lengkap wajib diisi minimal 2 karakter'];
+    }
+    return [];
+}
+
+/**
+ * Validate username field for guru
+ * @private
+ */
+async function validateUsernameField(username, isUpdate, excludeUserId) {
+    if (isUpdate && username === undefined) return [];
+    
+    const errors = [];
+    if (!username || typeof username !== 'string') {
+        errors.push('Username wajib diisi');
+        return errors;
+    }
+    
+    if (!/^[a-zA-Z0-9._-]{4,32}$/.test(username)) {
+        errors.push('Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip');
+        return errors;
+    }
+    
+    // Check username uniqueness
+    let sql = 'SELECT id FROM users WHERE username = ?';
+    const params = [username];
+    if (isUpdate && excludeUserId) {
+        sql += ' AND id != ?';
+        params.push(excludeUserId);
+    }
+    const [existing] = await globalThis.dbPool.execute(sql, params);
+    if (existing.length > 0) {
+        errors.push('Username sudah digunakan');
+    }
+    return errors;
+}
+
+/**
+ * Validate email field for guru
+ * @private
+ */
+async function validateEmailField(email, isUpdate, excludeUserId) {
+    if (email === undefined || email === null || email === '') return [];
+    
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return ['Format email tidak valid'];
+    }
+    
+    // Check email uniqueness
+    let sql = 'SELECT id FROM users WHERE email = ?';
+    const params = [email];
+    if (isUpdate && excludeUserId) {
+        sql += ' AND id != ?';
+        params.push(excludeUserId);
+    }
+    const [existing] = await globalThis.dbPool.execute(sql, params);
+    if (existing.length > 0) {
+        return ['Email sudah digunakan'];
+    }
+    return [];
+}
+
+/**
+ * Validate mapel_id field
+ * @private
+ */
+async function validateMapelField(mapel_id) {
+    if (mapel_id === undefined || mapel_id === null || mapel_id === '' || mapel_id === 0) {
+        return [];
+    }
+    
+    if (!Number.isInteger(Number(mapel_id)) || Number(mapel_id) <= 0) {
+        return ['ID mata pelajaran harus berupa angka positif'];
+    }
+    
+    const [existing] = await globalThis.dbPool.execute(
+        'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
+        [mapel_id]
+    );
+    if (existing.length === 0) {
+        return ['Mata pelajaran tidak ditemukan atau tidak aktif'];
+    }
+    return [];
+}
+
+/**
+ * Validate status and password fields
+ * @private
+ */
+function validateStatusAndPassword(status, password, isUpdate) {
+    const errors = [];
+    
+    // Status validation
+    if (status !== undefined && status !== null && status !== '') {
+        if (!['aktif', 'nonaktif', 'pensiun'].includes(status)) {
+            errors.push('Status harus aktif, nonaktif, atau pensiun');
+        }
+    }
+    
+    // Password validation
+    if (!isUpdate && (!password || typeof password !== 'string' || password.length < 6)) {
+        errors.push('Password wajib diisi minimal 6 karakter');
+    }
+    if (isUpdate && password !== undefined && password !== null && password !== '') {
+        if (typeof password !== 'string' || password.length < 6) {
+            errors.push('Password minimal 6 karakter');
+        }
+    }
+    
+    return errors;
+}
+
 // Validasi payload guru untuk Create/Update
 async function validateGuruPayload(body, { isUpdate = false, excludeGuruId = null, excludeUserId = null } = {}) {
-    const errors = [];
     const { nip, nama, username, email, mapel_id, status, password } = body;
 
     try {
-        // Validasi NIP (wajib)
-        if (!isUpdate || nip !== undefined) {
-            if (!nip || typeof nip !== 'string') {
-                errors.push('NIP wajib diisi');
-            } else if (!/^\d{10,20}$/.test(nip)) {
-                errors.push('NIP harus berupa angka 10-20 digit');
-            } else {
-                // Cek unik NIP
-                let sql = 'SELECT id FROM guru WHERE nip = ?';
-                const params = [nip];
-                if (isUpdate && excludeGuruId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeGuruId);
-                }
-                const [existingNip] = await globalThis.dbPool.execute(sql, params);
-                if (existingNip.length > 0) {
-                    errors.push('NIP sudah digunakan');
-                }
-            }
-        }
-
-        // Validasi nama (wajib)
-        if (!isUpdate || nama !== undefined) {
-            if (!nama || typeof nama !== 'string' || nama.trim().length < 2) {
-                errors.push('Nama lengkap wajib diisi minimal 2 karakter');
-            }
-        }
-
-        // Validasi username (wajib)
-        if (!isUpdate || username !== undefined) {
-            if (!username || typeof username !== 'string') {
-                errors.push('Username wajib diisi');
-            } else if (!/^[a-zA-Z0-9._-]{4,32}$/.test(username)) {
-                errors.push('Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip');
-            } else {
-                // Cek unik username di users
-                let sql = 'SELECT id FROM users WHERE username = ?';
-                const params = [username];
-                if (isUpdate && excludeUserId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeUserId);
-                }
-                const [existingUsers] = await globalThis.dbPool.execute(sql, params);
-                if (existingUsers.length > 0) {
-                    errors.push('Username sudah digunakan');
-                }
-            }
-        }
-
-        // Validasi email (opsional)
-        if (email !== undefined && email !== null && email !== '') {
-            if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errors.push('Format email tidak valid');
-            } else {
-                // Cek unik email di users
-                let sql = 'SELECT id FROM users WHERE email = ?';
-                const params = [email];
-                if (isUpdate && excludeUserId) {
-                    sql += ' AND id != ?';
-                    params.push(excludeUserId);
-                }
-                const [existingUsers] = await globalThis.dbPool.execute(sql, params);
-                if (existingUsers.length > 0) {
-                    errors.push('Email sudah digunakan');
-                }
-            }
-        }
-
-        // Validasi mapel_id (opsional)
-        if (mapel_id !== undefined && mapel_id !== null && mapel_id !== '' && mapel_id !== 0) {
-            if (!Number.isInteger(Number(mapel_id)) || Number(mapel_id) <= 0) {
-                errors.push('ID mata pelajaran harus berupa angka positif');
-            } else {
-                const [existingMapel] = await globalThis.dbPool.execute(
-                    'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
-                    [mapel_id]
-                );
-                if (existingMapel.length === 0) {
-                    errors.push('Mata pelajaran tidak ditemukan atau tidak aktif');
-                }
-            }
-        }
-
-        // Validasi status
-        if (status !== undefined && status !== null && status !== '') {
-            if (!['aktif', 'nonaktif', 'pensiun'].includes(status)) {
-                errors.push('Status harus aktif, nonaktif, atau pensiun');
-            }
-        }
-
-        // Validasi password (wajib untuk create, opsional untuk update)
-        if (!isUpdate && (!password || typeof password !== 'string' || password.length < 6)) {
-            errors.push('Password wajib diisi minimal 6 karakter');
-        }
-        if (isUpdate && password !== undefined && password !== null && password !== '' && (typeof password !== 'string' || password.length < 6)) {
-            errors.push('Password minimal 6 karakter');
-        }
+        // Run validations in parallel where possible
+        const [nipErrors, usernameErrors, emailErrors, mapelErrors] = await Promise.all([
+            validateNIPField(nip, isUpdate, excludeGuruId),
+            validateUsernameField(username, isUpdate, excludeUserId),
+            validateEmailField(email, isUpdate, excludeUserId),
+            validateMapelField(mapel_id)
+        ]);
+        
+        // Collect all errors
+        const errors = [
+            ...nipErrors,
+            ...validateNamaField(nama, isUpdate),
+            ...usernameErrors,
+            ...emailErrors,
+            ...mapelErrors,
+            ...validateStatusAndPassword(status, password, isUpdate)
+        ];
 
         return { isValid: errors.length === 0, errors };
     } catch (error) {

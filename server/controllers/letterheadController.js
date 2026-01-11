@@ -236,7 +236,17 @@ export const deleteFile = async (req, res) => {
             return sendValidationError(res, 'URL file tidak valid', { field: 'fileUrl' });
         }
 
-        const filePath = path.join('public', fileUrl);
+        // Sanitize: Extract only the filename to prevent path traversal attacks
+        const filename = path.basename(fileUrl);
+        
+        // Validate filename doesn't contain dangerous patterns
+        if (!filename || filename.includes('..') || filename.startsWith('.')) {
+            log.validationFail('fileUrl', fileUrl, 'Invalid filename');
+            return sendValidationError(res, 'Nama file tidak valid', { field: 'fileUrl' });
+        }
+        
+        // Construct safe path using sanitized filename
+        const filePath = path.join('public', 'uploads', 'letterheads', filename);
 
         try {
             await fs.unlink(filePath);

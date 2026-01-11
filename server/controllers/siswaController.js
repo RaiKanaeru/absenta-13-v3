@@ -14,151 +14,204 @@ dotenv.config();
 const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('Siswa');
 
-// Validasi payload siswa untuk Create/Update (optimized with parallel queries)
-async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId = null, excludeUserId = null } = {}) {
+/**
+ * Register NIS validation check
+ * @private
+ */
+function registerNISValidation(nis, isUpdate, excludeStudentId, errors, promises, checks) {
+    if (isUpdate && nis === undefined) return;
+    
+    if (!nis || typeof nis !== 'string') {
+        errors.push('NIS wajib diisi');
+        return;
+    }
+    
+    if (!/^\d{8,15}$/.test(nis)) {
+        errors.push('NIS harus berupa angka 8-15 digit');
+        return;
+    }
+    
+    const sql = isUpdate && excludeStudentId
+        ? 'SELECT id FROM siswa WHERE nis = ? AND id != ? LIMIT 1'
+        : 'SELECT id FROM siswa WHERE nis = ? LIMIT 1';
+    const params = isUpdate && excludeStudentId ? [nis, excludeStudentId] : [nis];
+    
+    promises.push(globalThis.dbPool.execute(sql, params));
+    checks.push({ type: 'nis', errorMsg: 'NIS sudah digunakan' });
+}
+
+/**
+ * Register username validation check
+ * @private
+ */
+function registerUsernameValidation(username, isUpdate, excludeUserId, errors, promises, checks) {
+    if (isUpdate && username === undefined) return;
+    
+    if (!username || typeof username !== 'string') {
+        errors.push('Username wajib diisi');
+        return;
+    }
+    
+    if (!/^[a-z0-9._-]{4,30}$/.test(username)) {
+        errors.push('Username harus 4-30 karakter, hanya huruf kecil, angka, titik, underscore, dan strip');
+        return;
+    }
+    
+    const sql = isUpdate && excludeUserId
+        ? 'SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1'
+        : 'SELECT id FROM users WHERE username = ? LIMIT 1';
+    const params = isUpdate && excludeUserId ? [username, excludeUserId] : [username];
+    
+    promises.push(globalThis.dbPool.execute(sql, params));
+    checks.push({ type: 'username', errorMsg: 'Username sudah digunakan' });
+}
+
+/**
+ * Register email validation check
+ * @private
+ */
+function registerEmailValidation(email, isUpdate, excludeUserId, errors, promises, checks) {
+    if (email === undefined || email === null || email === '') return;
+    
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.push('Format email tidak valid');
+        return;
+    }
+    
+    const sql = isUpdate && excludeUserId
+        ? 'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1'
+        : 'SELECT id FROM users WHERE email = ? LIMIT 1';
+    const params = isUpdate && excludeUserId ? [email, excludeUserId] : [email];
+    
+    promises.push(globalThis.dbPool.execute(sql, params));
+    checks.push({ type: 'email', errorMsg: 'Email sudah digunakan' });
+}
+
+/**
+ * Register kelas validation check
+ * @private
+ */
+function registerKelasValidation(kelas_id, isUpdate, errors, promises, checks) {
+    if (isUpdate && kelas_id === undefined) return;
+    
+    if (!kelas_id || !Number.isInteger(Number(kelas_id)) || Number(kelas_id) <= 0) {
+        errors.push('Kelas wajib dipilih');
+        return;
+    }
+    
+    promises.push(globalThis.dbPool.execute(
+        'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif" LIMIT 1',
+        [kelas_id]
+    ));
+    checks.push({ type: 'kelas', errorMsg: 'Kelas tidak ditemukan atau tidak aktif', expectEmpty: true });
+}
+
+/**
+ * Validate simple fields (gender, jabatan, phone, password)
+ * @private
+ */
+function validateSimpleFields(body, isUpdate, excludeStudentId, promises, checks) {
     const errors = [];
-    const { nis, nama, username, email, kelas_id, jenis_kelamin, jabatan, nomor_telepon_siswa, telepon_orangtua, password } = body;
-
-    // Collect validation queries to run in parallel
-    const validationPromises = [];
-    const validationChecks = [];
-
-    // Validasi NIS (wajib)
-    if (!isUpdate || nis !== undefined) {
-        if (!nis || typeof nis !== 'string') {
-            errors.push('NIS wajib diisi');
-        } else if (!/^\d{8,15}$/.test(nis)) {
-            errors.push('NIS harus berupa angka 8-15 digit');
-        } else {
-            let sql = 'SELECT id FROM siswa WHERE nis = ? LIMIT 1';
-            const params = [nis];
-            if (isUpdate && excludeStudentId) {
-                sql = 'SELECT id FROM siswa WHERE nis = ? AND id != ? LIMIT 1';
-                params.push(excludeStudentId);
-            }
-            validationPromises.push(globalThis.dbPool.execute(sql, params));
-            validationChecks.push({ type: 'nis', errorMsg: 'NIS sudah digunakan' });
-        }
-    }
-
-    // Validasi nama (wajib)
-    if (!isUpdate || nama !== undefined) {
-        if (!nama || typeof nama !== 'string' || nama.trim().length < 2) {
-            errors.push('Nama lengkap wajib diisi minimal 2 karakter');
-        }
-    }
-
-    // Validasi username (wajib)
-    if (!isUpdate || username !== undefined) {
-        if (!username || typeof username !== 'string') {
-            errors.push('Username wajib diisi');
-        } else if (!/^[a-z0-9._-]{4,30}$/.test(username)) {
-            errors.push('Username harus 4-30 karakter, hanya huruf kecil, angka, titik, underscore, dan strip');
-        } else {
-            let sql = 'SELECT id FROM users WHERE username = ? LIMIT 1';
-            const params = [username];
-            if (isUpdate && excludeUserId) {
-                sql = 'SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1';
-                params.push(excludeUserId);
-            }
-            validationPromises.push(globalThis.dbPool.execute(sql, params));
-            validationChecks.push({ type: 'username', errorMsg: 'Username sudah digunakan' });
-        }
-    }
-
-    // Validasi email (opsional)
-    if (email !== undefined && email !== null && email !== '') {
-        if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errors.push('Format email tidak valid');
-        } else {
-            let sql = 'SELECT id FROM users WHERE email = ? LIMIT 1';
-            const params = [email];
-            if (isUpdate && excludeUserId) {
-                sql = 'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1';
-                params.push(excludeUserId);
-            }
-            validationPromises.push(globalThis.dbPool.execute(sql, params));
-            validationChecks.push({ type: 'email', errorMsg: 'Email sudah digunakan' });
-        }
-    }
-
-    // Validasi kelas_id (wajib)
-    if (!isUpdate || kelas_id !== undefined) {
-        if (!kelas_id || !Number.isInteger(Number(kelas_id)) || Number(kelas_id) <= 0) {
-            errors.push('Kelas wajib dipilih');
-        } else {
-            validationPromises.push(globalThis.dbPool.execute(
-                'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif" LIMIT 1',
-                [kelas_id]
-            ));
-            validationChecks.push({ type: 'kelas', errorMsg: 'Kelas tidak ditemukan atau tidak aktif', expectEmpty: true });
-        }
-    }
-
-    // Validasi jenis kelamin
+    const { jenis_kelamin, jabatan, nomor_telepon_siswa, password } = body;
+    
+    // Gender validation
     if (jenis_kelamin !== undefined && jenis_kelamin !== null && jenis_kelamin !== '') {
         if (!['L', 'P'].includes(jenis_kelamin)) {
             errors.push('Jenis kelamin harus L atau P');
         }
     }
-
-    // Validasi jabatan (opsional)
+    
+    // Jabatan validation
     if (jabatan !== undefined && jabatan !== null && jabatan !== '') {
         const validJabatan = ['Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
         if (!validJabatan.includes(jabatan)) {
             errors.push(`Jabatan harus salah satu dari: ${validJabatan.join(', ')}`);
         }
     }
-
-    // Validasi nomor telepon siswa (opsional)
+    
+    // Phone validation
     if (nomor_telepon_siswa !== undefined && nomor_telepon_siswa !== null && nomor_telepon_siswa !== '') {
         if (!/^\d{10,15}$/.test(nomor_telepon_siswa)) {
             errors.push('Nomor telepon siswa harus berupa angka 10-15 digit');
         } else {
-            let sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';
-            const params = [nomor_telepon_siswa];
-            if (isUpdate && excludeStudentId) {
-                sql = 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1';
-                params.push(excludeStudentId);
-            }
-            validationPromises.push(globalThis.dbPool.execute(sql, params));
-            validationChecks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
+            const sql = isUpdate && excludeStudentId
+                ? 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1'
+                : 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';
+            const params = isUpdate && excludeStudentId ? [nomor_telepon_siswa, excludeStudentId] : [nomor_telepon_siswa];
+            promises.push(globalThis.dbPool.execute(sql, params));
+            checks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
         }
     }
-
-    // Validasi password (wajib untuk create, opsional untuk update)
+    
+    // Password validation
     if (!isUpdate && (!password || typeof password !== 'string' || password.length < 6)) {
         errors.push('Password wajib diisi minimal 6 karakter');
     }
-    if (isUpdate && password !== undefined && password !== null && password !== '' && (typeof password !== 'string' || password.length < 6)) {
-        errors.push('Password minimal 6 karakter');
-    }
-
-    // Execute all validation queries in parallel
-    if (validationPromises.length > 0) {
-        try {
-            const results = await Promise.all(validationPromises);
-            
-            for (let i = 0; i < results.length; i++) {
-                const [rows] = results[i];
-                const check = validationChecks[i];
-                
-                if (check.expectEmpty) {
-                    // For kelas validation: expect to find the record
-                    if (rows.length === 0) {
-                        errors.push(check.errorMsg);
-                    }
-                } else {
-                    // For duplicate checks: expect NOT to find the record
-                    if (rows.length > 0) {
-                        errors.push(check.errorMsg);
-                    }
-                }
-            }
-        } catch (error) {
-            errors.push('Gagal memvalidasi data');
+    if (isUpdate && password !== undefined && password !== null && password !== '') {
+        if (typeof password !== 'string' || password.length < 6) {
+            errors.push('Password minimal 6 karakter');
         }
     }
+    
+    return errors;
+}
+
+/**
+ * Process validation results from parallel DB queries
+ * @private
+ */
+async function processValidationResults(promises, checks) {
+    const errors = [];
+    if (promises.length === 0) return errors;
+    
+    try {
+        const results = await Promise.all(promises);
+        
+        for (let i = 0; i < results.length; i++) {
+            const [rows] = results[i];
+            const check = checks[i];
+            
+            const hasRows = rows.length > 0;
+            const shouldFail = check.expectEmpty ? !hasRows : hasRows;
+            
+            if (shouldFail) {
+                errors.push(check.errorMsg);
+            }
+        }
+    } catch (error) {
+        errors.push('Gagal memvalidasi data');
+    }
+    
+    return errors;
+}
+
+// Validasi payload siswa untuk Create/Update (optimized with parallel queries)
+async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId = null, excludeUserId = null } = {}) {
+    const errors = [];
+    const { nis, nama, username, email, kelas_id } = body;
+
+    // Collect validation queries to run in parallel
+    const validationPromises = [];
+    const validationChecks = [];
+
+    // Register field validations
+    registerNISValidation(nis, isUpdate, excludeStudentId, errors, validationPromises, validationChecks);
+    registerUsernameValidation(username, isUpdate, excludeUserId, errors, validationPromises, validationChecks);
+    registerEmailValidation(email, isUpdate, excludeUserId, errors, validationPromises, validationChecks);
+    registerKelasValidation(kelas_id, isUpdate, errors, validationPromises, validationChecks);
+    
+    // Validate nama
+    if ((!isUpdate || nama !== undefined) && (!nama || typeof nama !== 'string' || nama.trim().length < 2)) {
+        errors.push('Nama lengkap wajib diisi minimal 2 karakter');
+    }
+    
+    // Validate simple fields and collect their DB checks
+    const simpleFieldErrors = validateSimpleFields(body, isUpdate, excludeStudentId, validationPromises, validationChecks);
+    errors.push(...simpleFieldErrors);
+
+    // Execute all validation queries in parallel and process results
+    const dbErrors = await processValidationResults(validationPromises, validationChecks);
+    errors.push(...dbErrors);
 
     return {
         isValid: errors.length === 0,

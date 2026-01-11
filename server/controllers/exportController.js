@@ -2275,7 +2275,11 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         `, [guruId, kelas_id]);
 
         const pertemuanDates = [];
-        for (let currentDate = new Date(start); currentDate <= end; currentDate.setDate(currentDate.getDate() + 1)) {
+        const endTime = end.getTime();
+        let currentTime = start.getTime();
+        
+        while (currentTime <= endTime) {
+            const currentDate = new Date(currentTime);
             const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
             if (jadwalData.some(j => j.hari === dayName)) {
                 // Format date manually to avoid timezone shift
@@ -2284,6 +2288,8 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
                 const day = String(currentDate.getDate()).padStart(2, '0');
                 pertemuanDates.push(`${year}-${month}-${day}`);
             }
+            // Increment by one day in milliseconds
+            currentTime += 24 * 60 * 60 * 1000;
         }
 
         // Get actual attendance dates
