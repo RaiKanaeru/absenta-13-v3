@@ -65,9 +65,9 @@ import {
 } from './server/utils/timeUtils.js';
 
 // Configuration from environment variables
-const port = parseInt(process.env.PORT) || 3001;
+const port = Number.parseInt(process.env.PORT) || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'absenta-super-secret-key-2025';
-const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = Number.parseInt(process.env.SALT_ROUNDS) || 10;
 const uploadDir = process.env.UPLOAD_DIR || 'public/uploads';
 
 // Validate critical environment variables in production

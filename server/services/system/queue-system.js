@@ -22,9 +22,9 @@ class DownloadQueue {
         // Redis configuration from environment
         this.redisConfig = {
             host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT) || 6379,
+            port: Number.parseInt(process.env.REDIS_PORT) || 6379,
             password: process.env.REDIS_PASSWORD || undefined,
-            maxRetriesPerRequest: parseInt(process.env.REDIS_MAX_RETRIES) || 3,
+            maxRetriesPerRequest: Number.parseInt(process.env.REDIS_MAX_RETRIES) || 3,
             retryDelayOnFailover: 100,
             enableReadyCheck: false,
             maxLoadingTimeout: 1000
@@ -41,7 +41,7 @@ class DownloadQueue {
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',
             database: process.env.DB_NAME || 'absenta13',
-            port: parseInt(process.env.DB_PORT) || 3306,
+            port: Number.parseInt(process.env.DB_PORT) || 3306,
             connectionLimit: 10,
             acquireTimeout: 10000,
             timezone: process.env.DB_TIMEZONE || '+07:00'

@@ -25,7 +25,7 @@ class BackupSystem {
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',
             database: process.env.DB_NAME || 'absenta13',
-            port: parseInt(process.env.DB_PORT) || 3306,
+            port: Number.parseInt(process.env.DB_PORT) || 3306,
             connectionLimit: 10,
             acquireTimeout: 10000,
             timezone: process.env.DB_TIMEZONE || '+07:00'
@@ -38,8 +38,8 @@ class BackupSystem {
         
         // Backup configuration from environment
         this.backupConfig = {
-            maxBackups: parseInt(process.env.BACKUP_MAX_BACKUPS) || 10,
-            maxArchiveAge: parseInt(process.env.BACKUP_MAX_ARCHIVE_AGE) || 24,
+            maxBackups: Number.parseInt(process.env.BACKUP_MAX_BACKUPS) || 10,
+            maxArchiveAge: Number.parseInt(process.env.BACKUP_MAX_ARCHIVE_AGE) || 24,
             compressionEnabled: true,
             emailNotifications: false,
             autoBackupSchedule: process.env.BACKUP_SCHEDULE || '0 2 * * 0'
@@ -474,7 +474,7 @@ class BackupSystem {
                                     if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
                                     if (value instanceof Date) {
                                         // Check if date is valid
-                                        if .isNaN(value.getTime())) {
+                                        if (Number.isNaN(value.getTime())) {
                                             return 'NULL';
                                         }
                                         return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;

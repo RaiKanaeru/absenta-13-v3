@@ -21,14 +21,14 @@ class DatabaseOptimization {
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',
             database: process.env.DB_NAME || 'absenta13',
-            port: parseInt(process.env.DB_PORT) || 3306,
+            port: Number.parseInt(process.env.DB_PORT) || 3306,
             connectTimeout: 10000
         };
 
         // Connection Pool Configuration for 150 concurrent users
         this.poolConfig = {
             ...this.dbConfig,
-            connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 50,
+            connectionLimit: Number.parseInt(process.env.DB_CONNECTION_LIMIT) || 50,
             acquireTimeout: 10000,      // 10 second timeout
             queueLimit: 0,              // No limit on queue
             idleTimeout: 300000,        // 5 minutes idle timeout

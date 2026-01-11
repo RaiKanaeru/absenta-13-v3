@@ -30,7 +30,7 @@ const config = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'absenta13',
-    port: parseInt(process.env.DB_PORT) || 3306
+    port: Number.parseInt(process.env.DB_PORT) || 3306
 };
 
 const saltRounds = 10;

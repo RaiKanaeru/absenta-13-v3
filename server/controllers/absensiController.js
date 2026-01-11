@@ -625,7 +625,7 @@ async function parseKeyAndResolveGuruId(connection, key, specificGuruId) {
     // Key contains guru_id (format: jadwalId-guruId)
     if (key.includes('-')) {
         const [jadwalId, guruIdStr] = key.split('-');
-        return { jadwalId, guruId: parseInt(guruIdStr) };
+        return { jadwalId, guruId: Number.parseInt(guruIdStr) };
     }
 
     // Key is just jadwalId, need to resolve guru_id
@@ -1127,7 +1127,7 @@ export async function getAbsensiHistory(req, res) {
         }
 
         query += ' ORDER BY ag.tanggal DESC, ag.waktu_catat DESC LIMIT ?';
-        params.push(parseInt(limit));
+        params.push(Number.parseInt(limit));
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 

@@ -12,7 +12,7 @@ import { createLogger } from '../utils/logger.js';
 dotenv.config();
 
 const logger = createLogger('Guru');
-const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = Number.parseInt(process.env.SALT_ROUNDS) || 10;
 
 /**
  * Validate NIP field for guru
@@ -234,8 +234,8 @@ export const getGuru = async (req, res) => {
         log.success('GetGuru', { count: rows.length, total: countResult[0].total });
         return sendSuccessResponse(res, rows, 'Data guru berhasil dimuat', 200, {
             pagination: {
-                current_page: parseInt(page),
-                per_page: parseInt(limit),
+                current_page: Number.parseInt(page),
+                per_page: Number.parseInt(limit),
                 total: countResult[0].total,
                 total_pages: Math.ceil(countResult[0].total / limit)
             }
@@ -731,8 +731,8 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
 
         const [countResult] = await globalThis.dbPool.execute(countQuery, [guruId, thirtyDaysAgoWIB]);
         const totalDays = countResult[0].total_days;
-        const totalPages = Math.ceil(totalDays / parseInt(limit));
-        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const totalPages = Math.ceil(totalDays / Number.parseInt(limit));
+        const offset = (Number.parseInt(page) - 1) * Number.parseInt(limit);
 
         const datesQuery = `
             SELECT DISTINCT DATE(absensi.waktu_absen) as tanggal

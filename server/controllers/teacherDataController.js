@@ -7,7 +7,7 @@ import bcrypt from 'bcrypt';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
-const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = Number.parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('TeacherData');
 
 /**

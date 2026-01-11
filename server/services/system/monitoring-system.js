@@ -23,7 +23,7 @@ class SystemMonitor extends EventEmitter {
         const logDir = process.env.LOG_DIR || 'logs';
         
         this.options = {
-            monitoringInterval: parseInt(process.env.MONITORING_INTERVAL) || options.monitoringInterval || 5000,
+            monitoringInterval: Number.parseInt(process.env.MONITORING_INTERVAL) || options.monitoringInterval || 5000,
             alertThresholds: {
                 memory: options.alertThresholds?.memory || 1.5 * 1024 * 1024 * 1024, // 1.5GB
                 cpu: options.alertThresholds?.cpu || 80, // 80%

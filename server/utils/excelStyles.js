@@ -269,7 +269,7 @@ export function parseGuruList(guruList) {
     if (!guruList) return [];
     return guruList.split('||').map(item => {
         const [id, name] = item.split(':');
-        return { id: parseInt(id), name: name || 'Unknown' };
+        return { id: Number.parseInt(id), name: name || 'Unknown' };
     }).filter(g => g.name);
 }
 
