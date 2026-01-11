@@ -36,6 +36,7 @@ interface UserProfile {
   alamat?: string;
   no_telepon?: string; // For teachers
   telepon_orangtua?: string; // For students
+  nomor_telepon_siswa?: string; // For students
   jenis_kelamin?: 'L' | 'P'; // For teachers and students
   mata_pelajaran?: string; // For teachers
   jabatan?: string; // For students
@@ -49,6 +50,52 @@ interface EditProfileProps {
   onUpdate: (updatedData: UserProfile) => void;
   onClose: () => void;
   role: 'admin' | 'guru' | 'siswa';
+}
+
+// =============================================================================
+// VALIDATION HELPERS (extracted to reduce cognitive complexity)
+// =============================================================================
+
+const PHONE_REGEX = /^[0-9+\-\s()]+$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
+
+function validateBasicFields(formData: { nama: string; username: string; email: string }) {
+  const errors: Record<string, string> = {};
+  
+  if (!formData.nama.trim()) {
+    errors.nama = 'Nama harus diisi';
+  } else if (formData.nama.trim().length < 2) {
+    errors.nama = 'Nama minimal 2 karakter';
+  }
+  
+  if (!formData.username.trim()) {
+    errors.username = 'Username harus diisi';
+  } else if (formData.username.trim().length < 3) {
+    errors.username = 'Username minimal 3 karakter';
+  } else if (!USERNAME_REGEX.test(formData.username.trim())) {
+    errors.username = 'Username hanya boleh huruf, angka, dan underscore';
+  }
+  
+  if (formData.email && !EMAIL_REGEX.test(formData.email)) {
+    errors.email = 'Format email tidak valid';
+  }
+  
+  return errors;
+}
+
+function validatePhoneNumber(phone: string, fieldName: string, errorMsg: string) {
+  if (phone && !PHONE_REGEX.test(phone)) {
+    return { [fieldName]: errorMsg };
+  }
+  return {};
+}
+
+function validateGenderField(jenis_kelamin: string) {
+  if (jenis_kelamin && !['L', 'P'].includes(jenis_kelamin)) {
+    return { jenis_kelamin: 'Jenis kelamin harus L atau P' };
+  }
+  return {};
 }
 
 export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfileProps) => {
@@ -77,54 +124,27 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
   });
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    // Validate nama
-    if (!formData.nama.trim()) {
-      newErrors.nama = 'Nama harus diisi';
-    } else if (formData.nama.trim().length < 2) {
-      newErrors.nama = 'Nama minimal 2 karakter';
+    let newErrors: Record<string, string> = {};
+    
+    // Basic field validation (nama, username, email)
+    newErrors = { ...newErrors, ...validateBasicFields(formData) };
+    
+    // Role-specific validation
+    if (role === 'siswa') {
+      newErrors = { 
+        ...newErrors, 
+        ...validatePhoneNumber(formData.telepon_orangtua, 'telepon_orangtua', 'Format nomor telepon orangtua tidak valid'),
+        ...validatePhoneNumber(formData.nomor_telepon_siswa, 'nomor_telepon_siswa', 'Format nomor telepon siswa tidak valid'),
+        ...validateGenderField(formData.jenis_kelamin)
+      };
+    } else if (role === 'guru') {
+      newErrors = { 
+        ...newErrors, 
+        ...validatePhoneNumber(formData.no_telepon, 'no_telepon', 'Format nomor telepon tidak valid'),
+        ...validateGenderField(formData.jenis_kelamin)
+      };
     }
-
-    // Validate username
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username harus diisi';
-    } else if (formData.username.trim().length < 3) {
-      newErrors.username = 'Username minimal 3 karakter';
-    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username.trim())) {
-      newErrors.username = 'Username hanya boleh huruf, angka, dan underscore';
-    }
-
-    // Validate email if provided
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Format email tidak valid';
-    }
-
-    // Validasi tambahan hanya untuk guru dan siswa
-    if (role !== 'admin') {
-      if (role === 'siswa') {
-        // Validate telepon orangtua if provided
-        if (formData.telepon_orangtua && !/^[0-9+\-\s()]+$/.test(formData.telepon_orangtua)) {
-          newErrors.telepon_orangtua = 'Format nomor telepon orangtua tidak valid';
-        }
-
-        // Validate nomor telepon siswa if provided
-        if (formData.nomor_telepon_siswa && !/^[0-9+\-\s()]+$/.test(formData.nomor_telepon_siswa)) {
-          newErrors.nomor_telepon_siswa = 'Format nomor telepon siswa tidak valid';
-        }
-      } else if (role === 'guru') {
-        // Validate phone number if provided
-        if (formData.no_telepon && !/^[0-9+\-\s()]+$/.test(formData.no_telepon)) {
-          newErrors.no_telepon = 'Format nomor telepon tidak valid';
-        }
-      }
-
-      // Validate jenis kelamin if provided
-      if (formData.jenis_kelamin && !['L', 'P'].includes(formData.jenis_kelamin)) {
-        newErrors.jenis_kelamin = 'Jenis kelamin harus L atau P';
-      }
-    }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
