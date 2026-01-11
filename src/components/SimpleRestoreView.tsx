@@ -21,6 +21,44 @@ interface SimpleRestoreViewProps {
   onLogout: () => void;
 }
 
+// =============================================================================
+// VALIDATION HELPERS (extracted to reduce cognitive complexity)
+// =============================================================================
+
+const ALLOWED_FILE_TYPES = ['.sql', '.zip'];
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
+function validateFileType(filename: string): string | null {
+  const fileExtension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  if (!ALLOWED_FILE_TYPES.includes(fileExtension)) {
+    return 'File harus berformat .sql atau .zip';
+  }
+  return null;
+}
+
+function validateFileSize(size: number): string | null {
+  if (size > MAX_FILE_SIZE) {
+    return 'Ukuran file maksimal 100MB';
+  }
+  return null;
+}
+
+function validateFileName(filename: string): string | null {
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return 'Nama file tidak boleh mengandung karakter khusus';
+  }
+  return null;
+}
+
+/**
+ * Validate uploaded file for restore operation
+ */
+function validateUploadFile(file: File): string | null {
+  return validateFileType(file.name) 
+    || validateFileSize(file.size) 
+    || validateFileName(file.name);
+}
+
 const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack, onLogout }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -44,37 +82,19 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack, onLogout 
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // Validate file type
-      const allowedTypes = ['.sql', '.zip'];
-      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
-      if (!allowedTypes.includes(fileExtension)) {
-        setError('File harus berformat .sql atau .zip');
-        setSelectedFile(null);
-        return;
-      }
-
-      // Validate file size (max 100MB)
-      const maxSize = 100 * 1024 * 1024; // 100MB
-      if (file.size > maxSize) {
-        setError('Ukuran file maksimal 100MB');
-        setSelectedFile(null);
-        return;
-      }
-
-      // Validate file name
-      if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
-        setError('Nama file tidak boleh mengandung karakter khusus');
-        setSelectedFile(null);
-        return;
-      }
-
-      setSelectedFile(file);
-      setError('');
-      setMessage('');
-      setRestoreStatus('idle');
+    if (!file) return;
+    
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      setError(validationError);
+      setSelectedFile(null);
+      return;
     }
+
+    setSelectedFile(file);
+    setError('');
+    setMessage('');
+    setRestoreStatus('idle');
   };
 
   const handleUpload = async () => {
