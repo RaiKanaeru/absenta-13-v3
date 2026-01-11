@@ -11,7 +11,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const logger = createLogger('AdminDashboard');
-const saltRounds =.parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 
 // ================================================
 // ADMIN DASHBOARD ENDPOINTS - TEACHER ACCOUNTS

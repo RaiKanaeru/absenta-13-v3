@@ -8,7 +8,7 @@ import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFound
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
 
-const saltRounds =.parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('StudentData');
 
 /**

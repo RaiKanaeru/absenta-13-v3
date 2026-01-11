@@ -11,7 +11,7 @@ import { createLogger } from '../utils/logger.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const saltRounds =.parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('Admin');
 
 /**

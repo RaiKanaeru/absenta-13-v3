@@ -11,7 +11,7 @@ import { createLogger } from '../utils/logger.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const saltRounds =.parseInt(process.env.SALT_ROUNDS) || 10;
+const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
 const logger = createLogger('Siswa');
 
 // Validasi payload siswa untuk Create/Update (optimized with parallel queries)
@@ -202,8 +202,8 @@ export const getSiswa = async (req, res) => {
             success: true,
             data: rows,
             pagination: {
-                current_page:.parseInt(page),
-                per_page:.parseInt(limit),
+                current_page: parseInt(page),
+                per_page: parseInt(limit),
                 total: countResult[0].total,
                 total_pages: Math.ceil(countResult[0].total / limit)
             }
