@@ -905,8 +905,6 @@ const importSiswa = async (req, res) => {
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
-        const errors = [];
-        const valid = [];
 
         // Check for existing NIS in database
         const existingNis = new Set();
@@ -922,20 +920,27 @@ const importSiswa = async (req, res) => {
             });
         }
 
-        // Validate each row
-        for (let i = 0; i < rows.length; i++) {
-            const rowNum = i + 2;
-            try {
-                const result = validateSiswaDataRow(rows[i], valid, existingNis);
-                if (result.valid) {
-                    valid.push(result.data);
-                } else {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
+        // Validate each row using helper
+        const validateImportRows = (rows, validator, existingSet, errorPreview) => {
+            const errors = [];
+            const valid = [];
+            for (let i = 0; i < rows.length; i++) {
+                const rowNum = i + 2;
+                try {
+                    const result = validator(rows[i], valid, existingSet);
+                    if (result.valid) {
+                        valid.push(result.data);
+                    } else {
+                        errors.push({ index: rowNum, errors: result.errors, data: result.preview });
+                    }
+                } catch (error) {
+                    errors.push({ index: rowNum, errors: [error.message], data: errorPreview });
                 }
-            } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message], data: { nis: '(error)', nama: '(error)', kelas: '(error)' } });
             }
-        }
+            return { valid, errors };
+        };
+        
+        const { valid, errors } = validateImportRows(rows, validateSiswaDataRow, existingNis, { nis: '(error)', nama: '(error)', kelas: '(error)' });
 
         if (req.query.dryRun === 'true') {
             return res.json({

@@ -1767,24 +1767,28 @@ export const exportJadwalMatrix = async (req, res) => {
                 if (daySchedules.length > 0) {
                     maxSlots = Math.max(maxSlots, daySchedules.length);
                     
-                    // Build structured cell content
-                    const contentParts = daySchedules.map(s => {
+                    // Build structured cell content using helper
+                    const buildScheduleContentLines = (schedule, parseGuruList, formatTime) => {
                         const lines = [];
-                        lines.push(s.nama_guru);
-                        if (s.nama_mapel) lines.push(s.nama_mapel);
-                        lines.push(s.kode_ruang || 'Ruang TBD');
-                        lines.push(`${formatTime(s.jam_mulai)} - ${formatTime(s.jam_selesai)}`);
+                        lines.push(schedule.nama_guru);
+                        if (schedule.nama_mapel) lines.push(schedule.nama_mapel);
+                        lines.push(schedule.kode_ruang || 'Ruang TBD');
+                        lines.push(`${formatTime(schedule.jam_mulai)} - ${formatTime(schedule.jam_selesai)}`);
                         
-                        if (s.is_multi_guru && s.guru_list) {
-                            const guruNames = parseGuruList(s.guru_list);
+                        if (schedule.is_multi_guru && schedule.guru_list) {
+                            const guruNames = parseGuruList(schedule.guru_list);
                             if (guruNames.length > 1) {
                                 lines.push('');
                                 lines.push('Multi-Guru:');
-                                guruNames.forEach(g => lines.push(`• ${g.name}`));
+                                for (const g of guruNames) {
+                                    lines.push(`• ${g.name}`);
+                                }
                             }
                         }
                         return lines.join('\n');
-                    });
+                    };
+                    
+                    const contentParts = daySchedules.map(s => buildScheduleContentLines(s, parseGuruList, formatTime));
                     
                     cell.value = contentParts.join('\n\n────────────\n\n');
                     cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
