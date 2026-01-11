@@ -811,6 +811,53 @@ export {
 };
 
 /**
+ * Extract siswa data fields from Excel row (supports multiple column name formats)
+ * @private
+ */
+function extractSiswaFields(rowData) {
+    return {
+        nis: rowData.nis || rowData['NIS *'],
+        nama: rowData.nama || rowData['Nama Lengkap *'],
+        kelas: rowData.kelas || rowData['Kelas *'],
+        jenisKelamin: rowData.jenis_kelamin || rowData['Jenis Kelamin'],
+        email: rowData.email || rowData.Email,
+        teleponOrangtua: rowData.telepon_orangtua || rowData['Telepon Orang Tua'],
+        nomorTeleponSiswa: rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa'],
+        alamat: rowData.alamat || rowData.Alamat,
+        status: rowData.status || rowData.Status
+    };
+}
+
+/**
+ * Build siswa data object from extracted fields
+ * @private
+ */
+function buildSiswaDataObject(fields) {
+    return {
+        nis: String(fields.nis).trim(),
+        nama: String(fields.nama).trim(),
+        kelas: String(fields.kelas).trim(),
+        jenis_kelamin: fields.jenisKelamin ? String(fields.jenisKelamin).toUpperCase() : null,
+        telepon_orangtua: fields.teleponOrangtua ? String(fields.teleponOrangtua).trim() : null,
+        nomor_telepon_siswa: fields.nomorTeleponSiswa ? String(fields.nomorTeleponSiswa).trim() : null,
+        alamat: fields.alamat ? String(fields.alamat).trim() : null,
+        status: fields.status ? String(fields.status).trim() : 'aktif'
+    };
+}
+
+/**
+ * Validate required siswa data fields
+ * @private
+ */
+function validateRequiredSiswaDataFields(fields) {
+    const errors = [];
+    if (!fields.nis) errors.push('NIS wajib diisi');
+    if (!fields.nama) errors.push('Nama lengkap wajib diisi');
+    if (!fields.kelas) errors.push('Kelas wajib diisi');
+    return errors;
+}
+
+/**
  * Validate a siswa data row from Excel import (without account creation)
  * @param {Object} rowData - Row data from Excel
  * @param {Array} existingValid - Array of already validated records (to check file duplicates)
@@ -818,45 +865,21 @@ export {
  * @returns {Object} { valid: boolean, errors: string[], data?: Object, preview?: Object }
  */
 function validateSiswaDataRow(rowData, existingValid, existingNis) {
-    const errors = [];
-    const genderEnum = ['L', 'P'];
-    
-    const nis = rowData.nis || rowData['NIS *'];
-    const nama = rowData.nama || rowData['Nama Lengkap *'];
-    const kelas = rowData.kelas || rowData['Kelas *'];
-    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
-    const email = rowData.email || rowData.Email;
-    
-    // Required fields
-    if (!nis) errors.push('NIS wajib diisi');
-    if (!nama) errors.push('Nama lengkap wajib diisi');
-    if (!kelas) errors.push('Kelas wajib diisi');
-    
-    // NIS validation
-    if (nis) {
-        const nisValue = String(nis).trim();
-        if (nisValue.length < 8) errors.push('NIS minimal 8 karakter');
-        if (nisValue.length > 15) errors.push('NIS maksimal 15 karakter');
-        if (!/^\d+$/.test(nisValue)) errors.push('NIS harus berupa angka');
-        if (existingValid.some(v => v.nis === nisValue)) errors.push('NIS duplikat dalam file');
-        if (existingNis.has(nisValue)) errors.push('NIS sudah digunakan di database');
-    }
-    
-    // Email validation
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-        errors.push('Format email tidak valid');
-    }
-    
-    // Gender validation
-    if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
-        errors.push('Jenis kelamin harus L atau P');
-    }
+    const fields = extractSiswaFields(rowData);
     
     const preview = {
-        nis: nis || '(kosong)',
-        nama: nama || '(kosong)',
-        kelas: kelas || '(kosong)'
+        nis: fields.nis || '(kosong)',
+        nama: fields.nama || '(kosong)',
+        kelas: fields.kelas || '(kosong)'
     };
+
+    // Collect all validation errors
+    const errors = [
+        ...validateRequiredSiswaDataFields(fields),
+        ...validateNIS(fields.nis, existingValid, existingNis),
+        ...validateEmail(fields.email),
+        ...validateGender(fields.jenisKelamin)
+    ];
     
     if (errors.length > 0) {
         return { valid: false, errors, preview };
@@ -865,17 +888,51 @@ function validateSiswaDataRow(rowData, existingValid, existingNis) {
     return {
         valid: true,
         errors: [],
-        data: {
-            nis: String(nis).trim(),
-            nama: String(nama).trim(),
-            kelas: String(kelas).trim(),
-            jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-            telepon_orangtua: (rowData.telepon_orangtua || rowData['Telepon Orang Tua']) ? String(rowData.telepon_orangtua || rowData['Telepon Orang Tua']).trim() : null,
-            nomor_telepon_siswa: (rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']) ? String(rowData.nomor_telepon_siswa || rowData['Nomor Telepon Siswa']).trim() : null,
-            alamat: (rowData.alamat || rowData.Alamat) ? String(rowData.alamat || rowData.Alamat).trim() : null,
-            status: (rowData.status || rowData.Status) ? String(rowData.status || rowData.Status).trim() : 'aktif'
-        }
+        data: buildSiswaDataObject(fields)
     };
+}
+
+/**
+ * Extract guru data fields from Excel row (supports multiple column name formats)
+ * @private
+ */
+function extractGuruFields(rowData) {
+    return {
+        nip: rowData.nip || rowData['NIP *'],
+        nama: rowData.nama || rowData['Nama Lengkap *'],
+        jenisKelamin: rowData.jenis_kelamin || rowData['Jenis Kelamin'],
+        email: rowData.email || rowData.Email,
+        telepon: rowData.nomor_telepon || rowData['Nomor Telepon'],
+        alamat: rowData.alamat || rowData.Alamat,
+        status: rowData.status || rowData.Status
+    };
+}
+
+/**
+ * Build guru data object from extracted fields
+ * @private
+ */
+function buildGuruDataObject(fields) {
+    return {
+        nip: String(fields.nip).trim(),
+        nama: String(fields.nama).trim(),
+        jenis_kelamin: fields.jenisKelamin ? String(fields.jenisKelamin).toUpperCase() : null,
+        email: fields.email ? String(fields.email).trim() : null,
+        nomor_telepon: fields.telepon ? String(fields.telepon).trim() : null,
+        alamat: fields.alamat ? String(fields.alamat).trim() : null,
+        status: fields.status ? String(fields.status).trim() : 'aktif'
+    };
+}
+
+/**
+ * Validate required guru data fields
+ * @private
+ */
+function validateRequiredGuruDataFields(fields) {
+    const errors = [];
+    if (!fields.nip) errors.push('NIP wajib diisi');
+    if (!fields.nama) errors.push('Nama lengkap wajib diisi');
+    return errors;
 }
 
 /**
@@ -886,44 +943,20 @@ function validateSiswaDataRow(rowData, existingValid, existingNis) {
  * @returns {Object} { valid: boolean, errors: string[], data?: Object, preview?: Object }
  */
 function validateGuruDataRow(rowData, existingValid, existingNip) {
-    const errors = [];
-    const genderEnum = ['L', 'P'];
-    
-    const nip = rowData.nip || rowData['NIP *'];
-    const nama = rowData.nama || rowData['Nama Lengkap *'];
-    const jenisKelamin = rowData.jenis_kelamin || rowData['Jenis Kelamin'];
-    const email = rowData.email || rowData.Email;
-    const telepon = rowData.nomor_telepon || rowData['Nomor Telepon'];
-    const alamat = rowData.alamat || rowData.Alamat;
-    const status = rowData.status || rowData.Status;
-    
-    // Required fields
-    if (!nip) errors.push('NIP wajib diisi');
-    if (!nama) errors.push('Nama lengkap wajib diisi');
-    
-    // NIP validation
-    if (nip) {
-        const nipValue = String(nip).trim();
-        if (nipValue.length < 8) errors.push('NIP minimal 8 karakter');
-        if (nipValue.length > 20) errors.push('NIP maksimal 20 karakter');
-        if (existingValid.some(v => v.nip === nipValue)) errors.push('NIP duplikat dalam file');
-        if (existingNip.has(nipValue)) errors.push('NIP sudah digunakan di database');
-    }
-    
-    // Email validation
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-        errors.push('Format email tidak valid');
-    }
-    
-    // Gender validation
-    if (jenisKelamin && !genderEnum.includes(String(jenisKelamin).toUpperCase())) {
-        errors.push('Jenis kelamin harus L atau P');
-    }
+    const fields = extractGuruFields(rowData);
     
     const preview = {
-        nip: nip || '(kosong)',
-        nama: nama || '(kosong)'
+        nip: fields.nip || '(kosong)',
+        nama: fields.nama || '(kosong)'
     };
+
+    // Collect all validation errors
+    const errors = [
+        ...validateRequiredGuruDataFields(fields),
+        ...validateNIP(fields.nip, existingValid, existingNip),
+        ...validateEmail(fields.email),
+        ...validateGender(fields.jenisKelamin)
+    ];
     
     if (errors.length > 0) {
         return { valid: false, errors, preview };
@@ -932,15 +965,7 @@ function validateGuruDataRow(rowData, existingValid, existingNip) {
     return {
         valid: true,
         errors: [],
-        data: {
-            nip: String(nip).trim(),
-            nama: String(nama).trim(),
-            jenis_kelamin: jenisKelamin ? String(jenisKelamin).toUpperCase() : null,
-            email: email ? String(email).trim() : null,
-            nomor_telepon: telepon ? String(telepon).trim() : null,
-            alamat: alamat ? String(alamat).trim() : null,
-            status: status ? String(status).trim() : 'aktif'
-        }
+        data: buildGuruDataObject(fields)
     };
 }
 

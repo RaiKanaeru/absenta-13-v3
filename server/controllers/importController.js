@@ -848,6 +848,52 @@ const importTeacherAccount = async (req, res) => {
 // ================================================
 
 /**
+ * Process a single siswa data record (insert or update)
+ * @private
+ * @returns {Promise<'new'|'updated'>} Status of the operation
+ */
+async function processSiswaDataRecord(conn, record) {
+    // Find kelas_id by class name
+    const [kelasResult] = await conn.execute(
+        'SELECT id_kelas FROM kelas WHERE nama_kelas = ?',
+        [record.kelas]
+    );
+
+    if (kelasResult.length === 0) {
+        throw new Error(`Kelas '${record.kelas}' tidak ditemukan`);
+    }
+
+    const kelasId = kelasResult[0].id_kelas;
+
+    // Check if NIS already exists
+    const [existingSiswa] = await conn.execute(
+        'SELECT id_siswa FROM siswa WHERE nis = ?',
+        [record.nis]
+    );
+
+    if (existingSiswa.length > 0) {
+        // Update existing student
+        await conn.execute(
+            `UPDATE siswa SET 
+             nama = ?, kelas_id = ?, jenis_kelamin = ?, 
+             telepon_orangtua = ?, nomor_telepon_siswa = ?, alamat = ?, status = ?, 
+             updated_at = CURRENT_TIMESTAMP
+             WHERE nis = ?`,
+            [record.nama, kelasId, record.jenis_kelamin, record.telepon_orangtua, record.nomor_telepon_siswa, record.alamat, record.status, record.nis]
+        );
+        return 'updated';
+    }
+
+    // Insert new student (data-only, no account)
+    await conn.execute(
+        `INSERT INTO siswa (nis, nama, kelas_id, jenis_kelamin, telepon_orangtua, nomor_telepon_siswa, alamat, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [record.nis, record.nama, kelasId, record.jenis_kelamin, record.telepon_orangtua, record.nomor_telepon_siswa, record.alamat, record.status]
+    );
+    return 'new';
+}
+
+/**
  * Import siswa data from Excel file (without account creation)
  * POST /api/admin/import/siswa
  */
@@ -861,9 +907,8 @@ const importSiswa = async (req, res) => {
         const rows = sheetToJsonByHeader(worksheet);
         const errors = [];
         const valid = [];
-        const genderEnum = ['L', 'P'];
 
-        // Cek duplikasi NIS di database sebelum validasi
+        // Check for existing NIS in database
         const existingNis = new Set();
 
         try {
@@ -877,6 +922,7 @@ const importSiswa = async (req, res) => {
             });
         }
 
+        // Validate each row
         for (let i = 0; i < rows.length; i++) {
             const rowNum = i + 2;
             try {
@@ -909,6 +955,7 @@ const importSiswa = async (req, res) => {
             });
         }
 
+        // Process records with helper function
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
@@ -916,50 +963,10 @@ const importSiswa = async (req, res) => {
             let successCount = 0;
             let duplicateCount = 0;
 
-            for (const v of valid) {
-                try {
-                    // Cari kelas_id berdasarkan nama kelas
-                    const [kelasResult] = await conn.execute(
-                        'SELECT id_kelas FROM kelas WHERE nama_kelas = ?',
-                        [v.kelas]
-                    );
-
-                    if (kelasResult.length === 0) {
-                        throw new Error(`Kelas '${v.kelas}' tidak ditemukan`);
-                    }
-
-                    const kelasId = kelasResult[0].id_kelas;
-
-                    // Cek apakah NIS sudah ada
-                    const [existingSiswa] = await conn.execute(
-                        'SELECT id_siswa FROM siswa WHERE nis = ?',
-                        [v.nis]
-                    );
-
-                    if (existingSiswa.length > 0) {
-                        // Update data siswa yang sudah ada
-                        await conn.execute(
-                            `UPDATE siswa SET 
-                             nama = ?, kelas_id = ?, jenis_kelamin = ?, 
-                             telepon_orangtua = ?, nomor_telepon_siswa = ?, alamat = ?, status = ?, 
-                             updated_at = CURRENT_TIMESTAMP
-                             WHERE nis = ?`,
-                            [v.nama, kelasId, v.jenis_kelamin, v.telepon_orangtua, v.nomor_telepon_siswa, v.alamat, v.status, v.nis]
-                        );
-                        duplicateCount++;
-                    } else {
-                        // Insert data siswa baru (data-only, no account)
-                        await conn.execute(
-                            `INSERT INTO siswa (nis, nama, kelas_id, jenis_kelamin, telepon_orangtua, nomor_telepon_siswa, alamat, status, created_at, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [v.nis, v.nama, kelasId, v.jenis_kelamin, v.telepon_orangtua, v.nomor_telepon_siswa, v.alamat, v.status]
-                        );
-                        successCount++;
-                    }
-                } catch (insertError) {
-                    logger.error('Error processing student data', { nama: v.nama, error: insertError.message });
-                    throw insertError;
-                }
+            for (const record of valid) {
+                const status = await processSiswaDataRecord(conn, record);
+                if (status === 'new') successCount++;
+                else duplicateCount++;
             }
 
             await conn.commit();
@@ -990,6 +997,39 @@ const importSiswa = async (req, res) => {
 // ================================================
 
 /**
+ * Process a single guru data record (insert or update)
+ * @private
+ * @returns {Promise<'new'|'updated'>} Status of the operation
+ */
+async function processGuruDataRecord(conn, record) {
+    // Check if NIP already exists
+    const [existingGuru] = await conn.execute(
+        'SELECT id_guru FROM guru WHERE nip = ?',
+        [record.nip]
+    );
+
+    if (existingGuru.length > 0) {
+        // Update existing teacher
+        await conn.execute(
+            `UPDATE guru SET 
+             nama = ?, jenis_kelamin = ?, email = ?, no_telepon = ?,
+             alamat = ?, jabatan = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE nip = ?`,
+            [record.nama, record.jenis_kelamin, record.email, record.nomor_telepon, record.alamat, record.jabatan, record.status, record.nip]
+        );
+        return 'updated';
+    }
+
+    // Insert new teacher (data-only, no account)
+    await conn.execute(
+        `INSERT INTO guru (nip, nama, jenis_kelamin, email, no_telepon, alamat, jabatan, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [record.nip, record.nama, record.jenis_kelamin, record.email, record.nomor_telepon, record.alamat, record.jabatan, record.status]
+    );
+    return 'new';
+}
+
+/**
  * Import guru data from Excel file (without account creation)
  * POST /api/admin/import/guru
  */
@@ -1003,9 +1043,8 @@ const importGuru = async (req, res) => {
         const rows = sheetToJsonByHeader(worksheet);
         const errors = [];
         const valid = [];
-        const genderEnum = ['L', 'P'];
 
-        // Cek duplikasi NIP di database sebelum validasi
+        // Check for existing NIP in database
         const existingNips = new Set();
 
         try {
@@ -1019,6 +1058,7 @@ const importGuru = async (req, res) => {
             });
         }
 
+        // Validate each row
         for (let i = 0; i < rows.length; i++) {
             const rowNum = i + 2;
             try {
@@ -1054,6 +1094,7 @@ const importGuru = async (req, res) => {
             });
         }
 
+        // Process records with helper function
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
@@ -1061,37 +1102,10 @@ const importGuru = async (req, res) => {
             let successCount = 0;
             let duplicateCount = 0;
 
-            for (const v of valid) {
-                try {
-                    // Cek apakah NIP sudah ada
-                    const [existingGuru] = await conn.execute(
-                        'SELECT id_guru FROM guru WHERE nip = ?',
-                        [v.nip]
-                    );
-
-                    if (existingGuru.length > 0) {
-                        // Update data guru yang sudah ada
-                        await conn.execute(
-                            `UPDATE guru SET 
-                             nama = ?, jenis_kelamin = ?, email = ?, no_telepon = ?,
-                             alamat = ?, jabatan = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-                             WHERE nip = ?`,
-                            [v.nama, v.jenis_kelamin, v.email, v.no_telepon, v.alamat, v.jabatan, v.status, v.nip]
-                        );
-                        duplicateCount++;
-                    } else {
-                        // Insert data guru baru (data-only, no account)
-                        await conn.execute(
-                            `INSERT INTO guru (nip, nama, jenis_kelamin, email, no_telepon, alamat, jabatan, status, created_at, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [v.nip, v.nama, v.jenis_kelamin, v.email, v.no_telepon, v.alamat, v.jabatan, v.status]
-                        );
-                        successCount++;
-                    }
-                } catch (insertError) {
-                    logger.error('Error processing guru data', insertError, { nama: v.nama });
-                    throw insertError;
-                }
+            for (const record of valid) {
+                const status = await processGuruDataRecord(conn, record);
+                if (status === 'new') successCount++;
+                else duplicateCount++;
             }
 
             await conn.commit();

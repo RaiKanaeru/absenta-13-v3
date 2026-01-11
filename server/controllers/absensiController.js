@@ -614,40 +614,59 @@ export async function submitTeacherAttendance(req, res) {
 }
 
 /**
+ * Parse attendance key and resolve guru_id
+ * @private
+ * @param {Object} connection - Database connection
+ * @param {string} key - Attendance key (format: "jadwalId" or "jadwalId-guruId")
+ * @param {number|null} specificGuruId - Specific guru ID from data (optional)
+ * @returns {Promise<{jadwalId: string, guruId: number}>}
+ */
+async function parseKeyAndResolveGuruId(connection, key, specificGuruId) {
+    // Key contains guru_id (format: jadwalId-guruId)
+    if (key.includes('-')) {
+        const [jadwalId, guruIdStr] = key.split('-');
+        return { jadwalId, guruId: parseInt(guruIdStr) };
+    }
+
+    // Key is just jadwalId, need to resolve guru_id
+    const jadwalId = key;
+    
+    // Use specific guru_id if provided
+    if (specificGuruId) {
+        return { jadwalId, guruId: specificGuruId };
+    }
+
+    // Fetch guru_id from jadwal table
+    const [jadwalDetails] = await connection.execute(
+        'SELECT guru_id FROM jadwal WHERE id_jadwal = ?',
+        [jadwalId]
+    );
+
+    if (jadwalDetails.length === 0) {
+        throw new Error(`Jadwal dengan ID ${jadwalId} tidak ditemukan`);
+    }
+
+    let guruId = jadwalDetails[0].guru_id;
+    
+    // Fallback to jadwal_guru table for multi-guru schedules
+    if (!guruId) {
+        guruId = await getPrimaryTeacherForSchedule(connection, jadwalId);
+    }
+
+    return { jadwalId, guruId };
+}
+
+/**
  * Process a single teacher attendance entry
  * @private
  */
 async function processTeacherAttendanceEntry(connection, key, data, siswa_id, targetDate) {
     const { status, keterangan, terlambat, ada_tugas, guru_id: specific_guru_id } = data;
 
-    let jadwalId, guru_id;
+    // Parse key and resolve guru_id using helper
+    const { jadwalId, guruId: guru_id } = await parseKeyAndResolveGuruId(connection, key, specific_guru_id);
 
-    if (key.includes('-')) {
-        [jadwalId, guru_id] = key.split('-');
-        guru_id = parseInt(guru_id);
-    } else {
-        jadwalId = key;
-
-        if (specific_guru_id) {
-            guru_id = specific_guru_id;
-        } else {
-            const [jadwalDetails] = await connection.execute(
-                'SELECT guru_id FROM jadwal WHERE id_jadwal = ?',
-                [jadwalId]
-            );
-
-            if (jadwalDetails.length === 0) {
-                throw new Error(`Jadwal dengan ID ${jadwalId} tidak ditemukan`);
-            }
-
-            guru_id = jadwalDetails[0].guru_id;
-
-            if (!guru_id) {
-                guru_id = await getPrimaryTeacherForSchedule(connection, jadwalId);
-            }
-        }
-    }
-
+    // Fetch jadwal details for attendance record
     const [jadwalDetails] = await connection.execute(
         'SELECT kelas_id, jam_ke, is_absenable, jenis_aktivitas FROM jadwal WHERE id_jadwal = ?',
         [jadwalId]
@@ -659,6 +678,7 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
 
     const { kelas_id, jam_ke, is_absenable, jenis_aktivitas } = jadwalDetails[0];
 
+    // Skip non-absenable schedules
     if (!is_absenable) {
         logger.debug('Skipping non-absenable schedule', { jadwalId, jenis_aktivitas });
         return;
