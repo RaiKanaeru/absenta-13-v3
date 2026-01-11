@@ -2278,23 +2278,28 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
             SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
         `, [guruId, kelas_id]);
 
-        const pertemuanDates = [];
-        const endTime = end.getTime();
-        let currentTime = start.getTime();
-        
-        while (currentTime <= endTime) {
-            const currentDate = new Date(currentTime);
-            const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
-            if (jadwalData.some(j => j.hari === dayName)) {
-                // Format date manually to avoid timezone shift
-                const year = currentDate.getFullYear();
-                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                const day = String(currentDate.getDate()).padStart(2, '0');
-                pertemuanDates.push(`${year}-${month}-${day}`);
+        // Helper to get scheduled dates based on jadwal days
+        const getScheduledDates = (start, end, jadwalDays) => {
+            const dates = [];
+            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const endTime = end.getTime();
+            let currentTime = start.getTime();
+            
+            while (currentTime <= endTime) {
+                const currentDate = new Date(currentTime);
+                const dayName = dayNames[currentDate.getDay()];
+                if (jadwalDays.some(j => j.hari === dayName)) {
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    dates.push(`${year}-${month}-${day}`);
+                }
+                currentTime += 24 * 60 * 60 * 1000;
             }
-            // Increment by one day in milliseconds
-            currentTime += 24 * 60 * 60 * 1000;
-        }
+            return dates;
+        };
+
+        const pertemuanDates = getScheduledDates(start, end, jadwalData);
 
         // Get actual attendance dates
         const [actualDates] = await globalThis.dbPool.execute(`
