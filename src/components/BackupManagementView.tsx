@@ -72,51 +72,92 @@ interface CustomSchedule {
     lastRun?: string;
 }
 
+// =============================================================================
+// HELPER FUNCTIONS (extracted to reduce cognitive complexity)
+// =============================================================================
+
+const DEFAULT_LOADING_STATES = {
+    backups: false,
+    archive: false,
+    settings: false,
+    schedules: false
+};
+
+const DEFAULT_BACKUP_PROGRESS: BackupProgress = {
+    isRunning: false,
+    progress: 0,
+    currentStep: '',
+    estimatedTime: ''
+};
+
+const DEFAULT_ARCHIVE_STATS: ArchiveStats = {
+    studentRecords: 0,
+    teacherRecords: 0,
+    totalSize: 0,
+    lastArchive: ''
+};
+
+const DEFAULT_BACKUP_SETTINGS: BackupSettings = {
+    autoBackupSchedule: 'weekly',
+    maxBackups: 10,
+    archiveAge: 24,
+    compression: true,
+    emailNotifications: false,
+    customScheduleDate: '',
+    customScheduleTime: '02:00',
+    customScheduleEnabled: false
+};
+
+const DEFAULT_NEW_SCHEDULE: Partial<CustomSchedule> = {
+    name: '',
+    date: '',
+    time: '02:00',
+    enabled: true
+};
+
+/**
+ * Get progress step description based on percentage
+ */
+function getProgressStep(progress: number): string {
+    if (progress < 15) return 'Menginisialisasi backup...';
+    if (progress < 25) return 'Membuat backup database...';
+    if (progress < 35) return 'Mengekspor data absensi siswa...';
+    if (progress < 45) return 'Mengekspor data absensi guru...';
+    if (progress < 55) return 'Mengekspor data jadwal...';
+    if (progress < 65) return 'Mengekspor data kelas...';
+    if (progress < 75) return 'Membuat laporan Excel...';
+    if (progress < 85) return 'Mengarsipkan data lama...';
+    if (progress < 95) return 'Mengompresi file backup...';
+    return 'Menyelesaikan backup...';
+}
+
+/**
+ * Format file size in human readable format
+ */
+function formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 const BackupManagementView: React.FC = () => {
     const [backups, setBackups] = useState<BackupInfo[]>([]);
     const [loading, setLoading] = useState(false);
-    const [loadingStates, setLoadingStates] = useState({
-        backups: false,
-        archive: false,
-        settings: false,
-        schedules: false
-    });
-    const [backupProgress, setBackupProgress] = useState<BackupProgress>({
-        isRunning: false,
-        progress: 0,
-        currentStep: '',
-        estimatedTime: ''
-    });
+    const [loadingStates, setLoadingStates] = useState(DEFAULT_LOADING_STATES);
+    const [backupProgress, setBackupProgress] = useState<BackupProgress>(DEFAULT_BACKUP_PROGRESS);
     const [selectedSemester, setSelectedSemester] = useState<string>('');
-    const [selectedYear, setSelectedYear] = useState<number>(parseInt(getCurrentYearWIB()));
+    const [selectedYear, setSelectedYear] = useState<number>(Number.parseInt(getCurrentYearWIB()));
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [backupType, setBackupType] = useState<'semester' | 'date'>('semester');
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedEndDate, setSelectedEndDate] = useState<string>('');
-    const [archiveStats, setArchiveStats] = useState<ArchiveStats>({
-        studentRecords: 0,
-        teacherRecords: 0,
-        totalSize: 0,
-        lastArchive: ''
-    });
-    const [backupSettings, setBackupSettings] = useState<BackupSettings>({
-        autoBackupSchedule: 'weekly',
-        maxBackups: 10,
-        archiveAge: 24,
-        compression: true,
-        emailNotifications: false,
-        customScheduleDate: '',
-        customScheduleTime: '02:00',
-        customScheduleEnabled: false
-    });
+    const [archiveStats, setArchiveStats] = useState<ArchiveStats>(DEFAULT_ARCHIVE_STATS);
+    const [backupSettings, setBackupSettings] = useState<BackupSettings>(DEFAULT_BACKUP_SETTINGS);
     const [customSchedules, setCustomSchedules] = useState<CustomSchedule[]>([]);
     const [showScheduleDialog, setShowScheduleDialog] = useState(false);
-    const [newSchedule, setNewSchedule] = useState<Partial<CustomSchedule>>({
-        name: '',
-        date: '',
-        time: '02:00',
-        enabled: true
-    });
+    const [newSchedule, setNewSchedule] = useState<Partial<CustomSchedule>>(DEFAULT_NEW_SCHEDULE);
     const [archiveLoading, setArchiveLoading] = useState(false);
     const { toast } = useToast();
 
@@ -465,19 +506,6 @@ const BackupManagementView: React.FC = () => {
         }
     };
 
-    const getProgressStep = (progress: number): string => {
-        if (progress < 15) return 'Menginisialisasi backup...';
-        if (progress < 25) return 'Membuat backup database...';
-        if (progress < 35) return 'Mengekspor data absensi siswa...';
-        if (progress < 45) return 'Mengekspor data absensi guru...';
-        if (progress < 55) return 'Mengekspor data jadwal...';
-        if (progress < 65) return 'Mengekspor data kelas...';
-        if (progress < 75) return 'Membuat laporan Excel...';
-        if (progress < 85) return 'Mengarsipkan data lama...';
-        if (progress < 95) return 'Mengompresi file backup...';
-        return 'Menyelesaikan backup...';
-    };
-
     const downloadBackup = async (backupId: string) => {
         try {
             const response = await fetch(getApiUrl(`/api/admin/download-backup/${backupId}`), {
@@ -654,14 +682,6 @@ const BackupManagementView: React.FC = () => {
         } finally {
             setLoadingStates(prev => ({ ...prev, settings: false }));
         }
-    };
-
-    const formatFileSize = (bytes: number): string => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
     const formatDate = (dateString: string): string => {
