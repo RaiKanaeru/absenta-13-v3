@@ -268,47 +268,39 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     fetchSubjects();
   }, [fetchTeachers, fetchSubjects]);
 
+  // Extracted validation helper to reduce CC
+  const validateTeacherFormData = (data: typeof formData, isEditing: boolean): string | null => {
+    if (!data.nama || !data.username || !data.nip) {
+      return "Nama, username, dan NIP wajib diisi!";
+    }
+    if (!isEditing && !data.password) {
+      return "Password wajib diisi untuk akun baru!";
+    }
+    if (!/^[0-9]{10,20}$/.test(data.nip)) {
+      return "NIP harus berupa angka 10-20 digit!";
+    }
+    if (!/^[a-zA-Z0-9._-]{4,32}$/.test(data.username)) {
+      return "Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip!";
+    }
+    if (data.email && data.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      return "Format email tidak valid!";
+    }
+    if (data.no_telp && data.no_telp.trim() !== '' && !/^[\d+]{1,20}$/.test(data.no_telp.trim())) {
+      return "Nomor telepon harus berupa angka dan plus, maksimal 20 karakter!";
+    }
+    if (data.mapel_id && data.mapel_id !== '' && (!Number.isInteger(Number(data.mapel_id)) || Number(data.mapel_id) <= 0)) {
+      return "ID mata pelajaran harus berupa angka positif!";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validasi client-side
-    if (!formData.nama || !formData.username || !formData.nip) {
-      toast({ title: "Error", description: "Nama, username, dan NIP wajib diisi!", variant: "destructive" });
-      return;
-    }
-
-    if (!editingId && !formData.password) {
-      toast({ title: "Error", description: "Password wajib diisi untuk akun baru!", variant: "destructive" });
-      return;
-    }
-
-    // Validasi format NIP (lebih fleksibel untuk format NIP Indonesia)
-    if (!/^[0-9]{10,20}$/.test(formData.nip)) {
-      toast({ title: "Error", description: "NIP harus berupa angka 10-20 digit!", variant: "destructive" });
-      return;
-    }
-
-    // Validasi format username
-    if (!/^[a-zA-Z0-9._-]{4,32}$/.test(formData.username)) {
-      toast({ title: "Error", description: "Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip!", variant: "destructive" });
-      return;
-    }
-
-    // Validasi format email jika diisi
-    if (formData.email && formData.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      toast({ title: "Error", description: "Format email tidak valid!", variant: "destructive" });
-      return;
-    }
-
-    // Validasi no_telp jika diisi
-    if (formData.no_telp && formData.no_telp.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.no_telp.trim())) {
-      toast({ title: "Error", description: "Nomor telepon harus berupa angka dan plus, maksimal 20 karakter!", variant: "destructive" });
-      return;
-    }
-
-    // Validasi mapel_id jika diisi
-    if (formData.mapel_id && formData.mapel_id !== '' && (!Number.isInteger(Number(formData.mapel_id)) || Number(formData.mapel_id) <= 0)) {
-      toast({ title: "Error", description: "ID mata pelajaran harus berupa angka positif!", variant: "destructive" });
+    // Validate using extracted helper
+    const validationError = validateTeacherFormData(formData, !!editingId);
+    if (validationError) {
+      toast({ title: "Error", description: validationError, variant: "destructive" });
       return;
     }
 
@@ -3752,8 +3744,8 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
     return acc;
   }, {} as Record<string, { kelas: string; hari: string; schedules: Schedule[] }>);
 
-  // Get unique classes for display
-  const uniqueClassesForDisplay = Array.from(new Set(filteredSchedules.map(s => s.nama_kelas))).sort();
+  // Get unique classes for display - using localeCompare for reliable sorting
+  const uniqueClassesForDisplay = Array.from(new Set(filteredSchedules.map(s => s.nama_kelas))).sort((a, b) => a.localeCompare(b));
 
   // Get unique classes for filter
   const uniqueClasses = classes.filter((kelas, index, self) => 
