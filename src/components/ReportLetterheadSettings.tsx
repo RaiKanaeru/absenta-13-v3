@@ -47,6 +47,28 @@ const DEFAULT_LETTERHEAD: LetterheadConfig = {
   alignment: "center"
 };
 
+/**
+ * Parse letterhead config data - handles backward compatibility
+ * @param configData Raw config data from API
+ * @returns Normalized LetterheadConfig
+ */
+function parseLetterheadConfig(configData: LetterheadConfig): LetterheadConfig {
+  if (!configData.lines || !Array.isArray(configData.lines)) {
+    return configData;
+  }
+  
+  // Check if lines are strings (old format) or objects (new format)
+  if (typeof configData.lines[0] === 'string') {
+    // Convert old format to new format
+    configData.lines = configData.lines.map((line: string | { text: string; fontWeight: 'normal' | 'bold' }, index: number) => ({
+      text: typeof line === 'string' ? line : line.text,
+      fontWeight: index === 0 ? 'bold' as const : 'normal' as const
+    }));
+  }
+  
+  return configData;
+}
+
 export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLetterheadSettingsProps) {
   const [config, setConfig] = useState<LetterheadConfig>(DEFAULT_LETTERHEAD);
   const [loading, setLoading] = useState(false);
@@ -95,29 +117,13 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Handle backward compatibility - convert old format to new format
-          const configData = data.data;
-          if (configData.lines && Array.isArray(configData.lines)) {
-            // Check if lines are strings (old format) or objects (new format)
-            if (typeof configData.lines[0] === 'string') {
-              // Convert old format to new format
-              configData.lines = configData.lines.map((line: string, index: number) => ({
-                text: line,
-                fontWeight: index === 0 ? 'bold' : 'normal' // First line is bold by default
-              }));
-            }
-          }
+          const configData = parseLetterheadConfig(data.data);
           setConfig(configData);
+          
           // Set preview untuk logo yang sudah ada
-          if (configData.logo) {
-            setLogoPreview(configData.logo);
-          }
-          if (configData.logoLeftUrl) {
-            setLogoLeftPreview(configData.logoLeftUrl);
-          }
-          if (configData.logoRightUrl) {
-            setLogoRightPreview(configData.logoRightUrl);
-          }
+          if (configData.logo) setLogoPreview(configData.logo);
+          if (configData.logoLeftUrl) setLogoLeftPreview(configData.logoLeftUrl);
+          if (configData.logoRightUrl) setLogoRightPreview(configData.logoRightUrl);
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -150,35 +156,18 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       let logoLeftUrl = config.logoLeftUrl || "";
       let logoRightUrl = config.logoRightUrl || "";
 
-      // Upload logo tengah
-      if (logoFile) {
-        const logoUploadResult = await uploadLogoFile(logoFile, 'logo');
-        if (logoUploadResult.success) {
-          logoUrl = logoUploadResult.data.url;
-        } else {
-          throw new Error(logoUploadResult.error || 'Gagal upload logo tengah');
-        }
-      }
+      // Helper to upload a single logo file
+      const uploadSingleLogo = async (file: File | null, logoType: string, fallback: string) => {
+        if (!file) return fallback;
+        const result = await uploadLogoFile(file, logoType);
+        if (!result.success) throw new Error(result.error || `Gagal upload ${logoType}`);
+        return result.data.url;
+      };
 
-      // Upload logo kiri
-      if (logoLeftFile) {
-        const logoLeftUploadResult = await uploadLogoFile(logoLeftFile, 'logoLeft');
-        if (logoLeftUploadResult.success) {
-          logoLeftUrl = logoLeftUploadResult.data.url;
-        } else {
-          throw new Error(logoLeftUploadResult.error || 'Gagal upload logo kiri');
-        }
-      }
-
-      // Upload logo kanan
-      if (logoRightFile) {
-        const logoRightUploadResult = await uploadLogoFile(logoRightFile, 'logoRight');
-        if (logoRightUploadResult.success) {
-          logoRightUrl = logoRightUploadResult.data.url;
-        } else {
-          throw new Error(logoRightUploadResult.error || 'Gagal upload logo kanan');
-        }
-      }
+      // Upload all logos
+      logoUrl = await uploadSingleLogo(logoFile, 'logo', logoUrl);
+      logoLeftUrl = await uploadSingleLogo(logoLeftFile, 'logoLeft', logoLeftUrl);
+      logoRightUrl = await uploadSingleLogo(logoRightFile, 'logoRight', logoRightUrl);
 
       const configToSave = {
         ...config,
