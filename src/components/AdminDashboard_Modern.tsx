@@ -4537,6 +4537,25 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     return errors;
   };
 
+  // Helper to get valid guru IDs
+  const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id && !isNaN(id) && id > 0);
+
+  // Helper to build jadwal payload
+  const buildJadwalPayload = (form: typeof formData, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
+    kelas_id: parseInt(form.kelas_id),
+    mapel_id: form.jenis_aktivitas === 'pelajaran' ? parseInt(form.mapel_id) : null,
+    guru_id: form.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,
+    guru_ids: form.jenis_aktivitas === 'pelajaran' ? validGuruIds : [],
+    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? parseInt(form.ruang_id) : null,
+    hari: form.hari,
+    jam_mulai: slot?.jam_mulai || form.jam_mulai,
+    jam_selesai: slot?.jam_selesai || form.jam_selesai,
+    jam_ke: slot?.jam_ke || parseInt(form.jam_ke),
+    jenis_aktivitas: form.jenis_aktivitas,
+    is_absenable: form.jenis_aktivitas === 'pelajaran',
+    keterangan_khusus: form.keterangan_khusus || null
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -4554,46 +4573,22 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     setIsLoading(true);
 
     try {
-      // Validasi guru_ids untuk aktivitas pelajaran
-      if (formData.jenis_aktivitas === 'pelajaran') {
-        const validGuruIds = formData.guru_ids.filter(id => id && !isNaN(id) && id > 0);
-        
-        if (validGuruIds.length === 0) {
-          toast({
-            title: "Error",
-            description: "Minimal satu guru harus dipilih untuk jadwal pelajaran"
-          });
-          setIsLoading(false);
-          return;
-        }
-        
-        if (validGuruIds.length !== formData.guru_ids.length) {
-          console.warn('⚠️ Some invalid guru IDs filtered out:', 
-            formData.guru_ids.filter(id => !validGuruIds.includes(id))
-          );
-        }
+      // Validasi guru_ids untuk aktivitas pelajaran using helper
+      const validGuruIds = getValidGuruIds(formData.guru_ids);
+      if (formData.jenis_aktivitas === 'pelajaran' && validGuruIds.length === 0) {
+        toast({
+          title: "Error",
+          description: "Minimal satu guru harus dipilih untuk jadwal pelajaran"
+        });
+        setIsLoading(false);
+        return;
       }
       
       if (editingId) {
-        // Update existing schedule
-        const validGuruIds = formData.guru_ids.filter(id => id && !isNaN(id) && id > 0);
-        
+        // Update existing schedule using payload helper
         await apiCall(`/api/admin/jadwal/${editingId}`, {
           method: 'PUT',
-          body: JSON.stringify({
-            kelas_id: parseInt(formData.kelas_id),
-            mapel_id: formData.jenis_aktivitas === 'pelajaran' ? parseInt(formData.mapel_id) : null,
-            guru_id: formData.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,
-            guru_ids: formData.jenis_aktivitas === 'pelajaran' ? validGuruIds : [],
-            ruang_id: formData.ruang_id && formData.ruang_id !== 'none' ? parseInt(formData.ruang_id) : null,
-            hari: formData.hari,
-            jam_mulai: formData.jam_mulai,
-            jam_selesai: formData.jam_selesai,
-            jam_ke: parseInt(formData.jam_ke),
-            jenis_aktivitas: formData.jenis_aktivitas,
-            is_absenable: formData.jenis_aktivitas === 'pelajaran',
-            keterangan_khusus: formData.keterangan_khusus || null
-          }),
+          body: JSON.stringify(buildJadwalPayload(formData, validGuruIds)),
           onLogout
       });
 
@@ -4611,31 +4606,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         );
 
         for (const slot of timeSlots) {
-          // Validasi dan filter guru_ids sebelum dikirim
-          const validGuruIds = formData.guru_ids.filter(id => id && !isNaN(id) && id > 0);
-          
-          console.log('🔍 Frontend Debug - Guru Data:', {
-            original_guru_ids: formData.guru_ids,
-            valid_guru_ids: validGuruIds,
-            jenis_aktivitas: formData.jenis_aktivitas
-          });
-          
+          // Use helper with slot for time values
           await apiCall('/api/admin/jadwal', {
             method: 'POST',
-            body: JSON.stringify({
-              kelas_id: parseInt(formData.kelas_id),
-              mapel_id: formData.jenis_aktivitas === 'pelajaran' ? parseInt(formData.mapel_id) : null,
-              guru_id: formData.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null, // Primary guru
-              guru_ids: formData.jenis_aktivitas === 'pelajaran' ? validGuruIds : [], // All valid guru IDs
-              ruang_id: formData.ruang_id && formData.ruang_id !== 'none' ? parseInt(formData.ruang_id) : null,
-              hari: formData.hari,
-              jam_mulai: slot.jam_mulai,
-              jam_selesai: slot.jam_selesai,
-              jam_ke: slot.jam_ke,
-              jenis_aktivitas: formData.jenis_aktivitas,
-              is_absenable: formData.jenis_aktivitas === 'pelajaran',
-              keterangan_khusus: formData.keterangan_khusus || null
-            }),
+            body: JSON.stringify(buildJadwalPayload(formData, validGuruIds, slot)),
             onLogout
       });
         }
