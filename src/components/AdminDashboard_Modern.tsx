@@ -3758,12 +3758,30 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
   // console.log();
   // console.log();
 
+  // Helper to build filter query params
+  const buildFilterParams = (filterState: typeof filter): URLSearchParams => {
+    const params = new URLSearchParams();
+    if (filterState.kelas && filterState.kelas !== 'all') {
+      params.append('kelas_id', filterState.kelas);
+    }
+    if (filterState.hari && filterState.hari !== 'all') {
+      params.append('hari', filterState.hari);
+    }
+    return params;
+  };
+
+  // Helper to get and validate auth token
+  const getAuthToken = (): string => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
+    }
+    return token;
+  };
+
   const handleExportExcel = async (type: 'matrix' | 'grid') => {
     try {
       setIsExporting(true);
-      // console.log();
-      // console.log();
-      // console.log();
       
       // Check if there's data to export
       if (schedules.length === 0) {
@@ -3782,27 +3800,16 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
         variant: "default"
       });
 
-      // Build query parameters
-      const params = new URLSearchParams();
-      if (filter.kelas && filter.kelas !== 'all') {
-        params.append('kelas_id', filter.kelas);
-      }
-      if (filter.hari && filter.hari !== 'all') {
-        params.append('hari', filter.hari);
-      }
+      // Build query parameters using helper
+      const params = buildFilterParams(filter);
 
       // Determine endpoint based on type
       const endpoint = type === 'matrix' 
         ? `/api/admin/export/jadwal-matrix?${params.toString()}`
         : `/api/admin/export/jadwal-grid?${params.toString()}`;
 
-      // console.log();
-
-      // Get auth token
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Token tidak ditemukan');
-      }
+      // Get auth token using helper
+      const token = getAuthToken();
 
       // Make API call using getApiUrl
       const response = await fetch(getApiUrl(endpoint), {
@@ -3883,20 +3890,11 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
     try {
       setIsExporting(true);
       
-      // Build query parameters
-      const params = new URLSearchParams();
-      if (filter.kelas && filter.kelas !== 'all') {
-        params.append('kelas_id', filter.kelas);
-      }
-      if (filter.hari && filter.hari !== 'all') {
-        params.append('hari', filter.hari);
-      }
+      // Build query parameters using helper
+      const params = buildFilterParams(filter);
 
-      // Get auth token
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Token tidak ditemukan');
-      }
+      // Get auth token using helper
+      const token = getAuthToken();
 
       // Open print endpoint in new window using getApiUrl
       const printUrl = getApiUrl(`/api/admin/export/jadwal-print?${params.toString()}`);
