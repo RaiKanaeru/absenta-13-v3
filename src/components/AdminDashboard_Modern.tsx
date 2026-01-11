@@ -5208,34 +5208,39 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <TableCell>
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
                           <div className="space-y-1">
-                            {/* Display teachers - handle multiple formats */}
+                            {/* Display teachers using helper for cleaner code */}
                             <div className="flex flex-wrap gap-1">
-                              {/* Check for guru_list format first (multi-guru with IDs) */}
-                              {schedule.guru_list && schedule.guru_list.includes('||') ? (
-                                schedule.guru_list.split('||').map((guru, index) => {
-                                  const [guruId, guruName] = guru.split(':');
-                                  return (
-                                    <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                      {guruName}
-                                    </Badge>
-                                  );
-                                })
-                              ) : schedule.nama_guru && schedule.nama_guru.includes(',') ? (
-                                // Multiple teachers separated by comma
-                                schedule.nama_guru.split(',').map((guru, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                    {guru.trim()}
-                                  </Badge>
-                                ))
-                              ) : schedule.nama_guru ? (
-                                // Single teacher
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                  {schedule.nama_guru}
-                                </Badge>
-                              ) : (
-                                // No teacher assigned
-                                <span className="text-sm text-gray-500">-</span>
-                              )}
+                              {(() => {
+                                // Helper to render teacher badges based on data format
+                                const renderTeacherBadges = () => {
+                                  if (schedule.guru_list && schedule.guru_list.includes('||')) {
+                                    return schedule.guru_list.split('||').map((guru, index) => {
+                                      const [, guruName] = guru.split(':');
+                                      return (
+                                        <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                          {guruName}
+                                        </Badge>
+                                      );
+                                    });
+                                  }
+                                  if (schedule.nama_guru && schedule.nama_guru.includes(',')) {
+                                    return schedule.nama_guru.split(',').map((guru, index) => (
+                                      <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                        {guru.trim()}
+                                      </Badge>
+                                    ));
+                                  }
+                                  if (schedule.nama_guru) {
+                                    return (
+                                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                        {schedule.nama_guru}
+                                      </Badge>
+                                    );
+                                  }
+                                  return <span className="text-sm text-gray-500">-</span>;
+                                };
+                                return renderTeacherBadges();
+                              })()}
                             </div>
                             
                             {/* Show multi-guru indicator if applicable */}
