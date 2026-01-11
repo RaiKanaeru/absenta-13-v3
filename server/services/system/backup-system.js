@@ -1,4 +1,4 @@
-/**
+    /**
  * BACKUP & ARCHIVE SYSTEM
  * Phase 2: Automated Backup, Excel Export, and Archive Management
  * Target: Handle 250K+ records, Semester backup, Archive management
@@ -44,6 +44,49 @@ class BackupSystem {
             emailNotifications: false,
             autoBackupSchedule: process.env.BACKUP_SCHEDULE || '0 2 * * 0'
         };
+    }
+
+    /**
+     * Format a value for SQL INSERT statement
+     * @param {*} value - The value to format
+     * @returns {string} SQL-safe formatted value
+     */
+    formatSqlValue(value) {
+        if (value === null) return 'NULL';
+        if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+        if (value instanceof Date) {
+            if (Number.isNaN(value.getTime())) return 'NULL';
+            return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
+        }
+        return value;
+    }
+
+    /**
+     * Generate INSERT statements for a batch of data
+     * @param {string} tableName - Table name
+     * @param {Array} data - Array of row objects
+     * @param {number} batchSize - Batch size for INSERT statements
+     * @returns {string} SQL INSERT statements
+     */
+    generateInsertStatements(tableName, data, batchSize = 1000) {
+        if (!data || data.length === 0) return '';
+        
+        const columns = Object.keys(data[0]);
+        const columnList = columns.map(col => `\`${col}\``).join(', ');
+        let sqlContent = `-- Data for table \`${tableName}\` (${data.length} records)\n`;
+        
+        for (let i = 0; i < data.length; i += batchSize) {
+            const batch = data.slice(i, i + batchSize);
+            const values = batch.map(row => {
+                const rowValues = columns.map(col => this.formatSqlValue(row[col]));
+                return `(${rowValues.join(', ')})`;
+            });
+            
+            sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
+            sqlContent += values.join(',\n') + ';\n\n';
+        }
+        
+        return sqlContent;
     }
 
     /**
@@ -350,35 +393,7 @@ class BackupSystem {
                     }
                     
                     if (data && data.length > 0) {
-                        sqlContent += `-- Data for table \`${tableName}\` (${data.length} records)\n`;
-                        
-                        // Get column names
-                        const columns = Object.keys(data[0]);
-                        const columnList = columns.map(col => `\`${col}\``).join(', ');
-                        
-                        // Insert data in batches
-                        const batchSize = 1000;
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
-                            const values = batch.map(row => {
-                                const rowValues = columns.map(col => {
-                                    const value = row[col];
-                                    if (value === null) return 'NULL';
-                                    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
-                                    if (value instanceof Date) {
-                                        if (isNaN(value.getTime())) {
-                                            return 'NULL';
-                                        }
-                                        return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
-                                    }
-                                    return value;
-                                });
-                                return `(${rowValues.join(', ')})`;
-                            });
-                            
-                            sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
-                            sqlContent += values.join(',\n') + ';\n\n';
-                        }
+                        sqlContent += this.generateInsertStatements(tableName, data);
                     } else {
                         sqlContent += `-- No data found for table \`${tableName}\` in date range\n\n`;
                     }
@@ -456,37 +471,9 @@ class BackupSystem {
                         continue;
                     }
                     
+                    
                     if (data && data.length > 0) {
-                        sqlContent += `-- Data for table \`${tableName}\` (${data.length} records)\n`;
-                        
-                        // Get column names
-                        const columns = Object.keys(data[0]);
-                        const columnList = columns.map(col => `\`${col}\``).join(', ');
-                        
-                        // Insert data in batches
-                        const batchSize = 1000;
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
-                            const values = batch.map(row => {
-                                const rowValues = columns.map(col => {
-                                    const value = row[col];
-                                    if (value === null) return 'NULL';
-                                    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
-                                    if (value instanceof Date) {
-                                        // Check if date is valid
-                                        if (Number.isNaN(value.getTime())) {
-                                            return 'NULL';
-                                        }
-                                        return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
-                                    }
-                                    return value;
-                                });
-                                return `(${rowValues.join(', ')})`;
-                            });
-                            
-                            sqlContent += `INSERT INTO \`${tableName}\` (${columnList}) VALUES\n`;
-                            sqlContent += values.join(',\n') + ';\n\n';
-                        }
+                        sqlContent += this.generateInsertStatements(tableName, data);
                     } else {
                         sqlContent += `-- No data in table \`${tableName}\`\n\n`;
                     }
