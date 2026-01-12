@@ -42,7 +42,7 @@ export const getSecurityEvents = async (req, res) => {
     log.requestStart('GetSecurityEvents', { limit, type });
 
     try {
-        const events = globalThis.securitySystem.getSecurityEvents(parseInt(limit), type);
+        const events = globalThis.securitySystem.getSecurityEvents(Number.parseInt(limit), type);
         log.success('GetSecurityEvents', { count: events?.length || 0 });
         return sendSuccessResponse(res, events);
     } catch (error) {

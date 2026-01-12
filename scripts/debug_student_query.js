@@ -34,7 +34,7 @@ async function testStudentQuery() {
         }
 
         query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        params.push(Number.parseInt(limit), Number.parseInt(offset));
 
         console.log('Executing query:', query);
         console.log('Params:', params);

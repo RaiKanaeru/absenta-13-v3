@@ -16,7 +16,7 @@ export function formatBytes(bytes, decimals = 2) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const unitIndex = Math.floor(Math.log(bytes) / Math.log(BYTES_PER_KB));
     
-    return parseFloat((bytes / Math.pow(BYTES_PER_KB, unitIndex)).toFixed(decimals)) + ' ' + sizes[unitIndex];
+    return Number.parseFloat((bytes / Math.pow(BYTES_PER_KB, unitIndex)).toFixed(decimals)) + ' ' + sizes[unitIndex];
 }
 
 /**
