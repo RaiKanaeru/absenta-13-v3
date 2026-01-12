@@ -116,39 +116,30 @@ function validateSimpleFields(body, isUpdate, excludeStudentId, promises, checks
     
     // Helper to check if value is present
     const isPresent = (val) => val !== undefined && val !== null && val !== '';
+    const VALID_JABATAN = ['Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
     
-    // Gender validation
-    if (isPresent(jenis_kelamin) && !['L', 'P'].includes(jenis_kelamin)) {
-        errors.push('Jenis kelamin harus L atau P');
+    // Declarative validation rules
+    const validationRules = [
+        { condition: isPresent(jenis_kelamin) && !['L', 'P'].includes(jenis_kelamin), message: 'Jenis kelamin harus L atau P' },
+        { condition: isPresent(jabatan) && !VALID_JABATAN.includes(jabatan), message: `Jabatan harus salah satu dari: ${VALID_JABATAN.join(', ')}` },
+        { condition: isPresent(nomor_telepon_siswa) && !/^\d{10,15}$/.test(nomor_telepon_siswa), message: 'Nomor telepon siswa harus berupa angka 10-15 digit' },
+        { condition: !isUpdate && !(typeof password === 'string' && password.length >= 6), message: 'Password wajib diisi minimal 6 karakter' },
+        { condition: isUpdate && isPresent(password) && !(typeof password === 'string' && password.length >= 6), message: 'Password minimal 6 karakter' }
+    ];
+    
+    // Apply validation rules
+    for (const rule of validationRules) {
+        if (rule.condition) errors.push(rule.message);
     }
     
-    // Jabatan validation
-    const validJabatan = ['Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
-    if (isPresent(jabatan) && !validJabatan.includes(jabatan)) {
-        errors.push(`Jabatan harus salah satu dari: ${validJabatan.join(', ')}`);
-    }
-    
-    // Phone validation
-    if (isPresent(nomor_telepon_siswa)) {
-        if (!/^\d{10,15}$/.test(nomor_telepon_siswa)) {
-            errors.push('Nomor telepon siswa harus berupa angka 10-15 digit');
-        } else {
-            const useExclude = isUpdate && excludeStudentId;
-            const sql = useExclude
-                ? 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1'
-                : 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';
-            promises.push(globalThis.dbPool.execute(sql, useExclude ? [nomor_telepon_siswa, excludeStudentId] : [nomor_telepon_siswa]));
-            checks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
-        }
-    }
-    
-    // Password validation - simplified logic
-    const isValidPassword = typeof password === 'string' && password.length >= 6;
-    if (!isUpdate && !isValidPassword) {
-        errors.push('Password wajib diisi minimal 6 karakter');
-    }
-    if (isUpdate && isPresent(password) && !isValidPassword) {
-        errors.push('Password minimal 6 karakter');
+    // Phone uniqueness check (requires DB query)
+    if (isPresent(nomor_telepon_siswa) && /^\d{10,15}$/.test(nomor_telepon_siswa)) {
+        const useExclude = isUpdate && excludeStudentId;
+        const sql = useExclude
+            ? 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1'
+            : 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';
+        promises.push(globalThis.dbPool.execute(sql, useExclude ? [nomor_telepon_siswa, excludeStudentId] : [nomor_telepon_siswa]));
+        checks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
     }
     
     return errors;
