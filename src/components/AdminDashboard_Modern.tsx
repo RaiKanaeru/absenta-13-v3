@@ -298,7 +298,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       no_telp: trimOrNull(data.no_telp),
       jenis_kelamin: data.jenis_kelamin || null,
       alamat: trimOrNull(data.alamat),
-      mapel_id: data.mapel_id && data.mapel_id !== '' ? parseInt(data.mapel_id) : null,
+      mapel_id: data.mapel_id && data.mapel_id !== '' ? Number.parseInt(data.mapel_id) : null,
       status: data.status
     };
   };
@@ -2851,7 +2851,7 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
       
       const submitData = {
         ...formData,
-        kelas_id: parseInt(formData.kelas_id),
+        kelas_id: Number.parseInt(formData.kelas_id),
       };
 
       await apiCall(url, {
@@ -3637,7 +3637,7 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
   const filteredSchedules = schedules.filter(schedule => {
     const kelasMatch = filter.kelas === 'all' || 
       schedule.kelas_id.toString() === filter.kelas ||
-      schedule.kelas_id === parseInt(filter.kelas);
+      schedule.kelas_id === Number.parseInt(filter.kelas);
     const hariMatch = filter.hari === 'all' || schedule.hari === filter.hari;
     return kelasMatch && hariMatch;
   }).sort((a, b) => {
@@ -4400,10 +4400,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     const errors: string[] = [];
     
     // Validasi jam_ke
-    if (!formData.jam_ke || isNaN(parseInt(String(formData.jam_ke)))) {
+    if (!formData.jam_ke || isNaN(Number.parseInt(String(formData.jam_ke)))) {
       errors.push('Jam ke- harus diisi dengan angka');
     } else {
-      const jamKe = parseInt(String(formData.jam_ke));
+      const jamKe = Number.parseInt(String(formData.jam_ke));
       if (jamKe < 1 || jamKe > 12) {
         errors.push('Jam ke- harus antara 1-12');
       }
@@ -4437,15 +4437,15 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
 
   // Helper to build jadwal payload
   const buildJadwalPayload = (form: typeof formData, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
-    kelas_id: parseInt(form.kelas_id),
-    mapel_id: form.jenis_aktivitas === 'pelajaran' ? parseInt(form.mapel_id) : null,
+    kelas_id: Number.parseInt(form.kelas_id),
+    mapel_id: form.jenis_aktivitas === 'pelajaran' ? Number.parseInt(form.mapel_id) : null,
     guru_id: form.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,
     guru_ids: form.jenis_aktivitas === 'pelajaran' ? validGuruIds : [],
-    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? parseInt(form.ruang_id) : null,
+    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? Number.parseInt(form.ruang_id) : null,
     hari: form.hari,
     jam_mulai: slot?.jam_mulai || form.jam_mulai,
     jam_selesai: slot?.jam_selesai || form.jam_selesai,
-    jam_ke: slot?.jam_ke || parseInt(form.jam_ke),
+    jam_ke: slot?.jam_ke || Number.parseInt(form.jam_ke),
     jenis_aktivitas: form.jenis_aktivitas,
     is_absenable: form.jenis_aktivitas === 'pelajaran',
     keterangan_khusus: form.keterangan_khusus || null
@@ -4496,7 +4496,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         const timeSlots = generateTimeSlots(
           formData.jam_mulai,
           formData.jam_selesai,
-          parseInt(formData.jam_ke), // FIX: Gunakan parseInt() untuk jam_ke
+          Number.parseInt(formData.jam_ke), // FIX: Gunakan Number.parseInt() untuk jam_ke
           consecutiveHours
         );
 
