@@ -50,6 +50,37 @@ const parseGuruList = (guruListString: string) => {
   });
 };
 
+/**
+ * Parse jadwal key to extract jadwal_id and guru_id
+ * Supports formats: "jadwalId-guruId" (multi-guru) or just "jadwalId" (single guru)
+ */
+const parseJadwalKey = (key: string | number): { jadwalId: number | null; guruId: number | null; isMultiGuru: boolean } => {
+  const keyStr = String(key);
+  
+  if (keyStr.includes('-')) {
+    const [jid, gid] = keyStr.split('-');
+    return {
+      jadwalId: Number.parseInt(jid, 10) || null,
+      guruId: Number.parseInt(gid, 10) || null,
+      isMultiGuru: true
+    };
+  }
+  
+  return {
+    jadwalId: typeof key === 'number' ? key : Number.parseInt(keyStr, 10) || null,
+    guruId: null,
+    isMultiGuru: false
+  };
+};
+
+/**
+ * Get guru_id from jadwal object, trying multiple field names
+ */
+const getGuruIdFromJadwal = (jadwal: any, kehadiranDataEntry: any): number | null => {
+  // Try guru_id first, then id_guru
+  const guruId = jadwal?.guru_id || jadwal?.id_guru || kehadiranDataEntry?.guru_id;
+  return guruId || null;
+};
 
 interface BandingAbsen {
   id_banding: number;
@@ -1256,49 +1287,33 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         throw new Error('Token tidak ditemukan');
       }
 
-      // Tentukan jadwal_id dan guru_id dari key (mendukung multi-guru "jadwalId-guruId")
-      let jadwalId: number | null = null;
-      let guruId: number | null = null;
+      // Tentukan jadwal_id dan guru_id dari key menggunakan helper
+      const parsedKey = parseJadwalKey(key);
+      const { jadwalId } = parsedKey;
+      let { guruId } = parsedKey;
 
-      if (typeof key === 'string' && key.includes('-')) {
-        const [jid, gid] = key.split('-');
-        jadwalId = Number.parseInt(jid, 10);
-        guruId = Number.parseInt(gid, 10);
-      } else {
-        jadwalId = typeof key === 'number' ? key : Number.parseInt(String(key), 10);
+      // Jika bukan multi-guru key, cari jadwal dan guru_id
+      if (!parsedKey.isMultiGuru) {
         const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
         const jadwal = jadwalData.find(j => j.id_jadwal === jadwalId);
-        
-        // console.log();
         
         if (!jadwal) {
           throw new Error('Jadwal tidak ditemukan');
         }
         
+        // Check if multi-guru jadwal requires specific guru selection
         if (jadwal.is_multi_guru && Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
-        // Jangan fallback ke primary di multi-guru. Minta user memilih guru spesifik.
-        toast({
-          title: "Pilih Guru",
-          description: "Jadwal ini multi-guru. Silakan set status per guru.",
-          variant: "destructive"
-        });
-          // Rollback
-          setKehadiranData(prev => ({
-            ...prev,
-            [key]: previousState
-          }));
-        return;
-        } else {
-          // Try both guru_id and id_guru fields from jadwal object
-          guruId = (jadwal as any).guru_id || (jadwal as any).id_guru || null;
-          
-          // If still not found, try from kehadiranData
-          if (!guruId && kehadiranData[key]?.guru_id) {
-            guruId = kehadiranData[key].guru_id;
-            // console.log();
-          }
-          
+          toast({
+            title: "Pilih Guru",
+            description: "Jadwal ini multi-guru. Silakan set status per guru.",
+            variant: "destructive"
+          });
+          setKehadiranData(prev => ({ ...prev, [key]: previousState }));
+          return;
         }
+        
+        // Get guru_id from jadwal object using helper
+        guruId = getGuruIdFromJadwal(jadwal, kehadiranData[key]);
       }
 
       if (!jadwalId || !guruId) {
