@@ -235,14 +235,6 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
   const fetchTeachers = useCallback(async () => {
     try {
       const response = await apiCall('/api/admin/guru', { onLogout });
-      // console.log();
-      console.log('🔍 Response structure:', {
-        hasData: !!response.data,
-        hasSuccess: !!response.success,
-        dataLength: response.data?.length || 0,
-        directLength: Array.isArray(response) ? response.length : 0
-      });
-      // console.log();
       
       // Handle both response structures
       const teachersData = response.data || response;
@@ -3773,11 +3765,7 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
       if (blob.size === 0) {
         throw new Error('Server mengembalikan file kosong');
       }
-      console.log('Blob created:', {
-        size: blob.size,
-        type: blob.type,
-        filename: filename
-      });
+
       
       // Validate blob type
       if (!blob.type.includes('spreadsheetml') && !blob.type.includes('excel')) {
@@ -4337,18 +4325,6 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
         setClasses(Array.isArray(classesData) ? classesData : []);
         setRooms(Array.isArray(roomsData) ? roomsData : []);
-        
-        console.log('✅ All data loaded successfully:', {
-          schedules: schedulesData?.length || 0,
-          teachers: teachersData?.data?.length || teachersData?.length || 0,
-          subjects: subjectsData?.length || 0,
-          classes: classesData?.length || 0,
-          rooms: roomsData?.length || 0
-        });
-        
-        // Debug teachers data structure
-        // console.log();
-        // console.log();
         
       } catch (error) {
         console.error('❌ Error loading data:', error);
