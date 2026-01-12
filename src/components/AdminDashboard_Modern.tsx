@@ -4807,10 +4807,6 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       </SelectTrigger>
                       <SelectContent>
                         {(() => {
-                          // console.log();
-                          // console.log();
-                          // console.log();
-                          
                           const filteredTeachers = teachers.filter(teacher => teacher.id && teacher.status === 'aktif' && !formData.guru_ids.includes(teacher.id));
                           
                           if (filteredTeachers.length === 0) {
