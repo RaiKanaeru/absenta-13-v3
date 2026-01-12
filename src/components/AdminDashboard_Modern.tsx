@@ -3653,24 +3653,10 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
 
   // Filter schedules based on selected filters
   const filteredSchedules = schedules.filter(schedule => {
-    // Improved filtering logic with better type handling
     const kelasMatch = filter.kelas === 'all' || 
       schedule.kelas_id.toString() === filter.kelas ||
       schedule.kelas_id === parseInt(filter.kelas);
     const hariMatch = filter.hari === 'all' || schedule.hari === filter.hari;
-    
-    // Debug logging for troubleshooting
-    if (schedules.length > 0 && classes.length > 0) {
-      console.log(`🔍 Filtering schedule ${schedule.id}:`, {
-        scheduleKelasId: schedule.kelas_id,
-        filterKelas: filter.kelas,
-        kelasMatch,
-        scheduleHari: schedule.hari,
-        filterHari: filter.hari,
-        hariMatch
-      });
-    }
-    
     return kelasMatch && hariMatch;
   }).sort((a, b) => {
     // Sort by day first, then by jam_ke
@@ -3680,42 +3666,6 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
     if (dayA !== dayB) return dayA - dayB;
     return (a.jam_ke || 0) - (b.jam_ke || 0);
   });
-
-  // Enhanced debug logging for better troubleshooting
-  // console.log();
-  // console.log();
-  // console.log();
-  // console.log();
-  // console.log();
-  
-  // Check data consistency
-  if (schedules.length > 0 && classes.length > 0) {
-    // console.log();
-    console.log('📊 Sample schedule:', {
-      id: schedules[0].id,
-      kelas_id: schedules[0].kelas_id,
-      nama_kelas: schedules[0].nama_kelas,
-      hari: schedules[0].hari
-    });
-    console.log('📊 Sample class:', {
-      id: classes[0].id,
-      id_kelas: classes[0].id_kelas,
-      nama_kelas: classes[0].nama_kelas
-    });
-    console.log('📊 ID consistency check:', {
-      scheduleKelasId: schedules[0].kelas_id,
-      classId: classes[0].id,
-      classIdKelas: classes[0].id_kelas,
-      matchWithId: schedules[0].kelas_id === classes[0].id,
-      matchWithIdKelas: schedules[0].kelas_id === classes[0].id_kelas
-    });
-  }
-  
-  if (filteredSchedules.length > 0) {
-    // console.log();
-  } else {
-    // console.log();
-  }
 
   // Group schedules by class and day for matrix view
   const groupedSchedules = filteredSchedules.reduce((acc, schedule) => {
