@@ -11,3 +11,4 @@ export { apiCall } from './apiUtils';
 // Components
 export { ScheduleListView } from './ScheduleListView';
 export { AttendanceView } from './AttendanceView';
+export { LaporanKehadiranSiswaView } from './LaporanKehadiranSiswaView';
