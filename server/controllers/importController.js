@@ -1046,12 +1046,30 @@ const importGuru = async (req, res) => {
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
-        const errors = [];
-        const valid = [];
+        // Helper to validate and collect guru rows
+        const validateAndCollectGuruRows = (rows, existingNips) => {
+            const errors = [];
+            const valid = [];
+            for (let i = 0; i < rows.length; i++) {
+                const rowNum = i + 2;
+                try {
+                    const result = validateGuruDataRow(rows[i], valid, existingNips);
+                    if (result.valid) {
+                        const rowData = rows[i];
+                        result.data.jabatan = (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null;
+                        valid.push(result.data);
+                    } else {
+                        errors.push({ index: rowNum, errors: result.errors, data: result.preview });
+                    }
+                } catch (error) {
+                    errors.push({ index: rowNum, errors: [error.message], data: { nip: '(error)', nama: '(error)' } });
+                }
+            }
+            return { errors, valid };
+        };
 
         // Check for existing NIP in database
         const existingNips = new Set();
-
         try {
             const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
             dbNips.forEach(row => existingNips.add(row.nip));
@@ -1063,23 +1081,7 @@ const importGuru = async (req, res) => {
             });
         }
 
-        // Validate each row
-        for (let i = 0; i < rows.length; i++) {
-            const rowNum = i + 2;
-            try {
-                const result = validateGuruDataRow(rows[i], valid, existingNips);
-                if (result.valid) {
-                    // Add additional fields not in helper
-                    const rowData = rows[i];
-                    result.data.jabatan = (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null;
-                    valid.push(result.data);
-                } else {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                }
-            } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message], data: { nip: '(error)', nama: '(error)' } });
-            }
-        }
+        const { errors, valid } = validateAndCollectGuruRows(rows, existingNips);
 
         if (req.query.dryRun === 'true') {
             return res.json({
