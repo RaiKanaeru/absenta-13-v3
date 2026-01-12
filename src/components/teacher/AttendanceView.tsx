@@ -498,12 +498,12 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                           <div className="flex justify-between">
                             <span>{student.nama}:</span>
                             <div className="flex items-center gap-2">
-                              <span className={`font-medium ${
-                                attendance[student.id] === 'Hadir' ? 'text-green-600' :
-                                attendance[student.id] === 'Izin' ? 'text-yellow-600' :
-                                attendance[student.id] === 'Sakit' ? 'text-blue-600' :
-                                'text-red-600'
-                              }`}>
+                              <span className={`font-medium ${(() => {
+                                const colorMap: Record<string, string> = {
+                                  'Hadir': 'text-green-600', 'Izin': 'text-yellow-600', 'Sakit': 'text-blue-600'
+                                };
+                                return colorMap[attendance[student.id]] || 'text-red-600';
+                              })()}`}>
                                 {attendance[student.id]}
                               </span>
                               {terlambat[student.id] && (
