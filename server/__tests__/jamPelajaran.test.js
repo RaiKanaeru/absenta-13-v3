@@ -29,8 +29,8 @@ function isValidTimeFormat(time) {
  */
 function isValidTimeRange(jamMulai, jamSelesai) {
     if (!jamMulai || !jamSelesai) return false;
-    const start = jamMulai.replace(/:/g, '');
-    const end = jamSelesai.replace(/:/g, '');
+    const start = jamMulai.replaceAll(':', '');
+    const end = jamSelesai.replaceAll(':', '');
     return Number.parseInt(start) < Number.parseInt(end);
 }
 
@@ -40,7 +40,7 @@ function isValidTimeRange(jamMulai, jamSelesai) {
 function isValidJamKe(jamKe) {
     if (jamKe === undefined || jamKe === null) return false;
     const num = Number.parseInt(jamKe);
-    return .isNaN(num) && num >= MIN_JAM_KE && num <= MAX_JAM_KE;
+    return !Number.isNaN(num) && num >= MIN_JAM_KE && num <= MAX_JAM_KE;
 }
 
 /**
