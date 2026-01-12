@@ -4156,10 +4156,8 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
                                 {schedule.guru_list && schedule.guru_list.includes('||') && (
                                   <div className="text-xs text-green-600 mt-1">
                                     <div className="font-medium">Multi-Guru:</div>
-                                    {schedule.guru_list.split('||').map((guru, guruIdx) => (
-                                      <div key={`guru-${guru.split(':')[0]}-${guruIdx}`} className="text-xs text-green-700 truncate">
-                                        • {guru.split(':')[1]}
-                                      </div>
+                                    {schedule.guru_list.split('||').map((guru, i) => (
+                                      <div key={`g-${i}`} className="text-xs text-green-700 truncate">• {guru.split(':')[1]}</div>
                                     ))}
                                   </div>
                                 )}
