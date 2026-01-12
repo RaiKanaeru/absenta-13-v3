@@ -224,7 +224,7 @@ export async function setLetterheadForReport(reportKey, letterhead) {
       letterhead.logoRightUrl || null
     ];
 
-    await global.dbPool.execute(query, params);
+    await globalThis.dbPool.execute(query, params);
     return true;
 
   } catch (error) {
@@ -239,7 +239,7 @@ export async function setLetterheadForReport(reportKey, letterhead) {
  */
 export async function getAllLetterheads() {
   try {
-    if (!global.dbPool) {
+    if (!globalThis.dbPool) {
       return [];
     }
 
@@ -251,7 +251,7 @@ export async function getAllLetterheads() {
       ORDER BY cakupan, kode_laporan
     `;
 
-    const [rows] = await global.dbPool.execute(query);
+    const [rows] = await globalThis.dbPool.execute(query);
     return rows;
 
   } catch (error) {
@@ -267,12 +267,12 @@ export async function getAllLetterheads() {
  */
 export async function deleteLetterhead(id) {
   try {
-    if (!global.dbPool) {
+    if (!globalThis.dbPool) {
       throw new Error('Database pool tidak tersedia');
     }
 
     const query = 'DELETE FROM kop_laporan WHERE id = ?';
-    const [result] = await global.dbPool.execute(query, [id]);
+    const [result] = await globalThis.dbPool.execute(query, [id]);
     
     return result.affectedRows > 0;
 
