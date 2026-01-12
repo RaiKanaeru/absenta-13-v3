@@ -436,9 +436,10 @@ CREATE TABLE IF NOT EXISTS presensi (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>
-                    {restoreStatus === 'uploading' ? 'Mengupload file...' : 
-                     restoreStatus === 'restoring' ? 'Memproses backup...' : 
-                     'Memulihkan database...'}
+                    {{
+                      uploading: 'Mengupload file...',
+                      restoring: 'Memproses backup...'
+                    }[restoreStatus] || 'Memulihkan database...'}
                   </span>
                   <span>{Math.round(uploadProgress)}%</span>
                 </div>
@@ -462,9 +463,10 @@ CREATE TABLE IF NOT EXISTS presensi (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
                     <span className="truncate">
-                      {restoreStatus === 'uploading' ? 'Mengupload...' : 
-                       restoreStatus === 'restoring' ? 'Memproses...' : 
-                       'Memulihkan...'}
+                      {{
+                        uploading: 'Mengupload...',
+                        restoring: 'Memproses...'
+                      }[restoreStatus] || 'Memulihkan...'}
                     </span>
                   </>
                 ) : (
