@@ -5184,16 +5184,20 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                         {schedule.nama_kelas}
                       </TableCell>
                       <TableCell>
-                        {schedule.jenis_aktivitas !== 'pelajaran' ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {schedule.jenis_aktivitas === 'upacara' ? '🏳️ Upacara' :
-                             schedule.jenis_aktivitas === 'istirahat' ? '☕ Istirahat' :
-                             schedule.jenis_aktivitas === 'kegiatan_khusus' ? '🎯 Kegiatan Khusus' :
-                             schedule.jenis_aktivitas === 'libur' ? '🏖️ Libur' :
-                             schedule.jenis_aktivitas === 'ujian' ? '📝 Ujian' :
-                             '📋 ' + schedule.jenis_aktivitas}
-                          </Badge>
-                        ) : (
+                        {schedule.jenis_aktivitas !== 'pelajaran' ? (() => {
+                          const activityMap: Record<string, string> = {
+                            upacara: '🏳️ Upacara',
+                            istirahat: '☕ Istirahat',
+                            kegiatan_khusus: '🎯 Kegiatan Khusus',
+                            libur: '🏖️ Libur',
+                            ujian: '📝 Ujian'
+                          };
+                          return (
+                            <Badge variant="secondary" className="text-xs">
+                              {activityMap[schedule.jenis_aktivitas] || '📋 ' + schedule.jenis_aktivitas}
+                            </Badge>
+                          );
+                        })() : (
                           <Badge variant="default" className="text-xs">
                             📚 Pelajaran
                           </Badge>
@@ -5212,14 +5216,11 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                             {/* Display teachers using inline conditionals for cleaner code */}
                             <div className="flex flex-wrap gap-1">
                               {schedule.guru_list && schedule.guru_list.includes('||') ? (
-                                schedule.guru_list.split('||').map((guru, index) => {
-                                  const [, guruName] = guru.split(':');
-                                  return (
-                                    <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                      {guruName}
-                                    </Badge>
-                                  );
-                                })
+                                schedule.guru_list.split('||').map((guru, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                    {guru.split(':')[1]}
+                                  </Badge>
+                                ))
                               ) : schedule.nama_guru && schedule.nama_guru.includes(',') ? (
                                 schedule.nama_guru.split(',').map((guru, index) => (
                                   <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
