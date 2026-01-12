@@ -1549,7 +1549,7 @@ export const exportPresensiSiswa = async (req, res) => {
         `, [kelas_id, tahun, bulan]);
 
         // Prepare export data
-        const daysInMonth = new Date(parseInt(tahun), parseInt(bulan), 0).getDate();
+        const daysInMonth = new Date(Number.parseInt(tahun), Number.parseInt(bulan), 0).getDate();
         const exportData = studentsRows.map(student => {
             const studentPresensi = presensiRows.filter(p => p.siswa_id === student.id);
             const attendanceRecord = {};
@@ -1730,7 +1730,7 @@ export const exportJadwalMatrix = async (req, res) => {
             if (!guruList) return [];
             return guruList.split('||').map(item => {
                 const [id, name] = item.split(':');
-                return { id: parseInt(id), name: name || 'Unknown' };
+                return { id: Number.parseInt(id), name: name || 'Unknown' };
             }).filter(g => g.name);
         };
 
@@ -2645,7 +2645,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const tahunInt = parseInt(tahun);
+        const tahunInt = Number.parseInt(tahun);
         const [rows] = await globalThis.dbPool.execute(query, [tahunInt, tahunInt]);
 
         // Transform data for template
