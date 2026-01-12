@@ -100,7 +100,7 @@ class DatabaseOptimization {
         logger.info('Creating database backup');
         
         try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
             const backupDir = './backups';
             const backupFile = path.join(backupDir, `absenta13_backup_${timestamp}.sql`);
             

@@ -53,7 +53,7 @@ class BackupSystem {
      */
     formatSqlValue(value) {
         if (value === null) return 'NULL';
-        if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+        if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`;
         if (value instanceof Date) {
             if (Number.isNaN(value.getTime())) return 'NULL';
             return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`;
@@ -231,7 +231,7 @@ class BackupSystem {
     async createDateBackup(startDate, endDate) {
         logger.info('Creating date-based backup', { startDate, endDate });
         
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
         const backupId = `date_backup_${timestamp}`;
         
         try {
@@ -279,8 +279,8 @@ class BackupSystem {
         
         try {
             // Create backup with schedule name as identifier
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const backupId = `scheduled_${schedule.name.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}`;
+            const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
+            const backupId = `scheduled_${schedule.name.replaceAll(/[^a-zA-Z0-9]/g, '_')}_${timestamp}`;
             
             // Create backup directory
             const backupDir = path.join(this.backupDir, backupId);
@@ -325,7 +325,7 @@ class BackupSystem {
     async createSemesterBackup(semester = null, year = null) {
         logger.info('Creating semester backup');
         
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
         const backupId = `semester_backup_${timestamp}`;
         
         try {

@@ -376,7 +376,7 @@ class DownloadQueue {
             await job.progress(90);
             
             // Generate filename
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
             const filename = `absensi_siswa_${tanggal_mulai}_${tanggal_selesai}_${timestamp}.xlsx`;
             const filepath = path.join(this.downloadDir, filename);
             
@@ -482,7 +482,7 @@ class DownloadQueue {
             await job.progress(90);
             
             // Generate filename
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
             const filename = `absensi_guru_${tanggal_mulai}_${tanggal_selesai}_${timestamp}.xlsx`;
             const filepath = path.join(this.downloadDir, filename);
             
@@ -575,7 +575,7 @@ class DownloadQueue {
             await job.progress(80);
             
             // Generate filename
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
             const filename = `analytics_report_${semester}_${year}_${timestamp}.xlsx`;
             const filepath = path.join(this.downloadDir, filename);
             
