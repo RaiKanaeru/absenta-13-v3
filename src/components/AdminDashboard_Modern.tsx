@@ -5927,27 +5927,22 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     };
   }, [onLogout, autoRefresh]);
 
-  // Fungsi untuk mengelompokkan data berdasarkan waktu
+  // Fungsi untuk mengelompokkan data berdasarkan waktu - single pass
   const groupAttendanceByTime = (data: LiveStudentRow[]) => {
-    const groups = {
-      pagi: data.filter(item => {
-        if (!item.waktu_absen) return false;
+    type TimeGroups = { pagi: LiveStudentRow[]; siang: LiveStudentRow[]; sore: LiveStudentRow[]; belumAbsen: LiveStudentRow[] };
+    const initial: TimeGroups = { pagi: [], siang: [], sore: [], belumAbsen: [] };
+    
+    return data.reduce((groups, item) => {
+      if (!item.waktu_absen) {
+        groups.belumAbsen.push(item);
+      } else {
         const hour = parseInt(item.waktu_absen.split(':')[0]);
-        return hour >= 6 && hour < 12;
-      }),
-      siang: data.filter(item => {
-        if (!item.waktu_absen) return false;
-        const hour = parseInt(item.waktu_absen.split(':')[0]);
-        return hour >= 12 && hour < 15;
-      }),
-      sore: data.filter(item => {
-        if (!item.waktu_absen) return false;
-        const hour = parseInt(item.waktu_absen.split(':')[0]);
-        return hour >= 15 && hour < 18;
-      }),
-      belumAbsen: data.filter(item => !item.waktu_absen)
-    };
-    return groups;
+        if (hour >= 6 && hour < 12) groups.pagi.push(item);
+        else if (hour >= 12 && hour < 15) groups.siang.push(item);
+        else if (hour >= 15 && hour < 18) groups.sore.push(item);
+      }
+      return groups;
+    }, initial);
   };
 
   // Komponen statistik kehadiran - Modern Design
