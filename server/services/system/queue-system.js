@@ -10,8 +10,8 @@ dotenv.config();
 import Queue from 'bull';
 import Redis from 'ioredis';
 import ExcelJS from 'exceljs';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import mysql from 'mysql2/promise';
 import { createLogger } from '../../utils/logger.js';
 

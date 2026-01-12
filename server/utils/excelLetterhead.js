@@ -4,8 +4,8 @@
  * Extracted from server_modern.js for code reuse
  */
 
-import path from 'path';
-import fs from 'fs';
+import path from 'node:path';
+import fs from 'node:fs';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('ExcelLetterhead');

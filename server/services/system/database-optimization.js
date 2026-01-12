@@ -8,8 +8,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import mysql from 'mysql2/promise';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('DbOptimization');

@@ -9,10 +9,10 @@ dotenv.config();
 
 import mysql from 'mysql2/promise';
 import ExcelJS from 'exceljs';
-import fs from 'fs/promises';
-import path from 'path';
-import { createWriteStream } from 'fs';
-import { spawn } from 'child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createWriteStream } from 'node:fs';
+import { spawn } from 'node:child_process';
 import cron from 'node-cron';
 import { createLogger } from '../../utils/logger.js';
 

@@ -4,8 +4,8 @@
  * Dimigrasi dari server_modern.js - Batch 15
  */
 
-import path from 'path';
-import fs from 'fs/promises';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import AdmZip from 'adm-zip';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';

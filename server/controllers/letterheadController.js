@@ -3,9 +3,9 @@
  * Menangani operasi kop surat/KOP
  */
 
-import path from 'path';
+import path from 'node:path';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
-import { promises as fs } from 'fs';
+import { promises as fs } from 'node:fs';
 import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { createLogger } from '../utils/logger.js';
 
