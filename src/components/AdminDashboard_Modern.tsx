@@ -4226,14 +4226,11 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
                                 {schedule.guru_list && schedule.guru_list.includes('||') && (
                                   <div className="text-xs text-green-600 mt-1">
                                     <div className="font-medium">Multi-Guru:</div>
-                                    {schedule.guru_list.split('||').map((guru, guruIdx) => {
-                                      const [guruId, guruName] = guru.split(':');
-                                      return (
-                                        <div key={`guru-${guruId}-${guruIdx}`} className="text-xs text-green-700 truncate">
-                                          • {guruName}
-                                        </div>
-                                      );
-                                    })}
+                                    {schedule.guru_list.split('||').map((guru, guruIdx) => (
+                                      <div key={`guru-${guru.split(':')[0]}-${guruIdx}`} className="text-xs text-green-700 truncate">
+                                        • {guru.split(':')[1]}
+                                      </div>
+                                    ))}
                                   </div>
                                 )}
                               </div>
@@ -4268,14 +4265,11 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
                     {schedule.guru_list && schedule.guru_list.includes('||') && (
                       <div className="text-xs text-green-600 mb-1">
                         <div className="font-medium">Multi-Guru:</div>
-                        {schedule.guru_list.split('||').map((guru, guruIdx) => {
-                          const [guruId, guruName] = guru.split(':');
-                          return (
-                            <div key={`guru-list-${guruId}-${guruIdx}`} className="text-xs text-green-700">
-                              • {guruName}
-                            </div>
-                          );
-                        })}
+                        {schedule.guru_list.split('||').map((guru, guruIdx) => (
+                          <div key={`guru-list-${guru.split(':')[0]}-${guruIdx}`} className="text-xs text-green-700">
+                            • {guru.split(':')[1]}
+                          </div>
+                        ))}
                       </div>
                     )}
                     <p className="text-xs text-gray-500">
