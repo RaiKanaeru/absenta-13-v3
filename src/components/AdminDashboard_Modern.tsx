@@ -1525,29 +1525,19 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // === VALIDASI CLIENT-SIDE (konsisten dengan Tambah Akun Guru) ===
-    // Required fields
-    if (!formData.nip || !formData.nama) {
-      toast({ title: "Error", description: "NIP dan Nama wajib diisi!", variant: "destructive" });
-      return;
-    }
-
-    // NIP format: 10-20 digit angka
-    if (!/^[0-9]{10,20}$/.test(formData.nip)) {
-      toast({ title: "Error", description: "NIP harus berupa angka 10-20 digit!", variant: "destructive" });
-      return;
-    }
-
-    // Email format (jika diisi)
-    if (formData.email && formData.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      toast({ title: "Error", description: "Format email tidak valid!", variant: "destructive" });
-      return;
-    }
-
-    // Telepon format (jika diisi)
-    if (formData.telepon && formData.telepon.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.telepon.trim())) {
-      toast({ title: "Error", description: "Nomor telepon harus berupa angka, maksimal 20 karakter!", variant: "destructive" });
-      return;
+    // Declarative validation rules
+    const validationRules = [
+      { test: !formData.nip || !formData.nama, message: "NIP dan Nama wajib diisi!" },
+      { test: formData.nip && !/^[0-9]{10,20}$/.test(formData.nip), message: "NIP harus berupa angka 10-20 digit!" },
+      { test: formData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), message: "Format email tidak valid!" },
+      { test: formData.telepon?.trim() && !/^[\d+]{1,20}$/.test(formData.telepon.trim()), message: "Nomor telepon harus berupa angka, maksimal 20 karakter!" }
+    ];
+    
+    for (const rule of validationRules) {
+      if (rule.test) {
+        toast({ title: "Error", description: rule.message, variant: "destructive" });
+        return;
+      }
     }
     // === END VALIDASI ===
 
