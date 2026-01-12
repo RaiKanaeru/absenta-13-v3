@@ -12,3 +12,4 @@ export { apiCall } from './apiUtils';
 export { ScheduleListView } from './ScheduleListView';
 export { AttendanceView } from './AttendanceView';
 export { LaporanKehadiranSiswaView } from './LaporanKehadiranSiswaView';
+export { RiwayatBandingAbsenView } from './RiwayatBandingAbsenView';
