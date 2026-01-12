@@ -285,12 +285,10 @@ export const LaporanKehadiranSiswaView = ({ user }: LaporanKehadiranSiswaViewPro
                   let statusCode = 'A'; // Default to Alpa
                   
                   if (attendance) {
-                    statusCode = attendance === 'Hadir' ? 'H' : 
-                               attendance === 'Izin' ? 'I' : 
-                               attendance === 'Sakit' ? 'S' : 
-                               attendance === 'Alpa' ? 'A' : 
-                               attendance === 'Dispen' ? 'D' : 
-                               attendance === 'Tidak Hadir' ? 'A' : 'A';
+                    const statusMap: Record<string, string> = {
+                      'Hadir': 'H', 'Izin': 'I', 'Sakit': 'S', 'Alpa': 'A', 'Dispen': 'D', 'Tidak Hadir': 'A'
+                    };
+                    statusCode = statusMap[attendance] || 'A';
                   }
                   
                   rowData[`pertemuan_${dateIndex}`] = statusCode;
