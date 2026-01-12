@@ -294,6 +294,23 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     return null;
   };
 
+  // Helper to build submit data for teacher form
+  const buildTeacherSubmitData = (data: typeof formData) => {
+    const trimOrNull = (val: string | undefined | null) => val && val.trim() !== '' ? val.trim() : null;
+    return {
+      nip: data.nip.trim(),
+      nama: data.nama.trim(),
+      username: data.username.trim(),
+      password: data.password || undefined,
+      email: trimOrNull(data.email),
+      no_telp: trimOrNull(data.no_telp),
+      jenis_kelamin: data.jenis_kelamin || null,
+      alamat: trimOrNull(data.alamat),
+      mapel_id: data.mapel_id && data.mapel_id !== '' ? parseInt(data.mapel_id) : null,
+      status: data.status
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -310,18 +327,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       const url = editingId ? `/api/admin/guru/${editingId}` : '/api/admin/guru';
       const method = editingId ? 'PUT' : 'POST';
       
-      const submitData = {
-        nip: formData.nip.trim(),
-        nama: formData.nama.trim(),
-        username: formData.username.trim(),
-        password: formData.password || undefined, // Jangan kirim password kosong untuk update
-        email: formData.email && formData.email.trim() !== '' ? formData.email.trim() : null,
-        no_telp: formData.no_telp && formData.no_telp.trim() !== '' ? formData.no_telp.trim() : null,
-        jenis_kelamin: formData.jenis_kelamin ? formData.jenis_kelamin : null,
-        alamat: formData.alamat && formData.alamat.trim() !== '' ? formData.alamat.trim() : null,
-        mapel_id: formData.mapel_id && formData.mapel_id !== '' ? parseInt(formData.mapel_id) : null,
-        status: formData.status
-      };
+      // Build submit data using helper
+      const submitData = buildTeacherSubmitData(formData);
 
       // console.log();
 
