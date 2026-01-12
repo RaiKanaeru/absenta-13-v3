@@ -109,7 +109,7 @@ function aggregateAttendanceByStudent(results, diffDays) {
     return Object.values(aggregated).map(item => {
         const effDays = item.total_hari_efektif;
         item.persentase_ketidakhadiran = ((item.total_ketidakhadiran / effDays) * 100).toFixed(2);
-        item.persentase_kehadiran = (100 -.parseFloat(item.persentase_ketidakhadiran)).toFixed(2);
+        item.persentase_kehadiran = (100 - parseFloat(item.persentase_ketidakhadiran)).toFixed(2);
         return item;
     });
 }
