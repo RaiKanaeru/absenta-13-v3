@@ -742,14 +742,14 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             ORDER BY tanggal DESC LIMIT ? OFFSET ?
         `;
 
-        const [datesResult] = await globalThis.dbPool.execute(datesQuery, [guruId, thirtyDaysAgoWIB, parseInt(limit), offset]);
+        const [datesResult] = await globalThis.dbPool.execute(datesQuery, [guruId, thirtyDaysAgoWIB, Number.parseInt(limit), offset]);
         const dates = datesResult.map(row => row.tanggal);
 
         if (dates.length === 0) {
             log.success('GetStudentHistory', { count: 0, guruId });
             return sendSuccessResponse(res, [], 'Data riwayat kosong', 200, {
-                totalDays, totalPages, currentPage: parseInt(page),
-                pagination: { currentPage: parseInt(page), totalPages, totalDays, limit: parseInt(limit) }
+                totalDays, totalPages, currentPage: Number.parseInt(page),
+                pagination: { currentPage: Number.parseInt(page), totalPages, totalDays, limit: Number.parseInt(limit) }
             });
         }
 
@@ -776,8 +776,8 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
 
         log.success('GetStudentHistory', { count: history.length, totalDays, guruId });
         return sendSuccessResponse(res, history, 'Riwayat absensi siswa', 200, {
-            totalDays, totalPages, currentPage: parseInt(page),
-            pagination: { currentPage: parseInt(page), totalPages, totalDays, limit: parseInt(limit) }
+            totalDays, totalPages, currentPage: Number.parseInt(page),
+            pagination: { currentPage: Number.parseInt(page), totalPages, totalDays, limit: Number.parseInt(limit) }
         });
     } catch (error) {
         log.dbError('getStudentHistory', error, { guruId });
