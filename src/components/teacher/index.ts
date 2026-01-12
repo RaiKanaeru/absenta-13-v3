@@ -17,3 +17,4 @@ export { PresensiSiswaSMKN13View } from './PresensiSiswaSMKN13View';
 export { RekapKetidakhadiranView } from './RekapKetidakhadiranView';
 export { TeacherReportsView } from './TeacherReportsView';
 export { BandingAbsenView } from './BandingAbsenView';
+export { HistoryView } from './HistoryView';
