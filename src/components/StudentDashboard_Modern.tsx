@@ -38,14 +38,14 @@ const parseGuruList = (guruListString: string) => {
   return guruListString.split('||').map(guruString => {
     const [id_guru, nama_guru, nip, status_kehadiran, keterangan_guru, waktu_catat, is_primary, ada_tugas] = guruString.split(':');
     return {
-      id_guru: parseInt(id_guru) || 0,
+      id_guru: Number.parseInt(id_guru) || 0,
       nama_guru: nama_guru || '',
       nip: nip || '',
       status_kehadiran: status_kehadiran || 'belum_diambil',
       keterangan_guru: keterangan_guru || '',
       waktu_catat: waktu_catat || '',
-      is_primary: parseInt(is_primary) === 1,
-      ada_tugas: parseInt(ada_tugas) === 1
+      is_primary: Number.parseInt(is_primary) === 1,
+      ada_tugas: Number.parseInt(ada_tugas) === 1
     };
   });
 };
@@ -1037,11 +1037,11 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             status: kehadiranData[key].status,
             keterangan: kehadiranData[key].keterangan,
             ada_tugas: adaTugasData[key] || false,
-            guru_id: parseInt(guruId)
+            guru_id: Number.parseInt(guruId)
           };
         } else {
           // Single guru format
-          const jadwalIdNum = parseInt(key);
+          const jadwalIdNum = Number.parseInt(key);
           kehadiranDataWithFlags[jadwalIdNum] = {
             status: kehadiranData[jadwalIdNum].status,
             keterangan: kehadiranData[jadwalIdNum].keterangan,
@@ -1262,10 +1262,10 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
 
       if (typeof key === 'string' && key.includes('-')) {
         const [jid, gid] = key.split('-');
-        jadwalId = parseInt(jid, 10);
-        guruId = parseInt(gid, 10);
+        jadwalId = Number.parseInt(jid, 10);
+        guruId = Number.parseInt(gid, 10);
       } else {
-        jadwalId = typeof key === 'number' ? key : parseInt(String(key), 10);
+        jadwalId = typeof key === 'number' ? key : Number.parseInt(String(key), 10);
         const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
         const jadwal = jadwalData.find(j => j.id_jadwal === jadwalId);
         
@@ -2665,7 +2665,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                             value={selectedSiswaId ?? ''}
                             onChange={(e) => {
-                              const val = e.target.value ? parseInt(e.target.value, 10) : NaN;
+                              const val = e.target.value ? Number.parseInt(e.target.value, 10) : NaN;
                               const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === val) || undefined;
 
                               setSelectedSiswaId(Number.isNaN(val) ? null : val);
@@ -3179,7 +3179,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       }
       
       const requestData = {
-        jadwal_id: formBanding.jadwal_id ? parseInt(formBanding.jadwal_id) : null,
+        jadwal_id: formBanding.jadwal_id ? Number.parseInt(formBanding.jadwal_id) : null,
         tanggal_absen: formBanding.tanggal_absen,
         status_asli: formBanding.siswa_banding[0]?.status_asli,
         status_diajukan: formBanding.siswa_banding[0]?.status_diajukan,
