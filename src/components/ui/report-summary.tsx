@@ -51,7 +51,7 @@ const EffectiveDaysDisplay: React.FC<{
   }
   
   if (viewMode === 'bulanan' && selectedBulan) {
-    const monthNumber = parseInt(selectedBulan);
+    const monthNumber = Number.parseInt(selectedBulan);
     const monthName = getMonthName(monthNumber);
     const effectiveDays = getEffectiveDays(monthNumber);
     

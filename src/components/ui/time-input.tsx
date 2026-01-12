@@ -49,14 +49,14 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     if (displayValue && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(displayValue)) {
       if (displayValue.includes(':')) {
         const [hours, minutes] = displayValue.split(':');
-        const validHours = Math.min(23, Math.max(0, parseInt(hours) || 0));
-        const validMinutes = Math.min(59, Math.max(0, parseInt(minutes) || 0));
+        const validHours = Math.min(23, Math.max(0, Number.parseInt(hours) || 0));
+        const validMinutes = Math.min(59, Math.max(0, Number.parseInt(minutes) || 0));
         const formattedValue = `${validHours.toString().padStart(2, '0')}:${validMinutes.toString().padStart(2, '0')}`;
         setDisplayValue(formattedValue);
         onChange(formattedValue);
       } else if (displayValue.length > 0) {
         // Jika hanya angka tanpa :, format sebagai jam:00
-        const numValue = parseInt(displayValue);
+        const numValue = Number.parseInt(displayValue);
         if (numValue >= 0 && numValue <= 23) {
           const formattedValue = `${numValue.toString().padStart(2, '0')}:00`;
           setDisplayValue(formattedValue);

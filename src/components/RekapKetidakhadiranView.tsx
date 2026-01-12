@@ -417,7 +417,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                 className={classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas}
                 periodInfo={
                   viewMode === 'bulanan' && selectedBulan
-                    ? `BULAN ${getMonthName(parseInt(selectedBulan)).toUpperCase()}`
+                    ? `BULAN ${getMonthName(Number.parseInt(selectedBulan)).toUpperCase()}`
                     : viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir
                     ? `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`
                     : undefined
@@ -471,7 +471,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                           </>
                         ) : viewMode === 'bulanan' ? (
                           <td className="border border-gray-300 p-2 text-center bg-blue-50">
-                            {getPresensiForStudent(siswa.id, parseInt(selectedBulan))?.total_ketidakhadiran || 0}
+                            {getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0}
                           </td>
                         ) : (
                           <td className="border border-gray-300 p-2 text-center bg-blue-50">
@@ -480,18 +480,18 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                         )}
                         <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
                           {viewMode === 'tahunan' ? getTotalKetidakhadiran(siswa.id) : 
-                           viewMode === 'bulanan' ? getPresensiForStudent(siswa.id, parseInt(selectedBulan))?.total_ketidakhadiran || 0 :
+                           viewMode === 'bulanan' ? getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0 :
                            getPresensiForStudentByDate(siswa.id)?.total_ketidakhadiran || 0}
                         </td>
                         <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
                           {viewMode === 'tahunan' ? getTotalPersentaseKetidakhadiran(siswa.id).toFixed(2) : 
-                           viewMode === 'bulanan' ? (parseFloat(String(getPresensiForStudent(siswa.id, parseInt(selectedBulan))?.persentase_ketidakhadiran || '0'))).toFixed(2) :
-                           (parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_ketidakhadiran || '0'))).toFixed(2)}
+                           viewMode === 'bulanan' ? (Number.parseFloat(String(getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.persentase_ketidakhadiran || '0'))).toFixed(2) :
+                           (Number.parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_ketidakhadiran || '0'))).toFixed(2)}
                         </td>
                         <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
                           {viewMode === 'tahunan' ? getTotalPersentaseKehadiran(siswa.id).toFixed(2) : 
-                           viewMode === 'bulanan' ? (parseFloat(String(getPresensiForStudent(siswa.id, parseInt(selectedBulan))?.persentase_kehadiran || '0'))).toFixed(2) :
-                           (parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_kehadiran || '0'))).toFixed(2)}
+                           viewMode === 'bulanan' ? (Number.parseFloat(String(getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.persentase_kehadiran || '0'))).toFixed(2) :
+                           (Number.parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_kehadiran || '0'))).toFixed(2)}
                         </td>
                       </tr>
                     ))}

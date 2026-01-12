@@ -377,7 +377,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                 selectedTahun={selectedTahun}
                 periodInfo={
                   viewMode === 'bulanan' && selectedBulan
-                    ? `BULAN ${getMonthName(parseInt(selectedBulan)).toUpperCase()}`
+                    ? `BULAN ${getMonthName(Number.parseInt(selectedBulan)).toUpperCase()}`
                     : viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir
                     ? `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`
                     : undefined
@@ -460,7 +460,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                         ) : viewMode === 'bulanan' ? (
                           <td className="border border-gray-300 p-2 text-center bg-blue-50">
                             {(() => {
-                              const monthNumber = parseInt(selectedBulan);
+                              const monthNumber = Number.parseInt(selectedBulan);
                               const monthData = {
                                 7: guru.jul, 8: guru.agt, 9: guru.sep, 10: guru.okt, 11: guru.nov, 12: guru.des,
                                 1: guru.jan, 2: guru.feb, 3: guru.mar, 4: guru.apr, 5: guru.mei, 6: guru.jun

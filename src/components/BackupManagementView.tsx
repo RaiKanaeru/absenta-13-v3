@@ -809,7 +809,7 @@ const BackupManagementView: React.FC = () => {
                                             <Input 
                                                 type="number" 
                                                 value={selectedYear} 
-                                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                                onChange={(e) => setSelectedYear(Number.parseInt(e.target.value))}
                                                 min="2020"
                                                 max="2030"
                                             />
@@ -1210,7 +1210,7 @@ const BackupManagementView: React.FC = () => {
                                             <Input 
                                                 type="number" 
                                                 value={backupSettings.maxBackups} 
-                                                onChange={(e) => setBackupSettings(prev => ({ ...prev, maxBackups: parseInt(e.target.value) }))}
+                                                onChange={(e) => setBackupSettings(prev => ({ ...prev, maxBackups: Number.parseInt(e.target.value) }))}
                                                 min="1" 
                                                 max="50" 
                                             />
@@ -1221,7 +1221,7 @@ const BackupManagementView: React.FC = () => {
                                             <Input 
                                                 type="number" 
                                                 value={backupSettings.archiveAge} 
-                                                onChange={(e) => setBackupSettings(prev => ({ ...prev, archiveAge: parseInt(e.target.value) }))}
+                                                onChange={(e) => setBackupSettings(prev => ({ ...prev, archiveAge: Number.parseInt(e.target.value) }))}
                                                 min="6" 
                                                 max="60" 
                                             />

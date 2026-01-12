@@ -194,7 +194,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
       // Extract retry time from error message
       const match = error.match(/(\d+)\s*menit/);
       if (match) {
-        const minutes = parseInt(match[1]);
+        const minutes = Number.parseInt(match[1]);
         setLockout(minutes * 60);
         setLockoutRemaining(minutes * 60);
       }

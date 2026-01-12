@@ -167,7 +167,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
   // Generate days in month
   const getDaysInMonth = (month: string, year: string): number[] => {
     if (!month || !year) return [];
-    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+    const daysInMonth = new Date(Number.parseInt(year), Number.parseInt(month), 0).getDate();
     return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   };
 
@@ -209,7 +209,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       a.href = url;
       
       const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
-      const bulanName = new Date(parseInt(selectedTahun), parseInt(selectedBulan) - 1).toLocaleDateString('id-ID', { month: 'long' });
+      const bulanName = new Date(Number.parseInt(selectedTahun), Number.parseInt(selectedBulan) - 1).toLocaleDateString('id-ID', { month: 'long' });
       const fileName = `Presensi_Siswa_${kelasName}_${bulanName}_${selectedTahun}.xlsx`;
       
       a.download = fileName;
@@ -393,7 +393,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                       PRESENSI SISWA
                     </div>
                     <div className="text-sm">
-                      TAHUN PELAJARAN {selectedTahun}/{parseInt(selectedTahun) + 1}
+                      TAHUN PELAJARAN {selectedTahun}/{Number.parseInt(selectedTahun) + 1}
                     </div>
                     <div className="text-sm font-bold">
                       KELAS {classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas}
@@ -416,7 +416,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                       PRESENSI SISWA
                     </div>
                     <div className="text-sm">
-                      TAHUN PELAJARAN {selectedTahun}/{parseInt(selectedTahun) + 1}
+                      TAHUN PELAJARAN {selectedTahun}/{Number.parseInt(selectedTahun) + 1}
                     </div>
                     <div className="text-sm font-bold">
                       KELAS {classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas}

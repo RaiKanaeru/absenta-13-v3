@@ -122,7 +122,7 @@ export const ReportLetterhead: React.FC<ReportLetterheadProps> = ({
       
       {/* Academic Year */}
       <div className="text-sm">
-        TAHUN PELAJARAN {selectedTahun}/{parseInt(selectedTahun) + 1}
+        TAHUN PELAJARAN {selectedTahun}/{Number.parseInt(selectedTahun) + 1}
       </div>
       
       {/* Class Name (optional) */}

@@ -8582,7 +8582,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         if (level === '12') level = 'XII';
         
         let major = match[2];
-        const number = match[3] ? parseInt(match[3]) : 1;
+        const number = match[3] ? Number.parseInt(match[3]) : 1;
         
         // Mapping jurusan untuk kompatibilitas
         const majorMapping = {
@@ -8640,7 +8640,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         
         // Coba ekstrak nomor
         const numberMatch = remaining.match(/(\d+)/);
-        const number = numberMatch ? parseInt(numberMatch[1]) : 1;
+        const number = numberMatch ? Number.parseInt(numberMatch[1]) : 1;
         
         const result = { level, major, number, fullName: className };
         // console.log();
