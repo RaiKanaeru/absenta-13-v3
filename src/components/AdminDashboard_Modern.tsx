@@ -2821,48 +2821,28 @@ const ManageStudentsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
     }
   }, [onLogout]);
 
-  // Validasi form
+  // Validasi form using declarative rules
   const validateForm = () => {
     const errors: {[key: string]: string} = {};
     
-    if (!formData.nis || !/^\d{8,20}$/.test(formData.nis)) {
-      errors.nis = 'NIS harus berupa angka 8-20 digit';
-    }
+    // Define validation rules
+    type ValidationRule = { field: string; condition: boolean; message: string };
+    const rules: ValidationRule[] = [
+      { field: 'nis', condition: !formData.nis || !/^\d{8,20}$/.test(formData.nis), message: 'NIS harus berupa angka 8-20 digit' },
+      { field: 'nama', condition: !formData.nama || formData.nama.trim().length < 2, message: 'Nama lengkap wajib diisi minimal 2 karakter' },
+      { field: 'kelas_id', condition: !formData.kelas_id, message: 'Kelas wajib dipilih' },
+      { field: 'jenis_kelamin', condition: !formData.jenis_kelamin, message: 'Jenis kelamin wajib dipilih' },
+      { field: 'username', condition: !formData.username || formData.username.trim().length < 3, message: 'Username wajib diisi minimal 3 karakter' },
+      { field: 'password', condition: !editingId && (!formData.password || formData.password.length < 6), message: 'Password wajib diisi minimal 6 karakter' },
+      { field: 'email', condition: !!formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), message: 'Format email tidak valid' },
+      { field: 'telepon_orangtua', condition: !!formData.telepon_orangtua && !/^[\d+]{1,20}$/.test(formData.telepon_orangtua), message: 'Nomor telepon orang tua harus berupa angka dan plus, maksimal 20 karakter' },
+      { field: 'nomor_telepon_siswa', condition: !!formData.nomor_telepon_siswa && !/^[\d+]{1,20}$/.test(formData.nomor_telepon_siswa), message: 'Nomor telepon siswa harus berupa angka dan plus, maksimal 20 karakter' }
+    ];
     
-    if (!formData.nama || formData.nama.trim().length < 2) {
-      errors.nama = 'Nama lengkap wajib diisi minimal 2 karakter';
-    }
-    
-    if (!formData.kelas_id) {
-      errors.kelas_id = 'Kelas wajib dipilih';
-    }
-    
-    if (!formData.jenis_kelamin) {
-      errors.jenis_kelamin = 'Jenis kelamin wajib dipilih';
-    }
-    
-    // Validasi username (wajib untuk akun)
-    if (!formData.username || formData.username.trim().length < 3) {
-      errors.username = 'Username wajib diisi minimal 3 karakter';
-    }
-    
-    // Validasi password (wajib untuk create, opsional untuk update)
-    if (!editingId && (!formData.password || formData.password.length < 6)) {
-      errors.password = 'Password wajib diisi minimal 6 karakter';
-    }
-    
-    // Validasi email format jika diisi
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Format email tidak valid';
-    }
-    
-    if (formData.telepon_orangtua && !/^[\d+]{1,20}$/.test(formData.telepon_orangtua)) {
-      errors.telepon_orangtua = 'Nomor telepon orang tua harus berupa angka dan plus, maksimal 20 karakter';
-    }
-    
-    if (formData.nomor_telepon_siswa && !/^[\d+]{1,20}$/.test(formData.nomor_telepon_siswa)) {
-      errors.nomor_telepon_siswa = 'Nomor telepon siswa harus berupa angka dan plus, maksimal 20 karakter';
-    }
+    // Apply validation rules
+    rules.forEach(rule => {
+      if (rule.condition) errors[rule.field] = rule.message;
+    });
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
