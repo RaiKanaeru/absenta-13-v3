@@ -62,12 +62,13 @@ export const ScheduleListView = ({ schedules, onSelectSchedule, isLoading }: Sch
                             {schedule.jam_mulai} - {schedule.jam_selesai}
                           </Badge>
                           <Badge variant="secondary" className="text-xs whitespace-nowrap">
-                            {schedule.jenis_aktivitas === 'upacara' ? 'Upacara' :
-                             schedule.jenis_aktivitas === 'istirahat' ? 'Istirahat' :
-                             schedule.jenis_aktivitas === 'kegiatan_khusus' ? 'Kegiatan Khusus' :
-                             schedule.jenis_aktivitas === 'libur' ? 'Libur' :
-                             schedule.jenis_aktivitas === 'ujian' ? 'Ujian' :
-                             (schedule.jenis_aktivitas || 'Khusus')}
+                            {(() => {
+                              const activityMap: Record<string, string> = {
+                                upacara: 'Upacara', istirahat: 'Istirahat',
+                                kegiatan_khusus: 'Kegiatan Khusus', libur: 'Libur', ujian: 'Ujian'
+                              };
+                              return activityMap[schedule.jenis_aktivitas || ''] || (schedule.jenis_aktivitas || 'Khusus');
+                            })()}
                           </Badge>
                         </div>
                         
