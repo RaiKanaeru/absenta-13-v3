@@ -22,7 +22,7 @@ const uploadLogo = multer({
             const ext = path.extname(file.originalname);
             // Sanitize logoType to prevent path traversal
             const rawPrefix = req.body.logoType || 'logo';
-            const prefix = rawPrefix.replace(/[^a-zA-Z0-9_-]/g, '');
+            const prefix = rawPrefix.replaceAll(/[^a-zA-Z0-9_-]/g, '');
             cb(null, `${prefix}_${Date.now()}${ext}`);
         }
     }),

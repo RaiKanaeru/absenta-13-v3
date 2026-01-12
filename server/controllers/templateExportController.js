@@ -65,7 +65,7 @@ export const downloadRekapKelasGasal = async (req, res) => {
         });
         
         // Set response headers
-        const filename = `REKAP_KETIDAKHADIRAN_${kelasInfo.nama_kelas.replace(/ /g, '_')}_${tahunAjaran}_GASAL.xlsx`;
+        const filename = `REKAP_KETIDAKHADIRAN_${kelasInfo.nama_kelas.replaceAll(' ', '_')}_${tahunAjaran}_GASAL.xlsx`;
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

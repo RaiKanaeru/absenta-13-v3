@@ -1406,7 +1406,7 @@ const createManualBackup = async (req, res) => {
             await fs.mkdir(backupDir, { recursive: true });
         }
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
         const filename = `backup_absenta_${timestamp}.sql`;
         const filepath = path.join(backupDir, filename);
 
@@ -1440,7 +1440,7 @@ const createManualBackup = async (req, res) => {
                                 const values = Object.values(row).map(val => {
                                     if (val === null) return 'NULL';
                                     if (typeof val === 'number') return val;
-                                    return `'${String(val).replace(/'/g, "''")}'`;
+                                    return `'${String(val).replaceAll("'", "''")}'`;
                                 }).join(', ');
                                 backupContent += `INSERT INTO \`${table}\` (${columns}) VALUES (${values});\n`;
                             }

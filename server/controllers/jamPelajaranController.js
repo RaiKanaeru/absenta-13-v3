@@ -38,8 +38,8 @@ function isValidTimeFormat(time) {
  * Validate time logic (mulai < selesai)
  */
 function isValidTimeRange(jamMulai, jamSelesai) {
-    const start = jamMulai.replace(/:/g, '');
-    const end = jamSelesai.replace(/:/g, '');
+    const start = jamMulai.replaceAll(':', '');
+    const end = jamSelesai.replaceAll(':', '');
     return Number.parseInt(start) < Number.parseInt(end);
 }
 

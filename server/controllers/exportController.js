@@ -1512,7 +1512,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         worksheet.getRow(headerRow2).height = 20;
         worksheet.getRow(headerRow3).height = 30;
 
-        const filename = `Persentase_Ketidakhadiran_${kelasName}_${semester === 'gasal' ? 'Gasal' : 'Genap'}_${tahun}`.replace(/\s/g, '_');
+        const filename = `Persentase_Ketidakhadiran_${kelasName}_${semester === 'gasal' ? 'Gasal' : 'Genap'}_${tahun}`.replaceAll(/\s/g, '_');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
         await workbook.xlsx.write(res);
@@ -1822,7 +1822,7 @@ export const exportJadwalMatrix = async (req, res) => {
         worksheet.mergeCells(currentRow, 1, currentRow, totalCols);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Pelajaran_Matrix_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Pelajaran_Matrix_${formatWIBDate().replaceAll('/', '-')}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
@@ -2128,7 +2128,7 @@ export const exportJadwalPrint = async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Print_${formatWIBDate().replace(/\//g, '-')}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="Jadwal_Print_${formatWIBDate().replaceAll('/', '-')}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
@@ -2832,7 +2832,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
 
         // Send response
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_${namaKelas.replace(/\s+/g, '_')}_${tahun}_GASAL.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_${namaKelas.replaceAll(/\s+/g, '_')}_${tahun}_GASAL.xlsx"`);
         
         await workbook.xlsx.write(res);
         res.end();
