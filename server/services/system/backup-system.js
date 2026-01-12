@@ -1673,6 +1673,86 @@ class BackupSystem {
     }
 
     /**
+     * Calculate total size of files in a directory
+     * @private
+     */
+    async calculateDirectorySize(dirPath) {
+        try {
+            const files = await fs.readdir(dirPath);
+            let totalSize = 0;
+            for (const file of files) {
+                const fileStat = await fs.stat(path.join(dirPath, file));
+                if (fileStat.isFile()) totalSize += fileStat.size;
+            }
+            return totalSize;
+        } catch (e) {
+            return 0; // Size calculation non-critical
+        }
+    }
+
+    /**
+     * Process a scheduled backup entry
+     * @private
+     */
+    async processScheduledBackup(filePath, fileName, stats) {
+        const infoPath = path.join(filePath, 'backup_info.json');
+        let backupData;
+        
+        try {
+            const infoData = await fs.readFile(infoPath, 'utf8');
+            const backupInfo = JSON.parse(infoData);
+            backupData = {
+                id: backupInfo.id,
+                filename: `${backupInfo.name} (${backupInfo.type})`,
+                created: new Date(backupInfo.created),
+                type: backupInfo.type,
+                semester: backupInfo.semester,
+                year: backupInfo.year
+            };
+        } catch (infoError) {
+            backupData = {
+                id: fileName,
+                filename: fileName,
+                created: stats.birthtime,
+                type: 'scheduled'
+            };
+        }
+        
+        const size = await this.calculateDirectorySize(filePath);
+        return {
+            ...backupData,
+            size,
+            modified: stats.mtime,
+            backupType: backupData.type
+        };
+    }
+
+    /**
+     * Process a semester or date backup entry
+     * @private
+     */
+    async processSemesterOrDateBackup(filePath, fileName, stats) {
+        const isZip = fileName.endsWith('.zip');
+        const backupId = fileName.replace(/\.zip$/, '');
+        const backupType = fileName.startsWith('semester_backup_') ? 'semester' : 'date';
+        
+        let size = stats.size;
+        if (stats.isDirectory()) {
+            size = await this.calculateDirectorySize(filePath);
+        }
+        
+        return {
+            id: backupId,
+            filename: fileName,
+            size,
+            created: stats.birthtime,
+            modified: stats.mtime,
+            type: backupType,
+            backupType
+        };
+    }
+
+    /**
      * List available backups
      */
     async listBackups() {
@@ -1698,89 +1778,24 @@ class BackupSystem {
                     const filePath = path.join(this.backupDir, file);
                     const stats = await fs.stat(filePath);
                     
+                    let backupEntry = null;
+                    let backupId = null;
+                    
                     // Handle Scheduled Backups (Directories)
                     if (file.startsWith('scheduled_') && stats.isDirectory()) {
-                        // Check if backup_info.json exists
-                        const infoPath = path.join(filePath, 'backup_info.json');
-                        let backupData = null;
-                        
-                        try {
-                            const infoData = await fs.readFile(infoPath, 'utf8');
-                            const backupInfo = JSON.parse(infoData);
-                            backupData = {
-                                id: backupInfo.id,
-                                filename: `${backupInfo.name} (${backupInfo.type})`,
-                                created: new Date(backupInfo.created),
-                                type: backupInfo.type,
-                                semester: backupInfo.semester,
-                                year: backupInfo.year
-                            };
-                        } catch (infoError) {
-                            backupData = {
-                                id: file,
-                                filename: file,
-                                created: stats.birthtime,
-                                type: 'scheduled'
-                            };
-                        }
-
-                        if (!seenIds.has(backupData.id)) {
-                             // Calculate size
-                             let totalSize = 0;
-                             try {
-                                 const dirFiles = await fs.readdir(filePath);
-                                 for (const dirFile of dirFiles) {
-                                     const dirStats = await fs.stat(path.join(filePath, dirFile));
-                                     if (dirStats.isFile()) totalSize += dirStats.size;
-                                 }
-                             } catch(e) { /* Size calculation non-critical, continue with 0 */ }
-
-                             backups.push({
-                                 ...backupData,
-                                 size: totalSize,
-                                 modified: stats.mtime,
-                                 backupType: backupData.type
-                             });
-                             seenIds.add(backupData.id);
-                        }
-                    } 
+                        backupEntry = await this.processScheduledBackup(filePath, file, stats);
+                        backupId = backupEntry.id;
+                    }
                     // Handle Semester & Date Backups (Zip or Folder)
                     else if (file.startsWith('semester_backup_') || file.startsWith('date_backup_')) {
-                        const isZip = file.endsWith('.zip');
-                        const backupId = file.replace(/\.zip$/, '');
-                        
-                        // If we already have this ID (e.g. from zip or folder processed first), skip OR update if better?
-                        // Simple logic: If we have zip, keep it. If we have folder, keep it unless we find zip?
-                        // Since we iterate randomly, let's just accept first found, but prefer zip if we want strictly compressed?
-                        // Let's just avoid duplicates.
-                        
-                        if (!seenIds.has(backupId)) {
-                             const backupType = file.startsWith('semester_backup_') ? 'semester' : 'date';
-                             let size = stats.size;
-                             
-                             // accurate size for folder?
-                             if (stats.isDirectory()) {
-                                 try {
-                                     const dirFiles = await fs.readdir(filePath);
-                                     size = 0;
-                                     for (const dirFile of dirFiles) {
-                                         const dirFileStat = await fs.stat(path.join(filePath, dirFile));
-                                         if (dirFileStat.isFile()) size += dirFileStat.size;
-                                     }
-                                 } catch(e) { /* Size calculation non-critical, continue with 0 */ }
-                             }
-
-                             backups.push({
-                                 id: backupId,
-                                 filename: file, // Show actual filename (zip or folder name)
-                                 size: size,
-                                 created: stats.birthtime,
-                                 modified: stats.mtime,
-                                 type: backupType,
-                                 backupType: backupType
-                             });
-                             seenIds.add(id);
-                        }
+                        backupEntry = await this.processSemesterOrDateBackup(filePath, file, stats);
+                        backupId = backupEntry.id;
+                    }
+                    
+                    // Add to results if not duplicate
+                    if (backupEntry && backupId && !seenIds.has(backupId)) {
+                        backups.push(backupEntry);
+                        seenIds.add(backupId);
                     }
                 } catch (e) {
                     logger.warn('Error processing backup file', { file, error: e.message });
