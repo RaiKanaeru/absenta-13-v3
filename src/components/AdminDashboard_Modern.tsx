@@ -4191,12 +4191,13 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
                     </div>
                     <div className="lg:mt-1">
                       <p className="text-xs text-gray-500">
-                        {schedule.jenis_aktivitas === 'pelajaran' ? 'Pelajaran' : 
-                         schedule.jenis_aktivitas === 'upacara' ? 'Upacara' :
-                         schedule.jenis_aktivitas === 'istirahat' ? 'Istirahat' :
-                         schedule.jenis_aktivitas === 'kegiatan_khusus' ? 'Kegiatan Khusus' :
-                         schedule.jenis_aktivitas === 'ujian' ? 'Ujian' :
-                         'Lainnya'}
+                        {{
+                          pelajaran: 'Pelajaran',
+                          upacara: 'Upacara', 
+                          istirahat: 'Istirahat',
+                          kegiatan_khusus: 'Kegiatan Khusus',
+                          ujian: 'Ujian'
+                        }[schedule.jenis_aktivitas] || 'Lainnya'}
                       </p>
                       {schedule.is_absenable && (
                         <p className="text-xs text-green-600 mt-1">Dapat diabsen</p>
