@@ -28,8 +28,7 @@ const patterns = [
     }
 ];
 
-// Controllers to skip (already done or special handling)
-const skipFiles = [];
+// Note: Add filenames here to skip during batch update (e.g., ['auth.js', 'admin.js'])
 
 // Import statement to add if missing
 const importStatement = `import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';`;
@@ -74,7 +73,7 @@ try {
     let updatedCount = 0;
 
     files.forEach(file => {
-        if (file.endsWith('.js') && !skipFiles.includes(file)) {
+        if (file.endsWith('.js')) {
             const filePath = path.join(controllersDir, file);
             if (updateFile(filePath)) {
                 updatedCount++;

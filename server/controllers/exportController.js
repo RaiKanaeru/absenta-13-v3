@@ -1271,7 +1271,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         `, [kelas_id, tahun]);
 
         // Total hari efektif (configurable, default 95 for gasal)
-        const TOTAL_HARI_EFEKTIF = semester === 'gasal' ? 95 : 95;
+        const TOTAL_HARI_EFEKTIF = semester === 'gasal' ? 95 : 142;
 
         // Build Excel using ExcelJS directly for precise control
         const ExcelJS = (await import('exceljs')).default;
