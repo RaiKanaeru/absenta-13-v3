@@ -90,6 +90,51 @@ class BackupSystem {
     }
 
     /**
+     * Process a single table export - shared logic for backup functions
+     * @param {string} tableName - Table name to export
+     * @param {string} query - Query to execute (may include WHERE clause)
+     * @param {Array} queryParams - Query parameters
+     * @returns {string} SQL content for this table
+     */
+    async processTableExport(tableName, query, queryParams = []) {
+        let sqlContent = '';
+        
+        try {
+            // Get table structure
+            const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
+            if (!structure || !structure[0]) {
+                logger.warn('Could not get structure for table', { tableName });
+                return `-- Could not get structure for table \`${tableName}\`\n\n`;
+            }
+            
+            sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
+            sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+            sqlContent += `${structure[0]['Create Table']};\n\n`;
+            
+            // Get table data
+            let data = [];
+            try {
+                const result = await this.pool.execute(query, queryParams);
+                data = result[0] || [];
+            } catch (queryError) {
+                logger.warn('Could not query data for table', { tableName, error: queryError.message });
+                return sqlContent + `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
+            }
+            
+            if (data && data.length > 0) {
+                sqlContent += this.generateInsertStatements(tableName, data);
+            } else {
+                sqlContent += `-- No data in table \`${tableName}\`\n\n`;
+            }
+            
+            return sqlContent;
+        } catch (tableError) {
+            logger.error('Error exporting table', { tableName, error: tableError.message });
+            return `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
+        }
+    }
+
+    /**
      * Initialize backup system
      * @param {Object} externalPool - Optional external database pool (recommended to use global pool)
      */
@@ -351,56 +396,26 @@ class BackupSystem {
             sqlContent += `-- Database: ${this.dbConfig.database}\n`;
             sqlContent += `-- Date Range: ${startDate} to ${endDate}\n\n`;
             
-            // Export each table
+            // Export each table using helper
             for (const table of tables) {
-                const tableName = table.tableName; // Use aliased name
+                const tableName = table.tableName;
                 if (!tableName) {
                     logger.warn('Skipping table with undefined name', { table });
                     continue;
                 }
                 
-                try {
-                    logger.debug('Exporting table', { tableName });
-                    
-                    // Get table structure
-                    const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
-                    if (!structure || !structure[0]) {
-                        logger.warn('Could not get structure for table', { tableName });
-                        continue;
-                    }
-                    sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
-                    sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
-                    sqlContent += `${structure[0]['Create Table']};\n\n`;
-                    
-                    // Get table data with date filtering for attendance tables
-                    let query = `SELECT * FROM \`${tableName}\``;
-                    let queryParams = [];
-                    
-                    // Apply date filtering for attendance tables
-                    if (tableName === 'absensi_siswa' || tableName === 'absensi_guru') {
-                        query += ` WHERE tanggal BETWEEN ? AND ?`;
-                        queryParams = [startDate, endDate];
-                    }
-                    
-                    let data = [];
-                    try {
-                        const result = await this.pool.execute(query, queryParams);
-                        data = result[0] || [];
-                    } catch (queryError) {
-                        logger.warn('Could not query data for table', { tableName, error: queryError.message });
-                        sqlContent += `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
-                        continue;
-                    }
-                    
-                    if (data && data.length > 0) {
-                        sqlContent += this.generateInsertStatements(tableName, data);
-                    } else {
-                        sqlContent += `-- No data found for table \`${tableName}\` in date range\n\n`;
-                    }
-                } catch (tableError) {
-                    logger.error('Error exporting table', { tableName, error: tableError.message });
-                    sqlContent += `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
+                logger.debug('Exporting table', { tableName });
+                
+                // Build query with date filtering for attendance tables
+                let query = `SELECT * FROM \`${tableName}\``;
+                let queryParams = [];
+                
+                if (tableName === 'absensi_siswa' || tableName === 'absensi_guru') {
+                    query += ` WHERE tanggal BETWEEN ? AND ?`;
+                    queryParams = [startDate, endDate];
                 }
+                
+                sqlContent += await this.processTableExport(tableName, query, queryParams);
             }
             
             // Write SQL file
@@ -439,48 +454,17 @@ class BackupSystem {
             sqlContent += `-- Generated: ${new Date().toISOString()}\n`;
             sqlContent += `-- Database: ${this.dbConfig.database}\n\n`;
             
-            // Export each table
+            // Export each table using helper
             for (const table of tables) {
-                const tableName = table.tableName; // Use aliased name
+                const tableName = table.tableName;
                 if (!tableName) {
                     logger.warn('Skipping table with undefined name', { table });
                     continue;
                 }
                 
-                try {
-                    logger.debug('Exporting table', { tableName });
-                    
-                    // Get table structure
-                    const [structure] = await this.pool.execute(`SHOW CREATE TABLE \`${tableName}\``);
-                    if (!structure || !structure[0]) {
-                        logger.warn('Could not get structure for table', { tableName });
-                        continue;
-                    }
-                    sqlContent += `\n-- Table structure for table \`${tableName}\`\n`;
-                    sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
-                    sqlContent += `${structure[0]['Create Table']};\n\n`;
-                    
-                    // Get table data with error handling
-                    let data = [];
-                    try {
-                        const result = await this.pool.execute(`SELECT * FROM \`${tableName}\``);
-                        data = result[0] || [];
-                    } catch (queryError) {
-                        logger.warn('Could not query data for table', { tableName, error: queryError.message });
-                        sqlContent += `-- Could not export data for table \`${tableName}\`: ${queryError.message}\n\n`;
-                        continue;
-                    }
-                    
-                    
-                    if (data && data.length > 0) {
-                        sqlContent += this.generateInsertStatements(tableName, data);
-                    } else {
-                        sqlContent += `-- No data in table \`${tableName}\`\n\n`;
-                    }
-                } catch (tableError) {
-                    logger.error('Error exporting table', { tableName, error: tableError.message });
-                    sqlContent += `-- Error exporting table \`${tableName}\`: ${tableError.message}\n\n`;
-                }
+                logger.debug('Exporting table', { tableName });
+                const query = `SELECT * FROM \`${tableName}\``;
+                sqlContent += await this.processTableExport(tableName, query);
             }
             
             // Write SQL file
