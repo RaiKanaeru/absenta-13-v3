@@ -5256,16 +5256,17 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <div>
                         <span className="text-gray-500">Jenis:</span>
                         <div className="mt-1">
-                          {schedule.jenis_aktivitas !== 'pelajaran' ? (
-                            <Badge variant="secondary" className="text-xs">
-                              {schedule.jenis_aktivitas === 'upacara' ? '🏳️ Upacara' :
-                               schedule.jenis_aktivitas === 'istirahat' ? '☕ Istirahat' :
-                               schedule.jenis_aktivitas === 'kegiatan_khusus' ? '🎯 Kegiatan Khusus' :
-                               schedule.jenis_aktivitas === 'libur' ? '🏖️ Libur' :
-                               schedule.jenis_aktivitas === 'ujian' ? '📝 Ujian' :
-                               '📋 ' + schedule.jenis_aktivitas}
-                            </Badge>
-                          ) : (
+                          {schedule.jenis_aktivitas !== 'pelajaran' ? (() => {
+                            const activityMap: Record<string, string> = {
+                              upacara: '🏳️ Upacara', istirahat: '☕ Istirahat',
+                              kegiatan_khusus: '🎯 Kegiatan Khusus', libur: '🏖️ Libur', ujian: '📝 Ujian'
+                            };
+                            return (
+                              <Badge variant="secondary" className="text-xs">
+                                {activityMap[schedule.jenis_aktivitas] || '📋 ' + schedule.jenis_aktivitas}
+                              </Badge>
+                            );
+                          })() : (
                             <Badge variant="default" className="text-xs">
                               📚 Pelajaran
                             </Badge>
