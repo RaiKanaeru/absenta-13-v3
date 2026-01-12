@@ -232,21 +232,21 @@ const MonitoringDashboard: React.FC = () => {
     };
 
     const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'healthy': return 'bg-green-500';
-            case 'warning': return 'bg-yellow-500';
-            case 'critical': return 'bg-red-500';
-            default: return 'bg-gray-500';
-        }
+        const colorMap: Record<string, string> = {
+            healthy: 'bg-green-500',
+            warning: 'bg-yellow-500',
+            critical: 'bg-red-500'
+        };
+        return colorMap[status] || 'bg-gray-500';
     };
 
     const getSeverityColor = (severity: string) => {
-        switch (severity) {
-            case 'warning': return 'bg-yellow-100 text-yellow-800';
-            case 'critical': return 'bg-orange-100 text-orange-800';
-            case 'emergency': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
+        const colorMap: Record<string, string> = {
+            warning: 'bg-yellow-100 text-yellow-800',
+            critical: 'bg-orange-100 text-orange-800',
+            emergency: 'bg-red-100 text-red-800'
+        };
+        return colorMap[severity] || 'bg-gray-100 text-gray-800';
     };
 
     if (loading) {

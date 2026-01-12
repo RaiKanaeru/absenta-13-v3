@@ -1428,14 +1428,14 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   };
 
   const getStatusBadgeColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'hadir': return 'bg-green-100 text-green-800';
-      case 'tidak hadir': return 'bg-red-100 text-red-800';
-      case 'izin': return 'bg-yellow-100 text-yellow-800';
-      case 'sakit': return 'bg-blue-100 text-blue-800';
-      case 'belum_diambil': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    const colorMap: Record<string, string> = {
+      hadir: 'bg-green-100 text-green-800',
+      'tidak hadir': 'bg-red-100 text-red-800',
+      izin: 'bg-yellow-100 text-yellow-800',
+      sakit: 'bg-blue-100 text-blue-800',
+      belum_diambil: 'bg-gray-100 text-gray-800'
+    };
+    return colorMap[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
   const renderKehadiranContent = () => {
@@ -1752,14 +1752,14 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                         <Badge className={`text-xs ${getStatusBadgeColor(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}`}>
                           {(() => {
                             const status = kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil';
-                            switch (status.toLowerCase()) {
-                              case 'hadir': return 'Hadir';
-                              case 'tidak hadir': return 'Tidak Hadir';
-                              case 'izin': return 'Izin';
-                              case 'sakit': return 'Sakit';
-                              case 'belum_diambil': return 'Belum Diambil';
-                              default: return status;
-                            }
+                            const labelMap: Record<string, string> = {
+                              hadir: 'Hadir',
+                              'tidak hadir': 'Tidak Hadir',
+                              izin: 'Izin',
+                              sakit: 'Sakit',
+                              belum_diambil: 'Belum Diambil'
+                            };
+                            return labelMap[status.toLowerCase()] || status;
                           })()}
                         </Badge>
                         {jadwal.waktu_catat && (
