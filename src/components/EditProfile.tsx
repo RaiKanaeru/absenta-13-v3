@@ -348,12 +348,12 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
   };
 
   const getRoleDisplayName = () => {
-    switch (role) {
-      case 'admin': return 'Administrator';
-      case 'guru': return 'Guru';
-      case 'siswa': return 'Siswa';
-      default: return 'User';
-    }
+    const roleMap: Record<string, string> = {
+      admin: 'Administrator',
+      guru: 'Guru',
+      siswa: 'Siswa'
+    };
+    return roleMap[role] || 'User';
   };
 
   const getRoleSpecificFields = () => {

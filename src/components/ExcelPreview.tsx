@@ -44,16 +44,13 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
   const formatCellValue = (value: string | number | Date | null | undefined, format?: string): string => {
     if (value === null || value === undefined) return '';
     
-    switch (format) {
-      case 'number':
-        return typeof value === 'number' ? value.toLocaleString('id-ID') : String(value);
-      case 'percentage':
-        return typeof value === 'number' ? `${value.toFixed(2)}%` : String(value);
-      case 'date':
-        return value instanceof Date ? value.toLocaleDateString('id-ID') : String(value);
-      default:
-        return value instanceof Date ? value.toLocaleDateString('id-ID') : String(value);
-    }
+    const formatters: Record<string, () => string> = {
+      number: () => typeof value === 'number' ? value.toLocaleString('id-ID') : String(value),
+      percentage: () => typeof value === 'number' ? `${value.toFixed(2)}%` : String(value),
+      date: () => value instanceof Date ? value.toLocaleDateString('id-ID') : String(value)
+    };
+    
+    return formatters[format || '']?.() || (value instanceof Date ? value.toLocaleDateString('id-ID') : String(value));
   };
 
   const getCellStyle = (format?: string, value?: string | number | null, columnKey?: string, align?: string) => {
@@ -65,17 +62,12 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
         alignStyle = `text-${align}`;
     } else {
         // Default alignment based on format
-        switch (format) {
-            case 'number':
-            case 'percentage':
-                alignStyle = "text-right font-mono";
-                break;
-            case 'date':
-                alignStyle = "text-center";
-                break;
-            default:
-                alignStyle = "text-left";
-        }
+        const formatAlignMap: Record<string, string> = {
+            number: 'text-right font-mono',
+            percentage: 'text-right font-mono',
+            date: 'text-center'
+        };
+        alignStyle = formatAlignMap[format || ''] || 'text-left';
     }
 
     // Special styling for attendance columns (with type guard)
@@ -98,15 +90,11 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
 
   const getHeaderStyle = (align?: string) => {
     const baseStyle = "px-1 sm:px-2 py-1 text-xs font-semibold bg-gray-200 border-r border-b border-gray-500 text-gray-800 overflow-hidden";
-    
-    switch (align) {
-      case 'center':
-        return `${baseStyle} text-center`;
-      case 'right':
-        return `${baseStyle} text-right`;
-      default:
-        return `${baseStyle} text-left`;
-    }
+    const alignMap: Record<string, string> = {
+      center: 'text-center',
+      right: 'text-right'
+    };
+    return `${baseStyle} ${alignMap[align || ''] || 'text-left'}`;
   };
 
   if (!showPreview || !data || data.length === 0) {
