@@ -14,3 +14,4 @@ export { AttendanceView } from './AttendanceView';
 export { LaporanKehadiranSiswaView } from './LaporanKehadiranSiswaView';
 export { RiwayatBandingAbsenView } from './RiwayatBandingAbsenView';
 export { PresensiSiswaSMKN13View } from './PresensiSiswaSMKN13View';
+export { RekapKetidakhadiranView } from './RekapKetidakhadiranView';
