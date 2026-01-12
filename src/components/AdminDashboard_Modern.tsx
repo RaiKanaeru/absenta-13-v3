@@ -4548,7 +4548,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     // Parse guru_list to get guru_ids
     let guru_ids: number[] = [];
     if (schedule.guru_list) {
-      guru_ids = schedule.guru_list.split('||').map(guru => parseInt(guru.split(':')[0]));
+      guru_ids = schedule.guru_list.split('||').map(guru => Number.parseInt(guru.split(':')[0]));
     } else if (schedule.guru_id) {
       guru_ids = [schedule.guru_id];
     }
@@ -4757,10 +4757,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     <Select 
                       value="" 
                       onValueChange={(value) => {
-                        if (value && !formData.guru_ids.includes(parseInt(value))) {
+                        if (value && !formData.guru_ids.includes(Number.parseInt(value))) {
                           setFormData(prev => ({
                             ...prev,
-                            guru_ids: [...prev.guru_ids, parseInt(value)],
+                            guru_ids: [...prev.guru_ids, Number.parseInt(value)],
                             guru_id: prev.guru_ids.length === 0 ? value : prev.guru_id
                           }));
                         }
@@ -4881,7 +4881,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                 <Label htmlFor="consecutive-hours">Jumlah Jam Berurutan</Label>
                 <Select 
                   value={consecutiveHours?.toString() || '1'} 
-                  onValueChange={(value) => setConsecutiveHours(parseInt(value))}
+                  onValueChange={(value) => setConsecutiveHours(Number.parseInt(value))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -5367,7 +5367,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       toast({ title: "Error", description: "Kode ruang harus 2-20 karakter alfanumerik!", variant: "destructive" });
       return;
     }
-    if (formData.kapasitas && (isNaN(parseInt(formData.kapasitas)) || parseInt(formData.kapasitas) <= 0)) {
+    if (formData.kapasitas && (isNaN(Number.parseInt(formData.kapasitas)) || Number.parseInt(formData.kapasitas) <= 0)) {
       toast({ title: "Error", description: "Kapasitas harus berupa angka positif!", variant: "destructive" });
       return;
     }
@@ -5383,7 +5383,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
             kode_ruang: formData.kode_ruang,
             nama_ruang: formData.nama_ruang,
             lokasi: formData.lokasi,
-            kapasitas: formData.kapasitas ? parseInt(formData.kapasitas) : null,
+            kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
             status: formData.status
           }),
           onLogout
@@ -5401,7 +5401,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
             kode_ruang: formData.kode_ruang,
             nama_ruang: formData.nama_ruang,
             lokasi: formData.lokasi,
-            kapasitas: formData.kapasitas ? parseInt(formData.kapasitas) : null,
+            kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
             status: formData.status
           }),
           onLogout
@@ -5901,7 +5901,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       if (!item.waktu_absen) {
         groups.belumAbsen.push(item);
       } else {
-        const hour = parseInt(item.waktu_absen.split(':')[0]);
+        const hour = Number.parseInt(item.waktu_absen.split(':')[0]);
         if (hour >= 6 && hour < 12) groups.pagi.push(item);
         else if (hour >= 12 && hour < 15) groups.siang.push(item);
         else if (hour >= 15 && hour < 18) groups.sore.push(item);
@@ -7960,7 +7960,7 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
     if (month) {
       const [year, monthNum] = month.split('-');
       const startDate = `${year}-${monthNum}-01`;
-      const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+      const lastDay = new Date(Number.parseInt(year), Number.parseInt(monthNum), 0).getDate();
       const endDate = `${year}-${monthNum}-${lastDay}`;
       setDateRange({ startDate, endDate });
     }
@@ -8254,7 +8254,7 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
     if (month) {
       const [year, monthNum] = month.split('-');
       const startDate = `${year}-${monthNum}-01`;
-      const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+      const lastDay = new Date(Number.parseInt(year), Number.parseInt(monthNum), 0).getDate();
       const endDate = `${year}-${monthNum}-${lastDay}`;
       setDateRange({ startDate, endDate });
     }
