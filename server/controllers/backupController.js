@@ -13,6 +13,9 @@ import { randomBytes } from 'node:crypto';
 
 const logger = createLogger('Backup');
 
+// Constants to avoid duplicate literals
+const ERROR_INTERNAL = 'Internal server error';
+
 // ================================================
 // HELPER FUNCTIONS
 // ================================================
@@ -354,7 +357,7 @@ const createDateBackup = async (req, res) => {
     } catch (error) {
         logger.error('Error creating date-based backup', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to create date-based backup'
         });
     }
@@ -377,7 +380,7 @@ const getBackupList = async (req, res) => {
     } catch (error) {
         logger.error('Error getting backup list', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: 'Gagal memuat daftar backup'
         });
     }
@@ -539,7 +542,7 @@ const deleteBackup = async (req, res) => {
     } catch (error) {
         logger.error('Error deleting backup', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Gagal menghapus backup'
         });
     }
@@ -638,7 +641,7 @@ const downloadBackup = async (req, res) => {
     } catch (error) {
         logger.error('Error downloading backup', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to download backup'
         });
     }
@@ -674,7 +677,7 @@ const restoreBackupById = async (req, res) => {
     } catch (error) {
         logger.error('Error restoring backup', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: 'Gagal memulihkan backup'
         });
     }
@@ -736,7 +739,7 @@ const restoreBackupFromFile = async (req, res) => {
     } catch (error) {
         logger.error('Error restoring backup', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: 'Gagal memulihkan backup'
         });
     }
@@ -817,7 +820,7 @@ const createTestArchiveData = async (req, res) => {
     } catch (error) {
         logger.error('Error creating test archive data', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to create test archive data'
         });
     }
@@ -860,7 +863,7 @@ const archiveOldData = async (req, res) => {
     } catch (error) {
         logger.error('Error archiving old data', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to archive old data'
         });
     }
@@ -932,7 +935,7 @@ const getArchiveStats = async (req, res) => {
     } catch (error) {
         logger.error('Error getting archive stats', error);
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: 'Gagal memuat statistik arsip'
         });
     }
@@ -1026,7 +1029,7 @@ const getBackupDirectoryStatus = async (req, res) => {
     } catch (error) {
         logger.error('Error checking backup directory', { error: error.message });
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: 'Gagal memeriksa direktori backup'
         });
     }
@@ -1123,7 +1126,7 @@ const saveBackupSettings = async (req, res) => {
     } catch (error) {
         logger.error('Error saving backup settings', { error: error.message });
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to save backup settings'
         });
     }
@@ -1219,7 +1222,7 @@ const createCustomSchedule = async (req, res) => {
     } catch (error) {
         logger.error('Error creating custom schedule', { error: error.message });
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to create custom schedule'
         });
     }
@@ -1277,7 +1280,7 @@ const updateCustomSchedule = async (req, res) => {
     } catch (error) {
         logger.error('Error updating custom schedule', { error: error.message });
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to update custom schedule'
         });
     }
@@ -1326,7 +1329,7 @@ const deleteCustomSchedule = async (req, res) => {
     } catch (error) {
         logger.error('Error deleting custom schedule', { error: error.message });
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to delete custom schedule'
         });
     }
@@ -1385,7 +1388,7 @@ const runCustomSchedule = async (req, res) => {
     } catch (error) {
         logger.error('Error running custom schedule', { error: error.message });
         res.status(500).json({
-            error: 'Internal server error',
+            error: ERROR_INTERNAL,
             message: error.message || 'Failed to run custom schedule'
         });
     }
