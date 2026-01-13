@@ -19,7 +19,9 @@ const uploadLogo = multer({
             cb(null, 'public/uploads/letterheads');
         },
         filename(req, file, cb) {
-            const ext = path.extname(file.originalname);
+            // Sanitize extension to prevent path traversal (S2083)
+            const rawExt = path.extname(file.originalname);
+            const ext = rawExt.replaceAll(/[^a-zA-Z0-9.]/g, '');
             // Sanitize logoType to prevent path traversal
             const rawPrefix = req.body.logoType || 'logo';
             const prefix = rawPrefix.replaceAll(/[^a-zA-Z0-9_-]/g, '');
