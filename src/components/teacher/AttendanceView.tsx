@@ -120,14 +120,16 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
 
   // Toggle edit mode
   const toggleEditMode = () => {
-    setIsEditMode(!isEditMode);
-    if (!isEditMode) {
-      setSelectedDate(getCurrentDateWIB());
-    } else {
+    if (isEditMode) {
+      // Exiting edit mode - reset to today
       const todayStr = getCurrentDateWIB();
       setSelectedDate(todayStr);
       fetchStudentsByDate(todayStr);
+    } else {
+      // Entering edit mode - set today as initial date
+      setSelectedDate(getCurrentDateWIB());
     }
+    setIsEditMode(!isEditMode);
   };
 
   // Handle date change
@@ -204,7 +206,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         description: message
       });
       
-      window.location.reload();
+      globalThis.location.reload();
     } catch (error) {
       console.error('❌ Error submitting attendance:', error);
       toast({ 
@@ -270,7 +272,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
             )}
           </Button>
           <Button 
-            onClick={() => window.location.reload()} 
+            onClick={() => globalThis.location.reload()} 
             variant="outline" 
             size="sm"
             className="flex items-center justify-center gap-2 w-full sm:w-auto"

@@ -424,7 +424,9 @@ const getBackups = async (req, res) => {
                 ok: true,
                 backups
             });
-        } catch (e) {
+        } catch (dirError) {
+            // Gracefully handle directory read errors - return empty list
+            logger.debug('Backup directory read failed:', dirError.message);
             res.status(200).json({ ok: true, backups: [] });
         }
 
@@ -572,8 +574,9 @@ const resolveBackupFilePath = async (backupDir, backupId) => {
             const other = files.find(f => !/\.(json|txt|log)$/i.test(f));
             if (other) return { filePath: path.join(backupSubDir, other), filename: other };
         }
-    } catch (e) {
-        // Directory not found or inaccessible, continue to file check
+    } catch (dirError) {
+        // Directory not found or inaccessible - expected, continue to file check
+        logger.debug('Backup subdir check failed:', dirError.message);
     }
 
     // 2. Check direct files
@@ -582,7 +585,9 @@ const resolveBackupFilePath = async (backupDir, backupId) => {
         const p = path.join(backupDir, c);
         try {
             if ((await fs.stat(p)).isFile()) return { filePath: p, filename: c };
-        } catch (e) { /* ignore */ }
+        } catch (statError) {
+            // File doesn't exist - expected, try next candidate
+        }
     }
     
     return { filePath: null, filename: null };
@@ -702,8 +707,9 @@ const restoreBackupFromFile = async (req, res) => {
             size: req.file.size
         });
 
-        // Validate file type
-        const fileExtension = path.extname(req.file.originalname).toLowerCase();
+        // Validate file type - sanitize extension to prevent path traversal (S2083)
+        const rawExtension = path.extname(req.file.originalname).toLowerCase();
+        const fileExtension = rawExtension.replaceAll(/[^a-z0-9.]/g, '');
 
         if (!['.sql', '.zip'].includes(fileExtension)) {
             return res.status(400).json({
@@ -712,11 +718,9 @@ const restoreBackupFromFile = async (req, res) => {
             });
         }
 
-        // Save uploaded file temporarily
-        const tempDir = path.join(process.cwd(), 'temp');
-        await fs.mkdir(tempDir, { recursive: true });
-
-        const tempFilePath = path.join(tempDir, `backup_${Date.now()}_${req.file.originalname}`);
+        // Save uploaded file temporarily - use safe filename to prevent path traversal (S2083)
+        const safeFilename = `backup_${Date.now()}${fileExtension}`;
+        const tempFilePath = path.join(tempDir, safeFilename);
         await fs.writeFile(tempFilePath, req.file.buffer);
 
         // Process the backup file

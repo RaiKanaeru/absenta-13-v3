@@ -207,7 +207,7 @@ const MonitoringDashboard: React.FC = () => {
 
     const formatBytes = (bytes: number) => {
         // Handle invalid or undefined values
-        if (!bytes || bytes === 0 || Number.isNaN(bytes) || !isFinite(bytes)) return '0 Bytes';
+        if (!bytes || bytes === 0 || Number.isNaN(bytes) || !Number.isFinite(bytes)) return '0 Bytes';
         
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -219,7 +219,7 @@ const MonitoringDashboard: React.FC = () => {
 
     const formatUptime = (seconds: number) => {
         // Handle invalid or undefined values
-        if (!seconds || Number.isNaN(seconds) || !isFinite(seconds)) return '0d 0h 0m';
+        if (!seconds || Number.isNaN(seconds) || !Number.isFinite(seconds)) return '0d 0h 0m';
         
         const days = Math.floor(seconds / 86400);
         const hours = Math.floor((seconds % 86400) / 3600);
