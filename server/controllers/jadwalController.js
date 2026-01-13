@@ -190,8 +190,8 @@ async function validateGuruIdsExist(guruIds) {
     );
 
     if (existingGurus.length !== validGuruIds.length) {
-        const existingIds = existingGurus.map(g => g.id_guru);
-        const invalidIds = validGuruIds.filter(id => !existingIds.includes(id));
+        const existingIds = new Set(existingGurus.map(g => g.id_guru));
+        const invalidIds = validGuruIds.filter(id => !existingIds.has(id));
         return { 
             valid: false, 
             invalidIds,
@@ -215,10 +215,8 @@ function validateJadwalFields(data, jenisAktivitas, guruIds) {
         if (guruIds.length === 0) {
             return { valid: false, error: 'Minimal satu guru harus dipilih untuk jadwal pelajaran' };
         }
-    } else {
-        if (!kelas_id || !hari || !jam_mulai || !jam_selesai) {
-            return { valid: false, error: 'Kelas, hari, dan waktu wajib diisi' };
-        }
+    } else if (!kelas_id || !hari || !jam_mulai || !jam_selesai) {
+        return { valid: false, error: 'Kelas, hari, dan waktu wajib diisi' };
     }
 
     return { valid: true };

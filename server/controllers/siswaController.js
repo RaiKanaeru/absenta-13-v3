@@ -167,7 +167,9 @@ async function processValidationResults(promises, checks) {
                 errors.push(check.errorMsg);
             }
         }
-    } catch (error) {
+    } catch (validationError) {
+        // Log validation error but return user-friendly message
+        console.error('Validation query error:', validationError.message);
         errors.push('Gagal memvalidasi data');
     }
     
