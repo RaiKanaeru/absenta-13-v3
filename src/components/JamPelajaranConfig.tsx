@@ -208,7 +208,7 @@ const JamPelajaranConfig: React.FC = () => {
     // Update jam pelajaran field
     const updateJam = (index: number, field: keyof JamPelajaran, value: string | number) => {
         const updated = [...jamPelajaran];
-        (updated[index] as any)[field] = value;
+        // Use properly typed object spread to update field\r\n        updated[index] = { ...updated[index], [field]: value };
         setJamPelajaran(updated);
     };
 
