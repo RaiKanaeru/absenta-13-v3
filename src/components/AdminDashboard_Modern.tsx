@@ -6229,7 +6229,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
       );
     }
 
-    const { studentAttendance, teacherAttendance, topAbsentStudents, topAbsentTeachers, notifications } = analyticsData;
+    const { studentAttendance, teacherAttendance, topAbsentStudents, topAbsentTeachers } = analyticsData;
 
     return (
       <div ref={dashboardRef} className={`space-y-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-gradient-to-br from-slate-50 to-blue-50 p-6 overflow-auto' : ''}`}>
