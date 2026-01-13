@@ -10,6 +10,9 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Export');
 
+// Constants to avoid duplicate literals
+const ERROR_DATE_REQUIRED = 'Tanggal mulai dan akhir harus diisi';
+
 import { buildExcel } from '../../backend/export/excelBuilder.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { formatWIBTime, formatWIBDate, getWIBTime } from '../utils/timeUtils.js';
@@ -627,7 +630,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
         const { startDate, endDate, kelas_id, status } = req.query;
         const guruId = req.user.guru_id;
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
         let query = `
@@ -745,7 +748,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
         const { startDate, endDate, kelas_id } = req.query;
         const guruId = req.user.guru_id;
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
         let query = `
@@ -883,7 +886,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const { startDate, endDate, kelas_id, reportType } = req.query;
         const guruId = req.user.guru_id;
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
         let query;
@@ -1027,7 +1030,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         const { startDate, endDate, kelas_id } = req.query;
         const guruId = req.user.guru_id;
         if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Tanggal mulai dan akhir harus diisi' });
+            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
         let query = `
