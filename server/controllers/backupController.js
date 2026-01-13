@@ -7,7 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import AdmZip from 'adm-zip';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
 

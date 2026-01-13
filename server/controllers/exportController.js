@@ -5,7 +5,7 @@
  */
 
 import ExcelJS from 'exceljs';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Export');
@@ -1809,20 +1809,18 @@ export const exportJadwalMatrix = async (req, res) => {
                     
                     // Build structured cell content using helper
                     const buildScheduleContentLines = (schedule, parseGuruList, formatTime) => {
-                        const lines = [];
-                        lines.push(schedule.nama_guru);
-                        if (schedule.nama_mapel) lines.push(schedule.nama_mapel);
-                        lines.push(schedule.kode_ruang || 'Ruang TBD');
-                        lines.push(`${formatTime(schedule.jam_mulai)} - ${formatTime(schedule.jam_selesai)}`);
+                        // Use array initialization instead of multiple push calls (S4043)
+                        const lines = [
+                            schedule.nama_guru,
+                            ...(schedule.nama_mapel ? [schedule.nama_mapel] : []),
+                            schedule.kode_ruang || 'Ruang TBD',
+                            `${formatTime(schedule.jam_mulai)} - ${formatTime(schedule.jam_selesai)}`
+                        ];
                         
                         if (schedule.is_multi_guru && schedule.guru_list) {
                             const guruNames = parseGuruList(schedule.guru_list);
                             if (guruNames.length > 1) {
-                                lines.push('');
-                                lines.push('Multi-Guru:');
-                                for (const g of guruNames) {
-                                    lines.push(`• ${g.name}`);
-                                }
+                                lines.push('', 'Multi-Guru:', ...guruNames.map(g => `• ${g.name}`));
                             }
                         }
                         return lines.join('\n');
