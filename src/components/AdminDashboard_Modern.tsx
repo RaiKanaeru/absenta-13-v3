@@ -337,8 +337,6 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       // Build submit data using helper
       const submitData = buildTeacherSubmitData(formData);
 
-      // console.log();
-
       await apiCall(url, {
         method,
         body: JSON.stringify(submitData),
@@ -3687,10 +3685,9 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
   );
 
   // Debug logging for classes
-  // console.log();
-  // console.log();
-  // console.log();
-  // console.log();
+
+
+
 
   // Helper to build filter query params
   const buildFilterParams = (filterState: typeof filter): URLSearchParams => {
@@ -3855,7 +3852,6 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
 
   const handlePreviewJadwal = () => {
     // Trigger re-render with current filters
-    // console.log();
     toast({
       title: "Preview Jadwal",
       description: `Menampilkan jadwal dengan filter: Kelas ${filter.kelas === 'all' ? 'Semua' : filter.kelas}, Hari ${filter.hari === 'all' ? 'Semua' : filter.hari}`,
@@ -4301,7 +4297,6 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     const loadAllData = async () => {
       try {
         setIsLoading(true);
-        // console.log();
         
         // Load all data in parallel for better performance
         const [schedulesData, teachersData, subjectsData, classesData, roomsData] = await Promise.all([
@@ -4310,7 +4305,6 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             return [];
           }),
           apiCall('/api/admin/guru', { onLogout }).then(response => {
-            // console.log();
             return response;
           }).catch(err => {
             console.error('❌ Error fetching teachers:', err);
@@ -4610,11 +4604,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
   }
 
   if (showPreview) {
-    // console.log();
-    // console.log();
-    // console.log();
-    // console.log();
-    // console.log();
+
+
+
+
     return <PreviewJadwalView onBack={() => setShowPreview(false)} schedules={schedules} classes={classes} />;
   }
 
@@ -5863,7 +5856,6 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     const fetchStudentData = async () => {
       try {
         setError('');
-        // console.log();
         const token = localStorage.getItem('token');
         const data = await apiCall('/api/admin/live-student-attendance', {
           headers: {
@@ -5879,8 +5871,6 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
             setTimeout(() => onLogout(), 2000);
           }
         });
-
-        // console.log();
         setAttendanceData(data);
       } catch (error: unknown) {
         console.error('❌ Error fetching live student attendance:', error);
@@ -6169,8 +6159,6 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         return;
       }
 
-      // console.log();
-
       // Prepare data for Excel export
       const exportData = filteredData.map((student: LiveStudentRow, index: number) => ({
         'No': index + 1,
@@ -6200,8 +6188,6 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       link.href = URL.createObjectURL(blob);
       link.download = `pemantauan_siswa_live_${getCurrentDateWIB()}.csv`;
       link.click();
-
-      // console.log();
     } catch (error: unknown) {
       console.error('❌ Error exporting live student attendance:', error);
       const message = error instanceof Error ? error.message : String(error);
@@ -6520,16 +6506,12 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           params.append('status', selectedStatus);
         }
 
-        // console.log();
-
         const data = await apiCall(`/api/admin/banding-absen-report?${params}`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
           }
         });
-        
-        // console.log();
         
         if (Array.isArray(data)) {
           setReportData(data);
@@ -6580,8 +6562,6 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
         if (selectedStatus) {
           params.append('status', selectedStatus);
         }
-
-        // console.log();
 
         // UBAH ENDPOINT KE EXCEL FORMAT
         const response = await fetch(getApiUrl(`/api/export/banding-absen?${params}`), {
@@ -6939,7 +6919,6 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       const fetchTeacherData = async () => {
         try {
           setError('');
-          // console.log();
           const token = localStorage.getItem('token');
           const data = await apiCall('/api/admin/live-teacher-attendance', {
             headers: {
@@ -6955,7 +6934,6 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
               setTimeout(() => onLogout(), 2000);
             }
           });
-          // console.log();
           setAttendanceData(data);
         } catch (error) {
           console.error('❌ Error fetching live teacher attendance:', error);
@@ -7214,8 +7192,6 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           });
           return;
         }
-
-        // console.log();
         
         // Prepare data for Excel export
         const exportData = filteredData.map((teacher, index) => ({
@@ -7253,7 +7229,6 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           title: "Berhasil",
           description: "Data guru berhasil diekspor ke CSV"
         });
-        // console.log();
       } catch (error) {
         console.error('❌ Error exporting live teacher attendance:', error);
         toast({
@@ -7549,7 +7524,6 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
       const fetchAnalyticsData = async () => {
         try {
           setError('');
-          // console.log();
           const token = localStorage.getItem('token');
           const data = await apiCall('/api/admin/analytics', {
             headers: {
@@ -7565,7 +7539,6 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
               setTimeout(() => onLogout(), 2000);
             }
           });
-          // console.log();
           setAnalyticsData(data);
         } catch (error) {
           console.error('❌ Error fetching analytics data:', error);
@@ -8513,27 +8486,20 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
 
   const fetchStudents = useCallback(async (classId: string) => {
     if (!classId) {
-      // console.log();
       return;
     }
-    
-    // console.log();
     setIsLoading(true);
     try {
       const data = await apiCall('/api/admin/students-data', { onLogout });
-      // console.log();
-      // console.log();
+
       
       const filteredStudents = data.filter((student: StudentData) => {
         // Convert both to string for comparison
         const studentClassId = student.kelas_id?.toString();
         const targetClassId = classId.toString();
         const matches = studentClassId === targetClassId;
-        // console.log();
         return matches;
       });
-      
-      // console.log();
       setStudents(filteredStudents);
       setSelectedStudents(new Set()); // Reset selection
     } catch (error) {
@@ -8549,12 +8515,9 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
   }, [fetchClasses]);
 
   useEffect(() => {
-    // console.log();
     if (fromClassId) {
-      // console.log();
       fetchStudents(fromClassId);
     } else {
-      // console.log();
       setStudents([]);
       setSelectedStudents(new Set());
     }
@@ -8562,9 +8525,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
 
   // 🧠 SMART CLASS PARSER - Parsing nama kelas secara cerdas dan fleksibel
   const parseClassName = useCallback((className: string) => {
-    // console.log();
     const cleanName = className.trim().toUpperCase();
-    // console.log();
     
     // Pattern yang lebih fleksibel untuk berbagai format kelas
     const patterns = [
@@ -8583,7 +8544,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     for (let i = 0; i < patterns.length; i++) {
       const pattern = patterns[i];
       const match = cleanName.match(pattern);
-      // console.log();
       
       if (match) {
         let level = match[1];
@@ -8606,17 +8566,14 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         
         if (majorMapping[major]) {
           major = majorMapping[major];
-          // console.log();
         }
         
         const result = { level, major, number, fullName: className };
-        // console.log();
         return result;
       }
     }
     
     // Fallback: coba ekstrak tingkat dari awal string
-    // console.log();
     const fallbackPatterns = [
       /^(X|XI|XII)/,
       /^(10|11|12)/
@@ -8646,7 +8603,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         
         if (majorMapping[major]) {
           major = majorMapping[major];
-          // console.log();
         }
         
         // Coba ekstrak nomor
@@ -8654,46 +8610,33 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         const number = numberMatch ? Number.parseInt(numberMatch[1]) : 1;
         
         const result = { level, major, number, fullName: className };
-        // console.log();
         return result;
       }
     }
-    
-    // console.log();
     return null;
   }, []);
 
   // 🎯 AUTO-DETECT TARGET CLASS - Otomatis cari kelas tujuan berdasarkan kelas asal
   const findTargetClass = useCallback((fromClassId: string) => {
-    // console.log();
-    // console.log();
+
     
     const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
     if (!sourceClass) {
-      // console.log();
       return null;
     }
-    
-    // console.log();
     
     const parsed = parseClassName(sourceClass.nama_kelas || '');
     if (!parsed) {
-      // console.log();
       return null;
     }
-    
-    // console.log();
     
     // Tentukan tingkat tujuan
     let targetLevel = '';
     if (parsed.level === 'X') targetLevel = 'XI';
     else if (parsed.level === 'XI') targetLevel = 'XII';
     else {
-      // console.log();
       return null; // XII tidak bisa dinaikkan
     }
-    
-    // console.log();
     
     // Cari kelas dengan tingkat tujuan, jurusan sama, nomor sama
     const targetClass = classes.find(cls => {
@@ -8704,25 +8647,20 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
              targetParsed.number === parsed.number;
       
       if (targetParsed) {
-        // console.log();
       }
       
       return isMatch;
     });
-    
-    // console.log();
     return targetClass || null;
   }, [classes, parseClassName]);
 
   // Auto-detect dan set kelas tujuan saat kelas asal dipilih
   useEffect(() => {
     if (fromClassId && classes.length > 0) {
-      // console.log();
       
       const targetClass = findTargetClass(fromClassId);
       
       if (targetClass) {
-        // console.log();
         setToClassId(targetClass.id?.toString() || '');
         
         // Parsing untuk notifikasi
@@ -8738,7 +8676,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
           });
         }
       } else {
-        // console.log();
         
         // Jika tidak ditemukan, coba cari manual berdasarkan tingkat dan jurusan
         const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
@@ -8747,7 +8684,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         if (sourceParsed) {
           // Validasi kelas XII tidak bisa dinaikkan
           if (sourceParsed.level === 'XII') {
-            // console.log();
             setToClassId('');
             toast({
               title: "❌ Tidak Dapat Dipromosikan",
@@ -8761,20 +8697,16 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
           if (sourceParsed.level === 'X') targetLevel = 'XI';
           else if (sourceParsed.level === 'XI') targetLevel = 'XII';
           
-          // console.log();
-          
           // Cari kelas dengan tingkat tujuan dan jurusan sama (abaikan nomor)
           const fallbackClass = classes.find(cls => {
             if ((cls as Record<string, string | number | boolean>).status !== 'aktif') return false;
             
             const name = cls.nama_kelas?.toUpperCase() || '';
             const isMatch = name.includes(targetLevel) && name.includes(sourceParsed.major);
-            // console.log();
             return isMatch;
           });
           
           if (fallbackClass) {
-            // console.log();
             setToClassId(fallbackClass.id?.toString() || '');
             toast({
               title: "⚠ Kelas Tujuan Ditemukan (Parsial)",
@@ -8782,7 +8714,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
               variant: "default"
             });
           } else {
-            // console.log();
             setToClassId('');
             toast({
               title: "❌ Kelas Tujuan Tidak Ditemukan",
@@ -8791,7 +8722,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
             });
           }
         } else {
-          // console.log();
           setToClassId('');
           
           // Coba fallback sederhana: cari kelas dengan tingkat yang lebih tinggi
@@ -8815,7 +8745,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
               });
               
               if (fallbackClass) {
-                // console.log();
                 setToClassId(fallbackClass.id?.toString() || '');
                 toast({
                   title: "⚠ Kelas Tujuan Ditemukan (Sederhana)",
@@ -8907,7 +8836,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     setIsProcessing(true);
     try {
       const studentIds = Array.from(selectedStudents);
-      // console.log();
       
       const response = await apiCall('/api/admin/student-promotion', {
         method: 'POST',
@@ -8918,8 +8846,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         }),
         onLogout
       });
-
-      // console.log();
 
       toast({ 
         title: "Berhasil", 
@@ -9535,7 +9461,6 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     created_at?: string;
     updated_at?: string;
   }) => {
-    // console.log();
     setUserData(prevData => ({
       ...prevData,
       ...updatedData,
