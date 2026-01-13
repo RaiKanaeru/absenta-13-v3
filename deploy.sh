@@ -9,8 +9,8 @@ echo "🚀 Starting ABSENTA 13 Deployment..."
 
 # Check if .env exists (using [[ for bash compatibility)
 if [[ ! -f ".env" ]]; then
-    echo "❌ Error: .env file not found!"
-    echo "📝 Please copy .env.example to .env and update values"
+    echo "❌ Error: .env file not found!" >&2
+    echo "📝 Please copy .env.example to .env and update values" >&2
     exit 1
 fi
 
