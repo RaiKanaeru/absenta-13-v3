@@ -3,11 +3,8 @@
  * Mengelola operasi CRUD untuk mata pelajaran
  */
 
-import dotenv from 'dotenv';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
-
-dotenv.config();
 
 const logger = createLogger('Mapel');
 

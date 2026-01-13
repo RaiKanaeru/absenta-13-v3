@@ -3,12 +3,9 @@
  * Menangani manajemen jadwal, dukungan multi-guru, dan query jadwal harian
  */
 
-import dotenv from 'dotenv';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getDayNameWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
-
-dotenv.config();
 
 const logger = createLogger('Jadwal');
 
