@@ -4,10 +4,13 @@
  */
 
 import { getWIBTime, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
-import { sendDatabaseError, sendNotFoundError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendNotFoundError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('UserInfo');
+
+/** SQL query to get student's class by ID (S1192 duplicate literal fix) */
+const SQL_GET_SISWA_KELAS = 'SELECT kelas_id FROM siswa WHERE id_siswa = ?';
 
 // Get siswa perwakilan info
 export const getSiswaPerwakilanInfo = async (req, res) => {
@@ -167,7 +170,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
 
         // Get siswa's class
         const [siswaData] = await globalThis.dbPool.execute(
-            'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
+            SQL_GET_SISWA_KELAS,
             [siswa_id]
         );
 
@@ -253,7 +256,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
     try {
         // Get siswa's class
         const [siswaData] = await globalThis.dbPool.execute(
-            'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
+            SQL_GET_SISWA_KELAS,
             [siswa_id]
         );
 

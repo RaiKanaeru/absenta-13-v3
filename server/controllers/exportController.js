@@ -43,6 +43,63 @@ const mapStatusToCode = (status) => {
     return statusMap[status] || '-';
 };
 
+// ================================================
+// HELPER: Reusable Excel Styles for Rekap Reports
+// ================================================
+const REKAP_HEADER_STYLE = {
+    font: { bold: true, size: 11 },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    border: {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+    },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }
+};
+
+const REKAP_DATA_STYLE = {
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+    }
+};
+
+const MONTH_NAMES = {
+    1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MEI', 6: 'JUN',
+    7: 'JUL', 8: 'AGT', 9: 'SEP', 10: 'OKT', 11: 'NOV', 12: 'DES'
+};
+
+/**
+ * Calculate attendance percentages for a student
+ * @param {number} totalS - Sakit count
+ * @param {number} totalI - Izin count
+ * @param {number} totalA - Alpha count
+ * @param {number} totalHariEfektif - Total effective days
+ * @returns {Object} { persenTidakHadir, persenHadir }
+ */
+const calculateAttendancePercentages = (totalS, totalI, totalA, totalHariEfektif) => {
+    const jumlahTotal = totalS + totalI + totalA;
+    const persenTidakHadir = totalHariEfektif > 0 ? ((jumlahTotal / totalHariEfektif) * 100).toFixed(2) : '0.00';
+    const persenHadir = (100 - Number.parseFloat(persenTidakHadir)).toFixed(2);
+    return { jumlahTotal, persenTidakHadir, persenHadir };
+};
+
+/**
+ * Apply style to a cell
+ * @param {Object} cell - ExcelJS cell object
+ * @param {Object} style - Style object to apply
+ */
+const applyCellStyle = (cell, style) => {
+    Object.assign(cell, style);
+};
+
+/** SQL query to get class name by ID (S1192 duplicate literal) */
+const SQL_GET_KELAS_NAME_BY_ID = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
+
 // NOTE: addLetterheadToWorksheet, addReportTitle, addHeaders are imported from excelLetterhead.js
 // at line ~608 for exports that use them. Top-level imports removed to avoid redeclaration.
 
@@ -329,7 +386,6 @@ export const exportTeacherSummary = async (req, res) => {
 export const exportBandingAbsen = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, status } = req.query;
-        const { formatWIBDate } = await import('../utils/timeUtils.js');
 
         let query = `
             SELECT 
@@ -675,7 +731,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
             const [kelasRows] = await globalThis.dbPool.execute(
-                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+                SQL_GET_KELAS_NAME_BY_ID,
                 [kelas_id]
             );
             if (kelasRows.length > 0) {
@@ -796,7 +852,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
             const [kelasRows] = await globalThis.dbPool.execute(
-                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+                SQL_GET_KELAS_NAME_BY_ID,
                 [kelas_id]
             );
             if (kelasRows.length > 0) {
@@ -954,7 +1010,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
             const [kelasRows] = await globalThis.dbPool.execute(
-                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+                SQL_GET_KELAS_NAME_BY_ID,
                 [kelas_id]
             );
             if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
@@ -1071,7 +1127,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         // Get class name
         let className = 'Semua Kelas';
         if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await globalThis.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+            const [kelasRows] = await globalThis.dbPool.execute(SQL_GET_KELAS_NAME_BY_ID, [kelas_id]);
             if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
         }
 
@@ -1256,10 +1312,8 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             ? [7, 8, 9, 10, 11, 12] // Juli - Desember
             : [1, 2, 3, 4, 5, 6];   // Januari - Juni
         
-        const monthNames = {
-            1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MEI', 6: 'JUN',
-            7: 'JUL', 8: 'AGT', 9: 'SEP', 10: 'OKT', 11: 'NOV', 12: 'DES'
-        };
+        // Use centralized month names from top of file
+        const monthNames = MONTH_NAMES;
 
         // Get attendance data with S/I/A breakdown per month
         const [presensiData] = await globalThis.dbPool.execute(`
@@ -1283,28 +1337,9 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN');
 
-        // Styles
-        const headerStyle = {
-            font: { bold: true, size: 11 },
-            alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-            border: {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
-            },
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } } // Yellow
-        };
-
-        const dataStyle = {
-            alignment: { horizontal: 'center', vertical: 'middle' },
-            border: {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
-            }
-        };
+        // Use centralized styles from top of file
+        const headerStyle = REKAP_HEADER_STYLE;
+        const dataStyle = REKAP_DATA_STYLE;
 
         // Title Headers (Row 1-4)
         worksheet.mergeCells('A1:AH1');
@@ -1536,7 +1571,7 @@ export const exportPresensiSiswa = async (req, res) => {
     try {
         const { kelas_id, bulan, tahun } = req.query;
         // Get class name
-        const [kelasRows] = await globalThis.dbPool.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
+        const [kelasRows] = await globalThis.dbPool.execute(SQL_GET_KELAS_NAME_BY_ID, [kelas_id]);
         const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
 
         // Get students
@@ -2709,7 +2744,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
 
         // Get kelas info
         const [kelasRows] = await globalThis.dbPool.execute(
-            'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+            SQL_GET_KELAS_NAME_BY_ID,
             [kelas_id]
         );
         if (kelasRows.length === 0) {

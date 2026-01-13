@@ -23,7 +23,7 @@ import {
     formatWIBTimeWithSeconds,
     getDaysDifferenceWIB
 } from '../utils/timeUtils.js';
-import { sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Absensi');
@@ -43,6 +43,14 @@ const TEACHER_EDIT_DAYS_LIMIT = 30;
 
 /** Maximum days allowed for student (class rep) to edit past attendance */
 const STUDENT_EDIT_DAYS_LIMIT = 7;
+
+/** SQL query to find existing student attendance by guru */
+const SQL_FIND_STUDENT_ATTENDANCE_BY_GURU = 
+    'SELECT id FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND guru_pengabsen_id = ? AND tanggal = ?';
+
+/** SQL query to find existing teacher attendance */
+const SQL_FIND_TEACHER_ATTENDANCE = 
+    'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?';
 
 // ===========================
 // HELPER FUNCTIONS
@@ -450,7 +458,7 @@ export async function submitStudentAttendance(req, res) {
             const note = status === 'Hadir' ? '' : (notes[studentId] || '');
 
             const [existingAttendance] = await globalThis.dbPool.execute(
-                'SELECT id FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND guru_pengabsen_id = ? AND tanggal = ?',
+                SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
                 [studentId, scheduleId, guruId, targetDate]
             );
 
@@ -522,7 +530,7 @@ async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, no
             const waktuAbsen = `${targetDate} ${currentTime}`;
 
             const [existing] = await globalThis.dbPool.execute(
-                'SELECT id FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND guru_pengabsen_id = ? AND tanggal = ?',
+                SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
                 [studentId, scheduleId, otherGuruId, targetDate]
             );
 
@@ -691,7 +699,7 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
     const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
 
     const [existingRecord] = await connection.execute(
-        'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?',
+        SQL_FIND_TEACHER_ATTENDANCE,
         [jadwalId, guru_id, targetDate]
     );
 
@@ -754,7 +762,7 @@ export async function updateTeacherStatus(req, res) {
         const waktuCatatWIB = getMySQLDateTimeWIB();
 
         const [existing] = await globalThis.dbPool.execute(
-            'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?',
+            SQL_FIND_TEACHER_ATTENDANCE,
             [jadwal_id, guru_id, tanggal_absen]
         );
 

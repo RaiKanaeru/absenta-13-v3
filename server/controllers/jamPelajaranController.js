@@ -27,6 +27,9 @@ const MIN_JAM_KE = 1;
 const MAX_JAM_KE = 15;
 const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
+/** SQL query to get class name by ID (S1192 duplicate literal fix) */
+const SQL_GET_KELAS_NAME = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
+
 /**
  * Validate time format (HH:MM or HH:MM:SS)
  */
@@ -321,7 +324,7 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
         
         // Get kelas name for logging
         const [kelas] = await globalThis.dbPool.execute(
-            'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+            SQL_GET_KELAS_NAME,
             [kelasId]
         );
         const kelasName = kelas.length > 0 ? kelas[0].nama_kelas : `ID ${kelasId}`;
@@ -395,7 +398,7 @@ export const copyJamPelajaran = async (req, res) => {
         
         // Get source kelas name
         const [sourceKelas] = await globalThis.dbPool.execute(
-            'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+            SQL_GET_KELAS_NAME,
             [sourceKelasId]
         );
         const sourceKelasName = sourceKelas.length > 0 ? sourceKelas[0].nama_kelas : `ID ${sourceKelasId}`;
@@ -409,7 +412,7 @@ export const copyJamPelajaran = async (req, res) => {
         for (const targetId of targetKelasIds) {
             // Get target kelas name
             const [targetKelas] = await globalThis.dbPool.execute(
-                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
+                SQL_GET_KELAS_NAME,
                 [targetId]
             );
             

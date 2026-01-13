@@ -4401,7 +4401,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     const errors: string[] = [];
     
     // Validasi jam_ke
-    if (!formData.jam_ke || isNaN(Number.parseInt(String(formData.jam_ke)))) {
+    if (!formData.jam_ke || Number.isNaN(Number.parseInt(String(formData.jam_ke)))) {
       errors.push('Jam ke- harus diisi dengan angka');
     } else {
       const jamKe = Number.parseInt(String(formData.jam_ke));
@@ -4434,7 +4434,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
   };
 
   // Helper to get valid guru IDs
-  const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id && !isNaN(id) && id > 0);
+  const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id && !Number.isNaN(id) && id > 0);
 
   // Helper to build jadwal payload
   const buildJadwalPayload = (form: typeof formData, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
@@ -5368,7 +5368,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       toast({ title: "Error", description: "Kode ruang harus 2-20 karakter alfanumerik!", variant: "destructive" });
       return;
     }
-    if (formData.kapasitas && (isNaN(Number.parseInt(formData.kapasitas)) || Number.parseInt(formData.kapasitas) <= 0)) {
+    if (formData.kapasitas && (Number.isNaN(Number.parseInt(formData.kapasitas)) || Number.parseInt(formData.kapasitas) <= 0)) {
       toast({ title: "Error", description: "Kapasitas harus berupa angka positif!", variant: "destructive" });
       return;
     }

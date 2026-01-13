@@ -44,7 +44,7 @@ interface SystemMetrics {
     application: {
         requests: { total: number; active: number; completed: number; failed: number };
         responseTime: { average: number; min: number; max: number };
-        errors: { count: number; lastError: any };
+        errors: { count: number; lastError: Error | string | null };
     };
     database: {
         connections: { active: number; idle: number; total: number };
@@ -64,7 +64,7 @@ interface Alert {
     type: string;
     severity: 'warning' | 'critical' | 'emergency';
     message: string;
-    data: any;
+    data: Record<string, unknown>;
     timestamp: string;
     resolved?: boolean;
     resolvedAt?: string;
@@ -89,14 +89,10 @@ interface MonitoringData {
     health: SystemHealth;
     alerts: Alert[];
     alertStats: AlertStatistics;
-    loadBalancer: any;
-    queryOptimizer: any;
-    redis: any;
-    system: {
-        uptime: number;
-        memory: any;
-        cpu: any;
-    };
+    loadBalancer: Record<string, unknown> | null;
+    queryOptimizer: Record<string, unknown> | null;
+    redis: Record<string, unknown> | null;
+    system: Record<string, unknown>;
 }
 
 const MonitoringDashboard: React.FC = () => {
@@ -211,7 +207,7 @@ const MonitoringDashboard: React.FC = () => {
 
     const formatBytes = (bytes: number) => {
         // Handle invalid or undefined values
-        if (!bytes || bytes === 0 || isNaN(bytes) || !isFinite(bytes)) return '0 Bytes';
+        if (!bytes || bytes === 0 || Number.isNaN(bytes) || !isFinite(bytes)) return '0 Bytes';
         
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -223,7 +219,7 @@ const MonitoringDashboard: React.FC = () => {
 
     const formatUptime = (seconds: number) => {
         // Handle invalid or undefined values
-        if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0d 0h 0m';
+        if (!seconds || Number.isNaN(seconds) || !isFinite(seconds)) return '0d 0h 0m';
         
         const days = Math.floor(seconds / 86400);
         const hours = Math.floor((seconds % 86400) / 3600);

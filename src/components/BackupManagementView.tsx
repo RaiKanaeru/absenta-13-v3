@@ -1477,7 +1477,7 @@ const BackupManagementView: React.FC = () => {
                                                         {(() => {
                                                             try {
                                                                 const dateObj = new Date(schedule.date + 'T00:00:00');
-                                                                if (isNaN(dateObj.getTime())) return schedule.date;
+                                                                if (Number.isNaN(dateObj.getTime())) return schedule.date;
                                                                 return dateObj.toLocaleDateString('id-ID', {
                                                                     weekday: 'long',
                                                                     year: 'numeric',
@@ -1513,7 +1513,7 @@ const BackupManagementView: React.FC = () => {
                                                         {(() => {
                                                             try {
                                                                 const dateObj = new Date(schedule.created);
-                                                                if (isNaN(dateObj.getTime())) return 'N/A';
+                                                                if (Number.isNaN(dateObj.getTime())) return 'N/A';
                                                                 return dateObj.toLocaleDateString('id-ID');
                                                             } catch {
                                                                 return 'N/A';
