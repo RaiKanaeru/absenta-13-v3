@@ -273,11 +273,16 @@ const MonitoringDashboard: React.FC = () => {
         );
     }
 
-    // Safe destructuring with fallback values
-    const metrics = data?.metrics || {};
-    const health = data?.health || { status: 'unknown', issues: [] };
+    // Safe destructuring with properly typed fallback values
+    const defaultMetrics: SystemMetrics = {
+        system: { memory: { used: 0, total: 0, percentage: 0 }, cpu: { usage: 0, loadAverage: [] }, disk: { used: 0, total: 0, percentage: 0 }, uptime: 0 },
+        application: { requests: { total: 0, active: 0, completed: 0, failed: 0 }, responseTime: { average: 0, min: 0, max: 0 }, errors: { count: 0, lastError: null } },
+        database: { connections: { active: 0, idle: 0, total: 0 }, queries: { total: 0, slow: 0, failed: 0 }, responseTime: { average: 0, min: 0, max: 0 } }
+    };
+    const metrics = data?.metrics ?? defaultMetrics;
+    const health = data?.health || { status: 'unknown' as const, issues: [], timestamp: '' };
     const alerts = data?.alerts || [];
-    const alertStats = data?.alertStats || { active: 0, total: 0, resolved: 0 };
+    const alertStats: AlertStatistics = data?.alertStats || { active: 0, total: 0, resolved: 0, last24h: 0, bySeverity: { warning: 0, critical: 0, emergency: 0 }, byType: {} };
     const loadBalancer = data?.loadBalancer || { totalRequests: 0, activeRequests: 0, completedRequests: 0, failedRequests: 0 };
     const system = data?.system || { uptime: 0 };
 
@@ -354,7 +359,7 @@ const MonitoringDashboard: React.FC = () => {
                         </div>
                         <div className="text-left sm:text-right">
                             <p className="text-xs sm:text-sm text-gray-600">System Uptime</p>
-                            <p className="font-semibold text-sm sm:text-base">{formatUptime(system.uptime)}</p>
+                            <p className="font-semibold text-sm sm:text-base">{formatUptime((system.uptime as number) || 0)}</p>
                         </div>
                     </div>
                 </CardContent>
@@ -464,19 +469,19 @@ const MonitoringDashboard: React.FC = () => {
                             <CardContent className="space-y-4">
                                 <div className="flex justify-between">
                                     <span>Active Requests:</span>
-                                    <Badge variant="outline">{loadBalancer?.activeRequests || 0}</Badge>
+                                    <Badge variant="outline">{(loadBalancer?.activeRequests as number) ?? 0}</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Queue Size:</span>
-                                    <Badge variant="outline">{loadBalancer?.totalQueueSize || 0}</Badge>
+                                    <Badge variant="outline">{(loadBalancer?.totalQueueSize as number) ?? 0}</Badge>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Circuit Breaker:</span>
                                     <Badge 
                                         variant="outline" 
-                                        className={loadBalancer?.circuitBreaker?.isOpen ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
+                                        className={(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
                                     >
-                                        {loadBalancer?.circuitBreaker?.isOpen ? 'OPEN' : 'CLOSED'}
+                                        {(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'OPEN' : 'CLOSED'}
                                     </Badge>
                                 </div>
                             </CardContent>
