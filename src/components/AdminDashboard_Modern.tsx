@@ -66,6 +66,46 @@ const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
   </div>
 );
 
+/**
+ * Helper component for displaying teacher badges (S3358 - extracted to reduce nested ternary)
+ */
+const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGuru?: string }) => {
+  // Case 1: Multi-guru with || separator
+  if (guruList?.includes('||')) {
+    return (
+      <>
+        {guruList.split('||').map((guru, index) => (
+          <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+            {guru.split(':')[1]}
+          </Badge>
+        ))}
+      </>
+    );
+  }
+  // Case 2: Multiple teachers comma-separated
+  if (namaGuru?.includes(',')) {
+    return (
+      <>
+        {namaGuru.split(',').map((guru, index) => (
+          <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+            {guru.trim()}
+          </Badge>
+        ))}
+      </>
+    );
+  }
+  // Case 3: Single teacher
+  if (namaGuru) {
+    return (
+      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+        {namaGuru}
+      </Badge>
+    );
+  }
+  // Case 4: No teacher
+  return <span className="text-sm text-gray-500">-</span>;
+};
+
 // Types
 interface Teacher {
   id: number;
@@ -5107,27 +5147,9 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <TableCell>
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
                           <div className="space-y-1">
-                            {/* Display teachers using inline conditionals for cleaner code */}
+                            {/* Display teachers using TeacherBadgeDisplay helper (S3358 refactored) */}
                             <div className="flex flex-wrap gap-1">
-                              {schedule.guru_list?.includes('||') ? (
-                                schedule.guru_list.split('||').map((guru, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                    {guru.split(':')[1]}
-                                  </Badge>
-                                ))
-                              ) : schedule.nama_guru?.includes(',') ? (
-                                schedule.nama_guru.split(',').map((guru, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                    {guru.trim()}
-                                  </Badge>
-                                ))
-                              ) : schedule.nama_guru ? (
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                  {schedule.nama_guru}
-                                </Badge>
-                              ) : (
-                                <span className="text-sm text-gray-500">-</span>
-                              )}
+                              <TeacherBadgeDisplay guruList={schedule.guru_list} namaGuru={schedule.nama_guru} />
                             </div>
                             
                             {/* Show multi-guru indicator if applicable */}
