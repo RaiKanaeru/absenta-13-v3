@@ -5109,13 +5109,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                           <div className="space-y-1">
                             {/* Display teachers using inline conditionals for cleaner code */}
                             <div className="flex flex-wrap gap-1">
-                              {schedule.guru_list && schedule.guru_list.includes('||') ? (
+                              {schedule.guru_list?.includes('||') ? (
                                 schedule.guru_list.split('||').map((guru, index) => (
                                   <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
                                     {guru.split(':')[1]}
                                   </Badge>
                                 ))
-                              ) : schedule.nama_guru && schedule.nama_guru.includes(',') ? (
+                              ) : schedule.nama_guru?.includes(',') ? (
                                 schedule.nama_guru.split(',').map((guru, index) => (
                                   <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
                                     {guru.trim()}
@@ -8645,10 +8645,6 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
              targetParsed.level === targetLevel &&
              targetParsed.major === parsed.major &&
              targetParsed.number === parsed.number;
-      
-      if (targetParsed) {
-      }
-      
       return isMatch;
     });
     return targetClass || null;
