@@ -76,7 +76,10 @@ const parseJadwalKey = (key: string | number): { jadwalId: number | null; guruId
 /**
  * Get guru_id from jadwal object, trying multiple field names
  */
-const getGuruIdFromJadwal = (jadwal: any, kehadiranDataEntry: any): number | null => {
+const getGuruIdFromJadwal = (
+  jadwal: { guru_id?: number; id_guru?: number } | null,
+  kehadiranDataEntry: { guru_id?: number } | null
+): number | null => {
   // Try guru_id first, then id_guru
   const guruId = jadwal?.guru_id || jadwal?.id_guru || kehadiranDataEntry?.guru_id;
   return guruId || null;
@@ -630,7 +633,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
               });
             } else {
               // Handle single-guru schedules
-              const guruId = (jadwal as any).guru_id || (jadwal as any).id_guru;
+              const guruId = jadwal.guru_id || jadwal.id_guru;
               if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
                 initialKehadiran[jadwal.id_jadwal] = {
                   status: jadwal.status_kehadiran,
@@ -735,7 +738,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
               });
             } else {
               // Handle single-guru schedules
-              const guruId = (jadwal as any).guru_id || (jadwal as any).id_guru;
+              const guruId = jadwal.guru_id || jadwal.id_guru;
               if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
                 initialKehadiran[jadwal.id_jadwal] = {
                   status: jadwal.status_kehadiran,
@@ -1369,8 +1372,9 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         await loadJadwalHariIni();
       }
 
-    } catch (error: any) {
-      console.error('❌ Error updating status:', error);
+    } catch (error) {
+      const err = error as Error;
+      console.error('❌ Error updating status:', err);
       
       // Rollback ke state sebelumnya
       setKehadiranData(prev => ({

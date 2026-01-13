@@ -81,7 +81,7 @@ const JamPelajaranConfig: React.FC = () => {
             
             if (result.success && result.data.length > 0) {
                 // Format time to HH:MM
-                const formatted = result.data.map((jam: any) => ({
+                const formatted = result.data.map((jam: JamPelajaran) => ({
                     ...jam,
                     jam_mulai: formatTimeForInput(jam.jam_mulai),
                     jam_selesai: formatTimeForInput(jam.jam_selesai)
@@ -145,10 +145,11 @@ const JamPelajaranConfig: React.FC = () => {
             } else {
                 throw new Error(result.error || 'Gagal menyimpan');
             }
-        } catch (error: any) {
+        } catch (error) {
+            const err = error as Error;
             toast({
                 title: 'Error',
-                description: error.message || 'Gagal menyimpan jam pelajaran',
+                description: err.message || 'Gagal menyimpan jam pelajaran',
                 variant: 'destructive'
             });
         } finally {
@@ -194,10 +195,11 @@ const JamPelajaranConfig: React.FC = () => {
             } else {
                 throw new Error(result.error || 'Gagal menyalin');
             }
-        } catch (error: any) {
+        } catch (error) {
+            const err = error as Error;
             toast({
                 title: 'Error',
-                description: error.message || 'Gagal menyalin jam pelajaran',
+                description: err.message || 'Gagal menyalin jam pelajaran',
                 variant: 'destructive'
             });
         }
