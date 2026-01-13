@@ -57,9 +57,12 @@ import {
 const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
   <div className="text-xs text-green-600 mt-1">
     <div className="font-medium">Multi-Guru:</div>
-    {guruList.split('||').map((guru, i) => (
-      <div key={`guru-${i}`} className="text-xs text-green-700 truncate">• {guru.split(':')[1]}</div>
-    ))}
+    {guruList.split('||').map((guru) => {
+      const [guruId, guruName] = guru.split(':');
+      return (
+        <div key={`guru-${guruId}`} className="text-xs text-green-700 truncate">• {guruName}</div>
+      );
+    })}
   </div>
 );
 
