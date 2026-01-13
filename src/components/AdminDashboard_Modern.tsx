@@ -51,6 +51,18 @@ import {
   Printer, Maximize2, Minimize2, Award, Star
 } from "lucide-react";
 
+/**
+ * Helper component for displaying multi-guru list (S2004 - extracted to reduce nesting)
+ */
+const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
+  <div className="text-xs text-green-600 mt-1">
+    <div className="font-medium">Multi-Guru:</div>
+    {guruList.split('||').map((guru, i) => (
+      <div key={`guru-${i}`} className="text-xs text-green-700 truncate">• {guru.split(':')[1]}</div>
+    ))}
+  </div>
+);
+
 // Types
 interface Teacher {
   id: number;
@@ -4132,12 +4144,7 @@ const PreviewJadwalView = ({ onBack, schedules, classes }: { onBack: () => void;
                                   {schedule.jam_mulai} - {schedule.jam_selesai}
                                 </div>
                                 {schedule.guru_list && schedule.guru_list.includes('||') && (
-                                  <div className="text-xs text-green-600 mt-1">
-                                    <div className="font-medium">Multi-Guru:</div>
-                                    {schedule.guru_list.split('||').map((guru, i) => (
-                                      <div key={`g-${i}`} className="text-xs text-green-700 truncate">• {guru.split(':')[1]}</div>
-                                    ))}
-                                  </div>
+                                  <MultiGuruDisplay guruList={schedule.guru_list} />
                                 )}
                               </div>
                             ))}
