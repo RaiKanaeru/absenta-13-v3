@@ -10,6 +10,11 @@ import { sendErrorResponse, sendDatabaseError, sendValidationError } from '../ut
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Import');
+
+// Constants to avoid duplicate literals
+const ERROR_FILE_NOT_FOUND = 'File tidak ditemukan';
+const ERROR_NO_VALID_ROWS = 'Tidak ada baris valid untuk diimpor';
+const ERROR_DB_CHECK_FAILED = 'Gagal memeriksa data yang sudah ada';
 import {
     sheetToJsonByHeader,
     mapKelasByName,
@@ -42,7 +47,7 @@ import {
  */
 const importMapel = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -88,7 +93,7 @@ const importMapel = async (req, res) => {
                 message: 'Dry run completed. No data was imported.'
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
+        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -126,7 +131,7 @@ const importMapel = async (req, res) => {
  */
 const importKelas = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -172,7 +177,7 @@ const importKelas = async (req, res) => {
                 message: 'Dry run completed. No data was imported.'
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
+        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -210,7 +215,7 @@ const importKelas = async (req, res) => {
  */
 const importRuang = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -249,7 +254,7 @@ const importRuang = async (req, res) => {
                 message: 'Dry run completed. No data was imported.'
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
+        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -411,7 +416,7 @@ async function insertJadwalRecords(conn, validRecords) {
  */
 const importJadwal = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -458,7 +463,7 @@ const importJadwal = async (req, res) => {
         }
         
         if (valid.length === 0) {
-            return res.status(400).json({ error: 'Tidak ada baris valid untuk diimpor', errors });
+            return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
         }
 
         // Insert to database
@@ -581,7 +586,7 @@ async function insertNewStudent(conn, v, kelasId) {
 
 const importStudentAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -602,7 +607,7 @@ const importStudentAccount = async (req, res) => {
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
-                error: 'Gagal memeriksa data yang sudah ada',
+                error: ERROR_DB_CHECK_FAILED,
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
             });
         }
@@ -634,7 +639,7 @@ const importStudentAccount = async (req, res) => {
 
         if (valid.length === 0) {
             return res.status(400).json({
-                error: 'Tidak ada baris valid untuk diimpor',
+                error: ERROR_NO_VALID_ROWS,
                 errors,
                 message: 'Semua data memiliki error. Perbaiki error terlebih dahulu.'
             });
@@ -755,7 +760,7 @@ async function insertNewTeacher(conn, v) {
 
 const importTeacherAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -776,7 +781,7 @@ const importTeacherAccount = async (req, res) => {
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
-                error: 'Gagal memeriksa data yang sudah ada',
+                error: ERROR_DB_CHECK_FAILED,
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
             });
         }
@@ -808,7 +813,7 @@ const importTeacherAccount = async (req, res) => {
 
         if (valid.length === 0) {
             return res.status(400).json({
-                error: 'Tidak ada baris valid untuk diimpor',
+                error: ERROR_NO_VALID_ROWS,
                 errors,
                 message: 'Semua data memiliki error. Perbaiki error terlebih dahulu.'
             });
@@ -899,7 +904,7 @@ async function processSiswaDataRecord(conn, record) {
  */
 const importSiswa = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -915,7 +920,7 @@ const importSiswa = async (req, res) => {
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
-                error: 'Gagal memeriksa data yang sudah ada',
+                error: ERROR_DB_CHECK_FAILED,
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
             });
         }
@@ -955,7 +960,7 @@ const importSiswa = async (req, res) => {
 
         if (valid.length === 0) {
             return res.status(400).json({
-                error: 'Tidak ada baris valid untuk diimpor',
+                error: ERROR_NO_VALID_ROWS,
                 errors
             });
         }
@@ -1040,7 +1045,7 @@ async function processGuruDataRecord(conn, record) {
  */
 const importGuru = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -1076,7 +1081,7 @@ const importGuru = async (req, res) => {
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
             return res.status(500).json({
-                error: 'Gagal memeriksa data yang sudah ada',
+                error: ERROR_DB_CHECK_FAILED,
                 message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
             });
         }
@@ -1096,7 +1101,7 @@ const importGuru = async (req, res) => {
 
         if (valid.length === 0) {
             return res.status(400).json({
-                error: 'Tidak ada baris valid untuk diimpor',
+                error: ERROR_NO_VALID_ROWS,
                 errors
             });
         }
