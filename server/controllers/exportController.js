@@ -12,6 +12,8 @@ const logger = createLogger('Export');
 
 // Constants to avoid duplicate literals
 const ERROR_DATE_REQUIRED = 'Tanggal mulai dan akhir harus diisi';
+const ERROR_YEAR_REQUIRED = 'Tahun harus diisi';
+const ERROR_TEMPLATE_NOT_FOUND = 'Template file tidak ditemukan';
 
 import { buildExcel } from '../../backend/export/excelBuilder.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
@@ -1132,7 +1134,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
     try {
         const { tahun } = req.query;
         if (!tahun) {
-            return res.status(400).json({ error: 'Tahun harus diisi' });
+            return res.status(400).json({ error: ERROR_YEAR_REQUIRED });
         }
 
         const query = `
@@ -2604,7 +2606,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
     try {
         const { tahun } = req.query;
         if (!tahun) {
-            return res.status(400).json({ error: 'Tahun harus diisi' });
+            return res.status(400).json({ error: ERROR_YEAR_REQUIRED });
         }
 
         const mapping = templateExportService.REKAP_GURU_MAPPING;
@@ -2613,7 +2615,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
         const hasTemplate = await templateExportService.templateExists(mapping.templateFile);
         if (!hasTemplate) {
             return res.status(404).json({ 
-                error: 'Template file tidak ditemukan',
+                error: ERROR_TEMPLATE_NOT_FOUND,
                 message: `Please copy "${mapping.templateFile}" to server/templates/excel/`,
                 fallback: '/api/export/rekap-ketidakhadiran-guru' // Fallback to schema-based
             });
@@ -2729,7 +2731,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         const hasTemplate = await templateExportService.templateExists(templateFile);
         if (!hasTemplate) {
             return res.status(404).json({ 
-                error: 'Template file tidak ditemukan',
+                error: ERROR_TEMPLATE_NOT_FOUND,
                 message: `Please copy "${templateFile}" to server/templates/excel/`,
                 fallback: '/api/export/rekap-ketidakhadiran-siswa' // Fallback
             });
