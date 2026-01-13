@@ -43,6 +43,30 @@ const mapStatusToCode = (status) => {
     return statusMap[status] || '-';
 };
 
+/**
+ * Build schedule content lines for Excel cell (S2004 - extracted to avoid deep nesting)
+ * @param {Object} schedule - Schedule object
+ * @param {Function} parseGuruList - Function to parse guru list
+ * @param {Function} formatTime - Function to format time
+ * @returns {string} Formatted schedule content
+ */
+const buildScheduleContentLines = (schedule, parseGuruList, formatTime) => {
+    const lines = [
+        schedule.nama_guru,
+        ...(schedule.nama_mapel ? [schedule.nama_mapel] : []),
+        schedule.kode_ruang || 'Ruang TBD',
+        `${formatTime(schedule.jam_mulai)} - ${formatTime(schedule.jam_selesai)}`
+    ];
+    
+    if (schedule.is_multi_guru && schedule.guru_list) {
+        const guruNames = parseGuruList(schedule.guru_list);
+        if (guruNames.length > 1) {
+            lines.push('', 'Multi-Guru:', ...guruNames.map(g => `• ${g.name}`));
+        }
+    }
+    return lines.join('\n');
+};
+
 // ================================================
 // HELPER: Reusable Excel Styles for Rekap Reports
 // ================================================
@@ -1807,25 +1831,7 @@ export const exportJadwalMatrix = async (req, res) => {
                 if (daySchedules.length > 0) {
                     maxSlots = Math.max(maxSlots, daySchedules.length);
                     
-                    // Build structured cell content using helper
-                    const buildScheduleContentLines = (schedule, parseGuruList, formatTime) => {
-                        // Use array initialization instead of multiple push calls (S4043)
-                        const lines = [
-                            schedule.nama_guru,
-                            ...(schedule.nama_mapel ? [schedule.nama_mapel] : []),
-                            schedule.kode_ruang || 'Ruang TBD',
-                            `${formatTime(schedule.jam_mulai)} - ${formatTime(schedule.jam_selesai)}`
-                        ];
-                        
-                        if (schedule.is_multi_guru && schedule.guru_list) {
-                            const guruNames = parseGuruList(schedule.guru_list);
-                            if (guruNames.length > 1) {
-                                lines.push('', 'Multi-Guru:', ...guruNames.map(g => `• ${g.name}`));
-                            }
-                        }
-                        return lines.join('\n');
-                    };
-                    
+                    // Use file-level helper function (S2004 - avoid deep nesting)
                     const contentParts = daySchedules.map(s => buildScheduleContentLines(s, parseGuruList, formatTime));
                     
                     cell.value = contentParts.join('\n\n────────────\n\n');
