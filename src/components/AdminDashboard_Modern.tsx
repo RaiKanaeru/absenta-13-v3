@@ -74,11 +74,14 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
   if (guruList?.includes('||')) {
     return (
       <>
-        {guruList.split('||').map((guru, index) => (
-          <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-            {guru.split(':')[1]}
-          </Badge>
-        ))}
+        {guruList.split('||').map((guru) => {
+          const guruId = guru.split(':')[0];
+          return (
+            <Badge key={`guru-${guruId}`} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+              {guru.split(':')[1]}
+            </Badge>
+          );
+        })}
       </>
     );
   }
@@ -86,11 +89,14 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
   if (namaGuru?.includes(',')) {
     return (
       <>
-        {namaGuru.split(',').map((guru, index) => (
-          <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-            {guru.trim()}
-          </Badge>
-        ))}
+        {namaGuru.split(',').map((guru) => {
+          const trimmedName = guru.trim();
+          return (
+            <Badge key={`name-${trimmedName}`} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+              {trimmedName}
+            </Badge>
+          );
+        })}
       </>
     );
   }
