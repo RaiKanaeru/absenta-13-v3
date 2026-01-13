@@ -4,7 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import dotenv from 'dotenv';
 import { getMySQLDateTimeWIB, getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';

@@ -4,7 +4,7 @@
  */
 
 import dotenv from 'dotenv';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getDayNameWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -434,7 +434,7 @@ export const getJadwal = async (req, res) => {
 export const createJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const {
-        kelas_id, mapel_id, guru_id, guru_ids, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+        kelas_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
         jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
     } = req.body;
 
@@ -479,7 +479,7 @@ export const updateJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
     const {
-        kelas_id, mapel_id, guru_id, guru_ids, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+        kelas_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
         jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
     } = req.body;
 

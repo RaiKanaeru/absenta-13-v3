@@ -4,7 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
 
