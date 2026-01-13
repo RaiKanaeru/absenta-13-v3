@@ -19,13 +19,23 @@ const uploadLogo = multer({
             cb(null, 'public/uploads/letterheads');
         },
         filename(req, file, cb) {
-            // Sanitize extension to prevent path traversal (S2083)
+            // Sanitize extension to prevent path traversal
             const rawExt = path.extname(file.originalname);
-            const ext = rawExt.replaceAll(/[^a-zA-Z0-9.]/g, '');
-            // Sanitize logoType to prevent path traversal
-            const rawPrefix = req.body.logoType || 'logo';
-            const prefix = rawPrefix.replaceAll(/[^a-zA-Z0-9_-]/g, '');
-            cb(null, `${prefix}_${Date.now()}${ext}`);
+            // Allow only alphanumeric and dot
+            const ext = rawExt.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase(); 
+            
+            // Sanitize logoType (user input)
+            let prefix = 'logo';
+            if (req.body.logoType) {
+                // Whitelist: only alphanumeric, underscore, hyphen
+                prefix = req.body.logoType.replace(/[^a-zA-Z0-9_-]/g, '');
+            }
+            
+            // Fallback if sanitization results in empty string
+            if (!prefix) prefix = 'logo';
+
+            const fileName = `${prefix}_${Date.now()}${ext}`;
+            cb(null, fileName);
         }
     }),
     limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max

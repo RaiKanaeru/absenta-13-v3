@@ -235,13 +235,13 @@ const JamPelajaranConfig: React.FC = () => {
 
     useEffect(() => {
         fetchKelasList();
-    }, []);
+    }, [fetchKelasList]);
 
     useEffect(() => {
         if (selectedKelasId) {
             fetchJamPelajaran();
         }
-    }, [selectedKelasId]);
+    }, [selectedKelasId, fetchJamPelajaran]);
 
     const selectedKelas = kelasList.find(k => k.id_kelas === selectedKelasId);
 

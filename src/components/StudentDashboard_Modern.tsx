@@ -140,6 +140,7 @@ interface JadwalHariIni {
   is_primary?: boolean; // New field for multi-guru support
   keterangan_guru?: string; // New field for individual guru notes
   id_guru?: number; // New field for guru ID
+  guru_id?: number; // Alias for id_guru (API compatibility)
 }
 
 interface KehadiranData {
