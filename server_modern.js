@@ -7,15 +7,7 @@ console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🌐 API Base URL: ${process.env.API_BASE_URL || 'http://localhost:3001'}`);
 
 import express from 'express';
-import mysql from 'mysql2/promise';
-import cors from 'cors';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import cookieParser from 'cookie-parser';
-import ExcelJS from 'exceljs';
-import multer from 'multer';
-import fs, { mkdir } from 'fs/promises';
-import fsSync from 'fs';
+import { mkdir } from 'fs/promises';
 import path from 'path';
 import DatabaseOptimization from './server/services/system/database-optimization.js';
 import QueryOptimizer from './server/services/system/query-optimizer.js';
@@ -26,11 +18,8 @@ import SystemMonitor from './server/services/system/monitoring-system.js';
 import SecuritySystem from './server/services/system/security-system.js';
 import PerformanceOptimizer from './server/services/system/performance-optimizer.js';
 import DDoSProtection from './server/utils/ddos-protection.js';
-import AdmZip from 'adm-zip';
-import os from 'os';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './server/routes/authRoutes.js';
-import { authenticateToken, requireRole } from './server/middleware/auth.js';
 import adminRoutes from './server/routes/adminRoutes.js';
 import guruRoutes from './server/routes/guruRoutes.js';
 import siswaRoutes from './server/routes/siswaRoutes.js';
@@ -59,9 +48,7 @@ import attendanceSettingsRoutes from './server/routes/attendanceSettingsRoutes.j
 import kalenderAkademikRoutes from './server/routes/kalenderAkademikRoutes.js';
 import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
-    getWIBTime, formatWIBTime, formatWIBDate, formatWIBTimeWithSeconds, 
-    getWIBTimestamp, getMySQLDateWIB, getMySQLDateTimeWIB, 
-    parseDateStringWIB, getDaysDifferenceWIB, getDayNameWIB 
+    formatWIBTime, getWIBTimestamp 
 } from './server/utils/timeUtils.js';
 
 // Configuration from environment variables
@@ -238,8 +225,8 @@ app.use((req, res, next) => {
     res.on('finish', () => {
         const duration = Date.now() - start;
         const success = res.statusCode < 400;
-        if (global.systemMonitor) {
-            global.systemMonitor.recordRequest(duration, success);
+        if (globalThis.systemMonitor) {
+            globalThis.systemMonitor.recordRequest(duration, success);
         }
     });
     next();
@@ -470,9 +457,9 @@ async function initializeDatabase() {
 
 // Security middleware
 app.use((req, res, next) => {
-    if (global.securitySystem) {
+    if (globalThis.securitySystem) {
         // Use the rate limit middleware from SecuritySystem
-        global.securitySystem.rateLimitMiddleware()(req, res, (err) => {
+        globalThis.securitySystem.rateLimitMiddleware()(req, res, (err) => {
             if (err) {
                 return res.status(500).json({ error: 'Security middleware error' });
             }

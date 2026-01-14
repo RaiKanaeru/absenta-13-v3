@@ -284,8 +284,8 @@ class PerformanceOptimizer extends EventEmitter {
      */
     startGarbageCollection() {
         this.gcTimer = setInterval(() => {
-            if (global.gc) {
-                global.gc();
+            if (globalThis.gc) {
+                globalThis.gc();
                 logger.debug('Garbage collection performed');
             }
             

@@ -184,7 +184,7 @@ class SystemMonitor extends EventEmitter {
      */
     async collectDiskMetrics() {
         try {
-            const stats = await fs.stat('.');
+            await fs.stat('.');
             // This is a simplified disk usage calculation
             // In production, you might want to use a library like 'diskusage'
             this.metrics.system.disk.used = 0; // Placeholder

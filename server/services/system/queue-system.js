@@ -736,11 +736,11 @@ class DownloadQueue {
         const baseTime = 30; // 30 seconds base time
         const priorityMultiplier = {
             1: 0.5,  // Admin - 15 seconds
-            2: 1.0,  // Guru - 30 seconds
+            2: 1,  // Guru - 30 seconds
             3: 1.5   // Siswa - 45 seconds
         };
         
-        return Math.round(baseTime * (priorityMultiplier[priority] || 1.0));
+        return Math.round(baseTime * (priorityMultiplier[priority] || 1));
     }
 
     /**

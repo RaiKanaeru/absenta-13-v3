@@ -712,7 +712,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 // ================================================
 
 import { addLetterheadToWorksheet, addReportTitle, addHeaders } from '../utils/excelLetterhead.js';
-import { excelStyles, applyStyle, applyHeaderRow, borders, colors, formatTime, parseGuruList, getStatusStyle, addSummaryRow, applyAlternatingColors } from '../utils/excelStyles.js';
+import { excelStyles, applyStyle, applyHeaderRow, borders, colors, parseGuruList, getStatusStyle, addSummaryRow, applyAlternatingColors } from '../utils/excelStyles.js';
 
 /**
  * Export riwayat banding absen

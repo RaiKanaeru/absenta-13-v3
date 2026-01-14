@@ -4,7 +4,6 @@
  */
 
 import { EventEmitter } from 'node:events';
-import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createLogger } from '../../utils/logger.js';
@@ -703,9 +702,6 @@ class SecuritySystem extends EventEmitter {
      * Clean up blocked IPs (auto-unblock after 1 hour)
      */
     cleanupBlockedIPs() {
-        const now = Date.now();
-        const blockDuration = 60 * 60 * 1000; // 1 hour
-        
         // For now, we'll keep blocked IPs indefinitely for security
         // But we can add time-based unblocking here if needed
         // This is a placeholder for future enhancement

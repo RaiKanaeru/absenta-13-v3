@@ -100,6 +100,59 @@ interface ApiCallOptions extends RequestInit {
 }
 
 // ================================================
+// HELPER FUNCTIONS FOR API CALL
+// ================================================
+
+/**
+ * Parse response based on content type
+ */
+async function parseResponseData(response: Response): Promise<unknown> {
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+        return response.json();
+    }
+    return response.text();
+}
+
+/**
+ * Create ApiError from response data
+ */
+function createApiErrorFromResponse(
+    response: Response, 
+    responseData: unknown
+): ApiError {
+    const errorInfo = typeof responseData === 'object' && responseData !== null 
+        ? responseData as Record<string, unknown>
+        : { error: responseData };
+    
+    const errorObj = errorInfo.error as Record<string, unknown> | undefined;
+    const errorMessage = errorObj?.message as string
+        || errorInfo.message as string
+        || errorInfo.error as string
+        || HTTP_STATUS_MESSAGES[response.status]
+        || `Error: ${response.status}`;
+    
+    return new ApiError(
+        errorMessage,
+        (errorObj?.code as number) || response.status,
+        response.status,
+        (errorObj?.details || errorInfo.details) as string | string[] | undefined,
+        errorInfo.requestId as string | undefined
+    );
+}
+
+/**
+ * Create network error after all retries exhausted
+ */
+function createNetworkError(): ApiError {
+    return new ApiError(
+        'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
+        5001,
+        0
+    );
+}
+
+// ================================================
 // MAIN API CALL FUNCTION
 // ================================================
 
@@ -112,7 +165,7 @@ interface ApiCallOptions extends RequestInit {
  * - Request ID tracking
  * - User-friendly error messages
  */
-export const apiCall = async <T = any>(
+export const apiCall = async <T = unknown>(
     endpoint: string, 
     options: ApiCallOptions = {}
 ): Promise<T> => {
@@ -120,12 +173,9 @@ export const apiCall = async <T = any>(
         onLogout, 
         retries = 2, 
         retryDelay = 1000,
-        showErrorToast = true,
         ...fetchOptions 
     } = options;
 
-    let lastError: Error | null = null;
-    
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
             const response = await fetch(getApiUrl(endpoint), {
@@ -138,47 +188,20 @@ export const apiCall = async <T = any>(
                 ...fetchOptions,
             });
 
-            // Parse response
-            let responseData: any;
-            const contentType = response.headers.get('content-type');
-            
-            if (contentType?.includes('application/json')) {
-                responseData = await response.json();
-            } else {
-                responseData = await response.text();
-            }
+            const responseData = await parseResponseData(response);
 
-            // Handle successful response
             if (response.ok) {
-                return responseData;
+                return responseData as T;
             }
 
-            // Handle error response
-            const errorInfo = typeof responseData === 'object' ? responseData : { error: responseData };
-            const errorMessage = errorInfo.error?.message 
-                || errorInfo.message 
-                || errorInfo.error 
-                || HTTP_STATUS_MESSAGES[response.status] 
-                || `Error: ${response.status}`;
-            
-            const apiError = new ApiError(
-                errorMessage,
-                errorInfo.error?.code || response.status,
-                response.status,
-                errorInfo.error?.details || errorInfo.details,
-                errorInfo.requestId
-            );
+            const apiError = createApiErrorFromResponse(response, responseData);
 
             // Handle 401 - Unauthorized
-            if (response.status === 401) {
+            if (response.status === 401 && onLogout) {
                 console.warn('🔐 Session expired, triggering logout...');
-                if (onLogout) {
-                    setTimeout(() => onLogout(), 1500);
-                }
-                throw apiError;
+                setTimeout(() => onLogout(), 1500);
             }
 
-            // Log error for debugging
             console.error('❌ API Error:', {
                 endpoint,
                 status: response.status,
@@ -190,9 +213,7 @@ export const apiCall = async <T = any>(
             throw apiError;
 
         } catch (error) {
-            lastError = error as Error;
-            
-            // Don't retry for API errors (only retry network errors)
+            // Don't retry for API errors
             if (error instanceof ApiError) {
                 throw error;
             }
@@ -204,18 +225,11 @@ export const apiCall = async <T = any>(
                 continue;
             }
 
-            // All retries exhausted - throw network error
-            const networkError = new ApiError(
-                'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
-                5001,
-                0
-            );
-            throw networkError;
+            throw createNetworkError();
         }
     }
 
-    // This shouldn't happen, but just in case
-    throw lastError || new Error('Unknown error occurred');
+    throw createNetworkError();
 };
 
 // ================================================

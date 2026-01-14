@@ -58,7 +58,7 @@ interface EditProfileProps {
 
 const PHONE_REGEX = /^[0-9+\-\s()]+$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
+const USERNAME_REGEX = /^\w+$/;
 
 function validateBasicFields(formData: { nama: string; username: string; email: string }) {
   const errors: Record<string, string> = {};
@@ -97,6 +97,62 @@ function validateGenderField(jenis_kelamin: string) {
   }
   return {};
 }
+
+// =============================================================================
+// REQUEST BODY BUILDERS (extracted to reduce cognitive complexity)
+// =============================================================================
+
+interface FormDataType {
+  nama: string;
+  username: string;
+  email: string;
+  alamat: string;
+  telepon_orangtua: string;
+  nomor_telepon_siswa: string;
+  jenis_kelamin: string;
+  no_telepon: string;
+  mata_pelajaran: string;
+  jabatan: string;
+}
+
+function buildAdminRequestBody(formData: FormDataType) {
+  return {
+    nama: formData.nama.trim(),
+    username: formData.username.trim(),
+    email: formData.email?.trim() || null
+  };
+}
+
+function buildGuruRequestBody(formData: FormDataType) {
+  return {
+    nama: formData.nama.trim(),
+    username: formData.username.trim(),
+    email: formData.email?.trim() || null,
+    alamat: formData.alamat?.trim() || null,
+    no_telepon: formData.no_telepon?.trim() || null,
+    jenis_kelamin: formData.jenis_kelamin || null,
+    mata_pelajaran: formData.mata_pelajaran?.trim() || null,
+    jabatan: formData.jabatan?.trim() || null
+  };
+}
+
+function buildSiswaRequestBody(formData: FormDataType) {
+  return {
+    nama: formData.nama.trim(),
+    username: formData.username.trim(),
+    email: formData.email?.trim() || null,
+    alamat: formData.alamat?.trim() || null,
+    telepon_orangtua: formData.telepon_orangtua?.trim() || null,
+    nomor_telepon_siswa: formData.nomor_telepon_siswa?.trim() || null,
+    jenis_kelamin: formData.jenis_kelamin || null
+  };
+}
+
+const REQUEST_BODY_BUILDERS: Record<string, (formData: FormDataType) => object> = {
+  admin: buildAdminRequestBody,
+  guru: buildGuruRequestBody,
+  siswa: buildSiswaRequestBody
+};
 
 export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfileProps) => {
   const [loading, setLoading] = useState(false);
@@ -199,41 +255,9 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
         throw new Error('Token tidak ditemukan');
       }
 
-      // Siapkan data berdasarkan role
-      let requestBody;
-      if (role === 'admin') {
-        // Admin hanya mengirim data yang ada di tabel users
-        requestBody = {
-          nama: formData.nama.trim(),
-          username: formData.username.trim(),
-          email: formData.email?.trim() || null
-        };
-      } else if (role === 'guru') {
-        // Guru mengirim data lengkap
-        requestBody = {
-          nama: formData.nama.trim(),
-          username: formData.username.trim(),
-          email: formData.email?.trim() || null,
-          alamat: formData.alamat?.trim() || null,
-          no_telepon: formData.no_telepon?.trim() || null,
-          jenis_kelamin: formData.jenis_kelamin || null,
-          mata_pelajaran: formData.mata_pelajaran?.trim() || null,
-          jabatan: formData.jabatan?.trim() || null
-        };
-      } else if (role === 'siswa') {
-        // Siswa mengirim data yang sesuai dengan database
-        requestBody = {
-          nama: formData.nama.trim(),
-          username: formData.username.trim(),
-          email: formData.email?.trim() || null,
-          alamat: formData.alamat?.trim() || null,
-          telepon_orangtua: formData.telepon_orangtua?.trim() || null,
-          nomor_telepon_siswa: formData.nomor_telepon_siswa?.trim() || null,
-          jenis_kelamin: formData.jenis_kelamin || null
-        };
-      }
-
-
+      // Build request body using lookup pattern (reduces cognitive complexity)
+      const buildRequestBody = REQUEST_BODY_BUILDERS[role];
+      const requestBody = buildRequestBody ? buildRequestBody(formData) : {};
 
       const response = await fetch(getApiUrl(`/api/${role}/update-profile`), {
         method: 'PUT',
@@ -245,40 +269,36 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
         body: JSON.stringify(requestBody)
       });
 
-      if (response.ok) {
-        const result = await response.json();
-
-        
-        toast({
-          title: "Berhasil!",
-          description: "Profil berhasil diperbarui"
-        });
-        
-        // Update parent component dengan data yang benar
-        onUpdate({
-          ...userData,
-          ...result.data,
-          // Pastikan field penting ter-update
-          nama: result.data.nama,
-          username: result.data.username,
-          email: result.data.email,
-          alamat: result.data.alamat,
-          telepon_orangtua: result.data.telepon_orangtua,
-          nomor_telepon_siswa: result.data.nomor_telepon_siswa,
-          jenis_kelamin: result.data.jenis_kelamin,
-          // Untuk guru, tetap include field yang relevan
-          ...(role === 'guru' && {
-            no_telepon: result.data.no_telepon,
-            mata_pelajaran: result.data.mata_pelajaran
-          })
-        });
-        
-        onClose();
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
         console.error('❌ Profile update error:', errorData);
         throw new Error(errorData.error || 'Gagal memperbarui profil');
       }
+
+      const result = await response.json();
+      toast({
+        title: "Berhasil!",
+        description: "Profil berhasil diperbarui"
+      });
+      
+      // Update parent component dengan data yang benar
+      onUpdate({
+        ...userData,
+        ...result.data,
+        nama: result.data.nama,
+        username: result.data.username,
+        email: result.data.email,
+        alamat: result.data.alamat,
+        telepon_orangtua: result.data.telepon_orangtua,
+        nomor_telepon_siswa: result.data.nomor_telepon_siswa,
+        jenis_kelamin: result.data.jenis_kelamin,
+        ...(role === 'guru' && {
+          no_telepon: result.data.no_telepon,
+          mata_pelajaran: result.data.mata_pelajaran
+        })
+      });
+      
+      onClose();
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
