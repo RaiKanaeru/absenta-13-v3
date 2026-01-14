@@ -965,6 +965,7 @@ const getArchiveStats = async (req, res) => {
             const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
             lastArchive = lastArchiveResult[0]?.last_archive || null;
         } catch (error) {
+            logger.debug('Primary archive check failed, trying fallback', { error: error.message });
             try {
                 const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
                 lastArchive = lastArchiveResult[0]?.last_archive || null;
