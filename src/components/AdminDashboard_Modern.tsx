@@ -5028,15 +5028,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                         <TableCell>{student.nis}</TableCell>
                         <TableCell>{student.nama_kelas}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            student.status === 'Hadir'
-                              ? 'bg-green-100 text-green-800'
-                              : student.status === 'Sakit' || student.status === 'Izin'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : student.status === 'Dispen'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAttendanceStatusColor(student.status)}`}>
                             {student.status}
                           </span>
                         </TableCell>
@@ -5050,26 +5042,16 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                           )}
                         </TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            student.keterangan_waktu === 'Tepat Waktu' ? 'bg-green-100 text-green-800' :
-                            student.keterangan_waktu === 'Terlambat Ringan' ? 'bg-yellow-100 text-yellow-800' :
-                            student.keterangan_waktu === 'Terlambat' ? 'bg-orange-100 text-orange-800' :
-                            student.keterangan_waktu === 'Terlambat Berat' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTimeStatusColor(student.keterangan_waktu)}`}>
                             {student.keterangan_waktu || '-'}
                           </span>
                         </TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            student.periode_absen === 'Pagi' ? 'bg-blue-100 text-blue-800' :
-                            student.periode_absen === 'Siang' ? 'bg-yellow-100 text-yellow-800' :
-                            student.periode_absen === 'Sore' ? 'bg-orange-100 text-orange-800' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPeriodColor(student.periode_absen)}`}>
                             {student.periode_absen || '-'}
                           </span>
                         </TableCell>
+
                         <TableCell>{student.keterangan || '-'}</TableCell>
                       </TableRow>
                     ))}
@@ -6037,17 +6019,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                           <TableCell>{teacher.nama_kelas}</TableCell>
                           <TableCell>{teacher.jam_mulai} - {teacher.jam_selesai}</TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              teacher.status === 'Hadir' 
-                                ? 'bg-green-100 text-green-800' 
-                                : teacher.status === 'Sakit' || teacher.status === 'Izin'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : teacher.status === 'Dispen'
-                                ? 'bg-purple-100 text-purple-800'
-                                : teacher.status === 'Belum Absen'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAttendanceStatusColor(teacher.status)}`}>
                               {teacher.status}
                             </span>
                           </TableCell>
@@ -6061,26 +6033,16 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                             )}
                           </TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              teacher.keterangan_waktu === 'Tepat Waktu' ? 'bg-green-100 text-green-800' :
-                              teacher.keterangan_waktu === 'Terlambat Ringan' ? 'bg-yellow-100 text-yellow-800' :
-                              teacher.keterangan_waktu === 'Terlambat' ? 'bg-orange-100 text-orange-800' :
-                              teacher.keterangan_waktu === 'Terlambat Berat' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTimeStatusColor(teacher.keterangan_waktu)}`}>
                               {teacher.keterangan_waktu || '-'}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              teacher.periode_absen === 'Pagi' ? 'bg-blue-100 text-blue-800' :
-                              teacher.periode_absen === 'Siang' ? 'bg-yellow-100 text-yellow-800' :
-                              teacher.periode_absen === 'Sore' ? 'bg-orange-100 text-orange-800' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPeriodColor(teacher.periode_absen)}`}>
                               {teacher.periode_absen || '-'}
                             </span>
                           </TableCell>
+
                           <TableCell>{teacher.keterangan || '-'}</TableCell>
                         </TableRow>
                       ))}
