@@ -1539,7 +1539,7 @@ class BackupSystem {
      * Calculate file checksums
      */
     async calculateChecksums(backupPath, backupId) {
-        const crypto = await import('crypto');
+        const crypto = await import('node:crypto');
         const checksums = {};
         
         const files = [

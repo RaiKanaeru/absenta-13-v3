@@ -811,8 +811,11 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
             worksheet.getCell(row, 6).value = item.tanggal_absen;
             worksheet.getCell(row, 7).value = item.status_absen;
             worksheet.getCell(row, 8).value = item.alasan_banding;
-            worksheet.getCell(row, 9).value = item.status === 'approved' ? 'Disetujui' :
-                item.status === 'rejected' ? 'Ditolak' : 'Pending';
+            let statusText = 'Pending';
+            if (item.status === 'approved') statusText = 'Disetujui';
+            else if (item.status === 'rejected') statusText = 'Ditolak';
+            
+            worksheet.getCell(row, 9).value = statusText;
             worksheet.getCell(row, 10).value = item.tanggal_disetujui || '-';
             worksheet.getCell(row, 11).value = item.catatan || '-';
         });

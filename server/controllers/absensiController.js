@@ -35,7 +35,8 @@ const logger = createLogger('Absensi');
 const VALID_STUDENT_STATUSES = ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'];
 
 /** Valid status values for teacher attendance */
-const VALID_TEACHER_STATUSES = ['Hadir', 'Tidak Hadir', 'Izin', 'Sakit'];
+/** Valid status values for teacher attendance */
+const VALID_TEACHER_STATUSES = new Set(['Hadir', 'Tidak Hadir', 'Izin', 'Sakit']);
 
 /** Maximum days allowed for teacher to edit past attendance */
 const TEACHER_EDIT_DAYS_LIMIT = 30;
@@ -737,7 +738,7 @@ export async function updateTeacherStatus(req, res) {
             return sendValidationError(res, 'Jadwal ID, guru ID, status, dan tanggal absen wajib diisi');
         }
 
-        if (!VALID_TEACHER_STATUSES.includes(status)) {
+        if (!VALID_TEACHER_STATUSES.has(status)) {
             log.validationFail('status', status, 'Invalid teacher status');
             return sendValidationError(res, 'Status tidak valid');
         }

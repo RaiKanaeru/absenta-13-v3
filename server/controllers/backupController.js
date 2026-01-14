@@ -38,25 +38,28 @@ function calculateNextBackupDate(schedule) {
     const now = new Date();
 
     switch (schedule) {
-        case 'daily':
+        case 'daily': {
             const tomorrow = new Date(now);
             tomorrow.setDate(tomorrow.getDate() + 1);
             tomorrow.setHours(2, 0, 0, 0); // 2 AM
             return tomorrow.toISOString();
+        }
 
-        case 'weekly':
+        case 'weekly': {
             const nextWeek = new Date(now);
             const daysUntilSunday = (7 - now.getDay()) % 7;
             nextWeek.setDate(nextWeek.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
             nextWeek.setHours(2, 0, 0, 0); // 2 AM
             return nextWeek.toISOString();
+        }
 
-        case 'monthly':
+        case 'monthly': {
             const nextMonth = new Date(now);
             nextMonth.setMonth(nextMonth.getMonth() + 1);
             nextMonth.setDate(1);
             nextMonth.setHours(2, 0, 0, 0); // 2 AM
             return nextMonth.toISOString();
+        }
 
         default:
             return null; // Disabled
@@ -430,9 +433,11 @@ const createDateBackup = async (req, res) => {
         // Update backup settings
         await updateBackupSettings();
 
+        const dateRangeStr = actualEndDate === startDate ? '' : ` to ${actualEndDate}`;
+        
         res.json({
             success: true,
-            message: `Date-based backup created successfully for ${startDate}${actualEndDate === startDate ? '' : ` to ${actualEndDate}`}`,
+            message: `Date-based backup created successfully for ${startDate}${dateRangeStr}`,
             data: {
                 ...backupResult,
                 dateRange: {

@@ -13,7 +13,7 @@ import * as letterheadController from '../controllers/letterheadController.js';
 const router = Router();
 
 // Allowed image extensions whitelist
-const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 
 // Allowed logo type prefixes (strict whitelist - no user input in filename)
 const ALLOWED_LOGO_PREFIXES = {

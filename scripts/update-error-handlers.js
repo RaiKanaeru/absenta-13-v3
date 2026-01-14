@@ -23,7 +23,7 @@ const patterns = [
     },
     {
         // Specific error messages
-        find: /console\.error\([^)]+\);?\s+res\.status\(500\)\.json\(\{\s*error:\s*(['"][^'"]+['"]),?\s*details:[^\}]*\}\);?/g,
+        find: /console\.error\([^)]+\);?\s+res\.status\(500\)\.json\(\{\s*error:\s*(['"][^'"]+['"]),?\s*details:[^}]*\}\);?/g,
         replace: "return sendDatabaseError(res, error, $1);"
     }
 ];

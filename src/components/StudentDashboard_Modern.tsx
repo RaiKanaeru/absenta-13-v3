@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
 import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
+import { GuruAttendanceCard } from './student';
 
 import { getApiUrl } from '@/config/api';
 import { getCleanToken } from '@/utils/authUtils';
@@ -1914,101 +1915,19 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                         <Label className="text-sm font-medium text-gray-700 mb-3 block">
                           Status Kehadiran Guru (Multi-Guru):
                         </Label>
-                        {jadwal.guru_list.map((guru, guruIdx) => {
+                        {jadwal.guru_list.map((guru) => {
                           const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
-                          const currentStatus = kehadiranData[guruKey]?.status || guru.status_kehadiran || 'belum_diambil';
-                          
-                          // Fix: isSubmitted should mainly rely on server data, NOT client form state (which defaults to 'Hadir')
-                          const isSubmitted = guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil';
-                          
                           return (
-                            <div key={guruKey} className={`border rounded-lg p-3 sm:p-4 ${isSubmitted ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 sm:mb-3">
-                                <div className="flex items-center gap-2">
-                                  <h5 className="font-medium text-gray-800 text-sm sm:text-base">{guru.nama_guru}</h5>
-                                  {isSubmitted ? (
-                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <AlertCircle className="w-4 h-4 text-yellow-600" />
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                  {guru.is_primary && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      Guru Utama
-                                    </Badge>
-                                  )}
-                                  <Badge variant={isSubmitted ? "default" : "outline"} className="text-xs">
-                                    {isSubmitted ? 'Sudah Diabsen' : 'Belum Diabsen'}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <p className="text-xs sm:text-sm text-gray-600 mb-2">NIP: {guru.nip}</p>
-                              {guru.waktu_absen && (
-                                <p className="text-xs text-gray-500 mb-2 sm:mb-3">
-                                  Waktu absen: {formatDateTime24(guru.waktu_absen, true)}
-                                </p>
-                              )}
-                              <RadioGroup 
-                                value={kehadiranData[guruKey]?.status || guru.status_kehadiran || ''} 
-                                onValueChange={(value) => updateKehadiranStatus(guruKey, value)}
-                                disabled={!guru.id_guru || guru.id_guru === 0 || isUpdatingStatus === guruKey}
-                              >
-                                {isUpdatingStatus === guruKey && (
-                                  <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
-                                    <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                                    Menyimpan...
-                                  </div>
-                                )}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="Hadir" id={`hadir-${guruKey}`} />
-                                    <Label htmlFor={`hadir-${guruKey}`} className="flex items-center gap-2 text-sm">
-                                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                      Hadir
-                                    </Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${guruKey}`} />
-                                    <Label htmlFor={`tidak_hadir-${guruKey}`} className="flex items-center gap-2 text-sm">
-                                      <XCircle className="w-4 h-4 text-red-600" />
-                                      Tidak Hadir
-                                    </Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="Izin" id={`izin-${guruKey}`} />
-                                    <Label htmlFor={`izin-${guruKey}`} className="flex items-center gap-2 text-sm">
-                                      <User className="w-4 h-4 text-yellow-600" />
-                                      Izin
-                                    </Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="Sakit" id={`sakit-${guruKey}`} />
-                                    <Label htmlFor={`sakit-${guruKey}`} className="flex items-center gap-2 text-sm">
-                                      <BookOpen className="w-4 h-4 text-blue-600" />
-                                      Sakit
-                                    </Label>
-                                  </div>
-                                </div>
-                              </RadioGroup>
-                              
-                              {/* Keterangan untuk guru ini */}
-                              {kehadiranData[guruKey]?.status && kehadiranData[guruKey]?.status !== 'Hadir' && (
-                                <div className="mt-2 sm:mt-3">
-                                  <Label htmlFor={`keterangan-${guruKey}`} className="text-xs sm:text-sm font-medium text-gray-700">
-                                    Keterangan untuk {guru.nama_guru}:
-                                  </Label>
-                                  <Textarea
-                                    id={`keterangan-${guruKey}`}
-                                    placeholder="Masukkan keterangan jika diperlukan..."
-                                    value={kehadiranData[guruKey]?.keterangan || guru.keterangan_guru || ''}
-                                    onChange={(e) => updateKehadiranKeterangan(guruKey, e.target.value)}
-                                    className="mt-1 text-sm"
-                                    rows={2}
-                                  />
-                                </div>
-                              )}
-                            </div>
+                            <GuruAttendanceCard
+                              key={guruKey}
+                              guru={guru}
+                              jadwalId={jadwal.id_jadwal}
+                              kehadiranStatus={kehadiranData[guruKey]?.status || ''}
+                              kehadiranKeterangan={kehadiranData[guruKey]?.keterangan || ''}
+                              isUpdating={isUpdatingStatus === guruKey}
+                              onStatusChange={updateKehadiranStatus}
+                              onKeteranganChange={updateKehadiranKeterangan}
+                            />
                           );
                         })}
                       </div>

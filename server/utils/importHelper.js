@@ -26,9 +26,15 @@ function sheetToJsonByHeader(worksheet) {
         header.forEach((key, col) => {
             if (!key) return;
             const cell = row.getCell(col);
-            obj[key] = cell && cell.value != null 
-                ? (typeof cell.value === 'object' && cell.value.text ? cell.value.text : cell.value) 
-                : '';
+            let cellValue = '';
+            
+            if (cell && cell.value != null) {
+                cellValue = (typeof cell.value === 'object' && cell.value.text) 
+                    ? cell.value.text 
+                    : cell.value;
+            }
+            
+            obj[key] = cellValue;
         });
         
         // Skip completely empty rows

@@ -48,9 +48,12 @@ console.log('\n📋 Optional Environment Variables:\n');
 
 optional.forEach(key => {
     const value = process.env[key];
-    const displayValue = key.includes('PASSWORD') || key.includes('SECRET') 
-        ? (value ? '***' : 'not set') 
-        : (value || 'not set');
+    let displayValue = value || 'not set';
+    
+    if (key.includes('PASSWORD') || key.includes('SECRET')) {
+        displayValue = value ? '***' : 'not set';
+    }
+    
     console.log(`   ℹ️  ${key}: ${displayValue}`);
 });
 

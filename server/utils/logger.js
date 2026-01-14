@@ -32,9 +32,15 @@ const LOG_LEVELS = {
 const RESET_COLOR = '\x1b[0m';
 
 // Get minimum log level from environment
-const MIN_LOG_LEVEL = process.env.LOG_LEVEL 
-    ? (LOG_LEVELS[process.env.LOG_LEVEL.toUpperCase()]?.value ?? 1)
-    : (process.env.NODE_ENV === 'production' ? 1 : 0);
+// Get minimum log level from environment
+let minLevel = 1; // Default to INFO (production)
+if (process.env.LOG_LEVEL) {
+    minLevel = LOG_LEVELS[process.env.LOG_LEVEL.toUpperCase()]?.value ?? 1;
+} else if (process.env.NODE_ENV !== 'production') {
+    minLevel = 0; // DEBUG for non-production
+}
+
+const MIN_LOG_LEVEL = minLevel;
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
