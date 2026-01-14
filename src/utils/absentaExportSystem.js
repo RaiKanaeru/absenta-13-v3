@@ -890,7 +890,7 @@ NIP. 196602281997022002`;
     });
 
     // Generate days in month
-    const daysInMonth = new Date(parseInt(options.tahun), parseInt(options.bulan), 0).getDate();
+    const daysInMonth = new Date(Number.parseInt(options.tahun), Number.parseInt(options.bulan), 0).getDate();
     
     // Header tabel
     const headerRow = 15;

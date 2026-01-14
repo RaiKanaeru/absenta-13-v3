@@ -248,11 +248,11 @@ const BackupManagementView: React.FC = () => {
         try {
             setLoadingStates(prev => ({ ...prev, backups: true }));
             const token = localStorage.getItem('token');
-            const data = await apiCall('/api/admin/backups', {
+            const data = await apiCall<{ backups: BackupInfo[] }>('/api/admin/backups', {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            }) as { backups: BackupInfo[] };
+            });
             
             setBackups(data.backups || []);
             toast({
@@ -275,11 +275,11 @@ const BackupManagementView: React.FC = () => {
         try {
             setLoadingStates(prev => ({ ...prev, archive: true }));
             const token = localStorage.getItem('token');
-            const data = await apiCall('/api/admin/archive-stats', {
+            const data = await apiCall<{ stats: ArchiveStats }>('/api/admin/archive-stats', {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            }) as { stats: ArchiveStats };
+            });
             
             setArchiveStats(data.stats || {
                 studentRecords: 0,
@@ -303,11 +303,11 @@ const BackupManagementView: React.FC = () => {
         try {
             setLoadingStates(prev => ({ ...prev, settings: true }));
             const token = localStorage.getItem('token');
-            const data = await apiCall('/api/admin/backup-settings', {
+            const data = await apiCall<{ settings: BackupSettings }>('/api/admin/backup-settings', {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            }) as { settings: BackupSettings };
+            });
             
             setBackupSettings(data.settings || backupSettings);
         } catch (error) {
@@ -326,11 +326,11 @@ const BackupManagementView: React.FC = () => {
         try {
             setLoadingStates(prev => ({ ...prev, schedules: true }));
             const token = localStorage.getItem('token');
-            const data = await apiCall('/api/admin/custom-schedules', {
+            const data = await apiCall<{ schedules: CustomSchedule[] }>('/api/admin/custom-schedules', {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            }) as { schedules: CustomSchedule[] };
+            });
             
             setCustomSchedules(data.schedules || []);
         } catch (error) {
@@ -509,6 +509,7 @@ const BackupManagementView: React.FC = () => {
             }, 10000);
 
         } catch (error) {
+            console.error('Error creating backup:', error);
             setBackupProgress(DEFAULT_BACKUP_PROGRESS);
             toast({ title: "Error", description: "Gagal membuat backup", variant: "destructive" });
         }
@@ -558,9 +559,9 @@ const BackupManagementView: React.FC = () => {
         try {
 
             
-            const data = await apiCall(`/api/admin/delete-backup/${backupId}`, {
+            const data = await apiCall<{ message: string }>(`/api/admin/delete-backup/${backupId}`, {
                 method: 'DELETE'
-            }) as { message: string };
+            });
             
 
             
@@ -639,13 +640,13 @@ const BackupManagementView: React.FC = () => {
         try {
             setArchiveLoading(true);
             const token = localStorage.getItem('token');
-            const data = await apiCall('/api/admin/create-test-archive-data', {
+            const data = await apiCall<{ data: { studentRecordsCreated: number, teacherRecordsCreated: number } }>('/api/admin/create-test-archive-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            }) as { data: { studentRecordsCreated: number, teacherRecordsCreated: number } };
+            });
 
             loadArchiveStats();
             toast({
@@ -1564,7 +1565,7 @@ const BackupManagementView: React.FC = () => {
                             )}
 
                             {/* Jadwal yang Sudah Dijalankan */}
-                            {customSchedules.filter(s => s.lastRun).length > 0 && (
+                            {customSchedules.some(s => s.lastRun) && (
                                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                         <CheckCircle className="w-4 h-4" />
@@ -1572,7 +1573,7 @@ const BackupManagementView: React.FC = () => {
                                     </h4>
                                     <div className="space-y-2">
                                         {customSchedules
-                                            .filter(s => s.lastRun)
+                                            .filter(s => !!s.lastRun)
                                             .sort((a, b) => new Date(b.lastRun).getTime() - new Date(a.lastRun).getTime())
                                             .slice(0, 3)
                                             .map((schedule) => (

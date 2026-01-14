@@ -78,6 +78,24 @@ const parseJadwalKey = (key: string | number): { jadwalId: number | null; guruId
 };
 
 /**
+ * HTTP error message lookup to reduce cognitive complexity
+ */
+const HTTP_ERROR_MESSAGES: Record<number, string> = {
+  401: 'Sesi login Anda telah berakhir. Silakan login kembali.',
+  403: 'Akses ditolak. Anda tidak memiliki izin untuk mengakses halaman ini.',
+  404: 'Data siswa perwakilan tidak ditemukan. Silakan hubungi administrator.'
+};
+
+/**
+ * Get appropriate error message based on HTTP status code
+ */
+const getHttpErrorMessage = (status: number, defaultMessage: string): string => {
+  if (status >= 500) return 'Server sedang mengalami gangguan. Silakan coba lagi nanti.';
+  return HTTP_ERROR_MESSAGES[status] || defaultMessage;
+};
+
+/**
+
  * Get guru_id from jadwal object, trying multiple field names
  */
 const getGuruIdFromJadwal = (
@@ -94,8 +112,8 @@ interface BandingAbsen {
   siswa_id: number;
   jadwal_id: number;
   tanggal_absen: string;
-  status_asli: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
-  status_diajukan: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+  status_asli: BandingStatusAsli;
+  status_diajukan: BandingStatusDiajukan;
   alasan_banding: string;
   status_banding: 'pending' | 'disetujui' | 'ditolak';
   catatan_guru?: string;
@@ -534,27 +552,21 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
           } catch (parseError) {
-            // Ignore JSON parse errors for error responses
             console.debug('Error parsing error response:', parseError);
           }
           
+          // Use helper for status-specific messages
+          errorMessage = getHttpErrorMessage(response.status, errorMessage);
+          
+          // Handle 401 redirect separately
           if (response.status === 401) {
-            errorMessage = 'Sesi login Anda telah berakhir. Silakan login kembali.';
-            // Redirect to login after showing error
-            setTimeout(() => {
-              onLogout();
-            }, 2000);
-          } else if (response.status === 403) {
-            errorMessage = 'Akses ditolak. Anda tidak memiliki izin untuk mengakses halaman ini.';
-          } else if (response.status === 404) {
-            errorMessage = 'Data siswa perwakilan tidak ditemukan. Silakan hubungi administrator.';
-          } else if (response.status >= 500) {
-            errorMessage = 'Server sedang mengalami gangguan. Silakan coba lagi nanti.';
+            setTimeout(() => onLogout(), 2000);
           }
           
           setError(errorMessage);
           console.error('StudentDashboard: API error:', response.status, errorMessage);
         }
+
       } catch (error) {
         console.error('StudentDashboard: Network error getting siswa info:', error);
         
@@ -1421,13 +1433,13 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   // Toggle edit mode
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
-    if (!isEditMode) {
+    if (isEditMode) {
+      // Switching back to normal mode, load today's schedule
+      loadJadwalHariIni();
+    } else {
       // Switching to edit mode, load today's schedule
       const today = getCurrentDateWIB();
       setSelectedDate(today);
-    } else {
-      // Switching back to normal mode, load today's schedule
-      loadJadwalHariIni();
     }
   };
 

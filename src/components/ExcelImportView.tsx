@@ -34,6 +34,7 @@ interface ImportResult {
   valid: number;
   invalid: number;
   errors: ValidationError[];
+  previewData?: Record<string, string | number | boolean>[];
 }
 
 const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityName, onBack }) => {
@@ -142,13 +143,13 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const result = await apiCall(`/api/admin/import/${entityType}?dryRun=true`, {
+      const result = await apiCall<ImportResult>(`/api/admin/import/${entityType}?dryRun=true`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
         body: formData
-      }) as ImportResult;
+      });
       
       setValidationResult(result);
       setShowPreview(true);
@@ -182,13 +183,13 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const result = await apiCall(`/api/admin/import/${entityType}`, {
+      const result = await apiCall<ImportResult & { processed?: number, inserted_or_updated?: number, inserted?: number }>(`/api/admin/import/${entityType}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
         body: formData
-      }) as unknown as ImportResult & { processed?: number, inserted_or_updated?: number, inserted?: number };
+      });
 
       setImportResult(result);
       toast({
