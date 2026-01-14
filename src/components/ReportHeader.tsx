@@ -4,11 +4,7 @@ import { Card, CardContent } from './ui/card';
 interface ReportHeaderProps {
   title: string;
   subtitle?: string;
-  schoolName?: string;
-  schoolAddress?: string;
   reportPeriod?: string;
-  teacherName?: string;
-  subjectName?: string;
   className?: string;
 }
 

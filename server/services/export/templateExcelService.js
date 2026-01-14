@@ -638,6 +638,7 @@ function buildJamKeHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     sheet.getCell(2, 2).value = 'JAM KE';
     Object.assign(sheet.getCell(2, 2), headerStyle);
     
+    let colOffset = startDataCol;
     HARI_LIST.forEach(() => {
         for (let j = 0; j < totalJamPerHari; j++) {
             const cell = sheet.getCell(2, colOffset + j);
@@ -648,6 +649,7 @@ function buildJamKeHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     });
     sheet.getRow(2).height = 15;
 }
+
 
 function buildWaktuHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     sheet.getCell(3, 2).value = 'WAKTU';

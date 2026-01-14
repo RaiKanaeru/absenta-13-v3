@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS presensi (
   };
 
   const restoreFromBackup = async (backupId: string) => {
-    const confirmed = window.confirm(
+    const confirmed = globalThis.confirm(
       'Apakah Anda yakin ingin memulihkan backup ini? ' +
       'Semua data yang ada akan diganti dengan data dari backup. ' +
       'Proses ini tidak dapat dibatalkan.'

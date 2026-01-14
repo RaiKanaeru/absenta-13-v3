@@ -15,6 +15,14 @@ const router = Router();
 // Allowed image extensions whitelist
 const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
+// Allowed logo type prefixes (strict whitelist - no user input in filename)
+const ALLOWED_LOGO_PREFIXES = {
+    'logo_left': 'logo_left',
+    'logo_right': 'logo_right', 
+    'logo_center': 'logo_center',
+    'logo': 'logo'
+};
+
 // Multer configuration for logo upload
 const uploadLogo = multer({
     storage: multer.diskStorage({
@@ -22,22 +30,16 @@ const uploadLogo = multer({
             cb(null, 'public/uploads/letterheads');
         },
         filename(req, file, cb) {
-            // Use path.basename to strip any directory components from originalname
+            // Get extension from original filename (use basename to strip path)
             const safeName = path.basename(file.originalname);
-            
-            // Get extension and validate against whitelist
             const rawExt = path.extname(safeName).toLowerCase();
             const ext = ALLOWED_IMAGE_EXTENSIONS.includes(rawExt) ? rawExt : '.png';
             
-            // Sanitize logoType (user input) with strict whitelist
-            let prefix = 'logo';
-            if (req.body.logoType && typeof req.body.logoType === 'string') {
-                // Whitelist: only alphanumeric, underscore, hyphen, max 30 chars
-                const sanitized = req.body.logoType.replaceAll(/[^a-zA-Z0-9_-]/g, '').slice(0, 30);
-                if (sanitized) prefix = sanitized;
-            }
+            // Use strict whitelist lookup - no user input reaches the filename
+            const logoType = String(req.body.logoType || '').toLowerCase();
+            const prefix = ALLOWED_LOGO_PREFIXES[logoType] || 'logo';
 
-            // Generate safe filename with timestamp
+            // Generate filename using only safe pre-defined values
             const fileName = `${prefix}_${Date.now()}${ext}`;
             cb(null, fileName);
         }

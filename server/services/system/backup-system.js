@@ -1848,6 +1848,7 @@ class BackupSystem {
                     logger.debug('Successfully extracted SQL file from zip');
                     
                 } catch (zipError) {
+                    logger.error('Failed to access backup files', { error: zipError.message });
                     throw new Error(`Backup file not found: ${backupId}. Neither folder nor zip file exists.`);
                 }
             }

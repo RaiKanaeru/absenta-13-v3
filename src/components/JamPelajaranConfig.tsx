@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
+
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -19,8 +19,7 @@ import {
     RotateCcw,
     Copy,
     Plus,
-    Trash2,
-    AlertTriangle
+    Trash2
 } from 'lucide-react';
 
 interface JamPelajaran {

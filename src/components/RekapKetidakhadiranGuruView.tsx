@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { ArrowLeft, Download, Search, Users, Calendar, BarChart3 } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
-import SimpleLetterheadInit from './SimpleLetterheadInit';
+
 import { ReportLetterhead } from './ui/report-letterhead';
 import { ReportSummary } from './ui/report-summary';
 import { getCurrentYearWIB, formatDateOnly } from '../lib/time-utils';
@@ -122,13 +122,13 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
       if (response.ok) {
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        const url = globalThis.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `Rekap_Ketidakhadiran_Guru_${selectedTahun}.xlsx`;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
+        globalThis.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
         toast({
@@ -159,13 +159,13 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
       if (response.ok) {
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        const url = globalThis.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `REKAP_KETIDAKHADIRAN_GURU_SMKN13_${selectedTahun}.xlsx`;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
+        globalThis.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
         toast({
@@ -477,10 +477,10 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                           {guru.total_ketidakhadiran || 0}
                         </td>
                         <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
-                          {parseFloat(String(guru.persentase_ketidakhadiran || '0')).toFixed(2)}
+                          {Number.parseFloat(String(guru.persentase_ketidakhadiran || '0')).toFixed(2)}
                         </td>
                         <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
-                          {parseFloat(String(guru.persentase_kehadiran || '100')).toFixed(2)}
+                          {Number.parseFloat(String(guru.persentase_kehadiran || '100')).toFixed(2)}
                         </td>
                       </tr>
                     ))}

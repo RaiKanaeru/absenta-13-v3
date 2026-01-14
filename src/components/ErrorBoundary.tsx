@@ -55,11 +55,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     };
 
     handleReload = () => {
-        window.location.reload();
+        globalThis.location.reload();
     };
 
     handleGoHome = () => {
-        window.location.href = '/';
+        globalThis.location.href = '/';
     };
 
     handleCopyError = () => {
@@ -68,7 +68,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 Error Report
 ============
 Time: ${new Date().toISOString()}
-URL: ${window.location.href}
+URL: ${globalThis.location.href}
 User Agent: ${navigator.userAgent}
 
 Error: ${error?.name || 'Unknown'}

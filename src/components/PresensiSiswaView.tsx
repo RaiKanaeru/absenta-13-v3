@@ -4,12 +4,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Badge } from './ui/badge';
+
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Download, Search, FileText, Users, Calendar, User } from 'lucide-react';
+import { ArrowLeft, Download, Search, FileText, Users, Calendar } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
-import SimpleLetterheadInit from './SimpleLetterheadInit';
+
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { Kelas, Siswa } from '@/types/school';
@@ -204,7 +204,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       
@@ -215,7 +215,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      globalThis.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
       toast({

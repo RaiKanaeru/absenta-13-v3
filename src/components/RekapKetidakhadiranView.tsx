@@ -8,11 +8,11 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { ArrowLeft, Download, Search, Users, Calendar, BarChart3 } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
-import SimpleLetterheadInit from './SimpleLetterheadInit';
+
 import { ReportLetterhead } from './ui/report-letterhead';
 import { ReportSummary } from './ui/report-summary';
 import { formatDateOnly } from '../lib/time-utils';
-import { ACADEMIC_MONTHS, getEffectiveDays, getMonthName } from '../lib/academic-constants';
+import { ACADEMIC_MONTHS, getMonthName } from '../lib/academic-constants';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { Kelas, Siswa } from '@/types/school';
@@ -220,7 +220,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const downloadLink = document.createElement('a');
       downloadLink.href = url;
       
@@ -238,7 +238,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       downloadLink.download = fileName;
       document.body.appendChild(downloadLink);
       downloadLink.click();
-      window.URL.revokeObjectURL(url);
+      globalThis.URL.revokeObjectURL(url);
       document.body.removeChild(downloadLink);
 
       toast({
