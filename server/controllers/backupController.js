@@ -108,7 +108,7 @@ async function readCustomSchedules() {
         const schedulesData = await fs.readFile(schedulesPath, 'utf8');
         return JSON.parse(schedulesData);
     } catch (error) {
-        // Intentionally ignored: fall back to empty array
+        logger.debug('No custom schedules found, using defaults', { error: error.message });
         return [];
     }
 }
@@ -170,7 +170,7 @@ async function restoreDatabaseFromZipArchive(filePath) {
             throw new Error('File ZIP tidak mengandung file SQL');
         }
 
-        const sqlContent = zip.readAsText(sqlFile);
+        const sqlContent = zip.readFile(sqlFile).toString('utf8');
         const commands = sqlContent.split(';').filter(cmd => cmd.trim());
         const executedCount = await executeSqlCommands(commands);
 
@@ -202,7 +202,7 @@ async function calculateDirectorySizeBytes(folderPath) {
 
         return totalSize;
     } catch (error) {
-        // Intentionally ignored: return 0 if directory reading fails
+        logger.debug('Failed to calculate directory size', { path: folderPath, error: error.message });
         return 0;
     }
 }
@@ -623,7 +623,7 @@ const resolveBackupFilePath = async (backupDir, backupId) => {
         try {
             if ((await fs.stat(p)).isFile()) return { filePath: p, filename: c };
         } catch (statError) {
-            // File doesn't exist - expected, try next candidate
+             logger.debug('File candidate check failed', { path: p, error: statError.message });
         }
     }
     

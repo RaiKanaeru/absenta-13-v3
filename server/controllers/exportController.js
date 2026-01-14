@@ -27,7 +27,7 @@ import {
 
 
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
-import { formatWIBTime, getWIBTime } from '../utils/timeUtils.js';
+import { getWIBTime } from '../utils/timeUtils.js';
 
 // ================================================
 // HELPER: Common Excel setup
@@ -712,7 +712,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 // ================================================
 
 import { addLetterheadToWorksheet, addReportTitle, addHeaders } from '../utils/excelLetterhead.js';
-import { excelStyles, applyStyle, applyHeaderRow, borders, colors, parseGuruList, getStatusStyle, addSummaryRow, applyAlternatingColors } from '../utils/excelStyles.js';
+import { excelStyles, applyStyle, borders, parseGuruList } from '../utils/excelStyles.js';
 
 /**
  * Export riwayat banding absen
@@ -2285,6 +2285,7 @@ export const downloadFile = async (req, res) => {
         try {
             await fs.default.access(filePath);
         } catch (error) {
+             logger.debug('File not found check', { filePath, error: error.message });
             return res.status(404).json({ error: 'File not found' });
         }
 

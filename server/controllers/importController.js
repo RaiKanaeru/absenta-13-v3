@@ -5,7 +5,7 @@
  */
 
 import ExcelJS from 'exceljs';
-import bcrypt from 'bcrypt';
+
 import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -25,15 +25,12 @@ import {
     mapMapelByName,
     mapGuruByName,
     mapRuangByKode,
-    getFieldValue,
     parseGuruIdsFromString,
     parseGuruNamesFromString,
     validateRequiredJadwalFields,
     buildJadwalObject,
     validateStudentAccountRow,
-    createStudentRowPreview,
     validateTeacherAccountRow,
-    createTeacherRowPreview,
     validateMapelRow,
     validateKelasRow,
     validateRuangRow,
@@ -69,7 +66,7 @@ const importMapel = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kode_mapel');
+
         const seenKode = new Set();
         
         // Use generic batch validator
@@ -124,7 +121,7 @@ const importKelas = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        const isBasicFormat = rows[0] && rows[0].hasOwnProperty('nama_kelas');
+
         const seenNama = new Set();
         
         // Use generic batch validator
@@ -179,7 +176,7 @@ const importRuang = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kode_ruang');
+
         const seenKode = new Set();
         
         // Use generic batch validator

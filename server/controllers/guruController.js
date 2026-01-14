@@ -381,7 +381,7 @@ const getGuruById = async (connection, id) => {
 export const updateGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
-    const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat } = req.body;
+    const { nip, nama, username } = req.body;
 
     log.requestStart('UpdateGuru', { id, nip, nama, username });
 
