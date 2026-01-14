@@ -7,7 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import AdmZip from 'adm-zip';
-import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
+import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
 
@@ -108,6 +108,7 @@ async function readCustomSchedules() {
         const schedulesData = await fs.readFile(schedulesPath, 'utf8');
         return JSON.parse(schedulesData);
     } catch (error) {
+        // Intentionally ignored: fall back to empty array
         return [];
     }
 }
@@ -201,6 +202,7 @@ async function calculateDirectorySizeBytes(folderPath) {
 
         return totalSize;
     } catch (error) {
+        // Intentionally ignored: return 0 if directory reading fails
         return 0;
     }
 }

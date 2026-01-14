@@ -13,7 +13,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     TAHUN_PELAJARAN,
-    HARI_EFEKTIF,
     BULAN_GASAL,
     BULAN_TAHUNAN,
     TEMPLATE_PATHS,

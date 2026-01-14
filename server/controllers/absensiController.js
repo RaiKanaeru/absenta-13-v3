@@ -19,7 +19,6 @@ import {
     getWIBTime,
     getMySQLDateWIB,
     getMySQLDateTimeWIB,
-    formatWIBDate,
     formatWIBTimeWithSeconds,
     getDaysDifferenceWIB
 } from '../utils/timeUtils.js';

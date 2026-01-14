@@ -6,7 +6,7 @@
 import bcrypt from 'bcrypt';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import dotenv from 'dotenv';
-import { getMySQLDateTimeWIB, getWIBTime, getMySQLDateWIB } from '../utils/timeUtils.js';
+import { getMySQLDateTimeWIB, getWIBTime } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
@@ -381,7 +381,7 @@ const getGuruById = async (connection, id) => {
 export const updateGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
-    const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat, status } = req.body;
+    const { nip, nama, mapel_id, username, password, email, no_telp, jenis_kelamin, alamat } = req.body;
 
     log.requestStart('UpdateGuru', { id, nip, nama, username });
 
@@ -520,7 +520,7 @@ export const deleteGuru = async (req, res) => {
 // Update profile for guru (self-service)
 export const updateProfile = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { nama, username, email, alamat, no_telepon, jenis_kelamin, mata_pelajaran, jabatan } = req.body;
+    const { nama, username, email, alamat, no_telepon, jenis_kelamin, mata_pelajaran } = req.body;
     const userId = req.user.id;
 
     log.requestStart('UpdateProfile', { userId, username });
@@ -724,7 +724,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
     }
 
     try {
-        const todayWIB = getMySQLDateWIB();
+
         // Calculate 30 days ago in WIB timezone
         const wibNow = getWIBTime();
         const thirtyDaysAgoDate = new Date(wibNow.getTime() - 30 * 24 * 60 * 60 * 1000);

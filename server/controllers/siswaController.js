@@ -356,7 +356,7 @@ export const createSiswa = async (req, res) => {
 export const updateSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
-    const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat, status } = req.body;
+    const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat } = req.body;
 
     log.requestStart('Update', { id, nis, nama, username });
 

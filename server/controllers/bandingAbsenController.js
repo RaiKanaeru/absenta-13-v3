@@ -3,7 +3,7 @@
  * Endpoint untuk laporan banding absensi
  */
 
-import { sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('BandingAbsen');

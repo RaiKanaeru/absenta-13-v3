@@ -6,7 +6,7 @@
 
 import ExcelJS from 'exceljs';
 import bcrypt from 'bcrypt';
-import { sendErrorResponse, sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
+import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Import');
@@ -71,10 +71,10 @@ const importMapel = async (req, res) => {
             try {
                 const result = validateMapelRow(currentRow, seenKode);
                 
-                if (!result.valid) {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                } else {
+                if (result.valid) {
                     valid.push(result.data);
+                } else {
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 }
             } catch (error) {
                 const rowPreview = {
@@ -155,10 +155,10 @@ const importKelas = async (req, res) => {
             try {
                 const result = validateKelasRow(rowData, seenNama);
                 
-                if (!result.valid) {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                } else {
+                if (result.valid) {
                     valid.push(result.data);
+                } else {
+                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
                 }
             } catch (error) {
                 const rowPreview = {
@@ -599,6 +599,7 @@ async function getExistingStudentData() {
         dbUsernames.forEach(row => existingUsernames.add(row.username));
         dbNis.forEach(row => existingNis.add(row.nis));
     } catch (dbError) {
+        // Intentionally ignoring details to prevent leakage, throwing generic error
         throw new Error(ERROR_DB_CHECK_FAILED); // Propagate error to be handled by caller
     }
 
@@ -779,6 +780,7 @@ async function getExistingTeacherData() {
         dbUsernames.forEach(row => existingUsernames.add(row.username));
         dbNips.forEach(row => existingNips.add(row.nip));
     } catch (dbError) {
+        // Intentionally ignoring details
         throw new Error(ERROR_DB_CHECK_FAILED);
     }
     

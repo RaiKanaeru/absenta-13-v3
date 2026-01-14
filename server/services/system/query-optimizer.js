@@ -3,7 +3,6 @@
  * Handles query optimization, prepared statements, and performance monitoring
  */
 
-import mysql from 'mysql2/promise';
 import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('QueryOptimizer');

@@ -5,7 +5,7 @@
  */
 
 import ExcelJS from 'exceljs';
-import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
+import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Export');
@@ -25,9 +25,9 @@ import {
     EXPORT_HEADERS
 } from '../config/exportConfig.js';
 
-import { buildExcel } from '../../backend/export/excelBuilder.js';
+
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
-import { formatWIBTime, formatWIBDate, getWIBTime } from '../utils/timeUtils.js';
+import { formatWIBTime, getWIBTime } from '../utils/timeUtils.js';
 
 // ================================================
 // HELPER: Common Excel setup
@@ -2590,7 +2590,7 @@ export const exportRekapJadwalGuru = async (req, res) => {
         headerRow.height = 25;
         currentRow++;
 
-        const dataStartRow = currentRow;
+
         let no = 1;
 
         // 4. Data Rows
