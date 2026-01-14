@@ -4,7 +4,7 @@
  */
 
 import { getMySQLDateWIB, getWIBTime, HARI_INDONESIA } from '../utils/timeUtils.js';
-import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { REPORT_STATUS, REPORT_MESSAGES, CSV_HEADERS, HARI_EFEKTIF_MAP } from '../config/reportConfig.js';
 import { createLogger } from '../utils/logger.js';
@@ -683,43 +683,17 @@ export const getStudentAttendanceSummary = async (req, res) => {
     try {
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
+            return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        let query = `
-            SELECT 
-                s.id_siswa as siswa_id,
-                s.nama,
-                s.nis,
-                k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
-                COALESCE(COUNT(a.id), 0) AS total,
-                CASE 
-                    WHEN COUNT(a.id) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
-                END AS presentase
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE s.status = 'aktif'
-        `;
-        const params = [startDate, endDate];
-        if (kelas_id && kelas_id !== '') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-        query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
+        const { query, params } = buildStudentSummaryQuery(startDate, endDate, kelas_id);
 
         const [rows] = await globalThis.dbPool.execute(query, params);
         log.success('GetStudentSummary', { count: rows.length });
         res.json(rows);
     } catch (error) {
         log.dbError('studentSummary', error);
-        return sendDatabaseError(res, error, 'Gagal memuat ringkasan kehadiran siswa');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_STUDENT_SUMMARY);
     }
 };
 
@@ -755,15 +729,15 @@ function buildStudentSummaryQuery(startDate, endDate, kelas_id) {
             s.nama,
             s.nis,
             k.nama_kelas,
-            COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
-            COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
-            COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
-            COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
-            COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+            COALESCE(SUM(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
+            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
+            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
+            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.ALPA}' THEN 1 ELSE 0 END), 0) AS A,
+            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
             COALESCE(COUNT(a.id), 0) AS total,
             CASE 
                 WHEN COUNT(a.id) = 0 THEN 0
-                ELSE ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
+                ELSE ROUND((SUM(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
             END AS presentase
         FROM siswa s
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
@@ -866,7 +840,7 @@ export const getTeacherAttendanceSummary = async (req, res) => {
     try {
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
+            return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
         
         let query = `
@@ -874,15 +848,15 @@ export const getTeacherAttendanceSummary = async (req, res) => {
                 g.id_guru as guru_id,
                 g.nama,
                 g.nip,
-                COALESCE(SUM(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
-                COALESCE(SUM(CASE WHEN ag.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
-                COALESCE(SUM(CASE WHEN ag.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
-                COALESCE(SUM(CASE WHEN ag.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS A,
-                COALESCE(SUM(CASE WHEN ag.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+                COALESCE(SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
+                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
+                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.TIDAK_HADIR}' THEN 1 ELSE 0 END), 0) AS A,
+                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
                 COALESCE(COUNT(ag.id_absensi), 0) AS total,
                 CASE 
                     WHEN COUNT(ag.id_absensi) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
+                    ELSE ROUND((SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
                 END AS presentase
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal BETWEEN ? AND ?
@@ -896,7 +870,7 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         res.json(rows);
     } catch (error) {
         log.dbError('teacherSummary', error);
-        return sendDatabaseError(res, error, 'Gagal memuat ringkasan kehadiran guru');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_TEACHER_SUMMARY);
     }
 };
 // Helper to build guru attendance query
@@ -929,7 +903,7 @@ function buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate,
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                 AND ag.tanggal BETWEEN ? AND ?
-                AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
+                AND ag.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}', '${REPORT_STATUS.TIDAK_HADIR}')
             WHERE g.status = 'aktif'
             GROUP BY g.id_guru, g.nama, g.nip
             ORDER BY g.nama
@@ -946,7 +920,7 @@ function buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate,
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                 AND ag.tanggal BETWEEN ? AND ?
-                AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
+                AND ag.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}', '${REPORT_STATUS.TIDAK_HADIR}')
             WHERE g.status = 'aktif'
             GROUP BY g.id_guru, g.nama, g.nip
             ORDER BY g.nama
@@ -1002,7 +976,7 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
 
     } catch (error) {
         log.dbError('rekapGuru', error);
-        return sendDatabaseError(res, error, 'Gagal memuat rekap ketidakhadiran guru');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_REKAP_GURU);
     }
 };
 
@@ -1024,7 +998,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
         // Validate kelas_id
         if (!kelas_id || Number.isNaN(Number.parseInt(kelas_id))) {
             log.validationFail('kelas_id', kelas_id, 'Invalid or missing kelas_id');
-            return sendValidationError(res, 'Kelas wajib dipilih dengan format yang valid', { field: 'kelas_id' });
+            return sendValidationError(res, REPORT_MESSAGES.INVALID_CLASS_ID, { field: 'kelas_id' });
         }
 
         // Calculate date range
@@ -1036,9 +1010,9 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
                 a.siswa_id,
                 MONTH(a.tanggal) as bulan,
                 YEAR(a.tanggal) as tahun_absen,
-                SUM(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 ELSE 0 END) as total_ketidakhadiran,
+                SUM(CASE WHEN a.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}') THEN 1 ELSE 0 END) as total_ketidakhadiran,
                 GROUP_CONCAT(
-                    CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') 
+                    CASE WHEN a.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}') 
                     THEN CONCAT(a.tanggal, ':', a.status) 
                     ELSE NULL END 
                     SEPARATOR ';'
@@ -1073,7 +1047,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
 
     } catch (error) {
         log.dbError('rekapSiswa', error, { kelas_id });
-        return sendDatabaseError(res, error, 'Gagal memuat rekap ketidakhadiran siswa');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_REKAP_SISWA);
     }
 };
 
@@ -1091,7 +1065,7 @@ export const getStudentsByClass = async (req, res) => {
     // Validate kelasId is numeric
     if (!kelasId || Number.isNaN(Number.parseInt(kelasId))) {
         log.validationFail('kelasId', kelasId, 'Invalid class ID format');
-        return sendValidationError(res, 'Format ID kelas tidak valid', { received: kelasId });
+        return sendValidationError(res, REPORT_MESSAGES.INVALID_CLASS_ID, { received: kelasId });
     }
 
     log.requestStart('GetStudentsByClass', { kelasId });
@@ -1109,7 +1083,7 @@ export const getStudentsByClass = async (req, res) => {
         res.json(rows);
     } catch (error) {
         log.dbError('studentsByClass', error);
-        return sendDatabaseError(res, error, 'Gagal memuat data siswa');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_STUDENTS_CLASS);
     }
 };
 
@@ -1129,13 +1103,13 @@ export const getPresensiSiswa = async (req, res) => {
     try {
         if (!kelas_id || !bulan || !tahun) {
             log.validationFail('params', { kelas_id, bulan, tahun }, 'Missing required params');
-            return sendValidationError(res, 'Kelas, bulan, dan tahun wajib diisi');
+            return sendValidationError(res, REPORT_MESSAGES.MISSING_PARAMS);
         }
 
         // Validate kelas_id is numeric
         if (Number.isNaN(Number.parseInt(kelas_id))) {
             log.validationFail('kelas_id', kelas_id, 'Invalid format');
-            return sendValidationError(res, 'Format ID kelas tidak valid');
+            return sendValidationError(res, REPORT_MESSAGES.INVALID_CLASS_ID);
         }
 
         const tahunInt = Number.parseInt(tahun) || new Date().getFullYear();
@@ -1165,6 +1139,6 @@ export const getPresensiSiswa = async (req, res) => {
         res.json(rows);
     } catch (error) {
         log.dbError('presensiSiswa', error);
-        return sendDatabaseError(res, error, 'Gagal memuat data presensi siswa');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_PRESENSI_SISWA);
     }
 };
