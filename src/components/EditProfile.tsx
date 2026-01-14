@@ -147,11 +147,44 @@ function buildSiswaRequestBody(formData: FormDataType) {
   };
 }
 
+/**
+ * Builds updated user data for onUpdate callback
+ */
+function buildUpdateData(
+  userData: UserProfile, 
+  resultData: Record<string, unknown>, 
+  role: string
+): UserProfile {
+  const baseData = {
+    ...userData,
+    ...resultData,
+    nama: resultData.nama as string,
+    username: resultData.username as string,
+    email: resultData.email as string,
+    alamat: resultData.alamat as string,
+    telepon_orangtua: resultData.telepon_orangtua as string,
+    nomor_telepon_siswa: resultData.nomor_telepon_siswa as string,
+    jenis_kelamin: resultData.jenis_kelamin as 'L' | 'P'
+  };
+
+  if (role === 'guru') {
+    return {
+      ...baseData,
+      no_telepon: resultData.no_telepon as string,
+      mata_pelajaran: resultData.mata_pelajaran as string
+    } as UserProfile;
+  }
+
+  return baseData as UserProfile;
+}
+
+
 const REQUEST_BODY_BUILDERS: Record<string, (formData: FormDataType) => object> = {
   admin: buildAdminRequestBody,
   guru: buildGuruRequestBody,
   siswa: buildSiswaRequestBody
 };
+
 
 export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfileProps) => {
   const [loading, setLoading] = useState(false);

@@ -252,7 +252,7 @@ const BackupManagementView: React.FC = () => {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            });
+            }) as { backups: BackupInfo[] };
             
             setBackups(data.backups || []);
             toast({
@@ -279,7 +279,7 @@ const BackupManagementView: React.FC = () => {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            });
+            }) as { stats: ArchiveStats };
             
             setArchiveStats(data.stats || {
                 studentRecords: 0,
@@ -464,11 +464,7 @@ const BackupManagementView: React.FC = () => {
         // Use extracted validation helper
         const validation = validateBackupParams(backupType, selectedSemester, selectedDate);
         if (!validation.isValid) {
-            toast({
-                title: "Error",
-                description: validation.errorMessage,
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: validation.errorMessage, variant: "destructive" });
             return;
         }
 
@@ -492,16 +488,13 @@ const BackupManagementView: React.FC = () => {
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to create backup');
-            }
+            if (!response.ok) throw new Error('Failed to create backup');
 
             // Progress simulation using extracted calculator
             const progressInterval = setInterval(() => {
                 setBackupProgress(prev => {
-                    if (prev.progress >= 95) {
-                        clearInterval(progressInterval);
-                    }
+                    const shouldStop = prev.progress >= 95;
+                    if (shouldStop) clearInterval(progressInterval);
                     return calculateProgressUpdate(prev.progress);
                 });
             }, 1500);
@@ -512,22 +505,15 @@ const BackupManagementView: React.FC = () => {
                 setBackupProgress(DEFAULT_BACKUP_PROGRESS);
                 setShowCreateDialog(false);
                 loadBackups();
-                toast({
-                    title: "Berhasil",
-                    description: `Backup berhasil dibuat: ${result.data?.backupId || 'Backup'}`,
-                });
+                toast({ title: "Berhasil", description: `Backup berhasil dibuat: ${result.data?.backupId || 'Backup'}` });
             }, 10000);
 
         } catch (error) {
-            console.error('Error creating backup:', error);
             setBackupProgress(DEFAULT_BACKUP_PROGRESS);
-            toast({
-                title: "Error",
-                description: "Gagal membuat backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: "Gagal membuat backup", variant: "destructive" });
         }
     };
+
 
     const downloadBackup = async (backupId: string) => {
         try {
@@ -659,7 +645,7 @@ const BackupManagementView: React.FC = () => {
                     'Content-Type': 'application/json',
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            });
+            }) as { data: { studentRecordsCreated: number, teacherRecordsCreated: number } };
 
             loadArchiveStats();
             toast({

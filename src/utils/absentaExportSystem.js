@@ -449,7 +449,7 @@ Hal : ${options.title}`;
       worksheet.mergeCells(`G${startRow}:I${startRow+3}`);
     } catch (error) {
       // Cell sudah di-merge, skip
-      console.log('Cells already merged, skipping...');
+      console.log('Cells already merged, skipping...', error);
     }
     
     const signatureCell = worksheet.getCell(`G${startRow}`);
@@ -500,8 +500,8 @@ NIP. 196602281997022002`;
       summary['Rata-rata Presentase'] = `${avgPresentase.toFixed(2)}%`;
     } else {
       const totalKetidakhadiran = data.reduce((sum, item) => sum + (item.total_ketidakhadiran || 0), 0);
-      const avgPresentaseKetidakhadiran = data.reduce((sum, item) => sum + (parseFloat(item.persentase_ketidakhadiran) || 0), 0) / data.length;
-      const avgPresentaseKehadiran = data.reduce((sum, item) => sum + (parseFloat(item.persentase_kehadiran) || 0), 0) / data.length;
+      const avgPresentaseKetidakhadiran = data.reduce((sum, item) => sum + (Number.parseFloat(item.persentase_ketidakhadiran) || 0), 0) / data.length;
+      const avgPresentaseKehadiran = data.reduce((sum, item) => sum + (Number.parseFloat(item.persentase_kehadiran) || 0), 0) / data.length;
       
       summary['Total Ketidakhadiran'] = totalKetidakhadiran;
       summary['Rata-rata Presentase Ketidakhadiran'] = `${avgPresentaseKetidakhadiran.toFixed(2)}%`;
@@ -755,7 +755,7 @@ NIP. 196602281997022002`;
         siswa.A || 0,
         siswa.D || 0,
         total,
-        `${parseFloat(siswa.presentase || 0).toFixed(2)}%`
+        `${Number.parseFloat(siswa.presentase || 0).toFixed(2)}%`
       ];
 
       rowData.forEach((value, colIndex) => {
@@ -829,7 +829,7 @@ NIP. 196602281997022002`;
     // Header sekolah
     this.addSchoolHeader(worksheet, {
       title: 'REKAP KETIDAKHADIRAN SISWA',
-      subtitle: `Kelas: ${options.kelasName} - Tahun: ${options.tahun}${options.bulan !== 'Tahunan' ? ` - Bulan: ${options.bulan}` : ''}`,
+      subtitle: `Kelas: ${options.kelasName} - Tahun: ${options.tahun}` + (options.bulan === 'Tahunan' ? '' : ` - Bulan: ${options.bulan}`),
       documentNumber: `REKAP/SISWA/${getCurrentYearWIB()}`,
       date: new Date().toLocaleDateString('id-ID')
     });
@@ -854,8 +854,8 @@ NIP. 196602281997022002`;
       worksheet.getCell(currentRow, 5).value = siswa.total_ketidakhadiran;
       worksheet.getCell(currentRow, 6).value = siswa.total_kehadiran;
       worksheet.getCell(currentRow, 7).value = siswa.total_hari_efektif;
-      worksheet.getCell(currentRow, 8).value = `${parseFloat(siswa.persentase_ketidakhadiran).toFixed(2)}%`;
-      worksheet.getCell(currentRow, 9).value = `${parseFloat(siswa.persentase_kehadiran).toFixed(2)}%`;
+      worksheet.getCell(currentRow, 8).value = `${Number.parseFloat(siswa.persentase_ketidakhadiran).toFixed(2)}%`;
+      worksheet.getCell(currentRow, 9).value = `${Number.parseFloat(siswa.persentase_kehadiran).toFixed(2)}%`;
       
       this.addTableRowStyling(worksheet, currentRow, headers.length);
       currentRow++;

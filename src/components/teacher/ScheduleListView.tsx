@@ -38,115 +38,116 @@ export const ScheduleListView = ({ schedules, onSelectSchedule, isLoading }: Sch
         </div>
       ) : (
         <div className="space-y-3">
-          {(() => {
-            // Enhanced deduplication to prevent looping
-            const uniqueSchedules = schedules.filter((schedule, index, self) => {
-              const key = `${schedule.id}-${schedule.jam_mulai}-${schedule.jam_selesai}-${schedule.nama_mapel}`;
-              return self.findIndex(s => 
-                `${s.id}-${s.jam_mulai}-${s.jam_selesai}-${s.nama_mapel}` === key
-              ) === index;
-            });
-            
-            return uniqueSchedules.map((schedule) => {
-              // Conditional rendering untuk jadwal yang tidak bisa diabsen
-              if (!schedule.is_absenable) {
-                return (
-                  <div
-                    key={schedule.id}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50"
-                  >
-                    <div className="flex flex-col gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
-                          <Badge variant="outline" className="text-xs whitespace-nowrap">
-                            {schedule.jam_mulai} - {schedule.jam_selesai}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs whitespace-nowrap">
-                            {(() => {
-                              const activityMap: Record<string, string> = {
-                                upacara: 'Upacara', istirahat: 'Istirahat',
-                                kegiatan_khusus: 'Kegiatan Khusus', libur: 'Libur', ujian: 'Ujian'
-                              };
-                              return activityMap[schedule.jenis_aktivitas || ''] || (schedule.jenis_aktivitas || 'Khusus');
-                            })()}
-                          </Badge>
-                        </div>
-                        
-                        <h4 className="font-medium text-gray-700 text-sm sm:text-base truncate">
-                          {schedule.keterangan_khusus || schedule.nama_mapel}
-                        </h4>
-                        <p className="text-xs sm:text-sm text-gray-600 truncate">{schedule.nama_kelas}</p>
-                        
-                        <div className="mt-2">
-                          <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
-                            Tidak perlu absen
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Jadwal normal yang bisa diabsen
-              return (
-                <div
-                  key={schedule.id}
-                  className="border rounded-lg p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => onSelectSchedule(schedule)}
-                >
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
-                        <Badge variant="outline" className="text-xs whitespace-nowrap">
-                          {schedule.jam_mulai} - {schedule.jam_selesai}
-                        </Badge>
-                        <Badge className={`${STATUS_COLORS[schedule.status || 'upcoming']} text-xs whitespace-nowrap`}>
-                          {schedule.status === 'current' ? 'Sedang Berlangsung' : 
-                           schedule.status === 'completed' ? 'Selesai' : 'Akan Datang'}
-                        </Badge>
-                      </div>
-                      
-                      <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">{schedule.nama_mapel}</h4>
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">{schedule.nama_kelas}</p>
-                      
-                      {schedule.is_multi_guru && schedule.other_teachers && (
-                        <div className="mt-2">
-                          <Badge variant="secondary" className="text-xs mb-1">
-                            🧑‍🏫 Team Teaching
-                          </Badge>
-                          <p className="text-xs text-gray-500 truncate">
-                            {schedule.other_teachers.split('||').map(teacher => teacher.split(':')[1]).join(', ')}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {schedule.kode_ruang && (
-                        <div className="mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {schedule.kode_ruang}
-                            {schedule.nama_ruang && ` - ${schedule.nama_ruang}`}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex-shrink-0">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full sm:w-auto text-xs sm:text-sm"
-                      >
-                        {schedule.status === 'current' ? 'Ambil Absensi' : 'Lihat Detail'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            });
-          })()}
+          {renderSchedules(schedules, onSelectSchedule)}
         </div>
       )}
     </CardContent>
   </Card>
 );
+
+const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Schedule) => void) => {
+  // Enhanced deduplication to prevent looping
+  const uniqueSchedules = schedules.filter((schedule, index, self) => {
+    const key = `${schedule.id}-${schedule.jam_mulai}-${schedule.jam_selesai}-${schedule.nama_mapel}`;
+    return self.findIndex(s => 
+      `${s.id}-${s.jam_mulai}-${s.jam_selesai}-${s.nama_mapel}` === key
+    ) === index;
+  });
+  
+  return uniqueSchedules.map((schedule) => {
+    // Conditional rendering untuk jadwal yang tidak bisa diabsen
+    if (!schedule.is_absenable) {
+      return (
+        <div
+          key={schedule.id}
+          className="border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50"
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+                <Badge variant="outline" className="text-xs whitespace-nowrap">
+                  {schedule.jam_mulai} - {schedule.jam_selesai}
+                </Badge>
+                <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                  {(() => {
+                    const activityMap: Record<string, string> = {
+                      upacara: 'Upacara', istirahat: 'Istirahat',
+                      kegiatan_khusus: 'Kegiatan Khusus', libur: 'Libur', ujian: 'Ujian'
+                    };
+                    return activityMap[schedule.jenis_aktivitas || ''] || (schedule.jenis_aktivitas || 'Khusus');
+                  })()}
+                </Badge>
+              </div>
+              
+              <h4 className="font-medium text-gray-700 text-sm sm:text-base truncate">
+                {schedule.keterangan_khusus || schedule.nama_mapel}
+              </h4>
+              <p className="text-xs sm:text-sm text-gray-600 truncate">{schedule.nama_kelas}</p>
+              
+              <div className="mt-2">
+                <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
+                  Tidak perlu absen
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Jadwal normal yang bisa diabsen
+    return (
+      <button
+        key={schedule.id}
+        className="w-full text-left border rounded-lg p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+        onClick={() => onSelectSchedule(schedule)}
+        type="button"
+      >
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+              <Badge variant="outline" className="text-xs whitespace-nowrap">
+                {schedule.jam_mulai} - {schedule.jam_selesai}
+              </Badge>
+              <Badge className={`${STATUS_COLORS[schedule.status || 'upcoming']} text-xs whitespace-nowrap`}>
+                {schedule.status === 'current' ? 'Sedang Berlangsung' : 
+                 schedule.status === 'completed' ? 'Selesai' : 'Akan Datang'}
+              </Badge>
+            </div>
+            
+            <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">{schedule.nama_mapel}</h4>
+            <p className="text-xs sm:text-sm text-gray-600 truncate">{schedule.nama_kelas}</p>
+            
+            {schedule.is_multi_guru && schedule.other_teachers && (
+              <div className="mt-2">
+                <Badge variant="secondary" className="text-xs mb-1">
+                  🧑‍🏫 Team Teaching
+                </Badge>
+                <p className="text-xs text-gray-500 truncate">
+                  {schedule.other_teachers.split('||').map(teacher => teacher.split(':')[1]).join(', ')}
+                </p>
+              </div>
+            )}
+            
+            {schedule.kode_ruang && (
+              <div className="mt-1">
+                <Badge variant="outline" className="text-xs">
+                  {schedule.kode_ruang}
+                  {schedule.nama_ruang && ` - ${schedule.nama_ruang}`}
+                </Badge>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-shrink-0">
+            <span 
+              className="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 w-full sm:w-auto sm:text-sm"
+            >
+              {schedule.status === 'current' ? 'Ambil Absensi' : 'Lihat Detail'}
+            </span>
+          </div>
+        </div>
+      </button>
+    );
+  });
+};

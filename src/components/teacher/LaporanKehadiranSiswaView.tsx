@@ -127,9 +127,10 @@ export const LaporanKehadiranSiswaView = ({ user }: LaporanKehadiranSiswaViewPro
         throw new Error('Gagal mengunduh file Excel');
       }
       
+      
       const blob = await resp.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      link.href = globalThis.URL.createObjectURL(blob);
       link.download = `laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx`;
       link.click();
       
@@ -146,7 +147,7 @@ export const LaporanKehadiranSiswaView = ({ user }: LaporanKehadiranSiswaViewPro
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <Button variant="outline" size="icon" onClick={() => window.history.back()} className="shrink-0">
+        <Button variant="outline" size="icon" onClick={() => globalThis.history.back()} className="shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1 min-w-0">

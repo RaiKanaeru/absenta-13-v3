@@ -6,14 +6,14 @@ const getBaseUrl = (): string => {
     }
     
     // Production fallback: jika di production dan tidak ada env var, gunakan subdomain API
-    const isProduction = window.location.hostname !== 'localhost' && 
-                         window.location.hostname !== '127.0.0.1' &&
-                         !window.location.hostname.includes('192.168') &&
-                         !window.location.hostname.includes('10.0');
+    const isProduction = globalThis.location.hostname !== 'localhost' && 
+                         globalThis.location.hostname !== '127.0.0.1' &&
+                         !globalThis.location.hostname.includes('192.168') &&
+                         !globalThis.location.hostname.includes('10.0');
     
     if (isProduction) {
         // Gunakan subdomain API untuk production
-        const currentHost = window.location.hostname;
+        const currentHost = globalThis.location.hostname;
         // Jika hostname adalah absenta13.my.id, gunakan api.absenta13.my.id
         if (currentHost === 'absenta13.my.id' || currentHost === 'www.absenta13.my.id') {
             return 'https://api.absenta13.my.id';
@@ -24,13 +24,13 @@ const getBaseUrl = (): string => {
     }
     
     // Check if we're in mobile/network environment
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(globalThis.navigator?.userAgent || '');
+    const isLocalhost = globalThis.location.hostname === 'localhost' || globalThis.location.hostname === '127.0.0.1';
     
     // If mobile and not localhost, use network IP
     if (isMobile && !isLocalhost) {
         // Extract IP from current location
-        const currentHost = window.location.hostname;
+        const currentHost = globalThis.location.hostname;
         if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
             return `http://${currentHost}:3001`;
         }

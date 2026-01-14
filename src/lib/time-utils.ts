@@ -46,12 +46,12 @@ export const getWIBTime = (): Date => {
   // Create date object with WIB values
   // Note: This creates a Date in local timezone but with WIB time values
   const wibDate = new Date(
-    parseInt(getValue('year')),
-    parseInt(getValue('month')) - 1,
-    parseInt(getValue('day')),
-    parseInt(getValue('hour')),
-    parseInt(getValue('minute')),
-    parseInt(getValue('second'))
+    Number.parseInt(getValue('year')),
+    Number.parseInt(getValue('month')) - 1,
+    Number.parseInt(getValue('day')),
+    Number.parseInt(getValue('hour')),
+    Number.parseInt(getValue('minute')),
+    Number.parseInt(getValue('second'))
   );
   
   return wibDate;
@@ -80,12 +80,12 @@ export const toWIBTime = (date: Date | string): Date => {
   const getValue = (type: string) => parts.find(p => p.type === type)?.value || '0';
   
   const wibDate = new Date(
-    parseInt(getValue('year')),
-    parseInt(getValue('month')) - 1,
-    parseInt(getValue('day')),
-    parseInt(getValue('hour')),
-    parseInt(getValue('minute')),
-    parseInt(getValue('second'))
+    Number.parseInt(getValue('year')),
+    Number.parseInt(getValue('month')) - 1,
+    Number.parseInt(getValue('day')),
+    Number.parseInt(getValue('hour')),
+    Number.parseInt(getValue('minute')),
+    Number.parseInt(getValue('second'))
   );
   
   return wibDate;

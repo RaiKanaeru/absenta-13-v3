@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,8 @@ type ScopeType = 'global' | 'report';
 // Menggunakan REPORT_KEYS_OPTIONS dari utils
 
 interface ReportLetterheadSettingsProps {
-  onBack: () => void;
-  onLogout: () => void;
+  readonly onBack: () => void;
+  readonly onLogout: () => void;
 }
 
 const DEFAULT_LETTERHEAD: LetterheadConfig = {
@@ -96,7 +96,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
     }
   }, [scope, selectedReportKey]);
 
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');

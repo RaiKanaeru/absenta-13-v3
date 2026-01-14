@@ -77,7 +77,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       const resp = await fetch(url, { credentials: 'include' });
       const blob = await resp.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      link.href = globalThis.URL.createObjectURL(blob);
       link.download = `laporan-kehadiran-siswa-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
     } catch (err) {
@@ -105,7 +105,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       
       const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      link.href = globalThis.URL.createObjectURL(blob);
       link.download = `laporan-kehadiran-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
       
@@ -122,7 +122,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => window.history.back()}>
+        <Button variant="outline" size="icon" onClick={() => globalThis.history.back()}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>

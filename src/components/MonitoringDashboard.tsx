@@ -4,13 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Progress } from './ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Alert, AlertDescription } from './ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getApiUrl } from '@/config/api';
@@ -21,17 +21,11 @@ import {
     Zap, 
     AlertTriangle, 
     CheckCircle, 
-    XCircle,
     RefreshCw,
-    BarChart3,
     Clock,
-    Users,
     Bell,
     TrendingUp,
     Cpu,
-    HardDrive,
-    Wifi,
-    WifiOff
 } from 'lucide-react';
 
 interface SystemMetrics {

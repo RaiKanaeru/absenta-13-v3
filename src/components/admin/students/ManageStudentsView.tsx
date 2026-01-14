@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home } from "lucide-react";
+import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
 import ExcelImportView from '../../ExcelImportView';
 import { Student, Kelas } from '@/types/dashboard';
@@ -180,7 +180,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
   };
 
   const handleDelete = async (id: number, nama: string, nis: string) => {
-    if (!window.confirm(`Yakin ingin menghapus akun siswa "${nama}" (NIS: ${nis})? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!globalThis.confirm(`Yakin ingin menghapus akun siswa "${nama}" (NIS: ${nis})? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
     }
     try {
