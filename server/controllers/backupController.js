@@ -153,6 +153,7 @@ async function restoreDatabaseFromZipArchive(filePath) {
 /**
  * Helper function to get folder size
  */
+// Helper function to get folder size
 async function calculateDirectorySizeBytes(folderPath) {
     try {
         const files = await fs.readdir(folderPath);
@@ -167,6 +168,122 @@ async function calculateDirectorySizeBytes(folderPath) {
         return totalSize;
     } catch (error) {
         return 0;
+    }
+}
+
+/**
+ * Helper to update backup settings with latest backup date
+ */
+async function updateBackupSettings() {
+    try {
+        const settingsPath = path.join(process.cwd(), 'backup-settings.json');
+        let settings = {};
+
+        try {
+            const settingsData = await fs.readFile(settingsPath, 'utf8');
+            settings = JSON.parse(settingsData);
+        } catch (fileError) {
+            settings = {
+                autoBackupSchedule: 'weekly',
+                maxBackups: 10,
+                archiveAge: 24,
+                compression: true,
+                emailNotifications: false
+            };
+        }
+
+        settings.lastBackupDate = new Date().toISOString();
+        settings.nextBackupDate = calculateNextBackupDate(settings.autoBackupSchedule);
+
+        await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+        logger.info('Backup settings updated successfully');
+    } catch (settingsError) {
+        logger.warn('Failed to update backup settings', { error: settingsError.message });
+    }
+}
+
+/**
+ * Helper to validate date range for backups
+ */
+function validateBackupDates(startDate, endDate) {
+    if (!startDate) {
+        throw { status: 400, message: 'Start date is required', error: 'Invalid input' };
+    }
+
+    // Jika endDate tidak ada, gunakan startDate sebagai endDate (backup satu hari)
+    const actualEndDate = endDate || startDate;
+
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(actualEndDate);
+
+    if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
+        throw { status: 400, message: 'Please provide valid dates in YYYY-MM-DD format', error: 'Invalid date format' };
+    }
+
+    if (startDateObj > endDateObj) {
+        throw { status: 400, message: 'Start date cannot be after end date', error: 'Invalid date range' };
+    }
+
+    // Cek apakah tanggal tidak di masa depan
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (startDateObj > today) {
+        throw { status: 400, message: 'Cannot backup future dates', error: 'Invalid date' };
+    }
+
+    return { actualEndDate, startDateObj, endDateObj };
+}
+
+/**
+ * Helper to perform manual database backup (SQL generation)
+ */
+async function performManualDatabaseBackup(filepath, filename) {
+    try {
+        let backupContent = `-- Backup Database Absenta\n`;
+        backupContent += `-- Created: ${new Date().toISOString()}\n`;
+        backupContent += `-- Database: absenta13\n\n`;
+
+        const tables = [
+            'users', 'guru', 'siswa', 'kelas', 'mapel',
+            'jadwal', 'absensi_siswa', 'absensi_guru'
+        ];
+
+        for (const table of tables) {
+            try {
+                // Get table structure
+                const [createResult] = await globalThis.dbPool.pool.execute(`SHOW CREATE TABLE ${table}`);
+                if (createResult.length > 0) {
+                    backupContent += `\n-- Table: ${table}\n`;
+                    backupContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
+                    backupContent += createResult[0]['Create Table'] + ';\n\n';
+                }
+
+                // Get table data
+                const [rows] = await globalThis.dbPool.pool.execute(`SELECT * FROM ${table}`);
+                if (rows.length > 0) {
+                    for (const row of rows) {
+                        const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
+                        const values = Object.values(row).map(val => {
+                            if (val === null) return 'NULL';
+                            if (typeof val === 'number') return val;
+                            return `'${String(val).replaceAll("'", "''")}'`;
+                        }).join(', ');
+                        backupContent += `INSERT INTO \`${table}\` (${columns}) VALUES (${values});\n`;
+                    }
+                    backupContent += '\n';
+                }
+            } catch (tableError) {
+                logger.warn('Could not backup table', { table, error: tableError.message });
+            }
+        }
+
+        await fs.writeFile(filepath, backupContent);
+        logger.info('Manual backup created', { filename });
+
+        return { filename, filepath, size: backupContent.length };
+    } catch (manualError) {
+        logger.error('Manual backup failed', { error: manualError.message });
+        throw new Error('Gagal membuat backup database');
     }
 }
 
@@ -210,35 +327,8 @@ const createSemesterBackup = async (req, res) => {
         const backupResult = await globalThis.backupSystem.createSemesterBackup(semester, year);
 
         // Update backup settings with last backup date
-        try {
-            const settingsPath = path.join(process.cwd(), 'backup-settings.json');
-            let currentSettings = {};
-
-            try {
-                const settingsData = await fs.readFile(settingsPath, 'utf8');
-                currentSettings = JSON.parse(settingsData);
-            } catch (fileError) {
-                // File doesn't exist, use default settings
-                currentSettings = {
-                    autoBackupSchedule: 'weekly',
-                    maxBackups: 10,
-                    archiveAge: 24,
-                    compression: true,
-                    emailNotifications: false
-                };
-            }
-
-            // Update dates
-            currentSettings.lastBackupDate = new Date().toISOString();
-            currentSettings.nextBackupDate = calculateNextBackupDate(currentSettings.autoBackupSchedule);
-
-            // Save settings
-            await fs.writeFile(settingsPath, JSON.stringify(currentSettings, null, 2));
-            logger.info('Backup settings updated successfully');
-
-        } catch (settingsError) {
-            logger.warn('Failed to update backup settings', { error: settingsError.message });
-        }
+        // Update backup settings with last backup date
+        await updateBackupSettings();
 
         res.json({
             success: true,
@@ -271,41 +361,16 @@ const createDateBackup = async (req, res) => {
         const { startDate, endDate } = req.body;
 
         // Validasi input
-        if (!startDate) {
-            return res.status(400).json({
-                error: 'Invalid input',
-                message: 'Start date is required'
-            });
-        }
-
-        // Jika endDate tidak ada, gunakan startDate sebagai endDate (backup satu hari)
-        const actualEndDate = endDate || startDate;
-
-        // Validasi format tanggal
-        const startDateObj = new Date(startDate);
-        const endDateObj = new Date(actualEndDate);
-
-        if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
-            return res.status(400).json({
-                error: 'Invalid date format',
-                message: 'Please provide valid dates in YYYY-MM-DD format'
-            });
-        }
-
-        if (startDateObj > endDateObj) {
-            return res.status(400).json({
-                error: 'Invalid date range',
-                message: 'Start date cannot be after end date'
-            });
-        }
-
-        // Cek apakah tanggal tidak di masa depan
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        if (startDateObj > today) {
-            return res.status(400).json({
-                error: 'Invalid date',
-                message: 'Cannot backup future dates'
+        let actualEndDate, startDateObj, endDateObj;
+        try {
+            const validation = validateBackupDates(startDate, endDate);
+            actualEndDate = validation.actualEndDate;
+            startDateObj = validation.startDateObj;
+            endDateObj = validation.endDateObj;
+        } catch (validationError) {
+            return res.status(validationError.status || 400).json({
+                error: validationError.error,
+                message: validationError.message
             });
         }
 
@@ -314,32 +379,7 @@ const createDateBackup = async (req, res) => {
         const backupResult = await globalThis.backupSystem.createDateBackup(startDate, actualEndDate);
 
         // Update backup settings
-        try {
-            const settingsPath = path.join(process.cwd(), 'backup-settings.json');
-            let settings = {};
-
-            try {
-                const settingsData = await fs.readFile(settingsPath, 'utf8');
-                settings = JSON.parse(settingsData);
-            } catch (fileError) {
-                settings = {
-                    autoBackupSchedule: 'weekly',
-                    maxBackups: 10,
-                    archiveAge: 24,
-                    compression: true,
-                    emailNotifications: false
-                };
-            }
-
-            settings.lastBackupDate = new Date().toISOString();
-            settings.nextBackupDate = calculateNextBackupDate(settings.autoBackupSchedule);
-
-            await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
-            logger.info('Backup settings updated successfully');
-
-        } catch (settingsError) {
-            logger.warn('Failed to update backup settings', { error: settingsError.message });
-        }
+        await updateBackupSettings();
 
         res.json({
             success: true,
@@ -1417,57 +1457,6 @@ const createManualBackup = async (req, res) => {
         const filename = `backup_absenta_${timestamp}.sql`;
         const filepath = path.join(backupDir, filename);
 
-        // Function untuk backup manual
-        async function createManualBackupFile() {
-            try {
-                let backupContent = `-- Backup Database Absenta\n`;
-                backupContent += `-- Created: ${new Date().toISOString()}\n`;
-                backupContent += `-- Database: absenta13\n\n`;
-
-                const tables = [
-                    'users', 'guru', 'siswa', 'kelas', 'mapel',
-                    'jadwal', 'absensi_siswa', 'absensi_guru'
-                ];
-
-                for (const table of tables) {
-                    try {
-                        // Get table structure
-                        const [createResult] = await globalThis.dbPool.pool.execute(`SHOW CREATE TABLE ${table}`);
-                        if (createResult.length > 0) {
-                            backupContent += `\n-- Table: ${table}\n`;
-                            backupContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
-                            backupContent += createResult[0]['Create Table'] + ';\n\n';
-                        }
-
-                        // Get table data
-                        const [rows] = await globalThis.dbPool.pool.execute(`SELECT * FROM ${table}`);
-                        if (rows.length > 0) {
-                            for (const row of rows) {
-                                const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
-                                const values = Object.values(row).map(val => {
-                                    if (val === null) return 'NULL';
-                                    if (typeof val === 'number') return val;
-                                    return `'${String(val).replaceAll("'", "''")}'`;
-                                }).join(', ');
-                                backupContent += `INSERT INTO \`${table}\` (${columns}) VALUES (${values});\n`;
-                            }
-                            backupContent += '\n';
-                        }
-                    } catch (tableError) {
-                        logger.warn('Could not backup table', { table, error: tableError.message });
-                    }
-                }
-
-                await fs.writeFile(filepath, backupContent);
-                logger.info('Manual backup created', { filename });
-
-                return { filename, filepath, size: backupContent.length };
-            } catch (manualError) {
-                logger.error('Manual backup failed', { error: manualError.message });
-                throw new Error('Gagal membuat backup database');
-            }
-        }
-
         // Try mysqldump first, fallback to manual
         try {
             const { exec } = require('child_process');
@@ -1489,7 +1478,7 @@ const createManualBackup = async (req, res) => {
 
         } catch (mysqldumpError) {
             logger.debug('mysqldump not available, using manual backup');
-            const result = await createManualBackupFile();
+            const result = await performManualDatabaseBackup(filepath, filename);
 
             res.setHeader('Content-Type', 'application/sql');
             res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);

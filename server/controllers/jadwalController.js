@@ -116,6 +116,50 @@ function buildJadwalQuery(role = 'admin', guruId = null) {
 }
 
 /**
+ * Check conflict for a single teacher
+ */
+async function checkSingleTeacherConflict(guruId, hari, jam_mulai, jam_selesai, excludeJadwalId) {
+    const conflictQuery = `
+        SELECT j.id_jadwal, j.hari, j.jam_mulai, j.jam_selesai, j.keterangan_khusus, 
+               COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+               k.nama_kelas
+        FROM jadwal j
+        LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+        JOIN kelas k ON j.kelas_id = k.id_kelas
+        WHERE j.guru_id = ? AND j.hari = ? AND j.status = 'aktif'
+        AND (
+            (j.jam_mulai < ? AND j.jam_selesai > ?) OR
+            (j.jam_mulai < ? AND j.jam_selesai > ?) OR
+            (j.jam_mulai >= ? AND j.jam_selesai <= ?)
+        )
+        ${excludeJadwalId ? 'AND j.id_jadwal != ?' : ''}
+    `;
+
+    const params = excludeJadwalId
+        ? [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai, excludeJadwalId]
+        : [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai];
+
+    const [conflicts] = await globalThis.dbPool.execute(conflictQuery, params);
+    
+    if (conflicts.length > 0) {
+        const conflict = conflicts[0];
+        return {
+            hasConflict: true,
+            guruId: guruId,
+            conflict: {
+                jadwal_id: conflict.id_jadwal,
+                hari: conflict.hari,
+                jam_mulai: conflict.jam_mulai,
+                jam_selesai: conflict.jam_selesai,
+                mata_pelajaran: conflict.nama_mapel,
+                kelas: conflict.nama_kelas
+            }
+        };
+    }
+    return { hasConflict: false };
+}
+
+/**
  * Validasi konflik jadwal guru
  * @param {Array<number>} guruIds - Array ID Guru
  * @param {string} hari - Hari (Senin, Selasa, dst)
@@ -126,42 +170,9 @@ function buildJadwalQuery(role = 'admin', guruId = null) {
  */
 async function validateScheduleConflicts(guruIds, hari, jam_mulai, jam_selesai, excludeJadwalId = null) {
     for (const guruId of guruIds) {
-        const conflictQuery = `
-            SELECT j.id_jadwal, j.hari, j.jam_mulai, j.jam_selesai, j.keterangan_khusus, 
-                   COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                   k.nama_kelas
-            FROM jadwal j
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            WHERE j.guru_id = ? AND j.hari = ? AND j.status = 'aktif'
-            AND (
-                (j.jam_mulai < ? AND j.jam_selesai > ?) OR
-                (j.jam_mulai < ? AND j.jam_selesai > ?) OR
-                (j.jam_mulai >= ? AND j.jam_selesai <= ?)
-            )
-            ${excludeJadwalId ? 'AND j.id_jadwal != ?' : ''}
-        `;
-
-        const params = excludeJadwalId
-            ? [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai, excludeJadwalId]
-            : [guruId, hari, jam_mulai, jam_selesai, jam_selesai, jam_mulai, jam_mulai, jam_selesai];
-
-        const [conflicts] = await globalThis.dbPool.execute(conflictQuery, params);
-
-        if (conflicts.length > 0) {
-            const conflict = conflicts[0];
-            return {
-                hasConflict: true,
-                guruId: guruId,
-                conflict: {
-                    jadwal_id: conflict.id_jadwal,
-                    hari: conflict.hari,
-                    jam_mulai: conflict.jam_mulai,
-                    jam_selesai: conflict.jam_selesai,
-                    mata_pelajaran: conflict.nama_mapel,
-                    kelas: conflict.nama_kelas
-                }
-            };
+        const result = await checkSingleTeacherConflict(guruId, hari, jam_mulai, jam_selesai, excludeJadwalId);
+        if (result.hasConflict) {
+            return result;
         }
     }
 

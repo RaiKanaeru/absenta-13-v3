@@ -154,6 +154,133 @@ export const updatePermissionStatus = async (req, res) => {
     }
 };
 
+// Helper to build analytics queries
+function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
+    const studentAttendanceQuery = `
+        SELECT 
+            'Hari Ini' as periode,
+            COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND a.tanggal = ?
+        UNION ALL
+        SELECT 
+            'Minggu Ini' as periode,
+            COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+            AND YEARWEEK(a.tanggal, 1) = YEARWEEK(?, 1)
+        UNION ALL
+        SELECT 
+            'Bulan Ini' as periode,
+            COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+            AND YEAR(a.tanggal) = ? 
+            AND MONTH(a.tanggal) = ?
+    `;
+
+    const teacherAttendanceQuery = `
+        SELECT 
+            'Hari Ini' as periode,
+            COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
+        FROM guru g
+        LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal = ?
+        UNION ALL
+        SELECT 
+            'Minggu Ini' as periode,
+            COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
+        FROM guru g
+        LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+            AND YEARWEEK(ag.tanggal, 1) = YEARWEEK(?, 1)
+        UNION ALL
+        SELECT 
+            'Bulan Ini' as periode,
+            COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
+        FROM guru g
+        LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+            AND YEAR(ag.tanggal) = ? 
+            AND MONTH(ag.tanggal) = ?
+    `;
+
+    const topAbsentStudentsQuery = `
+        SELECT 
+            s.nama,
+            k.nama_kelas,
+            COUNT(CASE WHEN a.status IN ('Alpa', 'Izin', 'Sakit', 'Dispen') THEN 1 END) as total_alpa
+        FROM siswa s
+        JOIN kelas k ON s.kelas_id = k.id_kelas
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
+        GROUP BY s.id_siswa, s.nama, k.nama_kelas
+        HAVING total_alpa > 0
+        ORDER BY total_alpa DESC
+        LIMIT 5
+    `;
+
+    const topAbsentTeachersQuery = `
+        SELECT 
+            g.nama,
+            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin', 'Dispen') THEN 1 END) as total_tidak_hadir
+        FROM guru g
+        LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id
+        GROUP BY g.id_guru, g.nama
+        HAVING total_tidak_hadir > 0
+        ORDER BY total_tidak_hadir DESC
+        LIMIT 5
+    `;
+
+    const notificationsQuery = `
+        SELECT 
+            ba.id_banding as id,
+            CONCAT('Banding absen dari ', s.nama, ' (', k.nama_kelas, ')') as message,
+            ba.tanggal_pengajuan as timestamp,
+            ba.status_banding as status,
+            'attendance_appeal' as type
+        FROM pengajuan_banding_absen ba
+        JOIN siswa s ON ba.siswa_id = s.id_siswa
+        JOIN kelas k ON s.kelas_id = k.id_kelas
+        WHERE ba.status_banding = 'pending'
+        ORDER BY ba.tanggal_pengajuan DESC
+        LIMIT 10
+    `;
+
+    return {
+        studentAttendanceQuery,
+        teacherAttendanceQuery,
+        topAbsentStudentsQuery,
+        topAbsentTeachersQuery,
+        notificationsQuery
+    };
+}
+
+// Helper to format analytics data
+function formatAnalyticsData(results) {
+    const [
+        [totalStudentsResult],
+        [totalTeachersResult],
+        [studentAttendance],
+        [teacherAttendance],
+        [topAbsentStudents],
+        [topAbsentTeachers],
+        [notifications]
+    ] = results;
+    
+    return {
+        studentAttendance: studentAttendance || [],
+        teacherAttendance: teacherAttendance || [],
+        topAbsentStudents: topAbsentStudents || [],
+        topAbsentTeachers: topAbsentTeachers || [],
+        notifications: notifications || [],
+        totalStudents: totalStudentsResult[0]?.total || 0,
+        totalTeachers: totalTeachersResult[0]?.total || 0
+    };
+}
+
 // Get analytics data for dashboard
 export const getAnalyticsDashboard = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -166,136 +293,25 @@ export const getAnalyticsDashboard = async (req, res) => {
         const currentYear = wibNow.getFullYear();
         const currentMonth = wibNow.getMonth() + 1;
 
-        // Get student attendance statistics (including Dispen as Hadir)
-        const studentAttendanceQuery = `
-            SELECT 
-                'Hari Ini' as periode,
-                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND a.tanggal = ?
-            UNION ALL
-            SELECT 
-                'Minggu Ini' as periode,
-                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND YEARWEEK(a.tanggal, 1) = YEARWEEK(?, 1)
-            UNION ALL
-            SELECT 
-                'Bulan Ini' as periode,
-                COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND YEAR(a.tanggal) = ? 
-                AND MONTH(a.tanggal) = ?
-        `;
+        const queries = buildAnalyticsQueries(todayWIB, currentYear, currentMonth);
 
-        // Get teacher attendance statistics (including Dispen as Hadir)
-        const teacherAttendanceQuery = `
-            SELECT 
-                'Hari Ini' as periode,
-                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
-            FROM guru g
-            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal = ?
-            UNION ALL
-            SELECT 
-                'Minggu Ini' as periode,
-                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
-            FROM guru g
-            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
-                AND YEARWEEK(ag.tanggal, 1) = YEARWEEK(?, 1)
-            UNION ALL
-            SELECT 
-                'Bulan Ini' as periode,
-                COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
-            FROM guru g
-            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
-                AND YEAR(ag.tanggal) = ? 
-                AND MONTH(ag.tanggal) = ?
-        `;
-
-        // Get top absent students
-        const topAbsentStudentsQuery = `
-            SELECT 
-                s.nama,
-                k.nama_kelas,
-                COUNT(CASE WHEN a.status IN ('Alpa', 'Izin', 'Sakit', 'Dispen') THEN 1 END) as total_alpa
-            FROM siswa s
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
-            GROUP BY s.id_siswa, s.nama, k.nama_kelas
-            HAVING total_alpa > 0
-            ORDER BY total_alpa DESC
-            LIMIT 5
-        `;
-
-        // Get top absent teachers
-        const topAbsentTeachersQuery = `
-            SELECT 
-                g.nama,
-                COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin', 'Dispen') THEN 1 END) as total_tidak_hadir
-            FROM guru g
-            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id
-            GROUP BY g.id_guru, g.nama
-            HAVING total_tidak_hadir > 0
-            ORDER BY total_tidak_hadir DESC
-            LIMIT 5
-        `;
-
-        // Get recent notifications/banding absen requests
-        const notificationsQuery = `
-            SELECT 
-                ba.id_banding as id,
-                CONCAT('Banding absen dari ', s.nama, ' (', k.nama_kelas, ')') as message,
-                ba.tanggal_pengajuan as timestamp,
-                ba.status_banding as status,
-                'attendance_appeal' as type
-            FROM pengajuan_banding_absen ba
-            JOIN siswa s ON ba.siswa_id = s.id_siswa
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE ba.status_banding = 'pending'
-            ORDER BY ba.tanggal_pengajuan DESC
-            LIMIT 10
-        `;
-
-        // Execute all queries in parallel for better performance
-        const [
-            [totalStudentsResult],
-            [totalTeachersResult],
-            [studentAttendance],
-            [teacherAttendance],
-            [topAbsentStudents],
-            [topAbsentTeachers],
-            [notifications]
-        ] = await Promise.all([
+        // Execute all queries in parallel
+        const results = await Promise.all([
             globalThis.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
             globalThis.dbPool.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
-            globalThis.dbPool.execute(studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            globalThis.dbPool.execute(teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            globalThis.dbPool.execute(topAbsentStudentsQuery),
-            globalThis.dbPool.execute(topAbsentTeachersQuery),
-            globalThis.dbPool.execute(notificationsQuery)
+            globalThis.dbPool.execute(queries.studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            globalThis.dbPool.execute(queries.teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            globalThis.dbPool.execute(queries.topAbsentStudentsQuery),
+            globalThis.dbPool.execute(queries.topAbsentTeachersQuery),
+            globalThis.dbPool.execute(queries.notificationsQuery)
         ]);
-        const totalStudents = totalStudentsResult[0]?.total || 0;
-        const totalTeachers = totalTeachersResult[0]?.total || 0;
 
-        const analyticsData = {
-            studentAttendance: studentAttendance || [],
-            teacherAttendance: teacherAttendance || [],
-            topAbsentStudents: topAbsentStudents || [],
-            topAbsentTeachers: topAbsentTeachers || [],
-            notifications: notifications || [],
-            totalStudents: totalStudents,
-            totalTeachers: totalTeachers
-        };
+        const analyticsData = formatAnalyticsData(results);
 
-        log.success('GetAnalyticsDashboard', { totalStudents, notificationCount: notifications.length });
+        log.success('GetAnalyticsDashboard', { 
+            totalStudents: analyticsData.totalStudents, 
+            notificationCount: analyticsData.notifications.length 
+        });
         res.json(analyticsData);
     } catch (error) {
         log.dbError('analytics', error);
@@ -714,6 +730,65 @@ export const getStudentAttendanceSummary = async (req, res) => {
     }
 };
 
+// Helper to validate export params
+function validateExportParams(startDate, endDate) {
+    if (!startDate || !endDate) {
+        return { valid: false, error: 'Tanggal mulai dan tanggal selesai wajib diisi', type: 'dates' };
+    }
+
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+
+    if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
+        return { valid: false, error: 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD', type: 'dateFormat' };
+    }
+
+    if (startDateObj > endDateObj) {
+        return { valid: false, error: 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai', type: 'dateRange' };
+    }
+
+    const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 366) {
+        return { valid: false, error: 'Rentang tanggal tidak boleh lebih dari 366 hari', type: 'dateRange', data: daysDiff };
+    }
+
+    return { valid: true };
+}
+
+// Helper to build student summary query
+function buildStudentSummaryQuery(startDate, endDate, kelas_id) {
+    let query = `
+        SELECT 
+            s.nama,
+            s.nis,
+            k.nama_kelas,
+            COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
+            COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+            COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+            COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
+            COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+            COALESCE(COUNT(a.id), 0) AS total,
+            CASE 
+                WHEN COUNT(a.id) = 0 THEN 0
+                ELSE ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
+            END AS presentase
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
+        JOIN kelas k ON s.kelas_id = k.id_kelas
+        WHERE s.status = 'aktif'
+    `;
+
+    const params = [startDate, endDate];
+    if (kelas_id && kelas_id !== '' && kelas_id !== 'all') {
+        query += ' AND k.id_kelas = ?';
+        params.push(kelas_id);
+    }
+
+    query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
+
+    return { query, params };
+}
+
 // Download student attendance summary as styled Excel
 export const downloadStudentAttendanceExcel = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -723,61 +798,13 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
 
     try {
         // Validasi input
-        if (!startDate || !endDate) {
-            log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
+        const validation = validateExportParams(startDate, endDate);
+        if (!validation.valid) {
+            log.validationFail(validation.type, validation.data, validation.error);
+            return sendValidationError(res, validation.error);
         }
 
-        // Validasi format tanggal
-        const startDateObj = new Date(startDate);
-        const endDateObj = new Date(endDate);
-
-        if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
-            log.validationFail('dateFormat', { startDate, endDate }, 'Invalid format');
-            return sendValidationError(res, 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD');
-        }
-
-        // Validasi rentang tanggal
-        if (startDateObj > endDateObj) {
-            log.validationFail('dateRange', null, 'Start after end');
-            return sendValidationError(res, 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai');
-        }
-
-        // Validasi batas rentang (maksimal 1 tahun)
-        const daysDiff = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
-        if (daysDiff > 366) {
-            log.validationFail('dateRange', daysDiff, 'Range exceeds 366 days');
-            return sendValidationError(res, 'Rentang tanggal tidak boleh lebih dari 366 hari');
-        }
-
-        let query = `
-            SELECT 
-                s.nama,
-                s.nis,
-                k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
-                COALESCE(COUNT(a.id), 0) AS total,
-                CASE 
-                    WHEN COUNT(a.id) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
-                END AS presentase
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE s.status = 'aktif'
-        `;
-
-        const params = [startDate, endDate];
-        if (kelas_id && kelas_id !== '' && kelas_id !== 'all') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-
-        query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
+        const { query, params } = buildStudentSummaryQuery(startDate, endDate, kelas_id);
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 
@@ -879,6 +906,62 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         return sendDatabaseError(res, error, 'Gagal memuat ringkasan kehadiran guru');
     }
 };
+// Helper to build guru attendance query
+function buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate) {
+    if (isAnnual) {
+        // Annual Report based on Academic Year (July - June)
+        const query = `
+            SELECT 
+                g.id_guru as id,
+                g.nama as nama_guru,
+                g.nip,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
+                COUNT(ag.id_absensi) as total_ketidakhadiran,
+                
+                /* Calculate totals */
+                (SELECT COUNT(*) FROM jadwal j WHERE j.guru_id = g.id_guru AND j.status = 'aktif') * 20 as total_hari_efektif_est,
+                
+                0 as total_kehadiran /* To be calculated or fetched if needed */
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                AND ag.tanggal BETWEEN ? AND ?
+                AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
+            WHERE g.status = 'aktif'
+            GROUP BY g.id_guru, g.nama, g.nip
+            ORDER BY g.nama
+        `;
+        return { query, params: [startDate, endDate] };
+    } else {
+        // Monthly or Date Range Report
+        const query = `
+            SELECT 
+                g.id_guru as id,
+                g.nama as nama_guru,
+                g.nip,
+                COALESCE(COUNT(ag.id_absensi), 0) as total_ketidakhadiran
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                AND ag.tanggal BETWEEN ? AND ?
+                AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
+            WHERE g.status = 'aktif'
+            GROUP BY g.id_guru, g.nama, g.nip
+            ORDER BY g.nama
+        `;
+        return { query, params: [start, end] };
+    }
+}
+
 // Get rekap ketidakhadiran guru (Pivot per bulan)
 export const getRekapKetidakhadiranGuru = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -890,70 +973,17 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
     log.requestStart('GetRekapKetidakhadiranGuru', { selectedYear, bulan, tanggal_awal, tanggal_akhir });
 
     try {
-        let query = '';
-        let params = [];
         const isAnnual = !tanggal_awal && !tanggal_akhir && selectedYear;
+        const startDate = `${selectedYear}-07-01`;
+        const endDate = `${selectedYear + 1}-06-30`;
 
-        if (isAnnual) {
-            // Annual Report based on Academic Year (July - June)
-            const startDate = `${selectedYear}-07-01`;
-            const endDate = `${selectedYear + 1}-06-30`;
+        const start = tanggal_awal || `${selectedYear}-${String(bulan || 1).padStart(2, '0')}-01`;
+        // Calculate end of month without timezone issues
+        const monthIndex = bulan ? Number.parseInt(bulan) : 1;
+        const monthEndDate = new Date(selectedYear, monthIndex, 0);
+        const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
-            query = `
-                SELECT 
-                    g.id_guru as id,
-                    g.nama as nama_guru,
-                    g.nip,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
-                    COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
-                    COUNT(ag.id_absensi) as total_ketidakhadiran,
-                    
-                    /* Calculate totals */
-                    (SELECT COUNT(*) FROM jadwal j WHERE j.guru_id = g.id_guru AND j.status = 'aktif') * 20 as total_hari_efektif_est,
-                    
-                    0 as total_kehadiran /* To be calculated or fetched if needed */
-                FROM guru g
-                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
-                    AND ag.tanggal BETWEEN ? AND ?
-                    AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
-                WHERE g.status = 'aktif'
-                GROUP BY g.id_guru, g.nama, g.nip
-                ORDER BY g.nama
-            `;
-            params = [startDate, endDate];
-        } else {
-            // Monthly or Date Range Report
-            const start = tanggal_awal || `${selectedYear}-${bulan.padStart(2, '0')}-01`;
-            // Calculate end of month without timezone issues
-            const monthEndDate = new Date(selectedYear, Number.parseInt(bulan), 0);
-            const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
-
-            query = `
-                SELECT 
-                    g.id_guru as id,
-                    g.nama as nama_guru,
-                    g.nip,
-                    COALESCE(COUNT(ag.id_absensi), 0) as total_ketidakhadiran
-                FROM guru g
-                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
-                    AND ag.tanggal BETWEEN ? AND ?
-                    AND ag.status IN ('Sakit', 'Izin', 'Alpa', 'Tidak Hadir')
-                WHERE g.status = 'aktif'
-                GROUP BY g.id_guru, g.nama, g.nip
-                ORDER BY g.nama
-            `;
-            params = [start, end];
-        }
+        const { query, params } = buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate);
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 

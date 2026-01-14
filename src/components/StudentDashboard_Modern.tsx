@@ -1773,7 +1773,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                               Multi-Guru ({jadwal.guru_list.length} guru)
                             </Badge>
                             {jadwal.guru_list.slice(1).map((guru, idx: number) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
+                              <Badge key={guru.id_guru || idx} variant="outline" className="text-xs">
                                 {guru.nama_guru}
                               </Badge>
                             ))}
@@ -2207,7 +2207,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                               </Badge>
                               <div className="space-y-1">
                                 {jadwal.guru_list.map((guru, idx: number) => (
-                                  <div key={idx} className="flex items-center gap-2">
+                                  <div key={guru.id_guru || idx} className="flex items-center gap-2">
                                     <Badge 
                                       variant="outline" 
                                       className={`text-xs ${
@@ -2352,7 +2352,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                                       </div>
                                       <div className="space-y-1">
                                         {jadwal.guru_list.map((guru, idx: number) => (
-                                          <div key={idx} className="flex items-center gap-2">
+                                          <div key={guru.id_guru || idx} className="flex items-center gap-2">
                                             <Badge 
                                               variant="outline" 
                                               className={`text-xs ${
