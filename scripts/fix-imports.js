@@ -3,8 +3,8 @@
  * Adds errorHandler imports to files that use it but don't import it
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);

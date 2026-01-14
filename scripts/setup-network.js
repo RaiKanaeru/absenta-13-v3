@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import os from 'os';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 console.log('🌐 ABSENTA Network Setup Helper');
 console.log('================================');

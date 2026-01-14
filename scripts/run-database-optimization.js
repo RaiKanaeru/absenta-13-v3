@@ -6,8 +6,8 @@
  */
 
 import DatabaseOptimization from './database-optimization.js';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 console.log('🚀 Starting Database Optimization Process...');
 console.log('📋 Phase 1: Database Indexing, Connection Pooling, and Partitioning');

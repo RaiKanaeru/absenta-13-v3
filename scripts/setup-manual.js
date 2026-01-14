@@ -1,5 +1,5 @@
 import readline from 'readline';
-import fs from 'fs';
+import fs from 'node:fs';
 
 const rl = readline.createInterface({
     input: process.stdin,
