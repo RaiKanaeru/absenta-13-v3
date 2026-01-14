@@ -142,6 +142,67 @@ function formatFileSize(bytes: number): string {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+/**
+ * Validate backup parameters based on type
+ */
+function validateBackupParams(
+    backupType: 'semester' | 'date',
+    selectedSemester: string,
+    selectedDate: string
+): { isValid: boolean; errorMessage: string } {
+    if (backupType === 'semester' && !selectedSemester) {
+        return { isValid: false, errorMessage: 'Pilih semester terlebih dahulu' };
+    }
+    if (backupType === 'date' && !selectedDate) {
+        return { isValid: false, errorMessage: 'Pilih tanggal mulai backup terlebih dahulu' };
+    }
+    return { isValid: true, errorMessage: '' };
+}
+
+/**
+ * Build backup API config based on type
+ */
+function buildBackupConfig(
+    backupType: 'semester' | 'date',
+    selectedSemester: string,
+    selectedYear: number,
+    selectedDate: string,
+    selectedEndDate: string
+): { endpoint: string; payload: object } {
+    if (backupType === 'semester') {
+        return {
+            endpoint: getApiUrl('/api/admin/create-semester-backup'),
+            payload: { semester: selectedSemester, year: selectedYear }
+        };
+    }
+    return {
+        endpoint: getApiUrl('/api/admin/create-date-backup'),
+        payload: { startDate: selectedDate, endDate: selectedEndDate || selectedDate }
+    };
+}
+
+/**
+ * Calculate progress update values
+ */
+function calculateProgressUpdate(currentProgress: number): BackupProgress {
+    if (currentProgress >= 95) {
+        return {
+            isRunning: true,
+            progress: 100,
+            currentStep: 'Backup selesai!',
+            estimatedTime: '0 menit'
+        };
+    }
+    const increment = Math.random() * 15 + 5;
+    const newProgress = Math.min(currentProgress + increment, 95);
+    return {
+        isRunning: true,
+        progress: newProgress,
+        currentStep: getProgressStep(newProgress),
+        estimatedTime: `${Math.max(0, Math.ceil((100 - newProgress) / 10))} menit`
+    };
+}
+
 const BackupManagementView: React.FC = () => {
     const [backups, setBackups] = useState<BackupInfo[]>([]);
     const [loading, setLoading] = useState(false);
@@ -395,20 +456,12 @@ const BackupManagementView: React.FC = () => {
     };
 
     const createBackup = async () => {
-        // Validasi berdasarkan tipe backup
-        if (backupType === 'semester' && !selectedSemester) {
+        // Use extracted validation helper
+        const validation = validateBackupParams(backupType, selectedSemester, selectedDate);
+        if (!validation.isValid) {
             toast({
                 title: "Error",
-                description: "Pilih semester terlebih dahulu",
-                variant: "destructive"
-            });
-            return;
-        }
-
-        if (backupType === 'date' && !selectedDate) {
-            toast({
-                title: "Error",
-                description: "Pilih tanggal mulai backup terlebih dahulu",
+                description: validation.errorMessage,
                 variant: "destructive"
             });
             return;
@@ -422,26 +475,14 @@ const BackupManagementView: React.FC = () => {
                 estimatedTime: '5-10 menit'
             });
 
-            // Tentukan endpoint dan payload berdasarkan tipe backup
-            const endpoint = backupType === 'semester' 
-                ? getApiUrl('/api/admin/create-semester-backup')
-                : getApiUrl('/api/admin/create-date-backup');
-
-            const payload = backupType === 'semester' 
-                ? {
-                    semester: selectedSemester,
-                    year: selectedYear
-                }
-                : {
-                    startDate: selectedDate,
-                    endDate: selectedEndDate || selectedDate
-                };
+            // Use extracted config builder
+            const { endpoint, payload } = buildBackupConfig(
+                backupType, selectedSemester, selectedYear, selectedDate, selectedEndDate
+            );
 
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify(payload)
             });
@@ -450,38 +491,20 @@ const BackupManagementView: React.FC = () => {
                 throw new Error('Failed to create backup');
             }
 
-            // Simulate progress updates with more realistic timing
+            // Progress simulation using extracted calculator
             const progressInterval = setInterval(() => {
                 setBackupProgress(prev => {
                     if (prev.progress >= 95) {
                         clearInterval(progressInterval);
-                        return {
-                            ...prev,
-                            progress: 100,
-                            currentStep: 'Backup selesai!',
-                            estimatedTime: '0 menit'
-                        };
                     }
-                    const increment = Math.random() * 15 + 5; // Random increment between 5-20
-                    const newProgress = Math.min(prev.progress + increment, 95);
-                    return {
-                        ...prev,
-                        progress: newProgress,
-                        currentStep: getProgressStep(newProgress),
-                        estimatedTime: `${Math.max(0, Math.ceil((100 - newProgress) / 10))} menit`
-                    };
+                    return calculateProgressUpdate(prev.progress);
                 });
             }, 1500);
 
-            const result = await response.json();
+            const result = await response.json() as { data?: { backupId?: string } };
             
             setTimeout(() => {
-                setBackupProgress({
-                    isRunning: false,
-                    progress: 0,
-                    currentStep: '',
-                    estimatedTime: ''
-                });
+                setBackupProgress(DEFAULT_BACKUP_PROGRESS);
                 setShowCreateDialog(false);
                 loadBackups();
                 toast({
@@ -492,12 +515,7 @@ const BackupManagementView: React.FC = () => {
 
         } catch (error) {
             console.error('Error creating backup:', error);
-            setBackupProgress({
-                isRunning: false,
-                progress: 0,
-                currentStep: '',
-                estimatedTime: ''
-            });
+            setBackupProgress(DEFAULT_BACKUP_PROGRESS);
             toast({
                 title: "Error",
                 description: "Gagal membuat backup",
