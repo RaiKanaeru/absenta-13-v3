@@ -1068,7 +1068,7 @@ const getBackupDirectoryStatus = async (req, res) => {
                 })
             );
         } catch (error) {
-            logger.debug('Backup directory does not exist or is not accessible');
+            logger.debug('Backup directory does not exist or is not accessible', { error: error.message });
         }
 
         res.json({
@@ -1123,6 +1123,7 @@ const getBackupSettings = async (req, res) => {
                 settings: mergedSettings
             });
         } catch (fileError) {
+            logger.debug('Failed to read backup settings file (using defaults)', { error: fileError.message });
             const defaultSettingsWithDates = {
                 ...defaultSettings,
                 lastBackupDate: null,
@@ -1367,6 +1368,7 @@ const runCustomSchedule = async (req, res) => {
             const schedulesData = await fs.readFile(schedulesPath, 'utf8');
             schedules = JSON.parse(schedulesData);
         } catch (fileError) {
+            logger.warn('Schedules file not found', { error: fileError.message });
             return res.status(404).json({
                 error: 'Schedules not found',
                 message: 'No schedules file found'
@@ -1422,6 +1424,7 @@ const createManualBackup = async (req, res) => {
         try {
             await fs.access(backupDir);
         } catch (error) {
+            logger.debug('Backup directory does not exist, creating it', { error: error.message });
             // Directory doesn't exist, create it
             await fs.mkdir(backupDir, { recursive: true });
         }

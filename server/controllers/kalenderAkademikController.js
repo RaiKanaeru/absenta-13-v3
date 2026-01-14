@@ -195,7 +195,7 @@ export const updateKalenderAkademik = async (req, res) => {
             return sendValidationError(res, 'hari_efektif harus antara 0-31');
         }
 
-        const hariEfektifVal = hari_efektif !== undefined ? Number.parseInt(hari_efektif) : null;
+        const hariEfektifVal = hari_efektif === undefined ? null : Number.parseInt(hari_efektif);
         let isLiburVal = null;
         if (is_libur_semester !== undefined) {
             isLiburVal = is_libur_semester ? 1 : 0;
@@ -210,7 +210,7 @@ export const updateKalenderAkademik = async (req, res) => {
         `, [
             hariEfektifVal,
             isLiburVal,
-            keterangan !== undefined ? keterangan : null,
+            keterangan === undefined ? null : keterangan,
             id
         ]);
 

@@ -17,7 +17,7 @@ import { formatDateTime24, getCurrentYearWIB } from '../lib/time-utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Calendar, Download, Archive, Trash2, RefreshCw, AlertCircle, CheckCircle, Clock, Database, FileSpreadsheet, Settings, Play, Pause, RotateCcw, Info, Zap, AlertTriangle } from 'lucide-react';
+import { Calendar, Download, Archive, Trash2, RefreshCw, CheckCircle, Clock, Database, FileSpreadsheet, Settings, Play, Pause, RotateCcw, Info, Zap } from 'lucide-react';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { useToast } from '../hooks/use-toast';
@@ -221,6 +221,11 @@ const BackupManagementView: React.FC = () => {
     const [newSchedule, setNewSchedule] = useState<Partial<CustomSchedule>>(DEFAULT_NEW_SCHEDULE);
     const [archiveLoading, setArchiveLoading] = useState(false);
     const { toast } = useToast();
+
+    // Derived state for performance optimization (SonarQube)
+    const pendingSchedules = customSchedules.filter(s => s.enabled && !s.lastRun);
+    const completedSchedules = customSchedules.filter(s => s.lastRun);
+    const nextSchedule = pendingSchedules.sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0];
 
     // Load backups on component mount
     useEffect(() => {
@@ -532,13 +537,13 @@ const BackupManagementView: React.FC = () => {
             
             if (response.ok) {
                 const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+                const url = globalThis.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `${backupId}.zip`;
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+                globalThis.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
                 
                 toast({
@@ -720,19 +725,19 @@ const BackupManagementView: React.FC = () => {
                     
                     {/* Status Information - Mobile Optimized */}
                     <div className="mt-3 space-y-1">
-                        {customSchedules.filter(s => s.enabled && !s.lastRun).length > 0 && (
+                        {pendingSchedules.length > 0 && (
                             <div className="text-xs lg:text-sm text-blue-600 flex items-center">
                                 <Clock className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">
-                                    {customSchedules.filter(s => s.enabled && !s.lastRun).length} jadwal backup aktif menunggu waktu
+                                    {pendingSchedules.length} jadwal backup aktif menunggu waktu
                                 </span>
                             </div>
                         )}
-                        {customSchedules.filter(s => s.lastRun).length > 0 && (
+                        {completedSchedules.length > 0 && (
                             <div className="text-xs lg:text-sm text-green-600 flex items-center">
                                 <CheckCircle className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">
-                                    {customSchedules.filter(s => s.lastRun).length} jadwal backup sudah dijalankan
+                                    {completedSchedules.length} jadwal backup sudah dijalankan
                                 </span>
                             </div>
                         )}
@@ -742,23 +747,15 @@ const BackupManagementView: React.FC = () => {
                                 <span className="truncate">Belum ada jadwal backup custom yang dikonfigurasi</span>
                             </div>
                         )}
-                        {customSchedules.filter(s => s.enabled && !s.lastRun).length > 0 && (
+                        {pendingSchedules.length > 0 && (
                             <div className="text-xs lg:text-sm text-orange-600 flex items-center">
                                 <Clock className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">
-                                    Jadwal berikutnya: {(() => {
-                                        const nextSchedule = customSchedules
-                                            .filter(s => s.enabled && !s.lastRun)
-                                            .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0];
-                                        if (nextSchedule) {
-                                            return formatDateTime24(`${nextSchedule.date}T${nextSchedule.time}`, true);
-                                        }
-                                        return '';
-                                    })()}
+                                    Jadwal berikutnya: {nextSchedule ? formatDateTime24(`${nextSchedule.date}T${nextSchedule.time}`, true) : ''}
                                 </span>
                             </div>
                         )}
-                        {customSchedules.filter(s => s.enabled && !s.lastRun).length > 0 && (
+                        {pendingSchedules.length > 0 && (
                             <div className="text-xs lg:text-sm text-blue-600 flex items-center">
                                 <Info className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">Server akan otomatis menjalankan backup pada waktu yang dijadwalkan</span>

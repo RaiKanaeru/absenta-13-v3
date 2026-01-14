@@ -1,5 +1,5 @@
 import { enterFullscreen, exitFullscreen, isFullscreen } from '@/utils/fullscreenHelper';
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,25 +16,16 @@ import { formatTime24WithSeconds, formatDateTime24, formatDateOnly, getCurrentDa
 import { JadwalService } from "@/services/jadwalService";
 import { FontSizeControl } from "@/components/ui/font-size-control";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import ErrorBoundary from "./ErrorBoundary";
 import BackupManagementView from "./BackupManagementView";
 import MonitoringDashboard from "./MonitoringDashboard";
-import { Teacher, TeacherData, Student, StudentData, Subject, Kelas, Schedule, Room, LiveData } from '@/types/dashboard';
+import { Teacher, TeacherData, StudentData, Subject, Kelas, Schedule, Room, LiveData } from '@/types/dashboard';
 import { ManageStudentsView } from './admin/students/ManageStudentsView';
 import { PreviewJadwalView } from './admin/schedules/PreviewJadwalView';
 import JamPelajaranConfig from "./JamPelajaranConfig";
 import SimpleRestoreView from "./SimpleRestoreView";
-import { printReport } from "../utils/printLayouts";
+
 import ExcelPreview from './ExcelPreview';
 // import ReportHeader from './ReportHeader';
 import PresensiSiswaView from './PresensiSiswaView';
@@ -44,15 +35,15 @@ import ExcelImportView from './ExcelImportView';
 import { VIEW_TO_REPORT_KEY } from '../utils/reportKeys';
 import { EditProfile } from './EditProfile';
 import ReportLetterheadSettings from './ReportLetterheadSettings';
-import { useLetterhead } from '../hooks/useLetterhead';
+
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { 
   UserPlus, BookOpen, Calendar, BarChart3, LogOut, ArrowLeft, ArrowRight, Users, GraduationCap, 
-  Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Bell, Menu, X,
-  TrendingUp, BookPlus, Home, Clock, CheckCircle, CheckCircle2, XCircle, AlertCircle, AlertTriangle, MessageCircle, ClipboardList, Activity,
-  Database, Archive, Activity, Server, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
-  Printer, Maximize2, Minimize2, Award, Star
+  Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Menu, X,
+  TrendingUp, Home, Clock, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, Activity,
+  Database, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
+  Maximize2, Minimize2
 } from "lucide-react";
 
 /**
@@ -155,23 +146,20 @@ const generatePageNumbers = (
   
   if (currentPage <= 3) {
     for (let i = 1; i <= 4; i++) pages.push(i);
-    pages.push('...');
-    pages.push(totalPages);
+    for (let i = 1; i <= 4; i++) pages.push(i);
+    pages.push('...', totalPages);
     return pages;
   }
   
   if (currentPage >= totalPages - 2) {
-    pages.push(1);
-    pages.push('...');
+    pages.push(1, '...');
     for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
     return pages;
   }
   
-  pages.push(1);
-  pages.push('...');
+  pages.push(1, '...');
   for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-  pages.push('...');
-  pages.push(totalPages);
+  pages.push('...', totalPages);
   return pages;
 };
 
@@ -319,7 +307,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     if (!isEditing && !data.password) {
       return "Password wajib diisi untuk akun baru!";
     }
-    if (!/^[0-9]{10,20}$/.test(data.nip)) {
+    if (!/^\d{10,20}$/.test(data.nip)) {
       return "NIP harus berupa angka 10-20 digit!";
     }
     if (!/^[a-zA-Z0-9._-]{4,32}$/.test(data.username)) {
@@ -435,7 +423,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     setDialogOpen(true);
   };  const handleDelete = async (id: number, nama: string) => {
     // Confirmation dialog
-    if (!window.confirm(`Yakin ingin menghapus akun guru "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!globalThis.confirm(`Yakin ingin menghapus akun guru "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
     }
     
@@ -1569,7 +1557,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
     // Declarative validation rules
     const validationRules = [
       { test: !formData.nip || !formData.nama, message: "NIP dan Nama wajib diisi!" },
-      { test: formData.nip && !/^[0-9]{10,20}$/.test(formData.nip), message: "NIP harus berupa angka 10-20 digit!" },
+      { test: formData.nip && !/^\d{10,20}$/.test(formData.nip), message: "NIP harus berupa angka 10-20 digit!" },
       { test: formData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), message: "Format email tidak valid!" },
       { test: formData.telepon?.trim() && !/^[\d+]{1,20}$/.test(formData.telepon.trim()), message: "Nomor telepon harus berupa angka, maksimal 20 karakter!" }
     ];
@@ -3804,7 +3792,11 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                         {schedule.nama_kelas}
                       </TableCell>
                       <TableCell>
-                        {schedule.jenis_aktivitas !== 'pelajaran' ? (() => {
+                        {schedule.jenis_aktivitas === 'pelajaran' ? (
+                          <Badge variant="default" className="text-xs">
+                            📚 Pelajaran
+                          </Badge>
+                        ) : (() => {
                           const activityMap: Record<string, string> = {
                             upacara: '🏳️ Upacara',
                             istirahat: '☕ Istirahat',
@@ -3817,11 +3809,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                               {activityMap[schedule.jenis_aktivitas] || '📋 ' + schedule.jenis_aktivitas}
                             </Badge>
                           );
-                        })() : (
-                          <Badge variant="default" className="text-xs">
-                            📚 Pelajaran
-                          </Badge>
-                        )}
+                        })()}
                       </TableCell>
                       <TableCell>
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
@@ -4542,7 +4530,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     // Jika tidak ada pencarian, hanya tampilkan yang sudah absen
     const hasAttended = item.status !== 'Belum Absen' && item.waktu_absen !== null;
     
-    if (searchQuery !== '') {
+    if (searchQuery) {
       return matchesSearch && matchesKelas;
     } else {
       return hasAttended && matchesKelas;
@@ -4601,13 +4589,13 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     const initial: TimeGroups = { pagi: [], siang: [], sore: [], belumAbsen: [] };
     
     return data.reduce((groups, item) => {
-      if (!item.waktu_absen) {
-        groups.belumAbsen.push(item);
-      } else {
+      if (item.waktu_absen) {
         const hour = Number.parseInt(item.waktu_absen.split(':')[0]);
         if (hour >= 6 && hour < 12) groups.pagi.push(item);
         else if (hour >= 12 && hour < 15) groups.siang.push(item);
         else if (hour >= 15 && hour < 18) groups.sore.push(item);
+      } else {
+        groups.belumAbsen.push(item);
       }
       return groups;
     }, initial);
@@ -6070,7 +6058,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
     const [processingNotif, setProcessingNotif] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [fullscreenMode, setFullscreenMode] = useState(false);
     const dashboardRef = useRef<HTMLDivElement>(null);
 
     // Fullscreen toggle handler with cross-browser compatibility
@@ -6088,7 +6076,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
     // Listen for fullscreen changes
     useEffect(() => {
       const handleFullscreenChange = () => {
-        setIsFullscreen(isFullscreen());
+        setFullscreenMode(isFullscreen());
       };
       
       document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -8196,7 +8184,18 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </div>
 
           {/* Content */}
-          {!activeView ? (
+          {activeView ? (
+             <div className="space-y-6">
+                <Button variant="ghost" className="mb-4" onClick={() => setActiveView(null)}>
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Kembali ke Menu
+                </Button>
+                
+                {activeView === 'add-teacher' && <ManageTeacherAccountsView onBack={() => setActiveView(null)} onLogout={onLogout} />}
+                {activeView === 'monitoring' && <SystemMonitoringView onBack={() => setActiveView(null)} onLogout={onLogout} />}
+                {/* Add other components here as needed */}
+             </div>
+          ) : (
             <div className="space-y-8">
               {/* Desktop Header */}
               <div className="hidden lg:block">

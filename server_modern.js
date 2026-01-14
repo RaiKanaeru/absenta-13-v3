@@ -466,10 +466,10 @@ app.use((req, res, next) => {
 
             // Input validation (skip for letterhead endpoints due to large base64 data)
             if (req.body && typeof req.body === 'object' && !req.path.includes('/letterhead')) {
-                const validationResult = global.securitySystem.validateInput(req.body, 'body');
+                const validationResult = globalThis.securitySystem.validateInput(req.body, 'body');
                 if (validationResult.violations && validationResult.violations.length > 0) {
                     const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
-                    global.securitySystem.logSecurityEvent('input_validation_failed', {
+                    globalThis.securitySystem.logSecurityEvent('input_validation_failed', {
                         ip: clientIP,
                         path: req.path,
                         method: req.method,
@@ -487,7 +487,7 @@ app.use((req, res, next) => {
 
             // Audit logging
             const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
-            global.securitySystem.logSecurityEvent('request', {
+            globalThis.securitySystem.logSecurityEvent('request', {
                 ip: clientIP,
                 path: req.path,
                 method: req.method,

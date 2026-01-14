@@ -638,15 +638,14 @@ function buildJamKeHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     sheet.getCell(2, 2).value = 'JAM KE';
     Object.assign(sheet.getCell(2, 2), headerStyle);
     
-    let colOffset = startDataCol;
-    for (const _ of HARI_LIST) {
+    HARI_LIST.forEach(() => {
         for (let j = 0; j < totalJamPerHari; j++) {
             const cell = sheet.getCell(2, colOffset + j);
             cell.value = j + 1;
             Object.assign(cell, headerStyle);
         }
         colOffset += totalJamPerHari;
-    }
+    });
     sheet.getRow(2).height = 15;
 }
 
@@ -655,7 +654,7 @@ function buildWaktuHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     Object.assign(sheet.getCell(3, 2), headerStyle);
     
     let colOffset = startDataCol;
-    for (const _ of HARI_LIST) {
+    HARI_LIST.forEach(() => {
         for (let j = 0; j < totalJamPerHari; j++) {
             const cell = sheet.getCell(3, colOffset + j);
             cell.value = `${JAM_PELAJARAN[j].mulai}-${JAM_PELAJARAN[j].selesai}`;
@@ -664,7 +663,7 @@ function buildWaktuHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
             cell.border = headerStyle.border;
         }
         colOffset += totalJamPerHari;
-    }
+    });
     sheet.getRow(3).height = 20;
 }
 

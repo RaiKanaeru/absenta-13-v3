@@ -12,6 +12,9 @@ import * as letterheadController from '../controllers/letterheadController.js';
 
 const router = Router();
 
+// Allowed image extensions whitelist
+const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+
 // Multer configuration for logo upload
 const uploadLogo = multer({
     storage: multer.diskStorage({
@@ -19,21 +22,22 @@ const uploadLogo = multer({
             cb(null, 'public/uploads/letterheads');
         },
         filename(req, file, cb) {
-            // Sanitize extension to prevent path traversal
-            const rawExt = path.extname(file.originalname);
-            // Allow only alphanumeric and dot
-            const ext = rawExt.replaceAll(/[^a-zA-Z0-9.]/g, '').toLowerCase(); 
+            // Use path.basename to strip any directory components from originalname
+            const safeName = path.basename(file.originalname);
             
-            // Sanitize logoType (user input)
+            // Get extension and validate against whitelist
+            const rawExt = path.extname(safeName).toLowerCase();
+            const ext = ALLOWED_IMAGE_EXTENSIONS.includes(rawExt) ? rawExt : '.png';
+            
+            // Sanitize logoType (user input) with strict whitelist
             let prefix = 'logo';
-            if (req.body.logoType) {
-                // Whitelist: only alphanumeric, underscore, hyphen
-                prefix = req.body.logoType.replaceAll(/[^a-zA-Z0-9_-]/g, '');
+            if (req.body.logoType && typeof req.body.logoType === 'string') {
+                // Whitelist: only alphanumeric, underscore, hyphen, max 30 chars
+                const sanitized = req.body.logoType.replaceAll(/[^a-zA-Z0-9_-]/g, '').slice(0, 30);
+                if (sanitized) prefix = sanitized;
             }
-            
-            // Fallback if sanitization results in empty string
-            if (!prefix) prefix = 'logo';
 
+            // Generate safe filename with timestamp
             const fileName = `${prefix}_${Date.now()}${ext}`;
             cb(null, fileName);
         }
@@ -47,6 +51,7 @@ const uploadLogo = multer({
         }
     }
 });
+
 
 // ================================================
 // REPORT LETTERHEAD ROUTES
