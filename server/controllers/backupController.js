@@ -14,7 +14,20 @@ import { randomBytes } from 'node:crypto';
 const logger = createLogger('Backup');
 
 // Constants to avoid duplicate literals
+// Constants to avoid duplicate literals
 const ERROR_INTERNAL = 'Internal server error';
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'backups');
+const TEMP_DIR = path.join(process.cwd(), 'temp');
+
+// Ensure directories exist
+(async () => {
+    try {
+        await fs.mkdir(BACKUP_DIR, { recursive: true });
+        await fs.mkdir(TEMP_DIR, { recursive: true });
+    } catch (err) {
+        logger.error('Failed to create backup/temp directories', err);
+    }
+})();
 
 // ================================================
 // HELPER FUNCTIONS
@@ -213,26 +226,6 @@ function validateBackupDates(startDate, endDate) {
     // Jika endDate tidak ada, gunakan startDate sebagai endDate (backup satu hari)
     const actualEndDate = endDate || startDate;
 
-/**
- * Helper to read custom schedules
- */
-async function readCustomSchedules() {
-    try {
-        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
-        const schedulesData = await fs.readFile(schedulesPath, 'utf8');
-        return JSON.parse(schedulesData);
-    } catch (error) {
-        return [];
-    }
-}
-
-/**
- * Helper to write custom schedules
- */
-async function writeCustomSchedules(schedules) {
-    const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
-    await fs.writeFile(schedulesPath, JSON.stringify(schedules, null, 2));
-}
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(actualEndDate);
 
@@ -253,6 +246,7 @@ async function writeCustomSchedules(schedules) {
 
     return { actualEndDate, startDateObj, endDateObj };
 }
+
 
 /**
  * Helper to perform manual database backup (SQL generation)
