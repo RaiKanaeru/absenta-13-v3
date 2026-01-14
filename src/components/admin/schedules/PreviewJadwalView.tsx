@@ -33,6 +33,44 @@ const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
   </div>
 );
 
+/**
+ * Extracts filename from Content-Disposition header
+ */
+const extractFilenameFromHeader = (
+  contentDisposition: string | null,
+  defaultFilename: string
+): string => {
+  if (!contentDisposition) return defaultFilename;
+  const match = contentDisposition.match(/filename="(.+)"/);
+  return match ? match[1] : defaultFilename;
+};
+
+/**
+ * Creates a download for a blob
+ */
+const triggerBlobDownload = (blob: Blob, filename: string): void => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+/**
+ * Validates blob response for Excel export
+ */
+const validateExcelBlob = (blob: Blob): void => {
+  if (blob.size === 0) {
+    throw new Error('Server mengembalikan file kosong');
+  }
+  if (!blob.type.includes('spreadsheetml') && !blob.type.includes('excel')) {
+    console.warn('Unexpected blob type:', blob.type);
+  }
+};
+
 export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalViewProps) => {
   const [filter, setFilter] = useState({
     kelas: 'all',
@@ -97,102 +135,51 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
       
       // Check if there's data to export
       if (schedules.length === 0) {
-        toast({
-          title: "Tidak Ada Data",
-          description: "Tidak ada jadwal yang tersedia untuk diekspor",
-          variant: "destructive"
-        });
+        toast({ title: "Tidak Ada Data", description: "Tidak ada jadwal yang tersedia untuk diekspor", variant: "destructive" });
         return;
       }
       
       // Show loading toast
-      toast({
-        title: "Export Excel",
-        description: `Sedang memproses export ${type}...`,
-        variant: "default"
-      });
+      toast({ title: "Export Excel", description: `Sedang memproses export ${type}...`, variant: "default" });
 
-      // Build query parameters using helper
+      // Build endpoint URL
       const params = buildFilterParams(filter);
-
-      // Determine endpoint based on type
       const endpoint = type === 'matrix' 
         ? `/api/admin/export/jadwal-matrix?${params.toString()}`
         : `/api/admin/export/jadwal-grid?${params.toString()}`;
 
-      // Get auth token using helper
-      const token = getAuthToken();
-
-      // Make API call using getApiUrl
+      // Fetch Excel file
       const response = await fetch(getApiUrl(endpoint), {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${getAuthToken()}`,
           'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Response error:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
         throw new Error(`HTTP ${response.status}: ${errorText || 'Export gagal'}`);
       }
 
-      // Get filename from response headers or create default
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `Jadwal_Pelajaran_${type === 'matrix' ? 'Matrix' : 'Grid'}_${getCurrentDateWIB()}.xlsx`;
-      
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
-        }
-      }
-
-      // Convert response to blob
+      // Get filename and blob
+      const defaultFilename = `Jadwal_Pelajaran_${type === 'matrix' ? 'Matrix' : 'Grid'}_${getCurrentDateWIB()}.xlsx`;
+      const filename = extractFilenameFromHeader(response.headers.get('Content-Disposition'), defaultFilename);
       const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error('Server mengembalikan file kosong');
-      }
-
       
-      // Validate blob type
-      if (!blob.type.includes('spreadsheetml') && !blob.type.includes('excel')) {
-        console.warn('Unexpected blob type:', blob.type);
-      }
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Validate and download
+      validateExcelBlob(blob);
+      triggerBlobDownload(blob, filename);
 
-      // Show success toast
-      toast({
-        title: "Export Berhasil",
-        description: `File ${type} berhasil diunduh`,
-        variant: "default"
-      });
-
-    } catch (error: any) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export Gagal",
-        description: `Terjadi kesalahan saat export: ${error.message}`,
-        variant: "destructive"
-      });
+      toast({ title: "Export Berhasil", description: `File ${type} berhasil diunduh`, variant: "default" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Export gagal';
+      toast({ title: "Export Gagal", description: `Terjadi kesalahan saat export: ${message}`, variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
   };
+
 
   const handlePrint = async () => {
     try {
@@ -216,11 +203,11 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
         variant: "default"
       });
 
-    } catch (error: any) {
-      console.error('Print error:', error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Print gagal';
       toast({
         title: "Print Gagal",
-        description: `Terjadi kesalahan saat print: ${error.message}`,
+        description: `Terjadi kesalahan saat print: ${message}`,
         variant: "destructive"
       });
     } finally {
