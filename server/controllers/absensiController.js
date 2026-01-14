@@ -1120,7 +1120,6 @@ export async function getAbsensiHistory(req, res) {
         }
 
         if (req.user.role === 'siswa') {
-            const todayWIB = getMySQLDateWIB();
             // Calculate 7 days ago in WIB
             const wibNow = getWIBTime();
             const sevenDaysAgoDate = new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000);

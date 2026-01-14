@@ -1685,6 +1685,7 @@ class BackupSystem {
             }
             return totalSize;
         } catch (e) {
+            logger.debug('Size calculation failed', { error: e.message });
             return 0; // Size calculation non-critical
         }
     }
@@ -1709,6 +1710,7 @@ class BackupSystem {
                 year: backupInfo.year
             };
         } catch (infoError) {
+            logger.debug('Backup info parsing failed, using file stats', { error: infoError.message });
             backupData = {
                 id: fileName,
                 filename: fileName,
@@ -1731,7 +1733,6 @@ class BackupSystem {
      * @private
      */
     async processSemesterOrDateBackup(filePath, fileName, stats) {
-        const isZip = fileName.endsWith('.zip');
         const backupId = fileName.replace(/\.zip$/, '');
         const backupType = fileName.startsWith('semester_backup_') ? 'semester' : 'date';
         
@@ -1760,6 +1761,7 @@ class BackupSystem {
             try {
                 await fs.access(this.backupDir);
             } catch (error) {
+                logger.debug('Backup directory access check failed', { error: error.message });
                 // Directory doesn't exist, create it
                 await fs.mkdir(this.backupDir, { recursive: true });
                 return []; // Return empty array if no backups exist yet
@@ -1828,7 +1830,7 @@ class BackupSystem {
                 sqlFilePath = sqlFile;
                 logger.debug('Found SQL file in uncompressed folder');
             } catch (error) {
-                logger.debug('SQL file not found in uncompressed folder, trying zip file');
+                logger.debug('SQL file not found in uncompressed folder, trying zip file', { error: error.message });
                 
                 // Try zip file
                 const zipFile = path.join(this.backupDir, `${backupId}.zip`);
@@ -1960,7 +1962,7 @@ class BackupSystem {
                     logger.debug('Deleted backup file', { filename });
                 } catch (fileError) {
                     // File doesn't exist, continue to next format
-                    logger.warn('File not found', { filename });
+                    logger.warn('File not found', { filename, error: fileError.message });
                 }
             }
             

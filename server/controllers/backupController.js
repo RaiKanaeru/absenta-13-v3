@@ -432,7 +432,7 @@ const createDateBackup = async (req, res) => {
 
         res.json({
             success: true,
-            message: `Date-based backup created successfully for ${startDate}${actualEndDate !== startDate ? ` to ${actualEndDate}` : ''}`,
+            message: `Date-based backup created successfully for ${startDate}${actualEndDate === startDate ? '' : ` to ${actualEndDate}`}`,
             data: {
                 ...backupResult,
                 dateRange: {
@@ -1293,7 +1293,7 @@ const updateCustomSchedule = async (req, res) => {
             name: name || schedules[scheduleIndex].name,
             date: date || schedules[scheduleIndex].date,
             time: time || schedules[scheduleIndex].time,
-            enabled: enabled !== undefined ? enabled : schedules[scheduleIndex].enabled,
+            enabled: enabled === undefined ? schedules[scheduleIndex].enabled : enabled,
             updated: new Date().toISOString()
         };
 

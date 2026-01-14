@@ -614,8 +614,6 @@ class DownloadQueue {
             // This would be a more complex report generation
             // For now, we'll create a simple summary
             
-            const dateRange = this.getSemesterDateRange(semester, year);
-            
             await job.progress(50);
             
             // Generate comprehensive semester report
@@ -752,6 +750,7 @@ class DownloadQueue {
             const position = waitingJobs.findIndex(job => job.id === jobId);
             return position >= 0 ? position + 1 : 0;
         } catch (error) {
+            logger.debug('Failed to get queue position', { error: error.message });
             return 0;
         }
     }

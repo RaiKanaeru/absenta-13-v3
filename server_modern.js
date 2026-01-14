@@ -397,47 +397,47 @@ async function initializeDatabase() {
         console.log('✅ Performance optimizer initialized successfully');
 
         // Get connection pool for use in endpoints
-        global.dbPool = dbOptimization.pool;  // Use the actual pool, not the class instance
+        globalThis.dbPool = dbOptimization.pool;  // Use the actual pool, not the class instance
         
         // Wrap database pool to monitor all queries
-        if (global.dbPool) {
-            const originalExecute = global.dbPool.execute.bind(global.dbPool);
-            global.dbPool.execute = async function(sql, params) {
+        if (globalThis.dbPool) {
+            const originalExecute = globalThis.dbPool.execute.bind(globalThis.dbPool);
+            globalThis.dbPool.execute = async function(sql, params) {
                  const start = Date.now();
                  try {
                     const result = await originalExecute(sql, params);
-                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, true);
+                    if (globalThis.systemMonitor) globalThis.systemMonitor.recordQuery(Date.now() - start, true);
                     return result;
                  } catch (err) {
-                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, false);
+                    if (globalThis.systemMonitor) globalThis.systemMonitor.recordQuery(Date.now() - start, false);
                     throw err;
                  }
             };
 
-            const originalQuery = global.dbPool.query.bind(global.dbPool);
-            global.dbPool.query = async function(sql, params) {
+            const originalQuery = globalThis.dbPool.query.bind(globalThis.dbPool);
+            globalThis.dbPool.query = async function(sql, params) {
                  const start = Date.now();
                  try {
                     const result = await originalQuery(sql, params);
-                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, true);
+                    if (globalThis.systemMonitor) globalThis.systemMonitor.recordQuery(Date.now() - start, true);
                     return result;
                  } catch (err) {
-                    if (global.systemMonitor) global.systemMonitor.recordQuery(Date.now() - start, false);
+                    if (globalThis.systemMonitor) globalThis.systemMonitor.recordQuery(Date.now() - start, false);
                     throw err;
                  }
             };
             console.log('✅ Database pool wrapped for monitoring');
         }
-        global.dbOptimization = dbOptimization;  // Keep reference to full class for methods like getPoolStats()
-        global.queryOptimizer = queryOptimizer;
-        global.performanceOptimizer = performanceOptimizer;
-        global.backupSystem = backupSystem;
-        global.downloadQueue = downloadQueue;
-        global.cacheSystem = cacheSystem;
-        global.systemMonitor = systemMonitor;
-        global.securitySystem = securitySystem;
-        global.ddosProtection = ddosProtection;
-        global.testAlerts = [];
+        globalThis.dbOptimization = dbOptimization;  // Keep reference to full class for methods like getPoolStats()
+        globalThis.queryOptimizer = queryOptimizer;
+        globalThis.performanceOptimizer = performanceOptimizer;
+        globalThis.backupSystem = backupSystem;
+        globalThis.downloadQueue = downloadQueue;
+        globalThis.cacheSystem = cacheSystem;
+        globalThis.systemMonitor = systemMonitor;
+        globalThis.securitySystem = securitySystem;
+        globalThis.ddosProtection = ddosProtection;
+        globalThis.testAlerts = [];
         
         // Set database pool reference for monitoring
         systemMonitor.setDatabasePool(dbOptimization);

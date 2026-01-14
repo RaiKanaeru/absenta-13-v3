@@ -129,7 +129,7 @@ function determineAttendanceStatus() {
     const rand = Math.random();
     if (rand > 0.98) return 'Alpa';
     if (rand > 0.95) return 'Izin';
-    if (rand > 0.90) return 'Sakit';
+    if (rand > 0.9) return 'Sakit';
     return 'Hadir';
 }
 
@@ -472,40 +472,36 @@ async function generateAttendance(connection, classIds) {
 // MAIN ORCHESTRATOR
 // ============================================
 
-async function main() {
-    console.log('🚀 Starting Dummy Data Generation...');
-    console.log(`📡 Connecting to DB: ${config.user}@${config.host}:${config.port}/${config.database}`);
+console.log('🚀 Starting Dummy Data Generation...');
+console.log(`📡 Connecting to DB: ${config.user}@${config.host}:${config.port}/${config.database}`);
 
-    let connection;
-    try {
-        connection = await mysql.createConnection(config);
-        console.log('✅ Connected to database');
+let connection;
+try {
+    connection = await mysql.createConnection(config);
+    console.log('✅ Connected to database');
 
-        // Step 1: Generate Mapel
-        const mapelIds = await generateMapel(connection);
+    // Step 1: Generate Mapel
+    const mapelIds = await generateMapel(connection);
 
-        // Step 2: Generate Classes
-        const classIds = await generateClasses(connection);
+    // Step 2: Generate Classes
+    const classIds = await generateClasses(connection);
 
-        // Step 3: Generate Teachers
-        const { teacherIds, passwordHash } = await generateTeachers(connection, mapelIds);
+    // Step 3: Generate Teachers
+    const { teacherIds, passwordHash } = await generateTeachers(connection, mapelIds);
 
-        // Step 4: Generate Students
-        await generateStudents(connection, classIds, passwordHash);
+    // Step 4: Generate Students
+    await generateStudents(connection, classIds, passwordHash);
 
-        // Step 5: Generate Schedules
-        await generateSchedules(connection, classIds, mapelIds, teacherIds);
+    // Step 5: Generate Schedules
+    await generateSchedules(connection, classIds, mapelIds, teacherIds);
 
-        // Step 6: Generate Attendance
-        await generateAttendance(connection, classIds);
+    // Step 6: Generate Attendance
+    await generateAttendance(connection, classIds);
 
-        console.log('✅ DONE! Dummy data generation finished.');
+    console.log('✅ DONE! Dummy data generation finished.');
 
-    } catch (err) {
-        console.error('❌ Error:', err);
-    } finally {
-        if (connection) await connection.end();
-    }
+} catch (err) {
+    console.error('❌ Error:', err);
+} finally {
+    if (connection) await connection.end();
 }
-
-main();

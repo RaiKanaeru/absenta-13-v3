@@ -132,7 +132,7 @@ export function formatWIBTimeWithSeconds(date = null) {
  * @returns Current timestamp
  */
 export function getWIBTimestamp() {
-    return new Date().getTime();
+    return Date.now();
 }
 
 /**

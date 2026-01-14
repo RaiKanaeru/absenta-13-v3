@@ -22,13 +22,13 @@ const uploadLogo = multer({
             // Sanitize extension to prevent path traversal
             const rawExt = path.extname(file.originalname);
             // Allow only alphanumeric and dot
-            const ext = rawExt.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase(); 
+            const ext = rawExt.replaceAll(/[^a-zA-Z0-9.]/g, '').toLowerCase(); 
             
             // Sanitize logoType (user input)
             let prefix = 'logo';
             if (req.body.logoType) {
                 // Whitelist: only alphanumeric, underscore, hyphen
-                prefix = req.body.logoType.replace(/[^a-zA-Z0-9_-]/g, '');
+                prefix = req.body.logoType.replaceAll(/[^a-zA-Z0-9_-]/g, '');
             }
             
             // Fallback if sanitization results in empty string

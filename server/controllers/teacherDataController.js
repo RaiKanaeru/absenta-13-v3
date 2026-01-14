@@ -33,7 +33,7 @@ export const getTeachersData = async (req, res) => {
  */
 export const addTeacherData = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = req.body;
+    const { nip, nama, mata_pelajaran, jenis_kelamin } = req.body;
     
     log.requestStart('Create', { nip, nama, mata_pelajaran });
 

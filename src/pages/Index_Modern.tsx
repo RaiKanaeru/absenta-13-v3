@@ -98,12 +98,6 @@ const extractErrorMessage = (result: Record<string, unknown>): string => {
   return 'Login gagal';
 };
 
-/**
- * Menyimpan token autentikasi ke storage
- * Mencoba localStorage terlebih dahulu, jika gagal fallback ke sessionStorage
- * Berguna untuk perangkat mobile yang memiliki keterbatasan storage
- * @param {string} token - Token JWT yang akan disimpan
- */
 const setToken = (token: string) => {
   try {
     localStorage.setItem('token', token);
@@ -116,6 +110,76 @@ const setToken = (token: string) => {
     }
   }
 };
+
+/**
+ * Profile API endpoints by role
+ */
+const PROFILE_ENDPOINTS: Record<string, string> = {
+  'admin': '/api/admin/info',
+  'guru': '/api/guru/info',
+  'siswa': '/api/siswa-perwakilan/info'
+};
+
+/**
+ * Fetches profile data based on user role
+ * @returns profile data or null if failed
+ */
+const fetchProfileByRole = async (role: string): Promise<Record<string, unknown> | null> => {
+  const endpoint = PROFILE_ENDPOINTS[role];
+  if (!endpoint) return null;
+
+  try {
+    const response = await fetch(getApiUrl(endpoint), {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    return data.success ? data : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Builds updated user data by merging JWT data with profile data
+ */
+const buildUpdatedUserData = (
+  jwtUser: Record<string, unknown>,
+  profileData: Record<string, unknown> | null
+): UserData => {
+  if (!profileData) {
+    return jwtUser as unknown as UserData;
+  }
+
+  const baseData = { ...jwtUser, ...profileData };
+  const role = jwtUser.role as string;
+
+  // Add role-specific field mappings
+  if (role === 'siswa') {
+    return {
+      ...baseData,
+      siswa_id: profileData.id_siswa,
+      nis: profileData.nis,
+      kelas: profileData.nama_kelas,
+      kelas_id: profileData.kelas_id
+    } as unknown as UserData;
+  }
+
+  if (role === 'guru') {
+    return {
+      ...baseData,
+      guru_id: profileData.guru_id,
+      nip: profileData.nip,
+      mapel: profileData.mata_pelajaran
+    } as unknown as UserData;
+  }
+
+  return baseData as unknown as UserData;
+};
+
 
 /**
  * Komponen utama aplikasi ABSENTA
@@ -143,105 +207,42 @@ const Index = () => {
    */
   const checkExistingAuth = useCallback(async () => {
     try {
-      const token = getToken();
-      
       const response = await fetch(getApiUrl('/api/verify'), {
         method: 'GET',
         credentials: 'include'
       });
       
+      if (!response.ok) return;
 
-      if (response.ok) {
-        // Check if the response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          return;
-        }
+      // Validate JSON response
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) return;
 
-        const responseText = await response.text();
-        if (!responseText.trim()) {
-          return;
-        }
+      const responseText = await response.text();
+      const result = safeParseJson(responseText) as Record<string, unknown> | null;
+      
+      if (!result?.success || !result.user) return;
 
-        let result;
-        try {
-          result = JSON.parse(responseText);
-        } catch (parseError) {
-          return;
-        }
+      const user = result.user as Record<string, unknown>;
+      const role = user.role as string;
 
-        if (result.success && result.user) {
-          
-          // Load latest profile data based on role
-          try {
-            let profileResponse;
-            switch (result.user.role) {
-              case 'admin':
-                profileResponse = await fetch(getApiUrl('/api/admin/info'), {
-                  method: 'GET',
-                  credentials: 'include'
-                });
-                break;
-              case 'guru':
-                profileResponse = await fetch(getApiUrl('/api/guru/info'), {
-                  method: 'GET',
-                  credentials: 'include'
-                });
-                break;
-              case 'siswa':
-                profileResponse = await fetch(getApiUrl('/api/siswa-perwakilan/info'), {
-                  method: 'GET',
-                  credentials: 'include'
-                });
-                break;
-              default:
-                profileResponse = null;
-            }
-            
-            if (profileResponse && profileResponse.ok) {
-              const profileData = await profileResponse.json();
-              if (profileData.success) {
-                // Merge JWT data with latest profile data
-                const updatedUserData = {
-                  ...result.user,
-                  ...profileData,
-                  // Map field names for compatibility based on role
-                  ...(result.user.role === 'siswa' && {
-                    siswa_id: profileData.id_siswa,
-                    nis: profileData.nis,
-                    kelas: profileData.nama_kelas,
-                    kelas_id: profileData.kelas_id
-                  }),
-                  ...(result.user.role === 'guru' && {
-                    guru_id: profileData.guru_id,
-                    nip: profileData.nip,
-                    mapel: profileData.mata_pelajaran
-                  })
-                };
-                setUserData(updatedUserData);
-              } else {
-                setUserData(result.user);
-              }
-            } else {
-              setUserData(result.user);
-            }
-          } catch (profileError) {
-            console.error('Failed to load profile:', profileError);
-            setUserData(result.user);
-          }
-          
-          setCurrentState('dashboard');
-          
-          toast({
-            title: "Selamat datang kembali!",
-            description: `Halo ${result.user.nama}, Anda berhasil login otomatis.`,
-          });
-        }
-      }
-    } catch (error) {
+      // Load latest profile data using helper
+      const profileData = await fetchProfileByRole(role);
+      
+      // Build user data using helper
+      const updatedUserData = buildUpdatedUserData(user, profileData);
+      setUserData(updatedUserData);
+      setCurrentState('dashboard');
+      
+      toast({
+        title: "Selamat datang kembali!",
+        description: `Halo ${user.nama as string}, Anda berhasil login otomatis.`,
+      });
+    } catch {
       // Silent fail - no existing auth
     }
   }, [toast]);
+
 
   // Check for existing authentication on mount
   useEffect(() => {

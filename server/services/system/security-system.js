@@ -724,6 +724,7 @@ class SecuritySystem extends EventEmitter {
                     try {
                         await fs.rename(oldFile, newFile);
                     } catch (error) {
+                        logger.debug('Log rotation rename failed (might not exist)', { file: oldFile, error: error.message });
                         // File doesn't exist, continue
                     }
                 }

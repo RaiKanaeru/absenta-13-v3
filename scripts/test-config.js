@@ -32,15 +32,15 @@ console.log('📋 Required Environment Variables:\n');
 
 required.forEach(key => {
     const value = process.env[key];
-    if (!value) {
-        errors.push(`❌ Missing required: ${key}`);
-        console.log(`   ❌ ${key}: MISSING`);
-    } else {
+    if (value) {
         validCount++;
         const displayValue = key.includes('PASSWORD') || key.includes('SECRET') 
             ? '***' 
             : value;
         console.log(`   ✅ ${key}: ${displayValue}`);
+    } else {
+        errors.push(`❌ Missing required: ${key}`);
+        console.log(`   ❌ ${key}: MISSING`);
     }
 });
 

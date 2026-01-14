@@ -639,7 +639,7 @@ function buildJamKeHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     Object.assign(sheet.getCell(2, 2), headerStyle);
     
     let colOffset = startDataCol;
-    for (let h = 0; h < HARI_LIST.length; h++) {
+    for (const _ of HARI_LIST) {
         for (let j = 0; j < totalJamPerHari; j++) {
             const cell = sheet.getCell(2, colOffset + j);
             cell.value = j + 1;
@@ -655,7 +655,7 @@ function buildWaktuHeader(sheet, headerStyle, startDataCol, totalJamPerHari) {
     Object.assign(sheet.getCell(3, 2), headerStyle);
     
     let colOffset = startDataCol;
-    for (let h = 0; h < HARI_LIST.length; h++) {
+    for (const _ of HARI_LIST) {
         for (let j = 0; j < totalJamPerHari; j++) {
             const cell = sheet.getCell(3, colOffset + j);
             cell.value = `${JAM_PELAJARAN[j].mulai}-${JAM_PELAJARAN[j].selesai}`;

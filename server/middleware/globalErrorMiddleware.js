@@ -12,7 +12,7 @@
  *   app.use(globalErrorHandler);
  */
 
-import { sendErrorResponse, ERROR_CODES, AppError, generateRequestId } from '../utils/errorHandler.js';
+import { ERROR_CODES, AppError, generateRequestId } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('ErrorMiddleware');

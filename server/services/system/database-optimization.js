@@ -239,7 +239,6 @@ class DatabaseOptimization {
                 const endTime = Date.now();
                 const executionTime = endTime - startTime;
                 
-                const status = executionTime <= test.expectedTime ? '✅' : '⚠️';
                 logger.debug('Query test', { name: test.name, executionTime, expectedTime: test.expectedTime, passed: executionTime <= test.expectedTime });
             }
             
