@@ -5,15 +5,13 @@
 
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import * as ruangService from '../services/ruangService.js';
 
 const logger = createLogger('Ruang');
 
 /**
  * Mengambil semua data ruang
  * GET /api/admin/ruang
- * @param {Object} req - Express request dengan query {search?}
- * @param {Object} res - Express response object
- * @returns {Array} Daftar ruang kelas
  */
 export const getRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -22,28 +20,7 @@ export const getRuang = async (req, res) => {
     log.requestStart('GetAll', { search: search || null });
 
     try {
-        let query = `
-            SELECT 
-                id_ruang as id,
-                kode_ruang,
-                nama_ruang,
-                lokasi,
-                kapasitas,
-                status,
-                created_at
-            FROM ruang_kelas
-        `;
-
-        const params = [];
-        if (search) {
-            query += ` WHERE kode_ruang LIKE ? OR nama_ruang LIKE ? OR lokasi LIKE ?`;
-            const searchTerm = `%${search}%`;
-            params.push(searchTerm, searchTerm, searchTerm);
-        }
-
-        query += ` ORDER BY kode_ruang`;
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ruangService.getAllRuang(search);
         log.success('GetAll', { count: rows.length, hasSearch: !!search });
         res.json(rows);
     } catch (error) {
@@ -55,9 +32,6 @@ export const getRuang = async (req, res) => {
 /**
  * Mengambil data ruang berdasarkan ID
  * GET /api/admin/ruang/:id
- * @param {Object} req - Express request dengan params.id
- * @param {Object} res - Express response object
- * @returns {Object} Data ruang
  */
 export const getRuangById = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -66,18 +40,15 @@ export const getRuangById = async (req, res) => {
     log.requestStart('GetById', { id });
 
     try {
-        const [rows] = await globalThis.dbPool.execute(
-            'SELECT id_ruang as id, kode_ruang, nama_ruang, lokasi, kapasitas, status, created_at FROM ruang_kelas WHERE id_ruang = ? LIMIT 1',
-            [id]
-        );
+        const ruang = await ruangService.getRuangById(id);
 
-        if (rows.length === 0) {
+        if (!ruang) {
             log.warn('GetById failed - not found', { id });
             return sendNotFoundError(res, 'Ruang tidak ditemukan');
         }
 
         log.success('GetById', { id });
-        res.json(rows[0]);
+        res.json(ruang);
     } catch (error) {
         log.dbError('query', error, { id });
         return sendDatabaseError(res, error, 'Gagal mengambil data ruang');
@@ -87,55 +58,35 @@ export const getRuangById = async (req, res) => {
 /**
  * Menambahkan ruang baru
  * POST /api/admin/ruang
- * @param {Object} req - Express request dengan body {kode_ruang, nama_ruang?, lokasi?, kapasitas?, status?}
- * @param {Object} res - Express response object
- * @returns {Object} ID ruang yang dibuat
  */
 export const createRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
+    const { kode_ruang, nama_ruang } = req.body;
     
     log.requestStart('Create', { kode_ruang, nama_ruang });
 
     try {
-        // Validation
         if (!kode_ruang) {
             log.validationFail('kode_ruang', null, 'Required field missing');
             return sendValidationError(res, 'Kode ruang wajib diisi', { field: 'kode_ruang' });
         }
-
-        // Convert to uppercase and validate format
-        const kodeUpper = kode_ruang.toUpperCase().trim();
-        if (kodeUpper.length > 10) {
-            log.validationFail('kode_ruang', kodeUpper, 'Exceeds max length');
-            return sendValidationError(res, 'Kode ruang maksimal 10 karakter', { 
-                field: 'kode_ruang',
-                maxLength: 10,
-                actualLength: kodeUpper.length
-            });
+        if (kode_ruang.length > 10) { // Pre-check before service to keep validation structure if needed, or rely on service
+             // Keeping it here for specific error format response match
+             const kodeUpper = kode_ruang.toUpperCase().trim();
+             if (kodeUpper.length > 10) {
+                log.validationFail('kode_ruang', kodeUpper, 'Exceeds max length');
+                return sendValidationError(res, 'Kode ruang maksimal 10 karakter', { field: 'kode_ruang', maxLength: 10 });
+             }
         }
 
-        // Check for duplicate kode_ruang
-        const [existing] = await globalThis.dbPool.execute(
-            'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ?',
-            [kodeUpper]
-        );
+        const result = await ruangService.createRuang(req.body);
 
-        if (existing.length > 0) {
-            log.warn('Create failed - duplicate code', { kode_ruang: kodeUpper });
-            return sendDuplicateError(res, 'Kode ruang sudah digunakan');
-        }
-
-        // Insert new room
-        const [result] = await globalThis.dbPool.execute(
-            `INSERT INTO ruang_kelas (kode_ruang, nama_ruang, lokasi, kapasitas, status) 
-             VALUES (?, ?, ?, ?, ?)`,
-            [kodeUpper, nama_ruang || null, lokasi || null, kapasitas || null, status || 'aktif']
-        );
-
-        log.success('Create', { id: result.insertId, kode_ruang: kodeUpper });
-        return sendSuccessResponse(res, { id: result.insertId }, 'Ruang berhasil ditambahkan', 201);
+        log.success('Create', { id: result.id, kode_ruang: result.kode_ruang });
+        return sendSuccessResponse(res, { id: result.id }, 'Ruang berhasil ditambahkan', 201);
     } catch (error) {
+        if (error instanceof ruangService.ServiceError) {
+             if (error.code === 'DUPLICATE_CODE') return sendDuplicateError(res, error.message);
+        }
         log.dbError('insert', error, { kode_ruang });
         return sendDatabaseError(res, error, 'Gagal menambahkan ruang');
     }
@@ -144,61 +95,36 @@ export const createRuang = async (req, res) => {
 /**
  * Memperbarui data ruang
  * PUT /api/admin/ruang/:id
- * @param {Object} req - Express request dengan params.id dan body
- * @param {Object} res - Express response object
- * @returns {null} Success message
  */
 export const updateRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
-    const { kode_ruang, nama_ruang, lokasi, kapasitas, status } = req.body;
+    const { kode_ruang } = req.body;
     
     log.requestStart('Update', { id, kode_ruang });
 
     try {
-        // Validation
         if (!kode_ruang) {
             log.validationFail('kode_ruang', null, 'Required field missing');
             return sendValidationError(res, 'Kode ruang wajib diisi', { field: 'kode_ruang' });
         }
-
-        // Convert to uppercase and validate format
-        const kodeUpper = kode_ruang.toUpperCase().trim();
-        if (kodeUpper.length > 10) {
-            log.validationFail('kode_ruang', kodeUpper, 'Exceeds max length');
-            return sendValidationError(res, 'Kode ruang maksimal 10 karakter', { 
-                field: 'kode_ruang',
-                maxLength: 10 
-            });
+        if (kode_ruang.length > 10) {
+             const kodeUpper = kode_ruang.toUpperCase().trim();
+             if (kodeUpper.length > 10) {
+                log.validationFail('kode_ruang', kodeUpper, 'Exceeds max length');
+                return sendValidationError(res, 'Kode ruang maksimal 10 karakter', { field: 'kode_ruang', maxLength: 10 });
+             }
         }
 
-        // Check for duplicate kode_ruang (excluding current room)
-        const [existing] = await globalThis.dbPool.execute(
-            'SELECT id_ruang FROM ruang_kelas WHERE kode_ruang = ? AND id_ruang != ?',
-            [kodeUpper, id]
-        );
+        await ruangService.updateRuang(id, req.body);
 
-        if (existing.length > 0) {
-            log.warn('Update failed - duplicate code', { id, kode_ruang: kodeUpper });
-            return sendDuplicateError(res, 'Kode ruang sudah digunakan');
-        }
-
-        // Update room
-        const [result] = await globalThis.dbPool.execute(
-            `UPDATE ruang_kelas 
-             SET kode_ruang = ?, nama_ruang = ?, lokasi = ?, kapasitas = ?, status = ?
-             WHERE id_ruang = ?`,
-            [kodeUpper, nama_ruang || null, lokasi || null, kapasitas || null, status || 'aktif', id]
-        );
-
-        if (result.affectedRows === 0) {
-            log.warn('Update failed - not found', { id });
-            return sendNotFoundError(res, 'Ruang tidak ditemukan');
-        }
-
-        log.success('Update', { id, kode_ruang: kodeUpper });
+        log.success('Update', { id, kode_ruang: kode_ruang.toUpperCase() });
         return sendSuccessResponse(res, null, 'Ruang berhasil diperbarui');
     } catch (error) {
+        if (error instanceof ruangService.ServiceError) {
+             if (error.code === 'DUPLICATE_CODE') return sendDuplicateError(res, error.message);
+             if (error.code === 'NOT_FOUND') return sendNotFoundError(res, error.message);
+        }
         log.dbError('update', error, { id, kode_ruang });
         return sendDatabaseError(res, error, 'Gagal mengupdate ruang');
     }
@@ -207,9 +133,6 @@ export const updateRuang = async (req, res) => {
 /**
  * Menghapus ruang
  * DELETE /api/admin/ruang/:id
- * @param {Object} req - Express request dengan params.id
- * @param {Object} res - Express response object
- * @returns {null} Success message
  */
 export const deleteRuang = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -218,34 +141,17 @@ export const deleteRuang = async (req, res) => {
     log.requestStart('Delete', { id });
 
     try {
-        // Check if room is used in jadwal
-        const [jadwalUsage] = await globalThis.dbPool.execute(
-            'SELECT COUNT(*) as count FROM jadwal WHERE ruang_id = ?',
-            [id]
-        );
-
-        if (jadwalUsage[0].count > 0) {
-            log.warn('Delete failed - room in use', { id, jadwalCount: jadwalUsage[0].count });
-            return sendValidationError(res, 'Tidak dapat menghapus ruang yang sedang digunakan dalam jadwal', {
-                reason: 'in_use',
-                jadwalCount: jadwalUsage[0].count
-            });
-        }
-
-        // Delete room
-        const [result] = await globalThis.dbPool.execute(
-            'DELETE FROM ruang_kelas WHERE id_ruang = ?',
-            [id]
-        );
-
-        if (result.affectedRows === 0) {
-            log.warn('Delete failed - not found', { id });
-            return sendNotFoundError(res, 'Ruang tidak ditemukan');
-        }
-
-        log.success('Delete', { id, affectedRows: result.affectedRows });
+        await ruangService.deleteRuang(id);
+        log.success('Delete', { id });
         return sendSuccessResponse(res, null, 'Ruang berhasil dihapus');
     } catch (error) {
+        if (error instanceof ruangService.ServiceError) {
+            if (error.code === 'IN_USE') {
+                log.warn('Delete failed - room in use', { id, details: error.details });
+                return sendValidationError(res, error.message, { reason: 'in_use', ...error.details });
+            }
+            if (error.code === 'NOT_FOUND') return sendNotFoundError(res, error.message);
+        }
         log.dbError('delete', error, { id });
         return sendDatabaseError(res, error, 'Gagal menghapus ruang');
     }

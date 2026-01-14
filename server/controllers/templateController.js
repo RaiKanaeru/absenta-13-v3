@@ -40,32 +40,55 @@ function setExcelHeaders(res, filename) {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 }
 
+
+/**
+ * Generic helper to add a reference sheet
+ */
+async function addReferenceSheet(workbook, config) {
+    const { sheetName, columns, query, mapper, fallbackData } = config;
+    const sheet = workbook.addWorksheet(sheetName);
+    
+    // Set columns if provided (object array) or just header row (string array)
+    if (columns[0] && typeof columns[0] === 'object') {
+        sheet.columns = columns;
+    } else {
+        sheet.addRow(columns); // Assumed to be header strings
+    }
+
+    try {
+        const [rows] = await globalThis.dbPool.execute(query);
+        rows.forEach(row => {
+            sheet.addRow(mapper(row));
+        });
+    } catch (dbError) {
+        logger.warn(`${sheetName} reference fallback used`, { error: dbError.message });
+        if (fallbackData) {
+            fallbackData.forEach(row => sheet.addRow(row));
+        }
+    }
+    return sheet;
+}
+
 /**
  * Add kelas reference sheet with database fallback
  */
 async function addKelasReferenceSheet(workbook, sheetName = 'Ref Kelas') {
-    const kelasSheet = workbook.addWorksheet(sheetName);
-    kelasSheet.columns = [
-        { header: 'ID', key: 'id', width: 10 },
-        { header: 'Nama Kelas', key: 'nama', width: 30 },
-        { header: 'Tingkat', key: 'tingkat', width: 15 },
-        { header: 'Status', key: 'status', width: 15 }
-    ];
-
-    try {
-        const [kelas] = await globalThis.dbPool.execute(
-            'SELECT id_kelas, nama_kelas, tingkat, status FROM kelas WHERE status = "aktif" ORDER BY nama_kelas'
-        );
-        kelas.forEach(k => {
-            kelasSheet.addRow({ id: k.id_kelas, nama: k.nama_kelas, tingkat: k.tingkat || '', status: k.status });
-        });
-    } catch (dbError) {
-        logger.warn('Kelas reference fallback used', { error: dbError.message });
-        kelasSheet.addRow({ id: 1, nama: 'X IPA 1', tingkat: 'X', status: 'aktif' });
-        kelasSheet.addRow({ id: 2, nama: 'X IPA 2', tingkat: 'X', status: 'aktif' });
-        kelasSheet.addRow({ id: 3, nama: 'XI IPA 1', tingkat: 'XI', status: 'aktif' });
-    }
-    return kelasSheet;
+    return addReferenceSheet(workbook, {
+        sheetName,
+        columns: [
+            { header: 'ID', key: 'id', width: 10 },
+            { header: 'Nama Kelas', key: 'nama', width: 30 },
+            { header: 'Tingkat', key: 'tingkat', width: 15 },
+            { header: 'Status', key: 'status', width: 15 }
+        ],
+        query: 'SELECT id_kelas, nama_kelas, tingkat, status FROM kelas WHERE status = "aktif" ORDER BY nama_kelas',
+        mapper: (k) => ({ id: k.id_kelas, nama: k.nama_kelas, tingkat: k.tingkat || '', status: k.status }),
+        fallbackData: [
+            { id: 1, nama: 'X IPA 1', tingkat: 'X', status: 'aktif' },
+            { id: 2, nama: 'X IPA 2', tingkat: 'X', status: 'aktif' },
+            { id: 3, nama: 'XI IPA 1', tingkat: 'XI', status: 'aktif' }
+        ]
+    });
 }
 
 /**
@@ -74,28 +97,36 @@ async function addKelasReferenceSheet(workbook, sheetName = 'Ref Kelas') {
 async function addJadwalReferenceSheets(workbook) {
     try {
         // Kelas reference
-        const [kelas] = await globalThis.dbPool.execute('SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"');
-        const kelasSheet = workbook.addWorksheet('Ref Kelas');
-        kelasSheet.addRow(['ID', 'Nama Kelas']);
-        kelas.forEach(k => kelasSheet.addRow([k.id_kelas, k.nama_kelas]));
+        await addReferenceSheet(workbook, {
+            sheetName: 'Ref Kelas',
+            columns: ['ID', 'Nama Kelas'],
+            query: 'SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"',
+            mapper: (k) => [k.id_kelas, k.nama_kelas]
+        });
 
         // Mapel reference
-        const [mapel] = await globalThis.dbPool.execute('SELECT id_mapel, nama_mapel FROM mapel WHERE status = "aktif"');
-        const mapelSheet = workbook.addWorksheet('Ref Mapel');
-        mapelSheet.addRow(['ID', 'Nama Mapel']);
-        mapel.forEach(m => mapelSheet.addRow([m.id_mapel, m.nama_mapel]));
+        await addReferenceSheet(workbook, {
+            sheetName: 'Ref Mapel',
+            columns: ['ID', 'Nama Mapel'],
+            query: 'SELECT id_mapel, nama_mapel FROM mapel WHERE status = "aktif"',
+            mapper: (m) => [m.id_mapel, m.nama_mapel]
+        });
 
         // Guru reference
-        const [guru] = await globalThis.dbPool.execute('SELECT id_guru, nama, nip FROM guru WHERE status = "aktif"');
-        const guruSheet = workbook.addWorksheet('Ref Guru');
-        guruSheet.addRow(['ID', 'Nama', 'NIP']);
-        guru.forEach(g => guruSheet.addRow([g.id_guru, g.nama, g.nip]));
+        await addReferenceSheet(workbook, {
+             sheetName: 'Ref Guru',
+             columns: ['ID', 'Nama', 'NIP'],
+             query: 'SELECT id_guru, nama, nip FROM guru WHERE status = "aktif"',
+             mapper: (g) => [g.id_guru, g.nama, g.nip]
+        });
 
         // Ruang reference
-        const [ruang] = await globalThis.dbPool.execute('SELECT id_ruang, kode_ruang, nama_ruang FROM ruang_kelas WHERE status = "aktif"');
-        const ruangSheet = workbook.addWorksheet('Ref Ruang');
-        ruangSheet.addRow(['ID', 'Kode Ruang', 'Nama Ruang']);
-        ruang.forEach(r => ruangSheet.addRow([r.id_ruang, r.kode_ruang, r.nama_ruang]));
+        await addReferenceSheet(workbook, {
+            sheetName: 'Ref Ruang',
+            columns: ['ID', 'Kode Ruang', 'Nama Ruang'],
+            query: 'SELECT id_ruang, kode_ruang, nama_ruang FROM ruang_kelas WHERE status = "aktif"',
+            mapper: (r) => [r.id_ruang, r.kode_ruang, r.nama_ruang]
+        });
     } catch (error) {
         logger.warn('Jadwal reference sheets failed', { error: error.message });
     }

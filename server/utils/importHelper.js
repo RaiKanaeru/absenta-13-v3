@@ -39,6 +39,40 @@ function sheetToJsonByHeader(worksheet) {
     return rows;
 }
 
+/**
+ * Generic batch validator for import rows
+ * @param {Array} rows - Parsed Excel rows
+ * @param {Function} rowValidator - detailed validator function for a single row
+ * @param {Object} context - Optional context (sets, maps, etc.) for validation
+ * @returns {Object} { valid: [], errors: [] }
+ */
+function validateBatchRows(rows, rowValidator, context = {}) {
+    const errors = [];
+    const valid = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+        const rowData = rows[i];
+        const rowNum = i + 2;
+
+        try {
+            const result = rowValidator(rowData, context);
+            
+            if (result.valid) {
+                valid.push(result.data);
+            } else {
+                errors.push({ index: rowNum, errors: result.errors, data: result.preview });
+            }
+        } catch (error) {
+            // Try to extract some identifier for preview even on crash
+            const safePreview = {};
+            Object.keys(rowData).slice(0, 2).forEach(k => safePreview[k] = rowData[k]);
+            errors.push({ index: rowNum, errors: [error.message], data: safePreview });
+        }
+    }
+    
+    return { valid, errors };
+}
+
 // ================================================
 // MAPPING FUNCTIONS - Convert names to IDs
 // ================================================
@@ -774,9 +808,9 @@ function validateRuangRow(rowData, seenKode) {
     };
 }
 
-// ES Module exports
 export {
     sheetToJsonByHeader,
+    validateBatchRows,
     mapKelasByName,
     mapMapelByName,
     mapGuruByName,

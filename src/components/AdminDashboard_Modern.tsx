@@ -116,6 +116,126 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
   return <span className="text-sm text-gray-500">-</span>;
 };
 
+/**
+ * Creates a session expired handler for API calls (S2004 - extracted to reduce nesting depth)
+ * @param onLogout - The logout callback function
+ * @param toast - The toast function for notifications
+ */
+const createSessionExpiredHandler = (
+  onLogout: () => void,
+  toast: (opts: { title: string; description: string; variant?: string }) => void
+) => () => {
+  toast({
+    title: "Error",
+    description: "Sesi Anda telah berakhir. Silakan login ulang.",
+    variant: "destructive"
+  });
+  setTimeout(() => onLogout(), 2000);
+};
+
+/**
+ * Generates page numbers for pagination (extracted to reduce cognitive complexity)
+ * @param currentPage - Current active page
+ * @param totalPages - Total number of pages
+ * @param maxVisiblePages - Maximum visible page buttons (default 5)
+ */
+const generatePageNumbers = (
+  currentPage: number,
+  totalPages: number,
+  maxVisiblePages = 5
+): (number | string)[] => {
+  const pages: (number | string)[] = [];
+  
+  if (totalPages <= maxVisiblePages) {
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+  
+  if (currentPage <= 3) {
+    for (let i = 1; i <= 4; i++) pages.push(i);
+    pages.push('...');
+    pages.push(totalPages);
+    return pages;
+  }
+  
+  if (currentPage >= totalPages - 2) {
+    pages.push(1);
+    pages.push('...');
+    for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    return pages;
+  }
+  
+  pages.push(1);
+  pages.push('...');
+  for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+  pages.push('...');
+  pages.push(totalPages);
+  return pages;
+};
+
+/**
+ * Status color mappings for attendance badges (extracted to reduce nested ternaries)
+ */
+const ATTENDANCE_STATUS_COLORS: Record<string, string> = {
+  'Hadir': 'bg-green-100 text-green-800',
+  'Sakit': 'bg-yellow-100 text-yellow-800',
+  'Izin': 'bg-yellow-100 text-yellow-800',
+  'Dispen': 'bg-purple-100 text-purple-800',
+  'Belum Absen': 'bg-gray-100 text-gray-800',
+  'Alpa': 'bg-red-100 text-red-800',
+  'Tidak Hadir': 'bg-red-100 text-red-800',
+};
+
+const getAttendanceStatusColor = (status: string): string => {
+  return ATTENDANCE_STATUS_COLORS[status] || 'bg-red-100 text-red-800';
+};
+
+/**
+ * Time status color mappings
+ */
+const TIME_STATUS_COLORS: Record<string, string> = {
+  'Tepat Waktu': 'bg-green-100 text-green-800',
+  'Terlambat Ringan': 'bg-yellow-100 text-yellow-800',
+  'Terlambat': 'bg-orange-100 text-orange-800',
+  'Terlambat Berat': 'bg-red-100 text-red-800',
+};
+
+const getTimeStatusColor = (status: string | undefined): string => {
+  if (!status) return 'bg-gray-100 text-gray-600';
+  return TIME_STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
+};
+
+/**
+ * Period color mappings
+ */
+const PERIOD_COLORS: Record<string, string> = {
+  'Pagi': 'bg-blue-100 text-blue-800',
+  'Siang': 'bg-yellow-100 text-yellow-800',
+  'Sore': 'bg-orange-100 text-orange-800',
+};
+
+const getPeriodColor = (period: string | undefined): string => {
+  if (!period) return 'bg-gray-100 text-gray-600';
+  return PERIOD_COLORS[period] || 'bg-gray-100 text-gray-600';
+};
+
+/**
+ * Activity type display mapping for schedules
+ */
+const ACTIVITY_DISPLAY_MAP: Record<string, string> = {
+  'upacara': '🏳️ Upacara',
+  'istirahat': '☕ Istirahat',
+  'kegiatan_khusus': '🎯 Kegiatan Khusus',
+  'libur': '🏖️ Libur',
+  'ujian': '📝 Ujian',
+};
+
+const getActivityDisplay = (activity: string): string => {
+  return ACTIVITY_DISPLAY_MAP[activity] || '📋 ' + activity;
+};
+
 // Types
 
 
@@ -4450,16 +4570,10 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer ${token}` : ''
           },
-          onLogout: () => {
-            toast({
-              title: "Error",
-              description: "Sesi Anda telah berakhir. Silakan login ulang.",
-              variant: "destructive"
-            });
-            setTimeout(() => onLogout(), 2000);
-          }
+          onLogout: createSessionExpiredHandler(onLogout, toast)
         });
         setAttendanceData(data);
+
       } catch (error: unknown) {
         console.error('❌ Error fetching live student attendance:', error);
         const message = error instanceof Error ? error.message : String(error);
@@ -4638,40 +4752,8 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
   const Pagination = () => {
     if (totalPages <= 1 || totalPages === 0) return null;
 
-    const getPageNumbers = () => {
-      const pages = [];
-      const maxVisiblePages = 5;
-      
-      if (totalPages <= maxVisiblePages) {
-        for (let i = 1; i <= totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        if (currentPage <= 3) {
-          for (let i = 1; i <= 4; i++) {
-            pages.push(i);
-          }
-          pages.push('...');
-          pages.push(totalPages);
-        } else if (currentPage >= totalPages - 2) {
-          pages.push(1);
-          pages.push('...');
-          for (let i = totalPages - 3; i <= totalPages; i++) {
-            pages.push(i);
-          }
-        } else {
-          pages.push(1);
-          pages.push('...');
-          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-            pages.push(i);
-          }
-          pages.push('...');
-          pages.push(totalPages);
-        }
-      }
-      
-      return pages;
-    };
+    // Use shared generatePageNumbers helper to reduce cognitive complexity
+    const pageNumbers = generatePageNumbers(currentPage, totalPages);
 
     return (
       <div className="flex items-center justify-between mt-4">
@@ -4696,7 +4778,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
             Previous
           </Button>
           
-          {getPageNumbers().map((page, index) => {
+          {pageNumbers.map((page, index) => {
             const uniqueKey = typeof page === 'number' 
               ? `student-page-${page}` 
               : `student-ellipsis-${index}`;
@@ -5513,14 +5595,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : ''
             },
-            onLogout: () => {
-              toast({
-                title: "Error",
-                description: "Sesi Anda telah berakhir. Silakan login ulang.",
-                variant: "destructive"
-              });
-              setTimeout(() => onLogout(), 2000);
-            }
+            onLogout: createSessionExpiredHandler(onLogout, toast)
           });
           setAttendanceData(data);
         } catch (error) {
@@ -5672,40 +5747,8 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     const TeacherPagination = () => {
       if (totalPages <= 1) return null;
 
-      const getPageNumbers = () => {
-        const pages = [];
-        const maxVisiblePages = 5;
-        
-        if (totalPages <= maxVisiblePages) {
-          for (let i = 1; i <= totalPages; i++) {
-            pages.push(i);
-          }
-        } else {
-          if (currentPage <= 3) {
-            for (let i = 1; i <= 4; i++) {
-              pages.push(i);
-            }
-            pages.push('...');
-            pages.push(totalPages);
-          } else if (currentPage >= totalPages - 2) {
-            pages.push(1);
-            pages.push('...');
-            for (let i = totalPages - 3; i <= totalPages; i++) {
-              pages.push(i);
-            }
-          } else {
-            pages.push(1);
-            pages.push('...');
-            for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-              pages.push(i);
-            }
-            pages.push('...');
-            pages.push(totalPages);
-          }
-        }
-        
-        return pages;
-      };
+      // Use shared generatePageNumbers helper to reduce cognitive complexity
+      const pageNumbers = generatePageNumbers(currentPage, totalPages);
 
       return (
         <div className="flex items-center justify-between mt-4">
@@ -5730,10 +5773,11 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
               Previous
             </Button>
             
-            {getPageNumbers().map((page, index) => {
+            {pageNumbers.map((page, index) => {
               const uniqueKey = typeof page === 'number' 
                 ? `teacher-page-${page}` 
                 : `teacher-ellipsis-${index}`;
+
               
               return (
                 <Button
@@ -6105,14 +6149,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : ''
             },
-            onLogout: () => {
-              toast({
-                title: "Error",
-                description: "Sesi Anda telah berakhir. Silakan login ulang.",
-                variant: "destructive"
-              });
-              setTimeout(() => onLogout(), 2000);
-            }
+            onLogout: createSessionExpiredHandler(onLogout, toast)
           });
           setAnalyticsData(data);
         } catch (error) {

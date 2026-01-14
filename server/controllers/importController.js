@@ -17,8 +17,10 @@ const ERROR_NO_VALID_ROWS = 'Tidak ada baris valid untuk diimpor';
 const ERROR_DB_CHECK_FAILED = 'Gagal memeriksa data yang sudah ada';
 const ERROR_TEMPLATE_MISMATCH = 'Format file tidak sesuai template';
 const MSG_DRY_RUN_COMPLETED = 'Dry run completed. No data was imported.';
+
 import {
     sheetToJsonByHeader,
+    validateBatchRows,
     mapKelasByName,
     mapMapelByName,
     mapGuruByName,
@@ -39,6 +41,16 @@ import {
     validateGuruDataRow
 } from '../utils/importHelper.js';
 
+import {
+    persistMapel,
+    persistKelas,
+    persistRuang,
+    processSiswaData,
+    processGuruData,
+    processStudentAccount,
+    processTeacherAccount
+} from '../services/importPersistence.js';
+
 // ================================================
 // IMPORT MAPEL (Subject)
 // ================================================
@@ -57,33 +69,11 @@ const importMapel = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kode_mapel');
-
-        const errors = [];
-        const valid = [];
         const seenKode = new Set();
-
-        for (let i = 0; i < rows.length; i++) {
-            const currentRow = rows[i];
-            const rowNum = i + 2; // Excel row number
-
-            try {
-                const result = validateMapelRow(currentRow, seenKode);
-                
-                if (result.valid) {
-                    valid.push(result.data);
-                } else {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                }
-            } catch (error) {
-                const rowPreview = {
-                    kode_mapel: currentRow.kode_mapel || currentRow['Kode Mapel'] || '(kosong)',
-                    nama_mapel: currentRow.nama_mapel || currentRow['Nama Mapel'] || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
-            }
-        }
+        
+        // Use generic batch validator
+        const { valid, errors } = validateBatchRows(rows, validateMapelRow, seenKode);
 
         if (req.query.dryRun === 'true') {
             return res.json({
@@ -100,14 +90,7 @@ const importMapel = async (req, res) => {
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-            for (const validRecord of valid) {
-                await conn.execute(
-                    `INSERT INTO mapel (kode_mapel, nama_mapel, deskripsi, status)
-                     VALUES (?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE nama_mapel = VALUES(nama_mapel), deskripsi = VALUES(deskripsi), status = VALUES(status)`,
-                    [validRecord.kode_mapel, validRecord.nama_mapel, validRecord.deskripsi, validRecord.status]
-                );
-            }
+            await persistMapel(conn, valid);
             await conn.commit();
         } catch (e) {
             await conn.rollback();
@@ -141,33 +124,11 @@ const importKelas = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('nama_kelas');
-
-        const errors = [];
-        const valid = [];
         const seenNama = new Set();
-
-        for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowNum = i + 2;
-
-            try {
-                const result = validateKelasRow(rowData, seenNama);
-                
-                if (result.valid) {
-                    valid.push(result.data);
-                } else {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                }
-            } catch (error) {
-                const rowPreview = {
-                    nama_kelas: rowData.nama_kelas || rowData['Nama Kelas'] || '(kosong)',
-                    tingkat: rowData.tingkat || rowData.Tingkat || '(kosong)'
-                };
-                errors.push({ index: rowNum, errors: [error.message], data: rowPreview });
-            }
-        }
+        
+        // Use generic batch validator
+        const { valid, errors } = validateBatchRows(rows, validateKelasRow, seenNama);
 
         if (req.query.dryRun === 'true') {
             return res.json({
@@ -184,14 +145,7 @@ const importKelas = async (req, res) => {
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-            for (const v of valid) {
-                await conn.execute(
-                    `INSERT INTO kelas (nama_kelas, tingkat, status)
-                     VALUES (?, ?, ?)
-                     ON DUPLICATE KEY UPDATE tingkat = VALUES(tingkat), status = VALUES(status)`,
-                    [v.nama_kelas, v.tingkat, v.status]
-                );
-            }
+            await persistKelas(conn, valid);
             await conn.commit();
         } catch (e) {
             await conn.rollback();
@@ -225,26 +179,11 @@ const importRuang = async (req, res) => {
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        // Detect format (basic or friendly)
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kode_ruang');
-
-        const errors = [];
-        const valid = [];
         const seenKode = new Set();
-
-        for (let i = 0; i < rows.length; i++) {
-            const rowNum = i + 2;
-            try {
-                const result = validateRuangRow(rows[i], seenKode);
-                if (result.valid) {
-                    valid.push(result.data);
-                } else {
-                    errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                }
-            } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message], data: { kode_ruang: '(error)', nama_ruang: '(error)' } });
-            }
-        }
+        
+        // Use generic batch validator
+        const { valid, errors } = validateBatchRows(rows, validateRuangRow, seenKode);
 
         if (req.query.dryRun === 'true') {
             return res.json({
@@ -261,14 +200,7 @@ const importRuang = async (req, res) => {
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-            for (const v of valid) {
-                await conn.execute(
-                    `INSERT INTO ruang_kelas (kode_ruang, nama_ruang, lokasi, kapasitas, status)
-                     VALUES (?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE nama_ruang = VALUES(nama_ruang), lokasi = VALUES(lokasi), kapasitas = VALUES(kapasitas), status = VALUES(status)`,
-                    [v.kode_ruang, v.nama_ruang, v.lokasi, v.kapasitas, v.status]
-                );
-            }
+            await persistRuang(conn, valid);
             await conn.commit();
         } catch (e) {
             await conn.rollback();
@@ -298,161 +230,98 @@ async function parseJadwalBasicFormat(rowData) {
     const ruang_id = rowData.ruang_id || null;
     const guru_ids_array = parseGuruIdsFromString(rowData.guru_ids);
     
-    return { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array, errors: [] };
+    return {
+        kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array
+    };
 }
 
 /**
- * Parse jadwal row in friendly format (maps names to IDs)
+ * Parse jadwal row in friendly format (uses names/codes)
  */
 async function parseJadwalFriendlyFormat(rowData) {
-    const errors = [];
+    const rawClass = rowData.kelas || rowData.Kelas;
+    const rawMapel = rowData.mapel || rowData.Mapel || rowData['Mata Pelajaran'];
+    const rawGuru = rowData.guru || rowData.Guru || rowData['Nama Guru'];
+    const rawGuruPendamping = rowData.guru_pendamping || rowData['Guru Pendamping'];
+    const rawRuang = rowData.ruang || rowData.Ruang || rowData['Kode Ruang'];
+
+    const kelas_id = await mapKelasByName(rawClass);
+    const mapel_id = await mapMapelByName(rawMapel);
+    const guru_id = await mapGuruByName(rawGuru);
+    const ruang_id = await mapRuangByKode(rawRuang);
     
-    const kelas_id = await mapKelasByName(getFieldValue(rowData, ['Kelas', 'kelas']));
-    const mapel_id = await mapMapelByName(getFieldValue(rowData, ['Mata Pelajaran', 'mapel']));
-    const ruang_id = await mapRuangByKode(getFieldValue(rowData, ['Kode Ruang', 'ruang']));
+    // Handle multi-guru from friendly format (comma separated in guru column or guru_pendamping)
+    let guru_ids_array = [];
+    if (guru_id) guru_ids_array.push(guru_id);
     
-    // Parse primary guru(s)
-    let guru_ids_array = await parseGuruNamesFromString(getFieldValue(rowData, ['Guru', 'guru']));
-    
-    // Parse additional gurus
-    const guruTambahan = await parseGuruNamesFromString(getFieldValue(rowData, ['Guru Tambahan', 'guru_tambahan']));
-    for (const gid of guruTambahan) {
-        if (!guru_ids_array.includes(gid)) {
-            guru_ids_array.push(gid);
-        }
+    // Check if guru column has multiple names
+    if (rawGuru && rawGuru.includes(',')) {
+        const ids = await parseGuruNamesFromString(rawGuru);
+        guru_ids_array = [...new Set([...guru_ids_array, ...ids])];
     }
     
-    // Set primary guru_id
-    const guru_id = guru_ids_array.length > 0 ? guru_ids_array[0] : await mapGuruByName(getFieldValue(rowData, ['Guru', 'guru']));
-    
-    // Validation
-    if (!kelas_id) {
-        errors.push(`Kelas "${getFieldValue(rowData, ['Kelas', 'kelas'])}" tidak ditemukan`);
+    // Add guru pendamping
+    if (rawGuruPendamping) {
+        const ids = await parseGuruNamesFromString(rawGuruPendamping);
+        guru_ids_array = [...new Set([...guru_ids_array, ...ids])];
     }
-    
-    const jenisAktivitas = getFieldValue(rowData, ['jenis_aktivitas', 'Jenis Aktivitas']) || 'pelajaran';
-    if (jenisAktivitas === 'pelajaran') {
-        if (!mapel_id) {
-            errors.push(`Mata pelajaran "${getFieldValue(rowData, ['Mata Pelajaran', 'mapel'])}" tidak ditemukan`);
-        }
-        if (!guru_id && guru_ids_array.length === 0) {
-            errors.push(`Guru "${getFieldValue(rowData, ['Guru', 'guru'])}" tidak ditemukan`);
-        }
-    } else {
-        const keteranganKhusus = getFieldValue(rowData, ['keterangan_khusus', 'Keterangan Khusus']);
-        if (!keteranganKhusus || keteranganKhusus.toString().trim() === '') {
-            errors.push(`Keterangan khusus wajib untuk jenis aktivitas "${jenisAktivitas}"`);
-        }
-    }
-    
-    return { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array, errors };
+
+    return {
+        kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array
+    };
 }
 
 /**
- * Process single jadwal row and validate
- */
-async function processJadwalRow(rowData, isBasicFormat) {
-    // Parse based on format
-    const parsed = isBasicFormat 
-        ? await parseJadwalBasicFormat(rowData)
-        : await parseJadwalFriendlyFormat(rowData);
-    
-    // Validate required fields
-    const fieldErrors = validateRequiredJadwalFields(rowData);
-    const allErrors = [...parsed.errors, ...fieldErrors];
-    
-    if (allErrors.length > 0) {
-        return { valid: false, errors: allErrors, data: null };
-    }
-    
-    // Build valid jadwal object
-    const jadwalObj = buildJadwalObject(
-        rowData, 
-        parsed.kelas_id, 
-        parsed.mapel_id, 
-        parsed.guru_id, 
-        parsed.ruang_id, 
-        parsed.guru_ids_array
-    );
-    
-    return { valid: true, errors: [], data: jadwalObj };
-}
-
-/**
- * Insert jadwal records with multi-guru support
- */
-async function insertJadwalRecords(conn, validRecords) {
-    for (const v of validRecords) {
-        const [insertRes] = await conn.execute(
-            `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.status, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus]
-        );
-        
-        const jadwalId = insertRes?.insertId;
-        if (!jadwalId) continue;
-        
-        // Insert jadwal_guru relations for pelajaran with guru_ids
-        if (v.jenis_aktivitas === 'pelajaran' && Array.isArray(v.guru_ids) && v.guru_ids.length > 0) {
-            const validGuruIds = v.guru_ids.filter(gid => gid && !Number.isNaN(gid) && gid > 0);
-            if (validGuruIds.length > 0) {
-                const values = validGuruIds.map((gid, idx) => [jadwalId, gid, idx === 0 ? 1 : 0]);
-                const placeholders = values.map(() => '(?, ?, ?)').join(', ');
-                const flatValues = values.flat();
-                await conn.execute(
-                    `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
-                    flatValues
-                );
-                
-                if (validGuruIds.length > 1) {
-                    await conn.execute('UPDATE jadwal SET is_multi_guru = 1 WHERE id_jadwal = ?', [jadwalId]);
-                }
-            }
-        }
-    }
-}
-
-/**
- * Import jadwal from Excel file with multi-guru support
+ * Import jadwal from Excel file
  * POST /api/admin/import/jadwal
  */
 const importJadwal = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
 
-        // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
 
-        // Detect format
         const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kelas_id');
         const errors = [];
         const valid = [];
 
-        // Process each row
         for (let i = 0; i < rows.length; i++) {
+            const rowData = rows[i];
             const rowNum = i + 2;
+
             try {
-                const result = await processJadwalRow(rows[i], isBasicFormat);
-                
-                if (result.valid) {
-                    valid.push(result.data);
-                } else {
-                    const rowPreview = {
-                        kelas: getFieldValue(rows[i], ['Kelas', 'kelas', 'kelas_id']) || '(kosong)',
-                        hari: getFieldValue(rows[i], ['hari', 'Hari']) || '(kosong)',
-                        jam_ke: getFieldValue(rows[i], ['jam_ke', 'Jam Ke']) || '(kosong)'
-                    };
-                    errors.push({ index: rowNum, errors: result.errors, data: rowPreview });
+                // validation
+                const fieldErrors = validateRequiredJadwalFields(rowData);
+                if (fieldErrors.length > 0) {
+                    errors.push({ index: rowNum, errors: fieldErrors, data: rowData });
+                    continue;
                 }
-            } catch (error) {
-                errors.push({ index: rowNum, errors: [error.message], data: {} });
+
+                // parse IDs
+                let parsedIds;
+                if (isBasicFormat) {
+                    parsedIds = await parseJadwalBasicFormat(rowData);
+                } else {
+                    parsedIds = await parseJadwalFriendlyFormat(rowData);
+                }
+                
+                const { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array } = parsedIds;
+
+                if (!kelas_id) {
+                    errors.push({ index: rowNum, errors: ['Kelas tidak ditemukan'], data: rowData });
+                    continue;
+                }
+
+                const jadwalObj = buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array);
+                valid.push(jadwalObj);
+            } catch (err) {
+                errors.push({ index: rowNum, errors: [err.message], data: rowData });
             }
         }
 
-        // Dry run mode
         if (req.query.dryRun === 'true') {
             return res.json({
                 total: rows.length,
@@ -463,16 +332,39 @@ const importJadwal = async (req, res) => {
                 message: MSG_DRY_RUN_COMPLETED
             });
         }
-        
-        if (valid.length === 0) {
-            return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
-        }
+        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
 
-        // Insert to database
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-            await insertJadwalRecords(conn, valid);
+
+            // Clear existing jadwal for affected classes? Or just append/update?
+            // Strategy: Insert/Update based on unique key? 
+            // Jadwal table structure usually ID auto increment. 
+            // Here we just insert new records. 
+            
+            for (const v of valid) {
+                // Insert main jadwal
+                const [result] = await conn.execute(
+                    `INSERT INTO jadwal_pelajaran (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable, keterangan_khusus, status)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus, v.status]
+                );
+                
+                const jadwalId = result.insertId;
+
+                // Insert guru pendamping / multi-guru
+                if (v.guru_ids && v.guru_ids.length > 0) {
+                    for (const gid of v.guru_ids) {
+                        // Avoid duplicate if primary guru is same
+                        await conn.execute(
+                            `INSERT INTO jadwal_guru (jadwal_id, guru_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE guru_id=guru_id`,
+                            [jadwalId, gid]
+                        );
+                    }
+                }
+            }
+
             await conn.commit();
         } catch (e) {
             await conn.rollback();
@@ -489,429 +381,8 @@ const importJadwal = async (req, res) => {
 };
 
 // ================================================
-// IMPORT STUDENT ACCOUNT (with bcrypt password hashing)
+// IMPORT SISWA (Student Data)
 // ================================================
-
-/**
- * Import student accounts from Excel file
- * POST /api/admin/import/student-account
- */
-/**
- * Process student account records to database
- * @param {Object} conn - Database connection
- * @param {Object[]} validRecords - Valid student records
- * @returns {Promise<{successCount: number, duplicateCount: number}>}
- */
-async function processStudentAccountRecords(conn, validRecords) {
-    let successCount = 0;
-    let duplicateCount = 0;
-
-    for (const v of validRecords) {
-        const [existingSiswa] = await conn.execute(
-            'SELECT id_siswa, user_id FROM siswa WHERE nis = ?',
-            [v.nis]
-        );
-
-        const [existingUser] = await conn.execute(
-            'SELECT id FROM users WHERE username = ?',
-            [v.username]
-        );
-
-        if (existingUser.length > 0 && !existingSiswa.length) {
-            throw new Error(`Username '${v.username}' sudah digunakan oleh user lain`);
-        }
-
-        const [kelasResult] = await conn.execute(
-            'SELECT id_kelas FROM kelas WHERE nama_kelas = ?',
-            [v.kelas]
-        );
-
-        if (kelasResult.length === 0) {
-            throw new Error(`Kelas '${v.kelas}' tidak ditemukan`);
-        }
-
-        const kelasId = kelasResult[0].id_kelas;
-
-        if (existingSiswa.length > 0) {
-            await updateExistingStudent(conn, v, kelasId, existingSiswa[0].user_id);
-            duplicateCount++;
-        } else {
-            await insertNewStudent(conn, v, kelasId);
-            successCount++;
-        }
-    }
-
-    return { successCount, duplicateCount };
-}
-
-/**
- * Update existing student record
- */
-async function updateExistingStudent(conn, v, kelasId, userId) {
-    await conn.execute(
-        `UPDATE siswa SET 
-         nama = ?, kelas_id = ?, jenis_kelamin = ?, email = ?, 
-         jabatan = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE nis = ?`,
-        [v.nama, kelasId, v.jenis_kelamin, v.email, v.jabatan, v.nis]
-    );
-
-    const hashedPassword = await bcrypt.hash(v.password, 10);
-    await conn.execute(
-        `UPDATE users SET 
-         username = ?, password = ?, nama = ?, email = ?, 
-         updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [v.username, hashedPassword, v.nama, v.email, userId]
-    );
-}
-
-/**
- * Insert new student record
- */
-async function insertNewStudent(conn, v, kelasId) {
-    const hashedPassword = await bcrypt.hash(v.password, 10);
-    const [userResult] = await conn.execute(
-        `INSERT INTO users (username, password, role, nama, email, status, created_at, updated_at)
-         VALUES (?, ?, 'siswa', ?, ?, 'aktif', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [v.username, hashedPassword, v.nama, v.email]
-    );
-
-    const userId = userResult.insertId;
-
-    await conn.execute(
-        `INSERT INTO siswa (nis, nama, kelas_id, jenis_kelamin, email, jabatan, user_id, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'aktif', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [v.nis, v.nama, kelasId, v.jenis_kelamin, v.email, v.jabatan, userId]
-    );
-}
-
-/**
- * Helper to get existing student data for validation
- */
-async function getExistingStudentData() {
-    const existingUsernames = new Set();
-    const existingNis = new Set();
-
-    try {
-        const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "siswa"');
-        const [dbNis] = await globalThis.dbPool.execute('SELECT nis FROM siswa');
-        dbUsernames.forEach(row => existingUsernames.add(row.username));
-        dbNis.forEach(row => existingNis.add(row.nis));
-    } catch (dbError) {
-        // Intentionally ignoring details to prevent leakage, throwing generic error
-        throw new Error(ERROR_DB_CHECK_FAILED); // Propagate error to be handled by caller
-    }
-
-    return { existingUsernames, existingNis };
-}
-
-const importStudentAccount = async (req, res) => {
-    try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
-
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(req.file.buffer);
-        const worksheet = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(worksheet);
-        const errors = [];
-        const valid = [];
-
-        // Get existing data from database
-        // Get existing data from database
-        const { existingUsernames, existingNis } = await getExistingStudentData();
-
-        // Validate each row using helper function
-        for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowNum = i + 2;
-
-            const result = validateStudentAccountRow(rowData, valid, existingNis, existingUsernames);
-            
-            if (result.valid) {
-                valid.push(result.data);
-            } else {
-                errors.push({ index: rowNum, errors: result.errors, data: createStudentRowPreview(rowData) });
-            }
-        }
-
-        if (req.query.dryRun === 'true') {
-            return res.json({
-                total: rows.length,
-                valid: valid.length,
-                invalid: errors.length,
-                errors,
-                previewData: valid.slice(0, 20),
-                message: MSG_DRY_RUN_COMPLETED
-            });
-        }
-
-        if (valid.length === 0) {
-            return res.status(400).json({
-                error: ERROR_NO_VALID_ROWS,
-                errors,
-                message: 'Semua data memiliki error. Perbaiki error terlebih dahulu.'
-            });
-        }
-
-        const conn = await globalThis.dbPool.getConnection();
-        try {
-            await conn.beginTransaction();
-
-            const { successCount, duplicateCount } = await processStudentAccountRecords(conn, valid);
-
-            await conn.commit();
-
-            res.json({
-                success: true,
-                processed: valid.length,
-                new: successCount,
-                updated: duplicateCount,
-                invalid: errors.length,
-                errors,
-                message: `Import akun siswa berhasil! ${successCount} akun baru, ${duplicateCount} akun diupdate.`
-            });
-        } catch (e) {
-            await conn.rollback();
-            throw e;
-        } finally {
-            conn.release();
-        }
-    } catch (err) {
-        logger.error('Import student account failed', err);
-        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
-    }
-};
-
-// ================================================
-// IMPORT TEACHER ACCOUNT (with bcrypt password hashing)
-// ================================================
-
-/**
- * Import teacher accounts from Excel file
- * POST /api/admin/import/teacher-account
- */
-/**
- * Process teacher account records to database
- */
-async function processTeacherAccountRecords(conn, validRecords) {
-    let successCount = 0;
-    let duplicateCount = 0;
-
-    for (const v of validRecords) {
-        const [existingGuru] = await conn.execute(
-            'SELECT id_guru, user_id FROM guru WHERE nip = ?',
-            [v.nip]
-        );
-
-        const [existingUser] = await conn.execute(
-            'SELECT id FROM users WHERE username = ?',
-            [v.username]
-        );
-
-        if (existingUser.length > 0 && !existingGuru.length) {
-            throw new Error(`Username '${v.username}' sudah digunakan oleh user lain`);
-        }
-
-        if (existingGuru.length > 0) {
-            await updateExistingTeacher(conn, v, existingGuru[0].user_id);
-            duplicateCount++;
-        } else {
-            await insertNewTeacher(conn, v);
-            successCount++;
-        }
-    }
-
-    return { successCount, duplicateCount };
-}
-
-/**
- * Update existing teacher record
- */
-async function updateExistingTeacher(conn, v, userId) {
-    await conn.execute(
-        `UPDATE guru SET 
-         nama = ?, jenis_kelamin = ?, email = ?, no_telepon = ?,
-         alamat = ?, jabatan = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE nip = ?`,
-        [v.nama, v.jenis_kelamin, v.email, v.no_telp, v.alamat, v.mata_pelajaran, v.status, v.nip]
-    );
-
-    const hashedPassword = await bcrypt.hash(v.password, 10);
-    await conn.execute(
-        `UPDATE users SET 
-         username = ?, password = ?, nama = ?, email = ?, 
-         updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [v.username, hashedPassword, v.nama, v.email, userId]
-    );
-}
-
-/**
- * Insert new teacher record
- */
-async function insertNewTeacher(conn, v) {
-    const hashedPassword = await bcrypt.hash(v.password, 10);
-    const [userResult] = await conn.execute(
-        `INSERT INTO users (username, password, role, nama, email, status, created_at, updated_at)
-         VALUES (?, ?, 'guru', ?, ?, 'aktif', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [v.username, hashedPassword, v.nama, v.email]
-    );
-
-    const userId = userResult.insertId;
-
-    await conn.execute(
-        `INSERT INTO guru (nip, nama, jenis_kelamin, email, no_telepon, alamat, jabatan, user_id, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [v.nip, v.nama, v.jenis_kelamin, v.email, v.no_telp, v.alamat, v.mata_pelajaran, userId, v.status]
-    );
-}
-
-/**
- * Helper to get existing teacher data for validation
- */
-async function getExistingTeacherData() {
-    const existingUsernames = new Set();
-    const existingNips = new Set();
-
-    try {
-        const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "guru"');
-        const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
-        dbUsernames.forEach(row => existingUsernames.add(row.username));
-        dbNips.forEach(row => existingNips.add(row.nip));
-    } catch (dbError) {
-        // Intentionally ignoring details
-        throw new Error(ERROR_DB_CHECK_FAILED);
-    }
-    
-    return { existingUsernames, existingNips };
-}
-
-const importTeacherAccount = async (req, res) => {
-    try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
-
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(req.file.buffer);
-        const worksheet = workbook.worksheets[0];
-        const rows = sheetToJsonByHeader(worksheet);
-        const errors = [];
-        const valid = [];
-
-        // Get existing data from database
-        const { existingUsernames, existingNips } = await getExistingTeacherData();
-
-        // Validate each row using helper function
-        for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowNum = i + 2;
-
-            const result = validateTeacherAccountRow(rowData, valid, existingNips, existingUsernames);
-            
-            if (result.valid) {
-                valid.push(result.data);
-            } else {
-                errors.push({ index: rowNum, errors: result.errors, data: createTeacherRowPreview(rowData) });
-            }
-        }
-
-        if (req.query.dryRun === 'true') {
-            return res.json({
-                total: rows.length,
-                valid: valid.length,
-                invalid: errors.length,
-                errors,
-                previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
-            });
-        }
-
-        if (valid.length === 0) {
-            return res.status(400).json({
-                error: ERROR_NO_VALID_ROWS,
-                errors,
-                message: 'Semua data memiliki error. Perbaiki error terlebih dahulu.'
-            });
-        }
-
-        const conn = await globalThis.dbPool.getConnection();
-        try {
-            await conn.beginTransaction();
-
-            const { successCount, duplicateCount } = await processTeacherAccountRecords(conn, valid);
-
-            await conn.commit();
-
-            res.json({
-                success: true,
-                processed: valid.length,
-                new: successCount,
-                updated: duplicateCount,
-                invalid: errors.length,
-                errors,
-                message: `Import akun guru berhasil! ${successCount} akun baru, ${duplicateCount} akun diupdate.`
-            });
-        } catch (e) {
-            await conn.rollback();
-            throw e;
-        } finally {
-            conn.release();
-        }
-    } catch (err) {
-        logger.error('Import teacher account failed', err);
-        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
-    }
-};
-
-// ================================================
-// IMPORT SISWA DATA (data-only, no password)
-// ================================================
-
-/**
- * Process a single siswa data record (insert or update)
- * @private
- * @returns {Promise<'new'|'updated'>} Status of the operation
- */
-async function processSiswaDataRecord(conn, record) {
-    // Find kelas_id by class name
-    const [kelasResult] = await conn.execute(
-        'SELECT id_kelas FROM kelas WHERE nama_kelas = ?',
-        [record.kelas]
-    );
-
-    if (kelasResult.length === 0) {
-        throw new Error(`Kelas '${record.kelas}' tidak ditemukan`);
-    }
-
-    const kelasId = kelasResult[0].id_kelas;
-
-    // Check if NIS already exists
-    const [existingSiswa] = await conn.execute(
-        'SELECT id_siswa FROM siswa WHERE nis = ?',
-        [record.nis]
-    );
-
-    if (existingSiswa.length > 0) {
-        // Update existing student
-        await conn.execute(
-            `UPDATE siswa SET 
-             nama = ?, kelas_id = ?, jenis_kelamin = ?, 
-             telepon_orangtua = ?, nomor_telepon_siswa = ?, alamat = ?, status = ?, 
-             updated_at = CURRENT_TIMESTAMP
-             WHERE nis = ?`,
-            [record.nama, kelasId, record.jenis_kelamin, record.telepon_orangtua, record.nomor_telepon_siswa, record.alamat, record.status, record.nis]
-        );
-        return 'updated';
-    }
-
-    // Insert new student (data-only, no account)
-    await conn.execute(
-        `INSERT INTO siswa (nis, nama, kelas_id, jenis_kelamin, telepon_orangtua, nomor_telepon_siswa, alamat, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [record.nis, record.nama, kelasId, record.jenis_kelamin, record.telepon_orangtua, record.nomor_telepon_siswa, record.alamat, record.status]
-    );
-    return 'new';
-}
 
 /**
  * Import siswa data from Excel file (without account creation)
@@ -940,27 +411,12 @@ const importSiswa = async (req, res) => {
             });
         }
 
-        // Validate each row using helper
-        const validateImportRows = (rows, validator, existingSet, errorPreview) => {
-            const errors = [];
-            const valid = [];
-            for (let i = 0; i < rows.length; i++) {
-                const rowNum = i + 2;
-                try {
-                    const result = validator(rows[i], valid, existingSet);
-                    if (result.valid) {
-                        valid.push(result.data);
-                    } else {
-                        errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                    }
-                } catch (error) {
-                    errors.push({ index: rowNum, errors: [error.message], data: errorPreview });
-                }
-            }
-            return { valid, errors };
+        // Use generic batch validator (wrapped to match signature)
+        const validatorWrapper = (rowData, { existingSet }) => {
+             return validateSiswaDataRow(rowData, [], existingSet); 
         };
         
-        const { valid, errors } = validateImportRows(rows, validateSiswaDataRow, existingNis, { nis: '(error)', nama: '(error)', kelas: '(error)' });
+        const { valid, errors } = validateBatchRows(rows, validatorWrapper, { existingSet: existingNis });
 
         if (req.query.dryRun === 'true') {
             return res.json({
@@ -989,7 +445,7 @@ const importSiswa = async (req, res) => {
             let duplicateCount = 0;
 
             for (const record of valid) {
-                const status = await processSiswaDataRecord(conn, record);
+                const status = await processSiswaData(conn, record);
                 if (status === 'new') successCount++;
                 else duplicateCount++;
             }
@@ -1022,39 +478,6 @@ const importSiswa = async (req, res) => {
 // ================================================
 
 /**
- * Process a single guru data record (insert or update)
- * @private
- * @returns {Promise<'new'|'updated'>} Status of the operation
- */
-async function processGuruDataRecord(conn, record) {
-    // Check if NIP already exists
-    const [existingGuru] = await conn.execute(
-        'SELECT id_guru FROM guru WHERE nip = ?',
-        [record.nip]
-    );
-
-    if (existingGuru.length > 0) {
-        // Update existing teacher
-        await conn.execute(
-            `UPDATE guru SET 
-             nama = ?, jenis_kelamin = ?, email = ?, no_telepon = ?,
-             alamat = ?, jabatan = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-             WHERE nip = ?`,
-            [record.nama, record.jenis_kelamin, record.email, record.nomor_telepon, record.alamat, record.jabatan, record.status, record.nip]
-        );
-        return 'updated';
-    }
-
-    // Insert new teacher (data-only, no account)
-    await conn.execute(
-        `INSERT INTO guru (nip, nama, jenis_kelamin, email, no_telepon, alamat, jabatan, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [record.nip, record.nama, record.jenis_kelamin, record.email, record.nomor_telepon, record.alamat, record.jabatan, record.status]
-    );
-    return 'new';
-}
-
-/**
  * Import guru data from Excel file (without account creation)
  * POST /api/admin/import/guru
  */
@@ -1066,42 +489,21 @@ const importGuru = async (req, res) => {
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
         const rows = sheetToJsonByHeader(worksheet);
-        // Helper to validate and collect guru rows
-        const validateAndCollectGuruRows = (rows, existingNips) => {
-            const errors = [];
-            const valid = [];
-            for (let i = 0; i < rows.length; i++) {
-                const rowNum = i + 2;
-                try {
-                    const result = validateGuruDataRow(rows[i], valid, existingNips);
-                    if (result.valid) {
-                        const rowData = rows[i];
-                        result.data.jabatan = (rowData.jabatan || rowData.Jabatan) ? String(rowData.jabatan || rowData.Jabatan).trim() : null;
-                        valid.push(result.data);
-                    } else {
-                        errors.push({ index: rowNum, errors: result.errors, data: result.preview });
-                    }
-                } catch (error) {
-                    errors.push({ index: rowNum, errors: [error.message], data: { nip: '(error)', nama: '(error)' } });
-                }
-            }
-            return { errors, valid };
-        };
-
-        // Check for existing NIP in database
+        
+        // Check existing NIPs
         const existingNips = new Set();
         try {
-            const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
-            dbNips.forEach(row => existingNips.add(row.nip));
-        } catch (dbError) {
-            logger.error('Error checking existing data', { error: dbError.message });
-            return res.status(500).json({
-                error: ERROR_DB_CHECK_FAILED,
-                message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
-            });
+             const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
+             dbNips.forEach(r => existingNips.add(r.nip));
+        } catch (e) {
+             logger.warn('Failed to fetch existing NIPs', e);
         }
 
-        const { errors, valid } = validateAndCollectGuruRows(rows, existingNips);
+        const validatorWrapper = (rowData, existingSet) => {
+             return validateGuruDataRow(rowData, [], existingSet);
+        };
+
+        const { valid, errors } = validateBatchRows(rows, validatorWrapper, existingNips);
 
         if (req.query.dryRun === 'true') {
             return res.json({
@@ -1115,28 +517,22 @@ const importGuru = async (req, res) => {
         }
 
         if (valid.length === 0) {
-            return res.status(400).json({
-                error: ERROR_NO_VALID_ROWS,
-                errors
-            });
+            return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
         }
 
-        // Process records with helper function
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-
             let successCount = 0;
             let duplicateCount = 0;
 
             for (const record of valid) {
-                const status = await processGuruDataRecord(conn, record);
+                const status = await processGuruData(conn, record);
                 if (status === 'new') successCount++;
                 else duplicateCount++;
             }
 
             await conn.commit();
-
             res.json({
                 success: true,
                 processed: valid.length,
@@ -1154,7 +550,117 @@ const importGuru = async (req, res) => {
         }
     } catch (err) {
         logger.error('Import guru failed', err);
-        return sendDatabaseError(res, err, 'Terjadi kesalahan saat memproses file');
+        return sendDatabaseError(res, err, 'Gagal import guru');
+    }
+};
+
+// ================================================
+// IMPORT ACCOUNT (Student & Teacher)
+// ================================================
+
+/**
+ * Import student account from Excel file
+ * POST /api/admin/import/student-account
+ */
+const importStudentAccount = async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
+
+        // Validate
+        const { valid, errors } = validateBatchRows(rows, validateStudentAccountRow, {});
+
+        if (req.query.dryRun === 'true') {
+            return res.json({
+                total: rows.length,
+                valid: valid.length,
+                invalid: errors.length,
+                errors,
+                previewData: valid.slice(0, 20),
+                message: MSG_DRY_RUN_COMPLETED
+            });
+        }
+
+        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+
+        const conn = await globalThis.dbPool.getConnection();
+        try {
+            await conn.beginTransaction();
+            let successCount = 0;
+            let duplicateCount = 0;
+
+            for (const record of valid) {
+                 const status = await processStudentAccount(conn, record);
+                 if (status === 'new') successCount++;
+                 else duplicateCount++;
+            }
+            await conn.commit();
+            res.json({ success: true, processed: valid.length, new: successCount, updated: duplicateCount, invalid: errors.length, errors });
+        } catch (e) {
+            await conn.rollback();
+            throw e;
+        } finally {
+            conn.release();
+        }
+    } catch (err) {
+        logger.error('Import student account failed', err);
+        return sendDatabaseError(res, err, 'Gagal import akun siswa');
+    }
+};
+
+/**
+ * Import teacher account from Excel file
+ * POST /api/admin/import/teacher-account
+ */
+const importTeacherAccount = async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(req.file.buffer);
+        const worksheet = workbook.worksheets[0];
+        const rows = sheetToJsonByHeader(worksheet);
+
+        // Validate
+        const { valid, errors } = validateBatchRows(rows, validateTeacherAccountRow, {});
+
+        if (req.query.dryRun === 'true') {
+             return res.json({
+                 total: rows.length,
+                 valid: valid.length,
+                 invalid: errors.length,
+                 errors,
+                 previewData: valid.slice(0, 20),
+                 message: MSG_DRY_RUN_COMPLETED
+             });
+        }
+
+        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+
+        const conn = await globalThis.dbPool.getConnection();
+        try {
+            await conn.beginTransaction();
+            let successCount = 0;
+            let duplicateCount = 0;
+
+            for (const record of valid) {
+                 const status = await processTeacherAccount(conn, record);
+                 if (status === 'new') successCount++;
+                 else duplicateCount++;
+            }
+            await conn.commit();
+            res.json({ success: true, processed: valid.length, new: successCount, updated: duplicateCount, invalid: errors.length, errors });
+        } catch (e) {
+            await conn.rollback();
+            throw e;
+        } finally {
+            conn.release();
+        }
+    } catch (err) {
+        logger.error('Import teacher account failed', err);
+        return sendDatabaseError(res, err, 'Gagal import akun guru');
     }
 };
 
@@ -1169,4 +675,3 @@ export {
     importSiswa,
     importGuru
 };
-
