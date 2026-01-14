@@ -8231,8 +8231,6 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 </div>
               </div>
             </div>
-          ) : (
-            renderActiveView()
           )}
         </div>
       </div>

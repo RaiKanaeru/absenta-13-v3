@@ -85,7 +85,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
   // Load configuration on mount
   useEffect(() => {
     loadConfig();
-  }, []);
+  }, [loadConfig]);
 
   // Reload config when scope or reportKey changes
   useEffect(() => {
@@ -94,7 +94,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
     } else if (scope === 'global') {
       loadConfig();
     }
-  }, [scope, selectedReportKey]);
+  }, [scope, selectedReportKey, loadConfig]);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -143,7 +143,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
     } finally {
       setLoading(false);
     }
-  };
+  }, [scope, selectedReportKey]);
 
   const handleSave = async () => {
     try {
