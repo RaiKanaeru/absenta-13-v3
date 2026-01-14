@@ -173,6 +173,18 @@ const getBandingStatusColor = (status: string): string => {
   return BANDING_STATUS_COLORS[status] || 'bg-gray-100 text-gray-800';
 };
 
+/** Get button class for attendance status selection (S2004 compliance) */
+const getStatusButtonClass = (status: string, isSelected: boolean): string => {
+  if (!isSelected) return 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100';
+  const colorMap: Record<string, string> = {
+    'Hadir': 'bg-green-500 text-white border-green-500',
+    'hadir': 'bg-green-500 text-white border-green-500',
+    'Alpa': 'bg-red-500 text-white border-red-500',
+    'alpa': 'bg-red-500 text-white border-red-500'
+  };
+  return colorMap[status] || 'bg-yellow-500 text-white border-yellow-500';
+};
+
 // =============================================================================
 
 interface BandingAbsen {
@@ -1747,12 +1759,12 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                     // 2) Jika ada id_guru di record ini, dorong satu guru
                     if (jadwal.id_guru) {
                     acc[key].guru_list!.push({
-                        id_guru: jadwal.id_guru as number,
-                        nama_guru: jadwal.nama_guru as string,
-                        nip: jadwal.nip as string,
-                        is_primary: (jadwal.is_primary ?? false) as boolean,
-                        status_kehadiran: jadwal.status_kehadiran as string,
-                        keterangan_guru: (jadwal.keterangan_guru ?? '') as string
+                        id_guru: jadwal.id_guru,
+                        nama_guru: jadwal.nama_guru,
+                        nip: jadwal.nip,
+                        is_primary: jadwal.is_primary ?? false,
+                        status_kehadiran: jadwal.status_kehadiran,
+                        keterangan_guru: jadwal.keterangan_guru ?? ''
                       } as GuruInSchedule);
                     } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
                       // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
@@ -1795,12 +1807,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                           <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
                           <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
                           <Badge variant="secondary" className="text-xs">
-                            {jadwal.jenis_aktivitas === 'upacara' ? 'Upacara' :
-                             jadwal.jenis_aktivitas === 'istirahat' ? 'Istirahat' :
-                             jadwal.jenis_aktivitas === 'kegiatan_khusus' ? 'Kegiatan Khusus' :
-                             jadwal.jenis_aktivitas === 'libur' ? 'Libur' :
-                             jadwal.jenis_aktivitas === 'ujian' ? 'Ujian' :
-                             (jadwal.jenis_aktivitas || 'Khusus')}
+                            {getActivityTypeLabel(jadwal.jenis_aktivitas)}
                           </Badge>
                           <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
                             Tidak perlu absen
@@ -3620,13 +3627,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                               ...prev,
                               [siswa.id_siswa]: { ...prev[siswa.id_siswa], status }
                             }))}
-                            className={`px-2 py-1 text-xs rounded border ${
-                              absenSiswaData[siswa.id_siswa]?.status === status
-                                ? status === 'Hadir' ? 'bg-green-500 text-white border-green-500'
-                                : status === 'Alpa' ? 'bg-red-500 text-white border-red-500'
-                                : 'bg-yellow-500 text-white border-yellow-500'
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 text-xs rounded border ${getStatusButtonClass(status, absenSiswaData[siswa.id_siswa]?.status === status)}`}
                           >
                             {status}
                           </button>
