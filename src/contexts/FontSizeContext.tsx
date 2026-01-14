@@ -19,12 +19,12 @@ const DEFAULT_FONT_SIZE: FontSize = 'base';
 
 export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const getStoredFontSize = (): FontSize => {
-    if (typeof window === 'undefined') {
+    if (globalThis.window === undefined) {
       return DEFAULT_FONT_SIZE;
     }
 
     const saved =
-      window.localStorage.getItem('fontSize') || window.sessionStorage.getItem('fontSize');
+      globalThis.localStorage.getItem('fontSize') || globalThis.sessionStorage.getItem('fontSize');
 
     return (FONT_SIZES.includes(saved as FontSize) ? saved : DEFAULT_FONT_SIZE) as FontSize;
   };
@@ -40,18 +40,18 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const persistFontSize = (size: FontSize) => {
-    if (typeof window === 'undefined') {
+    if (globalThis.window === undefined) {
       return;
     }
 
-    window.localStorage.setItem('fontSize', size);
-    window.sessionStorage.setItem('fontSize', size);
+    globalThis.localStorage.setItem('fontSize', size);
+    globalThis.sessionStorage.setItem('fontSize', size);
   };
 
-  const [fontSize, setFontSizeState] = useState<FontSize>(() => getStoredFontSize());
+  const [internalFontSize, setInternalFontSize] = useState<FontSize>(() => getStoredFontSize());
 
   const setFontSize = (size: FontSize) => {
-    setFontSizeState(size);
+    setInternalFontSize(size);
     persistFontSize(size);
 
     // Apply to document root for global font size
@@ -59,14 +59,14 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const increaseFontSize = () => {
-    const currentIndex = FONT_SIZES.indexOf(fontSize);
+    const currentIndex = FONT_SIZES.indexOf(internalFontSize);
     if (currentIndex < FONT_SIZES.length - 1) {
       setFontSize(FONT_SIZES[currentIndex + 1]);
     }
   };
 
   const decreaseFontSize = () => {
-    const currentIndex = FONT_SIZES.indexOf(fontSize);
+    const currentIndex = FONT_SIZES.indexOf(internalFontSize);
     if (currentIndex > 0) {
       setFontSize(FONT_SIZES[currentIndex - 1]);
     }
@@ -77,16 +77,16 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const getFontSizeClass = () => {
-    return `font-size-${fontSize}`;
+    return `font-size-${internalFontSize}`;
   };
 
   useEffect(() => {
     // Apply font size on mount
-    updateDocumentFontSize(fontSize);
-  }, [fontSize]);
+    updateDocumentFontSize(internalFontSize);
+  }, [internalFontSize]);
 
   const value: FontSizeContextType = {
-    fontSize,
+    fontSize: internalFontSize,
     setFontSize,
     increaseFontSize,
     decreaseFontSize,

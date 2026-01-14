@@ -46,7 +46,7 @@ const LoadingFallback = () => (
  */
 const getToken = () => {
   try {
-    return localStorage.getItem('token') || sessionStorage.getItem('token');
+    return globalThis.localStorage.getItem('token') || globalThis.sessionStorage.getItem('token');
   } catch (error) {
     console.error('Error accessing storage:', error);
     return null;
@@ -58,7 +58,7 @@ const getToken = () => {
  * @returns error message if invalid, null if valid
  */
 const validateJsonResponse = (contentType: string | null, responseText: string): string | null => {
-  if (!contentType || !contentType.includes('application/json')) {
+  if (!contentType?.includes('application/json')) {
     return 'Server mengirim respons yang tidak valid. Pastikan server berjalan dengan baik.';
   }
   if (!responseText.trim()) {
@@ -71,7 +71,7 @@ const validateJsonResponse = (contentType: string | null, responseText: string):
  * Safely parses JSON string
  * @returns parsed object or null if invalid
  */
-const safeParseJson = (text: string): unknown | null => {
+const safeParseJson = (text: string): unknown => {
   try {
     return JSON.parse(text);
   } catch {
@@ -89,11 +89,12 @@ const extractErrorMessage = (result: Record<string, unknown>): string => {
     }
     if (typeof result.error === 'object' && result.error !== null) {
       const errorObj = result.error as Record<string, unknown>;
-      return String(errorObj.message || errorObj.error || JSON.stringify(result.error));
+      const msg = errorObj.message || errorObj.error;
+      return typeof msg === 'string' ? msg : JSON.stringify(msg || result.error);
     }
   }
   if (result.message) {
-    return String(result.message);
+    return typeof result.message === 'string' ? result.message : JSON.stringify(result.message);
   }
   return 'Login gagal';
 };
@@ -103,10 +104,11 @@ const setToken = (token: string) => {
     localStorage.setItem('token', token);
   } catch (localError) {
     // Fallback ke sessionStorage untuk perangkat dengan localStorage terbatas
+    console.warn('localStorage failed, trying sessionStorage', localError);
     try {
-      sessionStorage.setItem('token', token);
+      globalThis.sessionStorage.setItem('token', token);
     } catch (sessionError) {
-      console.error('Token storage failed');
+      console.error('Do not use empty catch blocks', sessionError);
     }
   }
 };
@@ -138,7 +140,8 @@ const fetchProfileByRole = async (role: string): Promise<Record<string, unknown>
     
     const data = await response.json();
     return data.success ? data : null;
-  } catch {
+  } catch (error) {
+    console.error('Fetch profile error:', error);
     return null;
   }
 };
@@ -238,8 +241,9 @@ const Index = () => {
         title: "Selamat datang kembali!",
         description: `Halo ${user.nama as string}, Anda berhasil login otomatis.`,
       });
-    } catch {
+    } catch (error) {
       // Silent fail - no existing auth
+      console.debug('Auth check failed:', error);
     }
   }, [toast]);
 
