@@ -6,6 +6,7 @@
 import { getMySQLDateWIB, getWIBTime, HARI_INDONESIA } from '../utils/timeUtils.js';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { REPORT_STATUS, REPORT_MESSAGES, CSV_HEADERS, HARI_EFEKTIF_MAP } from '../config/reportConfig.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Reports');
@@ -14,13 +15,7 @@ const logger = createLogger('Reports');
 // HELPER FUNCTIONS
 // ================================================
 
-/**
- * Map of effective working days per month
- */
-const HARI_EFEKTIF_MAP = {
-    1: 21, 2: 20, 3: 22, 4: 20, 5: 20, 6: 18,
-    7: 21, 8: 21, 9: 21, 10: 22, 11: 21, 12: 18
-};
+
 
 /**
  * Calculate date range based on query parameters
@@ -125,6 +120,60 @@ function extractKelasId(kelasId) {
 }
 
 // ================================================
+// REPORTS & ANALYTICS HELPER EXTENSIONS
+// ================================================
+
+function buildTeacherReportBaseQuery(startDate, endDate, kelas_id) {
+    let query = `
+        FROM jadwal j
+        JOIN kelas k ON j.kelas_id = k.id_kelas
+        LEFT JOIN guru g ON j.guru_id = g.id_guru
+        LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+        LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+            AND ag.tanggal BETWEEN ? AND ?
+        WHERE j.status = 'aktif'
+    `;
+
+    const params = [startDate, endDate];
+
+    if (kelas_id && kelas_id !== '') {
+        query += ' AND k.id_kelas = ?';
+        params.push(kelas_id);
+    }
+    return { query, params };
+}
+
+function buildStudentReportBaseQuery(startDate, endDate, kelas_id) {
+    let query = `
+        FROM absensi_siswa a
+        JOIN siswa s ON a.siswa_id = s.id_siswa
+        JOIN kelas k ON s.kelas_id = k.id_kelas
+        WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
+    `;
+
+    const params = [startDate, endDate];
+
+    if (kelas_id && kelas_id !== '') {
+        query += ' AND k.id_kelas = ?';
+        params.push(kelas_id);
+    }
+    return { query, params };
+}
+
+function generateCSV(res, filename, headerInfo, rows, rowMapper) {
+    let csvContent = '\uFEFF'; // UTF-8 BOM
+    csvContent += headerInfo;
+
+    rows.forEach(row => {
+        csvContent += rowMapper(row) + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvContent);
+}
+
+// ================================================
 // REPORTS & ANALYTICS ENDPOINTS
 // ================================================
 
@@ -159,23 +208,23 @@ function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
     const studentAttendanceQuery = `
         SELECT 
             'Hari Ini' as periode,
-            COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as hadir,
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}') THEN 1 END) as tidak_hadir
         FROM siswa s
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND a.tanggal = ?
         UNION ALL
         SELECT 
             'Minggu Ini' as periode,
-            COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as hadir,
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}') THEN 1 END) as tidak_hadir
         FROM siswa s
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
             AND YEARWEEK(a.tanggal, 1) = YEARWEEK(?, 1)
         UNION ALL
         SELECT 
             'Bulan Ini' as periode,
-            COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as tidak_hadir
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as hadir,
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}') THEN 1 END) as tidak_hadir
         FROM siswa s
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
             AND YEAR(a.tanggal) = ? 
@@ -185,23 +234,23 @@ function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
     const teacherAttendanceQuery = `
         SELECT 
             'Hari Ini' as periode,
-            COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as hadir,
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.TIDAK_HADIR}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}') THEN 1 END) as tidak_hadir
         FROM guru g
         LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal = ?
         UNION ALL
         SELECT 
             'Minggu Ini' as periode,
-            COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as hadir,
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.TIDAK_HADIR}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}') THEN 1 END) as tidak_hadir
         FROM guru g
         LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
             AND YEARWEEK(ag.tanggal, 1) = YEARWEEK(?, 1)
         UNION ALL
         SELECT 
             'Bulan Ini' as periode,
-            COUNT(CASE WHEN ag.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
-            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 END) as tidak_hadir
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as hadir,
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.TIDAK_HADIR}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}') THEN 1 END) as tidak_hadir
         FROM guru g
         LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
             AND YEAR(ag.tanggal) = ? 
@@ -212,7 +261,7 @@ function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
         SELECT 
             s.nama,
             k.nama_kelas,
-            COUNT(CASE WHEN a.status IN ('Alpa', 'Izin', 'Sakit', 'Dispen') THEN 1 END) as total_alpa
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.ALPA}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as total_alpa
         FROM siswa s
         JOIN kelas k ON s.kelas_id = k.id_kelas
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
@@ -225,7 +274,7 @@ function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
     const topAbsentTeachersQuery = `
         SELECT 
             g.nama,
-            COUNT(CASE WHEN ag.status IN ('Tidak Hadir', 'Sakit', 'Izin', 'Dispen') THEN 1 END) as total_tidak_hadir
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.TIDAK_HADIR}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as total_tidak_hadir
         FROM guru g
         LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id
         GROUP BY g.id_guru, g.nama
@@ -345,21 +394,21 @@ export const getLiveTeacherAttendance = async (req, res) => {
                 CASE 
                     WHEN ag.waktu_catat IS NOT NULL THEN
                         CASE 
-                            WHEN TIME(ag.waktu_catat) < '07:00:00' THEN 'Tepat Waktu'
-                            WHEN TIME(ag.waktu_catat) BETWEEN '07:00:00' AND '07:15:00' THEN 'Terlambat Ringan'
-                            WHEN TIME(ag.waktu_catat) BETWEEN '07:15:00' AND '08:00:00' THEN 'Terlambat'
-                            ELSE 'Terlambat Berat'
+                            WHEN TIME(ag.waktu_catat) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
+                            WHEN TIME(ag.waktu_catat) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
+                            WHEN TIME(ag.waktu_catat) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
+                            ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
                         END
                     ELSE '-'
                 END as keterangan_waktu,
                 CASE 
                     WHEN ag.waktu_catat IS NOT NULL THEN
                         CASE 
-                            WHEN HOUR(ag.waktu_catat) < 12 THEN 'Pagi'
-                            WHEN HOUR(ag.waktu_catat) < 15 THEN 'Siang'
-                            ELSE 'Sore'
+                            WHEN HOUR(ag.waktu_catat) < 12 THEN '${REPORT_STATUS.PAGI}'
+                            WHEN HOUR(ag.waktu_catat) < 15 THEN '${REPORT_STATUS.SIANG}'
+                            ELSE '${REPORT_STATUS.SORE}'
                         END
-                    ELSE 'Belum Absen'
+                    ELSE '${REPORT_STATUS.BELUM_ABSEN}'
                 END as periode_absen
             FROM jadwal j
             LEFT JOIN guru g ON j.guru_id = g.id_guru
@@ -405,21 +454,21 @@ export const getLiveStudentAttendance = async (req, res) => {
                 CASE 
                     WHEN a.waktu_absen IS NOT NULL THEN
                         CASE 
-                            WHEN TIME(a.waktu_absen) < '07:00:00' THEN 'Tepat Waktu'
-                            WHEN TIME(a.waktu_absen) BETWEEN '07:00:00' AND '07:15:00' THEN 'Terlambat Ringan'
-                            WHEN TIME(a.waktu_absen) BETWEEN '07:15:00' AND '08:00:00' THEN 'Terlambat'
-                            ELSE 'Terlambat Berat'
+                            WHEN TIME(a.waktu_absen) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
+                            WHEN TIME(a.waktu_absen) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
+                            WHEN TIME(a.waktu_absen) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
+                            ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
                         END
                     ELSE '-'
                 END as keterangan_waktu,
                 CASE 
                     WHEN a.waktu_absen IS NOT NULL THEN
                         CASE 
-                            WHEN HOUR(a.waktu_absen) < 12 THEN 'Pagi'
-                            WHEN HOUR(a.waktu_absen) < 15 THEN 'Siang'
-                            ELSE 'Sore'
+                            WHEN HOUR(a.waktu_absen) < 12 THEN '${REPORT_STATUS.PAGI}'
+                            WHEN HOUR(a.waktu_absen) < 15 THEN '${REPORT_STATUS.SIANG}'
+                            ELSE '${REPORT_STATUS.SORE}'
                         END
-                    ELSE 'Belum Absen'
+                    ELSE '${REPORT_STATUS.BELUM_ABSEN}'
                 END as periode_absen
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -452,10 +501,12 @@ export const getTeacherAttendanceReport = async (req, res) => {
     try {
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
+            return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED, { fields: ['startDate', 'endDate'] });
         }
 
-        let query = `
+        const { query: baseQuery, params } = buildTeacherReportBaseQuery(startDate, endDate, kelas_id);
+        
+        const fullQuery = `
             SELECT 
                 DATE_FORMAT(ag.tanggal, '%Y-%m-%d') as tanggal,
                 k.nama_kelas,
@@ -468,33 +519,19 @@ export const getTeacherAttendanceReport = async (req, res) => {
                 END as jam_hadir,
                 j.jam_mulai,
                 j.jam_selesai,
-                COALESCE(ag.status, 'Tidak Ada Data') as status,
+                COALESCE(ag.status, '${REPORT_STATUS.TIDAK_ADA_DATA}') as status,
                 COALESCE(ag.keterangan, '-') as keterangan,
                 j.jam_ke
-            FROM jadwal j
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
-                AND ag.tanggal BETWEEN ? AND ?
-            WHERE j.status = 'aktif'
+            ${baseQuery}
+            ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke
         `;
 
-        const params = [startDate, endDate];
-
-        if (kelas_id && kelas_id !== '') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-
-        query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
         log.success('GetTeacherReport', { count: rows.length, startDate, endDate });
         res.json(rows);
     } catch (error) {
         log.dbError('teacherReport', error);
-        return sendDatabaseError(res, error, 'Gagal memuat laporan kehadiran guru');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_TEACHER_REPORT);
     }
 };
 
@@ -508,10 +545,12 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
     try {
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
+            return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        let query = `
+        const { query: baseQuery, params } = buildTeacherReportBaseQuery(startDate, endDate, kelas_id);
+        
+        const fullQuery = `
             SELECT 
                 COALESCE(DATE_FORMAT(ag.tanggal, '%d/%m/%Y'), DATE_FORMAT(DATE(NOW()), '%d/%m/%Y')) as tanggal,
                 k.nama_kelas,
@@ -525,44 +564,23 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
                 j.jam_mulai,
                 j.jam_selesai,
                 CONCAT(j.jam_mulai, ' - ', j.jam_selesai) as jadwal,
-                COALESCE(ag.status, 'Tidak Ada Data') as status,
+                COALESCE(ag.status, '${REPORT_STATUS.TIDAK_ADA_DATA}') as status,
                 COALESCE(ag.keterangan, '-') as keterangan
-            FROM jadwal j
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
-                AND ag.tanggal BETWEEN ? AND ?
-            WHERE j.status = 'aktif'
+            ${baseQuery}
+            ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke
         `;
 
-        const params = [startDate, endDate];
+        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
 
-        if (kelas_id && kelas_id !== '') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
+        const rowMapper = (row) => 
+            `"${row.tanggal}","${row.nama_kelas}","${row.nama_guru}","${row.nip_guru || ''}","${row.nama_mapel}","${row.jam_hadir || ''}","${row.jam_mulai}","${row.jam_selesai}","${row.jadwal}","${row.status}","${row.keterangan || ''}"`;
 
-        query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
+        generateCSV(res, `laporan-kehadiran-guru-${startDate}-${endDate}.csv`, CSV_HEADERS.TEACHER_REPORT, rows, rowMapper);
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
-
-        // Enhanced CSV format with UTF-8 BOM for Excel compatibility
-        let csvContent = '\uFEFF'; // UTF-8 BOM
-        csvContent += 'Tanggal,Kelas,Guru,NIP,Mata Pelajaran,Jam Hadir,Jam Mulai,Jam Selesai,Jadwal,Status,Keterangan\n';
-
-        rows.forEach(row => {
-            csvContent += `"${row.tanggal}","${row.nama_kelas}","${row.nama_guru}","${row.nip_guru || ''}","${row.nama_mapel}","${row.jam_hadir || ''}","${row.jam_mulai}","${row.jam_selesai}","${row.jadwal}","${row.status}","${row.keterangan || ''}"\n`;
-        });
-
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-guru-${startDate}-${endDate}.csv"`);
-        res.send(csvContent);
-
-        log.success('DownloadTeacherReport', { recordCount: rows.length, filename: `laporan-kehadiran-guru-${startDate}-${endDate}.csv` });
+        log.success('DownloadTeacherReport', { recordCount: rows.length });
     } catch (error) {
         log.dbError('downloadTeacher', error);
-        return sendDatabaseError(res, error, 'Gagal mengunduh laporan kehadiran guru');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_DOWNLOAD_TEACHER);
     }
 };
 
@@ -576,10 +594,12 @@ export const getStudentAttendanceReport = async (req, res) => {
     try {
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
+            return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED, { fields: ['startDate', 'endDate'] });
         }
 
-        let query = `
+        const { query: baseQuery, params } = buildStudentReportBaseQuery(startDate, endDate, kelas_id);
+
+        const fullQuery = `
             SELECT 
                 DATE_FORMAT(a.waktu_absen, '%Y-%m-%d') as tanggal,
                 k.nama_kelas,
@@ -590,30 +610,19 @@ export const getStudentAttendanceReport = async (req, res) => {
                 DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
                 '07:00' as jam_mulai,
                 '17:00' as jam_selesai,
-                COALESCE(a.status, 'Tidak Hadir') as status,
+                COALESCE(a.status, '${REPORT_STATUS.TIDAK_HADIR}') as status,
                 COALESCE(a.keterangan, '-') as keterangan,
                 NULL as jam_ke
-            FROM absensi_siswa a
-            JOIN siswa s ON a.siswa_id = s.id_siswa
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
+            ${baseQuery}
+            ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama
         `;
 
-        const params = [startDate, endDate];
-
-        if (kelas_id && kelas_id !== '') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-
-        query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
         log.success('GetStudentReport', { count: rows.length });
         res.json(rows);
     } catch (error) {
         log.dbError('studentReport', error);
-        return sendDatabaseError(res, error, 'Gagal memuat laporan kehadiran siswa');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_STUDENT_REPORT);
     }
 };
 
@@ -627,10 +636,12 @@ export const downloadStudentAttendanceReport = async (req, res) => {
     try {
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
-            return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
+            return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        let query = `
+        const { query: baseQuery, params } = buildStudentReportBaseQuery(startDate, endDate, kelas_id);
+
+        const fullQuery = `
             SELECT 
                 DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal,
                 k.nama_kelas,
@@ -642,41 +653,23 @@ export const downloadStudentAttendanceReport = async (req, res) => {
                 '07:00' as jam_mulai,
                 '17:00' as jam_selesai,
                 '07:00 - 17:00' as jadwal,
-                COALESCE(a.status, 'Tidak Hadir') as status,
+                COALESCE(a.status, '${REPORT_STATUS.TIDAK_HADIR}') as status,
                 COALESCE(a.keterangan, '-') as keterangan
-            FROM absensi_siswa a
-            JOIN siswa s ON a.siswa_id = s.id_siswa
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
+            ${baseQuery}
+            ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama
         `;
 
-        const params = [startDate, endDate];
+        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
 
-        if (kelas_id && kelas_id !== '') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
+        const rowMapper = (row) => 
+            `"${row.tanggal}","${row.nama_kelas}","${row.nama_siswa}","${row.nis_siswa || ''}","${row.nama_mapel || ''}","${row.nama_guru || ''}","${row.waktu_absen || ''}","${row.jam_mulai || ''}","${row.jam_selesai || ''}","${row.jadwal || ''}","${row.status}","${row.keterangan || ''}"`;
 
-        query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
-
-        // Enhanced CSV format with UTF-8 BOM for Excel compatibility
-        let csvContent = '\uFEFF'; // UTF-8 BOM
-        csvContent += 'Tanggal,Kelas,Nama Siswa,NIS,Mata Pelajaran,Guru,Waktu Absen,Jam Mulai,Jam Selesai,Jadwal,Status,Keterangan\n';
-
-        rows.forEach(row => {
-            csvContent += `"${row.tanggal}","${row.nama_kelas}","${row.nama_siswa}","${row.nis_siswa || ''}","${row.nama_mapel || ''}","${row.nama_guru || ''}","${row.waktu_absen || ''}","${row.jam_mulai || ''}","${row.jam_selesai || ''}","${row.jadwal || ''}","${row.status}","${row.keterangan || ''}"\n`;
-        });
-
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', `attachment; filename="laporan-kehadiran-siswa-${startDate}-${endDate}.csv"`);
-        res.send(csvContent);
+        generateCSV(res, `laporan-kehadiran-siswa-${startDate}-${endDate}.csv`, CSV_HEADERS.STUDENT_REPORT, rows, rowMapper);
 
         log.success('DownloadStudentReport', { recordCount: rows.length });
     } catch (error) {
         log.dbError('downloadStudent', error);
-        return sendDatabaseError(res, error, 'Gagal mengunduh laporan kehadiran siswa');
+        return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_DOWNLOAD_STUDENT);
     }
 };
 
