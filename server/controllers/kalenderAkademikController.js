@@ -3,16 +3,55 @@
  * Manages effective school days per month for accurate attendance calculations
  */
 
-import { sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('KalenderAkademik');
 
-// Default effective days map (fallback when no DB data)
-const DEFAULT_HARI_EFEKTIF = {
-    7: 21, 8: 21, 9: 21, 10: 22, 11: 21, 12: 18,
-    1: 21, 2: 20, 3: 22, 4: 20, 5: 20, 6: 18
+// Default configuration for academic calendar
+const ACADEMIC_CALENDAR_CONFIG = {
+    7: { days: 21, desc: 'Juli - Awal Semester Ganjil' },
+    8: { days: 21, desc: 'Agustus' },
+    9: { days: 21, desc: 'September' },
+    10: { days: 22, desc: 'Oktober' },
+    11: { days: 21, desc: 'November' },
+    12: { days: 18, desc: 'Desember - Libur Semester Ganjil', isLibur: true },
+    1: { days: 21, desc: 'Januari - Awal Semester Genap' },
+    2: { days: 20, desc: 'Februari' },
+    3: { days: 22, desc: 'Maret' },
+    4: { days: 20, desc: 'April' },
+    5: { days: 20, desc: 'Mei' },
+    6: { days: 18, desc: 'Juni - Libur Semester Genap', isLibur: true }
 };
+
+// Derived map for backward compatibility and quick lookups
+const DEFAULT_HARI_EFEKTIF = Object.entries(ACADEMIC_CALENDAR_CONFIG).reduce((acc, [month, config]) => {
+    acc[Number(month)] = config.days;
+    return acc;
+}, {});
+
+function validateHariEfektif(hari) {
+    return hari >= 0 && hari <= 31;
+}
+
+async function executeUpsertKalender({ tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan }) {
+    return await globalThis.dbPool.execute(`
+        INSERT INTO kalender_akademik 
+            (tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            hari_efektif = VALUES(hari_efektif),
+            is_libur_semester = VALUES(is_libur_semester),
+            keterangan = VALUES(keterangan)
+    `, [
+        tahun_pelajaran,
+        Number.parseInt(bulan),
+        Number.parseInt(tahun),
+        Number.parseInt(hari_efektif) || 20,
+        is_libur_semester ? 1 : 0,
+        keterangan || null
+    ]);
+}
 
 /**
  * Get all kalender akademik entries
@@ -116,26 +155,18 @@ export const upsertKalenderAkademik = async (req, res) => {
             return sendValidationError(res, 'tahun_pelajaran, bulan, dan tahun wajib diisi');
         }
 
-        if (hari_efektif < 0 || hari_efektif > 31) {
+        if (!validateHariEfektif(hari_efektif)) {
             return sendValidationError(res, 'hari_efektif harus antara 0-31');
         }
 
-        const [result] = await globalThis.dbPool.execute(`
-            INSERT INTO kalender_akademik 
-                (tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                hari_efektif = VALUES(hari_efektif),
-                is_libur_semester = VALUES(is_libur_semester),
-                keterangan = VALUES(keterangan)
-        `, [
+        const result = await executeUpsertKalender({
             tahun_pelajaran,
-            Number.parseInt(bulan),
-            Number.parseInt(tahun),
-            Number.parseInt(hari_efektif) || 20,
-            is_libur_semester ? 1 : 0,
-            keterangan || null
-        ]);
+            bulan, 
+            tahun, 
+            hari_efektif, 
+            is_libur_semester, 
+            keterangan
+        });
 
         log.success('UpsertKalenderAkademik', { affectedRows: result.affectedRows });
         res.json({ 
@@ -160,8 +191,14 @@ export const updateKalenderAkademik = async (req, res) => {
     log.requestStart('UpdateKalenderAkademik', { id });
 
     try {
-        if (hari_efektif !== undefined && (hari_efektif < 0 || hari_efektif > 31)) {
+        if (hari_efektif !== undefined && !validateHariEfektif(hari_efektif)) {
             return sendValidationError(res, 'hari_efektif harus antara 0-31');
+        }
+
+        const hariEfektifVal = hari_efektif !== undefined ? Number.parseInt(hari_efektif) : null;
+        let isLiburVal = null;
+        if (is_libur_semester !== undefined) {
+            isLiburVal = is_libur_semester ? 1 : 0;
         }
 
         const [result] = await globalThis.dbPool.execute(`
@@ -171,8 +208,8 @@ export const updateKalenderAkademik = async (req, res) => {
                 keterangan = COALESCE(?, keterangan)
             WHERE id = ?
         `, [
-            hari_efektif !== undefined ? Number.parseInt(hari_efektif) : null,
-            is_libur_semester !== undefined ? (is_libur_semester ? 1 : 0) : null,
+            hariEfektifVal,
+            isLiburVal,
             keterangan !== undefined ? keterangan : null,
             id
         ]);
@@ -234,41 +271,22 @@ export const seedKalenderAkademik = async (req, res) => {
 
         const [startYear, endYear] = tahun_pelajaran.split('/').map(Number);
 
-        const data = [
-            // Semester Ganjil
-            { bulan: 7, tahun: startYear, hari_efektif: 21, keterangan: 'Juli - Awal Semester Ganjil' },
-            { bulan: 8, tahun: startYear, hari_efektif: 21, keterangan: 'Agustus' },
-            { bulan: 9, tahun: startYear, hari_efektif: 21, keterangan: 'September' },
-            { bulan: 10, tahun: startYear, hari_efektif: 22, keterangan: 'Oktober' },
-            { bulan: 11, tahun: startYear, hari_efektif: 21, keterangan: 'November' },
-            { bulan: 12, tahun: startYear, hari_efektif: 18, keterangan: 'Desember - Libur Semester Ganjil', is_libur: true },
-            // Semester Genap
-            { bulan: 1, tahun: endYear, hari_efektif: 21, keterangan: 'Januari - Awal Semester Genap' },
-            { bulan: 2, tahun: endYear, hari_efektif: 20, keterangan: 'Februari' },
-            { bulan: 3, tahun: endYear, hari_efektif: 22, keterangan: 'Maret' },
-            { bulan: 4, tahun: endYear, hari_efektif: 20, keterangan: 'April' },
-            { bulan: 5, tahun: endYear, hari_efektif: 20, keterangan: 'Mei' },
-            { bulan: 6, tahun: endYear, hari_efektif: 18, keterangan: 'Juni - Libur Semester Genap', is_libur: true }
-        ];
 
+        
         let seeded = 0;
-        for (const item of data) {
-            await globalThis.dbPool.execute(`
-                INSERT INTO kalender_akademik 
-                    (tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    hari_efektif = VALUES(hari_efektif),
-                    is_libur_semester = VALUES(is_libur_semester),
-                    keterangan = VALUES(keterangan)
-            `, [
+        
+        for (const [monthKey, config] of Object.entries(ACADEMIC_CALENDAR_CONFIG)) {
+            const bulan = Number(monthKey);
+            const tahun = bulan >= 7 ? startYear : endYear;
+            
+            await executeUpsertKalender({
                 tahun_pelajaran,
-                item.bulan,
-                item.tahun,
-                item.hari_efektif,
-                item.is_libur ? 1 : 0,
-                item.keterangan
-            ]);
+                bulan,
+                tahun,
+                hari_efektif: config.days,
+                is_libur_semester: config.isLibur,
+                keterangan: config.desc
+            });
             seeded++;
         }
 

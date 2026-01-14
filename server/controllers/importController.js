@@ -15,6 +15,8 @@ const logger = createLogger('Import');
 const ERROR_FILE_NOT_FOUND = 'File tidak ditemukan';
 const ERROR_NO_VALID_ROWS = 'Tidak ada baris valid untuk diimpor';
 const ERROR_DB_CHECK_FAILED = 'Gagal memeriksa data yang sudah ada';
+const ERROR_TEMPLATE_MISMATCH = 'Format file tidak sesuai template';
+const MSG_DRY_RUN_COMPLETED = 'Dry run completed. No data was imported.';
 import {
     sheetToJsonByHeader,
     mapKelasByName,
@@ -90,7 +92,7 @@ const importMapel = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
         if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
@@ -174,7 +176,7 @@ const importKelas = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
         if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
@@ -251,7 +253,7 @@ const importRuang = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
         if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
@@ -458,7 +460,7 @@ const importJadwal = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
         
@@ -584,6 +586,25 @@ async function insertNewStudent(conn, v, kelasId) {
     );
 }
 
+/**
+ * Helper to get existing student data for validation
+ */
+async function getExistingStudentData() {
+    const existingUsernames = new Set();
+    const existingNis = new Set();
+
+    try {
+        const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "siswa"');
+        const [dbNis] = await globalThis.dbPool.execute('SELECT nis FROM siswa');
+        dbUsernames.forEach(row => existingUsernames.add(row.username));
+        dbNis.forEach(row => existingNis.add(row.nis));
+    } catch (dbError) {
+        throw new Error(ERROR_DB_CHECK_FAILED); // Propagate error to be handled by caller
+    }
+
+    return { existingUsernames, existingNis };
+}
+
 const importStudentAccount = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
@@ -596,21 +617,8 @@ const importStudentAccount = async (req, res) => {
         const valid = [];
 
         // Get existing data from database
-        const existingUsernames = new Set();
-        const existingNis = new Set();
-
-        try {
-            const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "siswa"');
-            const [dbNis] = await globalThis.dbPool.execute('SELECT nis FROM siswa');
-            dbUsernames.forEach(row => existingUsernames.add(row.username));
-            dbNis.forEach(row => existingNis.add(row.nis));
-        } catch (dbError) {
-            logger.error('Error checking existing data', { error: dbError.message });
-            return res.status(500).json({
-                error: ERROR_DB_CHECK_FAILED,
-                message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
-            });
-        }
+        // Get existing data from database
+        const { existingUsernames, existingNis } = await getExistingStudentData();
 
         // Validate each row using helper function
         for (let i = 0; i < rows.length; i++) {
@@ -633,7 +641,7 @@ const importStudentAccount = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
 
@@ -758,6 +766,25 @@ async function insertNewTeacher(conn, v) {
     );
 }
 
+/**
+ * Helper to get existing teacher data for validation
+ */
+async function getExistingTeacherData() {
+    const existingUsernames = new Set();
+    const existingNips = new Set();
+
+    try {
+        const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "guru"');
+        const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
+        dbUsernames.forEach(row => existingUsernames.add(row.username));
+        dbNips.forEach(row => existingNips.add(row.nip));
+    } catch (dbError) {
+        throw new Error(ERROR_DB_CHECK_FAILED);
+    }
+    
+    return { existingUsernames, existingNips };
+}
+
 const importTeacherAccount = async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
@@ -770,21 +797,7 @@ const importTeacherAccount = async (req, res) => {
         const valid = [];
 
         // Get existing data from database
-        const existingUsernames = new Set();
-        const existingNips = new Set();
-
-        try {
-            const [dbUsernames] = await globalThis.dbPool.execute('SELECT username FROM users WHERE role = "guru"');
-            const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
-            dbUsernames.forEach(row => existingUsernames.add(row.username));
-            dbNips.forEach(row => existingNips.add(row.nip));
-        } catch (dbError) {
-            logger.error('Error checking existing data', { error: dbError.message });
-            return res.status(500).json({
-                error: ERROR_DB_CHECK_FAILED,
-                message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
-            });
-        }
+        const { existingUsernames, existingNips } = await getExistingTeacherData();
 
         // Validate each row using helper function
         for (let i = 0; i < rows.length; i++) {
@@ -954,7 +967,7 @@ const importSiswa = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
 
@@ -1095,7 +1108,7 @@ const importGuru = async (req, res) => {
                 invalid: errors.length,
                 errors,
                 previewData: valid.slice(0, 20),
-                message: 'Dry run completed. No data was imported.'
+                message: MSG_DRY_RUN_COMPLETED
             });
         }
 

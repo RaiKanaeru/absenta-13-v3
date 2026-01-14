@@ -27,8 +27,33 @@ const MIN_JAM_KE = 1;
 const MAX_JAM_KE = 15;
 const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
+const DEFAULT_JAM_PELAJARAN = [
+    { jam_ke: 1, jam_mulai: '06:30', jam_selesai: '07:15', keterangan: null },
+    { jam_ke: 2, jam_mulai: '07:15', jam_selesai: '08:00', keterangan: null },
+    { jam_ke: 3, jam_mulai: '08:00', jam_selesai: '08:45', keterangan: null },
+    { jam_ke: 4, jam_mulai: '08:45', jam_selesai: '09:30', keterangan: null },
+    { jam_ke: 5, jam_mulai: '09:45', jam_selesai: '10:30', keterangan: 'Setelah Istirahat 1' },
+    { jam_ke: 6, jam_mulai: '10:30', jam_selesai: '11:15', keterangan: null },
+    { jam_ke: 7, jam_mulai: '11:15', jam_selesai: '12:00', keterangan: null },
+    { jam_ke: 8, jam_mulai: '12:00', jam_selesai: '12:45', keterangan: null },
+    { jam_ke: 9, jam_mulai: '13:00', jam_selesai: '13:45', keterangan: 'Setelah Istirahat 2' },
+    { jam_ke: 10, jam_mulai: '13:45', jam_selesai: '14:30', keterangan: null }
+];
+
 /** SQL query to get class name by ID (S1192 duplicate literal fix) */
 const SQL_GET_KELAS_NAME = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
+
+async function executeJamPelajaranUpsert(kelasId, jam) {
+    return await globalThis.dbPool.execute(`
+        INSERT INTO jam_pelajaran (kelas_id, jam_ke, jam_mulai, jam_selesai, keterangan)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            jam_mulai = VALUES(jam_mulai),
+            jam_selesai = VALUES(jam_selesai),
+            keterangan = VALUES(keterangan),
+            updated_at = CURRENT_TIMESTAMP
+    `, [kelasId, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || null]);
+}
 
 /**
  * Validate time format (HH:MM or HH:MM:SS)
@@ -280,15 +305,7 @@ export const upsertJamPelajaran = async (req, res) => {
         
         let upsertedCount = 0;
         for (const jam of jam_pelajaran) {
-            await globalThis.dbPool.execute(`
-                INSERT INTO jam_pelajaran (kelas_id, jam_ke, jam_mulai, jam_selesai, keterangan)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    jam_mulai = VALUES(jam_mulai),
-                    jam_selesai = VALUES(jam_selesai),
-                    keterangan = VALUES(keterangan),
-                    updated_at = CURRENT_TIMESTAMP
-            `, [kelasId, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || null]);
+            await executeJamPelajaranUpsert(kelasId, jam);
             upsertedCount++;
         }
         
@@ -422,15 +439,7 @@ export const copyJamPelajaran = async (req, res) => {
             }
             
             for (const jam of sourceJam) {
-                await globalThis.dbPool.execute(`
-                    INSERT INTO jam_pelajaran (kelas_id, jam_ke, jam_mulai, jam_selesai, keterangan)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        jam_mulai = VALUES(jam_mulai),
-                        jam_selesai = VALUES(jam_selesai),
-                        keterangan = VALUES(keterangan),
-                        updated_at = CURRENT_TIMESTAMP
-                `, [targetId, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan]);
+                await executeJamPelajaranUpsert(targetId, jam);
             }
             
             copiedTo.push(targetKelas[0].nama_kelas);
@@ -460,18 +469,7 @@ export const getDefaultJamPelajaran = async (req, res) => {
     
     log.requestStart('GetDefault');
     
-    const defaultJam = [
-        { jam_ke: 1, jam_mulai: '06:30', jam_selesai: '07:15', keterangan: null },
-        { jam_ke: 2, jam_mulai: '07:15', jam_selesai: '08:00', keterangan: null },
-        { jam_ke: 3, jam_mulai: '08:00', jam_selesai: '08:45', keterangan: null },
-        { jam_ke: 4, jam_mulai: '08:45', jam_selesai: '09:30', keterangan: null },
-        { jam_ke: 5, jam_mulai: '09:45', jam_selesai: '10:30', keterangan: 'Setelah Istirahat 1' },
-        { jam_ke: 6, jam_mulai: '10:30', jam_selesai: '11:15', keterangan: null },
-        { jam_ke: 7, jam_mulai: '11:15', jam_selesai: '12:00', keterangan: null },
-        { jam_ke: 8, jam_mulai: '12:00', jam_selesai: '12:45', keterangan: null },
-        { jam_ke: 9, jam_mulai: '13:00', jam_selesai: '13:45', keterangan: 'Setelah Istirahat 2' },
-        { jam_ke: 10, jam_mulai: '13:45', jam_selesai: '14:30', keterangan: null }
-    ];
+    const defaultJam = DEFAULT_JAM_PELAJARAN;
     
     log.success('GetDefault', { count: defaultJam.length });
     return sendSuccessResponse(res, defaultJam, `Template default ${defaultJam.length} jam pelajaran`);

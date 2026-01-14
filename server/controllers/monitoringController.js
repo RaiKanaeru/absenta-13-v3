@@ -140,6 +140,43 @@ export const clearSecurityEvents = async (req, res) => {
 // ================================================
 
 /**
+ * Helper to calculate CPU usage percentage
+ */
+function calculateCpuUsage(cpuUsageData) {
+    let cpuUsagePercent = 0;
+    if (globalThis.lastCpuUsage) {
+        const userDiff = cpuUsageData.user - globalThis.lastCpuUsage.user;
+        const systemDiff = cpuUsageData.system - globalThis.lastCpuUsage.system;
+        const totalDiff = userDiff + systemDiff;
+        const timeElapsed = Date.now() - (globalThis.lastCpuTime || Date.now());
+        if (timeElapsed > 0) {
+            cpuUsagePercent = Math.min(100, Math.max(0, (totalDiff / (timeElapsed * 1000)) * 100));
+        }
+    }
+    return cpuUsagePercent;
+}
+
+/**
+ * Helper to get safe Load Balancer stats
+ */
+function getLoadBalancerSafeStats() {
+    return globalThis.loadBalancer ? globalThis.loadBalancer.getStats() : {
+        totalRequests: 0,
+        activeRequests: 0,
+        completedRequests: 0,
+        failedRequests: 0,
+        averageResponseTime: 0,
+        circuitBreakerTrips: 0,
+        burstDetections: 0,
+        lastBurstTime: null,
+        circuitBreaker: { isOpen: false, failureCount: 0, successCount: 0 },
+        queueSizes: { critical: 0, high: 0, normal: 0, low: 0 },
+        totalQueueSize: 0
+    };
+}
+
+
+/**
  * Get system metrics
  * GET /api/admin/system-metrics
  */
@@ -462,19 +499,7 @@ export const getSystemPerformance = async (req, res) => {
 
     try {
         // Get load balancer stats
-        const loadBalancerStats = globalThis.loadBalancer ? globalThis.loadBalancer.getStats() : {
-            totalRequests: 0,
-            activeRequests: 0,
-            completedRequests: 0,
-            failedRequests: 0,
-            averageResponseTime: 0,
-            circuitBreakerTrips: 0,
-            burstDetections: 0,
-            lastBurstTime: null,
-            circuitBreaker: { isOpen: false, failureCount: 0, successCount: 0 },
-            queueSizes: { critical: 0, high: 0, normal: 0, low: 0 },
-            totalQueueSize: 0
-        };
+        const loadBalancerStats = getLoadBalancerSafeStats();
 
         // Get query optimizer stats
         const queryOptimizerStats = globalThis.loadBalancer ? {
@@ -498,16 +523,7 @@ export const getSystemPerformance = async (req, res) => {
         const loadAvg = os.loadavg();
 
         // Calculate CPU usage
-        let cpuUsagePercent = 0;
-        if (globalThis.lastCpuUsage) {
-            const userDiff = cpuUsageData.user - globalThis.lastCpuUsage.user;
-            const systemDiff = cpuUsageData.system - globalThis.lastCpuUsage.system;
-            const totalDiff = userDiff + systemDiff;
-            const timeElapsed = Date.now() - (globalThis.lastCpuTime || Date.now());
-            if (timeElapsed > 0) {
-                cpuUsagePercent = Math.min(100, Math.max(0, (totalDiff / (timeElapsed * 1000)) * 100));
-            }
-        }
+        const cpuUsagePercent = calculateCpuUsage(cpuUsageData);
         globalThis.lastCpuUsage = cpuUsageData;
         globalThis.lastCpuTime = Date.now();
 
@@ -587,16 +603,7 @@ export const getMonitoringDashboard = async (req, res) => {
         const cpus = os.cpus();
         const loadAverage = os.loadavg();
 
-        let cpuUsage = 0;
-        if (globalThis.lastCpuUsage) {
-            const userDiff = cpuUsageData.user - globalThis.lastCpuUsage.user;
-            const systemDiff = cpuUsageData.system - globalThis.lastCpuUsage.system;
-            const totalDiff = userDiff + systemDiff;
-            const timeElapsed = Date.now() - (globalThis.lastCpuTime || Date.now());
-            if (timeElapsed > 0) {
-                cpuUsage = Math.min(100, Math.max(0, (totalDiff / (timeElapsed * 1000)) * 100));
-            }
-        }
+        let cpuUsage = calculateCpuUsage(cpuUsageData);
         globalThis.lastCpuUsage = cpuUsageData;
         globalThis.lastCpuTime = Date.now();
         
@@ -606,16 +613,7 @@ export const getMonitoringDashboard = async (req, res) => {
         }
 
         // Get load balancer stats
-        const loadBalancerStats = globalThis.loadBalancer ? globalThis.loadBalancer.getStats() : {
-            totalRequests: 0,
-            activeRequests: 0,
-            completedRequests: 0,
-            failedRequests: 0,
-            averageResponseTime: 0,
-            circuitBreaker: { isOpen: false },
-            queueSizes: { critical: 0, high: 0, normal: 0, low: 0 },
-            totalQueueSize: 0
-        };
+        const loadBalancerStats = getLoadBalancerSafeStats();
 
         // Get database connection stats
         let dbConnectionStats = { active: 0, idle: 0, total: 0 };

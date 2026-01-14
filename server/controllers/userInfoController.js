@@ -12,6 +12,64 @@ const logger = createLogger('UserInfo');
 /** SQL query to get student's class by ID (S1192 duplicate literal fix) */
 const SQL_GET_SISWA_KELAS = 'SELECT kelas_id FROM siswa WHERE id_siswa = ?';
 
+async function executeScheduleQuery(kelasId, dateStr, dayName) {
+    const [rows] = await globalThis.dbPool.execute(`
+        SELECT 
+            j.id_jadwal,
+            j.guru_id,
+            j.jam_ke,
+            j.jam_mulai,
+            j.jam_selesai,
+            COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
+            COALESCE(mp.kode_mapel, '') as kode_mapel,
+            COALESCE(g.nama, '') as nama_guru,
+            COALESCE(g.nip, '') as nip,
+            k.nama_kelas,
+            COALESCE(ag.status, 'belum_diambil') as status_kehadiran,
+            COALESCE(ag.keterangan, '') as keterangan,
+            COALESCE(ag.waktu_catat, '') as waktu_catat,
+            COALESCE(ag.ada_tugas, 0) as ada_tugas,
+            rk.kode_ruang,
+            rk.nama_ruang,
+            j.jenis_aktivitas,
+            j.is_absenable,
+            j.keterangan_khusus,
+            j.is_multi_guru,
+            GROUP_CONCAT(
+                CONCAT(
+                    g2.id_guru, ':', 
+                    COALESCE(g2.nama, ''), ':', 
+                    COALESCE(g2.nip, ''), ':', 
+                    COALESCE(ag2.status, 'belum_diambil'), ':', 
+                    COALESCE(ag2.keterangan, ''), ':',
+                    COALESCE(ag2.waktu_catat, ''), ':',
+                    COALESCE(jg2.is_primary, 0), ':',
+                    COALESCE(ag2.ada_tugas, 0)
+                ) 
+                ORDER BY jg2.is_primary DESC, g2.nama ASC 
+                SEPARATOR '||'
+            ) as guru_list,
+            ? as tanggal_target
+        FROM jadwal j
+        LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
+        LEFT JOIN guru g ON j.guru_id = g.id_guru
+        JOIN kelas k ON j.kelas_id = k.id_kelas
+        LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+        LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+            AND ag.tanggal = ?
+            AND ag.guru_id = j.guru_id
+        LEFT JOIN jadwal_guru jg2 ON j.id_jadwal = jg2.jadwal_id
+        LEFT JOIN guru g2 ON jg2.guru_id = g2.id_guru
+        LEFT JOIN absensi_guru ag2 ON j.id_jadwal = ag2.jadwal_id 
+            AND ag2.tanggal = ?
+            AND ag2.guru_id = g2.id_guru
+        WHERE j.kelas_id = ? AND j.hari = ?
+        GROUP BY j.id_jadwal, j.guru_id, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, ag.ada_tugas, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
+        ORDER BY j.jam_ke
+    `, [dateStr, dateStr, dateStr, kelasId, dayName]);
+    return rows;
+}
+
 // Get siswa perwakilan info
 export const getSiswaPerwakilanInfo = async (req, res) => {
     const log = logger.withRequest(req, res);
@@ -182,59 +240,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
         const kelasId = siswaData[0].kelas_id;
 
         // Get today's schedule for the class with multi-guru support
-        const [jadwalData] = await globalThis.dbPool.execute(`
-            SELECT 
-                j.id_jadwal,
-                j.guru_id,
-                j.jam_ke,
-                j.jam_mulai,
-                j.jam_selesai,
-                COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                COALESCE(mp.kode_mapel, '') as kode_mapel,
-                COALESCE(g.nama, '') as nama_guru,
-                COALESCE(g.nip, '') as nip,
-                k.nama_kelas,
-                COALESCE(ag.status, 'belum_diambil') as status_kehadiran,
-                COALESCE(ag.keterangan, '') as keterangan,
-                COALESCE(ag.waktu_catat, '') as waktu_catat,
-                COALESCE(ag.ada_tugas, 0) as ada_tugas,
-                rk.kode_ruang,
-                rk.nama_ruang,
-                j.jenis_aktivitas,
-                j.is_absenable,
-                j.keterangan_khusus,
-                j.is_multi_guru,
-                GROUP_CONCAT(
-                    CONCAT(
-                        g2.id_guru, ':', 
-                        COALESCE(g2.nama, ''), ':', 
-                        COALESCE(g2.nip, ''), ':', 
-                        COALESCE(ag2.status, 'belum_diambil'), ':', 
-                        COALESCE(ag2.keterangan, ''), ':',
-                        COALESCE(ag2.waktu_catat, ''), ':',
-                        COALESCE(jg2.is_primary, 0), ':',
-                        COALESCE(ag2.ada_tugas, 0)
-                    ) 
-                    ORDER BY jg2.is_primary DESC, g2.nama ASC 
-                    SEPARATOR '||'
-                ) as guru_list
-            FROM jadwal j
-            LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
-                AND ag.tanggal = ?
-                AND ag.guru_id = j.guru_id
-            LEFT JOIN jadwal_guru jg2 ON j.id_jadwal = jg2.jadwal_id
-            LEFT JOIN guru g2 ON jg2.guru_id = g2.id_guru
-            LEFT JOIN absensi_guru ag2 ON j.id_jadwal = ag2.jadwal_id 
-                AND ag2.tanggal = ?
-                AND ag2.guru_id = g2.id_guru
-            WHERE j.kelas_id = ? AND j.hari = ?
-            GROUP BY j.id_jadwal, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, ag.ada_tugas, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
-            ORDER BY j.jam_ke
-        `, [todayWIB, todayWIB, kelasId, currentDay]);
+        const jadwalData = await executeScheduleQuery(kelasId, todayWIB, currentDay);
 
         log.success('GetSiswaJadwalHariIni', { siswaId: siswa_id, kelasId, count: jadwalData.length });
         res.json(jadwalData);
@@ -311,60 +317,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
         log.debug('Target date context', { targetDay, targetDateStr });
 
         // Get schedule for the target date with multi-guru support
-        const [jadwalData] = await globalThis.dbPool.execute(`
-            SELECT 
-                j.id_jadwal,
-                j.guru_id,
-                j.jam_ke,
-                j.jam_mulai,
-                j.jam_selesai,
-                COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                COALESCE(mp.kode_mapel, '') as kode_mapel,
-                COALESCE(g.nama, '') as nama_guru,
-                COALESCE(g.nip, '') as nip,
-                k.nama_kelas,
-                COALESCE(ag.status, 'belum_diambil') as status_kehadiran,
-                COALESCE(ag.keterangan, '') as keterangan,
-                COALESCE(ag.waktu_catat, '') as waktu_catat,
-                COALESCE(ag.ada_tugas, 0) as ada_tugas,
-                rk.kode_ruang,
-                rk.nama_ruang,
-                j.jenis_aktivitas,
-                j.is_absenable,
-                j.keterangan_khusus,
-                j.is_multi_guru,
-                GROUP_CONCAT(
-                    CONCAT(
-                        g2.id_guru, ':', 
-                        COALESCE(g2.nama, ''), ':', 
-                        COALESCE(g2.nip, ''), ':', 
-                        COALESCE(ag2.status, 'belum_diambil'), ':', 
-                        COALESCE(ag2.keterangan, ''), ':',
-                        COALESCE(ag2.waktu_catat, ''), ':',
-                        COALESCE(jg2.is_primary, 0), ':',
-                        COALESCE(ag2.ada_tugas, 0)
-                    ) 
-                    ORDER BY jg2.is_primary DESC, g2.nama ASC 
-                    SEPARATOR '||'
-                ) as guru_list,
-                ? as tanggal_target
-            FROM jadwal j
-            LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
-                AND ag.tanggal = ?
-                AND ag.guru_id = j.guru_id
-            LEFT JOIN jadwal_guru jg2 ON j.id_jadwal = jg2.jadwal_id
-            LEFT JOIN guru g2 ON jg2.guru_id = g2.id_guru
-            LEFT JOIN absensi_guru ag2 ON j.id_jadwal = ag2.jadwal_id 
-                AND ag2.tanggal = ?
-                AND ag2.guru_id = g2.id_guru
-            WHERE j.kelas_id = ? AND j.hari = ?
-            GROUP BY j.id_jadwal, j.guru_id, j.jam_ke, j.jam_mulai, j.jam_selesai, mp.nama_mapel, mp.kode_mapel, g.nama, g.nip, k.nama_kelas, ag.status, ag.keterangan, ag.waktu_catat, ag.ada_tugas, rk.kode_ruang, rk.nama_ruang, j.jenis_aktivitas, j.is_absenable, j.keterangan_khusus, j.is_multi_guru
-            ORDER BY j.jam_ke
-        `, [targetDateStr, targetDateStr, targetDateStr, kelasId, targetDay]);
+        const jadwalData = await executeScheduleQuery(kelasId, targetDateStr, targetDay);
 
         log.success('GetSiswaJadwalRentang', { siswaId: siswa_id, targetDateStr, count: jadwalData.length });
 

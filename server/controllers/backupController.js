@@ -213,6 +213,26 @@ function validateBackupDates(startDate, endDate) {
     // Jika endDate tidak ada, gunakan startDate sebagai endDate (backup satu hari)
     const actualEndDate = endDate || startDate;
 
+/**
+ * Helper to read custom schedules
+ */
+async function readCustomSchedules() {
+    try {
+        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
+        const schedulesData = await fs.readFile(schedulesPath, 'utf8');
+        return JSON.parse(schedulesData);
+    } catch (error) {
+        return [];
+    }
+}
+
+/**
+ * Helper to write custom schedules
+ */
+async function writeCustomSchedules(schedules) {
+    const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
+    await fs.writeFile(schedulesPath, JSON.stringify(schedules, null, 2));
+}
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(actualEndDate);
 
@@ -1188,15 +1208,7 @@ const getCustomSchedules = async (req, res) => {
     try {
         logger.debug('Getting custom schedules');
 
-        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
-        let schedules = [];
-
-        try {
-            const schedulesData = await fs.readFile(schedulesPath, 'utf8');
-            schedules = JSON.parse(schedulesData);
-        } catch (fileError) {
-            schedules = [];
-        }
+        const schedules = await readCustomSchedules();
 
         res.json({
             success: true,
@@ -1234,15 +1246,7 @@ const createCustomSchedule = async (req, res) => {
             });
         }
 
-        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
-        let schedules = [];
-
-        try {
-            const schedulesData = await fs.readFile(schedulesPath, 'utf8');
-            schedules = JSON.parse(schedulesData);
-        } catch (fileError) {
-            schedules = [];
-        }
+        const schedules = await readCustomSchedules();
 
         const newSchedule = {
             id: `schedule_${Date.now()}_${randomBytes(6).toString('hex')}`,
@@ -1255,7 +1259,7 @@ const createCustomSchedule = async (req, res) => {
 
         schedules.push(newSchedule);
 
-        await fs.writeFile(schedulesPath, JSON.stringify(schedules, null, 2));
+        await writeCustomSchedules(schedules);
 
         res.json({
             success: true,
@@ -1282,18 +1286,7 @@ const updateCustomSchedule = async (req, res) => {
         const { name, date, time, enabled } = req.body;
         logger.info('Updating custom schedule', { id, name });
 
-        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
-        let schedules = [];
-
-        try {
-            const schedulesData = await fs.readFile(schedulesPath, 'utf8');
-            schedules = JSON.parse(schedulesData);
-        } catch (fileError) {
-            return res.status(404).json({
-                error: 'Schedules not found',
-                message: 'No schedules file found'
-            });
-        }
+        const schedules = await readCustomSchedules();
 
         const scheduleIndex = schedules.findIndex(s => s.id === id);
         if (scheduleIndex === -1) {
@@ -1313,7 +1306,7 @@ const updateCustomSchedule = async (req, res) => {
             updated: new Date().toISOString()
         };
 
-        await fs.writeFile(schedulesPath, JSON.stringify(schedules, null, 2));
+        await writeCustomSchedules(schedules);
 
         res.json({
             success: true,
@@ -1339,31 +1332,19 @@ const deleteCustomSchedule = async (req, res) => {
         const { id } = req.params;
         logger.info('Deleting custom schedule', { id });
 
-        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
-        let schedules = [];
+        const schedules = await readCustomSchedules();
+        
+        const initialLength = schedules.length;
+        const filteredSchedules = schedules.filter(s => s.id !== id);
 
-        try {
-            const schedulesData = await fs.readFile(schedulesPath, 'utf8');
-            schedules = JSON.parse(schedulesData);
-        } catch (fileError) {
-            return res.status(404).json({
-                error: 'Schedules not found',
-                message: 'No schedules file found'
-            });
-        }
-
-        const scheduleIndex = schedules.findIndex(s => s.id === id);
-        if (scheduleIndex === -1) {
+        if (filteredSchedules.length === initialLength) {
             return res.status(404).json({
                 error: 'Schedule not found',
                 message: 'Schedule with the given ID not found'
             });
         }
 
-        // Remove schedule
-        schedules.splice(scheduleIndex, 1);
-
-        await fs.writeFile(schedulesPath, JSON.stringify(schedules, null, 2));
+        await writeCustomSchedules(filteredSchedules);
 
         res.json({
             success: true,

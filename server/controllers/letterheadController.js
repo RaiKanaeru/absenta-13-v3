@@ -11,6 +11,18 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Letterhead');
 
+const UPLOAD_URL_PREFIX = '/uploads/letterheads/';
+const UPLOAD_FS_PATH = path.join('public', 'uploads', 'letterheads');
+const DEFAULT_LOGO_LEFT = '/logo-kiri.png';
+const DEFAULT_LOGO_RIGHT = '/logo-kanan.png';
+const DEFAULT_LETTERHEAD_LINES = [
+    { text: "PEMERINTAH DAERAH PROVINSI JAWA BARAT", fontWeight: "bold" },
+    { text: "DINAS PENDIDIKAN", fontWeight: "bold" },
+    { text: "SEKOLAH MENENGAH KEJURUAN NEGERI 13 BANDUNG", fontWeight: "bold" },
+    { text: "Jl. Soekarno Hatta No. 10, Kota Bandung 40235", fontWeight: "normal" },
+    { text: "Telepon: (022) 5204095 | Email: smkn13bandung@sch.id", fontWeight: "normal" }
+];
+
 // ================================================
 // HELPER FUNCTIONS
 // ================================================
@@ -31,6 +43,15 @@ async function getLetterheadForReportKey(reportKey) {
         logger.error('Error getting report letterhead', { reportKey, error: error.message });
         return null;
     }
+}
+
+function getLogoFieldAndFile(config, type) {
+    const logoMap = {
+        'logo': { field: 'logo', file: config.logo },
+        'logoLeft': { field: 'logoLeftUrl', file: config.logoLeftUrl },
+        'logoRight': { field: 'logoRightUrl', file: config.logoRightUrl }
+    };
+    return logoMap[type] || { field: null, file: null };
 }
 
 // ================================================
@@ -199,7 +220,7 @@ export const uploadLogo = async (req, res) => {
             return sendValidationError(res, 'File logo wajib diupload', { field: 'file' });
         }
 
-        const logoUrl = `/uploads/letterheads/${req.file.filename}`;
+        const logoUrl = `${UPLOAD_URL_PREFIX}${req.file.filename}`;
 
         log.success('UploadLogo', {
             filename: req.file.filename,
@@ -231,7 +252,7 @@ export const deleteFile = async (req, res) => {
     log.requestStart('DeleteFile', { fileUrl });
 
     try {
-        if (!fileUrl || !fileUrl.startsWith('/uploads/letterheads/')) {
+        if (!fileUrl || !fileUrl.startsWith(UPLOAD_URL_PREFIX)) {
             log.validationFail('fileUrl', fileUrl, 'Invalid URL');
             return sendValidationError(res, 'URL file tidak valid', { field: 'fileUrl' });
         }
@@ -246,7 +267,7 @@ export const deleteFile = async (req, res) => {
         }
         
         // Construct safe path using sanitized filename
-        const filePath = path.join('public', 'uploads', 'letterheads', filename);
+        const filePath = path.join(UPLOAD_FS_PATH, filename);
 
         try {
             await fs.unlink(filePath);
@@ -292,16 +313,6 @@ export const deleteLogo = async (req, res) => {
             return sendNotFoundError(res, 'Konfigurasi letterhead tidak ditemukan');
         }
 
-        // Helper to get logo field and file
-        const getLogoFieldAndFile = (config, type) => {
-            const logoMap = {
-                'logo': { field: 'logo', file: config.logo },
-                'logoLeft': { field: 'logoLeftUrl', file: config.logoLeftUrl },
-                'logoRight': { field: 'logoRightUrl', file: config.logoRightUrl }
-            };
-            return logoMap[type] || { field: null, file: null };
-        };
-
         // Clear the specified logo and delete physical file
         const updateData = { ...currentConfig };
         const { field, file } = getLogoFieldAndFile(currentConfig, logoType);
@@ -311,7 +322,7 @@ export const deleteLogo = async (req, res) => {
         }
 
         // Delete physical file if it exists
-        if (file && file.startsWith('/uploads/letterheads/')) {
+        if (file && file.startsWith(UPLOAD_URL_PREFIX)) {
             try {
                 const filePath = path.join('public', file);
                 await fs.unlink(filePath);
@@ -388,13 +399,7 @@ export const initializeDefaults = async (req, res) => {
         }
 
         // Insert default letterhead matched with SMKN 13 Bandung
-        const defaultLines = JSON.stringify([
-            { text: "PEMERINTAH DAERAH PROVINSI JAWA BARAT", fontWeight: "bold" },
-            { text: "DINAS PENDIDIKAN", fontWeight: "bold" },
-            { text: "SEKOLAH MENENGAH KEJURUAN NEGERI 13 BANDUNG", fontWeight: "bold" },
-            { text: "Jl. Soekarno Hatta No. 10, Kota Bandung 40235", fontWeight: "normal" },
-            { text: "Telepon: (022) 5204095 | Email: smkn13bandung@sch.id", fontWeight: "normal" }
-        ]);
+        const defaultLines = JSON.stringify(DEFAULT_LETTERHEAD_LINES);
 
         const query = `
             INSERT INTO kop_laporan (
@@ -410,8 +415,8 @@ export const initializeDefaults = async (req, res) => {
             'tengah',
             defaultLines,
             null,
-            '/logo-kiri.png',
-            '/logo-kanan.png'
+            DEFAULT_LOGO_LEFT,
+            DEFAULT_LOGO_RIGHT
         ];
 
         await globalThis.dbPool.execute(query, params);

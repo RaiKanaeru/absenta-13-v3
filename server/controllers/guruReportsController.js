@@ -3,10 +3,19 @@
  * Handles teacher-specific attendance reports
  */
 
-import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('GuruReports');
+
+function parseDateRange(startDate, endDate) {
+    const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+    const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay);
+    const end = new Date(eYear, eMonth - 1, eDay);
+    const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+    return { start, end, diffDays };
+}
 
 // Get presensi siswa SMK 13 untuk laporan guru
 export const getPresensiSiswaSmkn13 = async (req, res) => {
@@ -257,11 +266,7 @@ export const getJadwalPertemuan = async (req, res) => {
         }
 
         // Parse dates manually to avoid timezone issues
-        const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
-        const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
-        const start = new Date(sYear, sMonth - 1, sDay);
-        const end = new Date(eYear, eMonth - 1, eDay);
-        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+        const { start, end, diffDays } = parseDateRange(startDate, endDate);
         
         if (diffDays > 62) {
             log.validationFail('dateRange', { diffDays }, 'Exceeds max 62 days');
@@ -283,7 +288,9 @@ export const getJadwalPertemuan = async (req, res) => {
 
         const pertemuanDates = [];
         const endTime = end.getTime();
-        for (let currentDate = new Date(start); currentDate.getTime() <= endTime; currentDate.setDate(currentDate.getDate() + 1)) {
+        const currentDate = new Date(start);
+
+        while (currentDate.getTime() <= endTime) {
             const dayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][currentDate.getDay()];
             const daySchedules = jadwalData.filter(j => j.hari === dayName);
             if (daySchedules.length > 0) {
@@ -301,6 +308,7 @@ export const getJadwalPertemuan = async (req, res) => {
                     }))
                 });
             }
+            currentDate.setDate(currentDate.getDate() + 1);
         }
 
         log.success('GetJadwalPertemuan', { totalPertemuan: pertemuanDates.length, guruId });
