@@ -6,11 +6,9 @@ import { FontSizeControl } from "@/components/ui/font-size-control";
 import { 
   Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings
 } from "lucide-react";
-import ExcelPreview from './ExcelPreview';
 import { EditProfile } from './EditProfile';
-import { VIEW_TO_REPORT_KEY } from '../utils/reportKeys';
 import { getApiUrl } from '@/config/api';
-import { ScheduleListView, STATUS_COLORS, AttendanceView, LaporanKehadiranSiswaView, RiwayatBandingAbsenView, PresensiSiswaSMKN13View, RekapKetidakhadiranView, TeacherReportsView, BandingAbsenView, HistoryView, TeacherUserData } from './teacher';
+import { ScheduleListView, AttendanceView, LaporanKehadiranSiswaView, BandingAbsenView, HistoryView } from './teacher';
 
 interface TeacherDashboardProps {
   userData: {

@@ -125,6 +125,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         throw new Error('Gagal download template');
       }
     } catch (error) {
+      console.error('Download template error:', error);
       toast({
         title: "Error",
         description: "Gagal download template",
@@ -147,7 +148,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
         body: formData
-      });
+      }) as ImportResult;
       
       setValidationResult(result);
       setShowPreview(true);
@@ -187,7 +188,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
         body: formData
-      });
+      }) as unknown as ImportResult & { processed?: number, inserted_or_updated?: number, inserted?: number };
 
       setImportResult(result);
       toast({

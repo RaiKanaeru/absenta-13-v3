@@ -96,7 +96,7 @@ const MonitoringDashboard: React.FC = () => {
     const [autoRefresh, setAutoRefresh] = useState(() => {
         // Load auto refresh state from localStorage, default to true
         const saved = localStorage.getItem('monitoringAutoRefresh');
-        return saved !== null ? JSON.parse(saved) : true;
+        return saved === null ? true : JSON.parse(saved);
     });
     const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
     const { toast } = useToast();

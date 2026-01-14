@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, getCurrentYearWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
+import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
 import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
 
@@ -29,6 +29,9 @@ interface StudentDashboardProps {
   };
   onLogout: () => void;
 }
+
+type BandingStatusAsli = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+type BandingStatusDiajukan = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
 
 // Fungsi untuk memproses guru_list dari string ke array
 const parseGuruList = (guruListString: string) => {

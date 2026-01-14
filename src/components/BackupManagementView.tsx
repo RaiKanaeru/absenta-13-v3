@@ -307,7 +307,7 @@ const BackupManagementView: React.FC = () => {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            });
+            }) as { settings: BackupSettings };
             
             setBackupSettings(data.settings || backupSettings);
         } catch (error) {
@@ -330,7 +330,7 @@ const BackupManagementView: React.FC = () => {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
                 }
-            });
+            }) as { schedules: CustomSchedule[] };
             
             setCustomSchedules(data.schedules || []);
         } catch (error) {
@@ -537,7 +537,7 @@ const BackupManagementView: React.FC = () => {
                     description: "Backup berhasil diunduh",
                 });
             } else {
-                const errorData = await response.json();
+                const errorData = await response.json() as { message: string };
                 throw new Error(errorData.message || 'Failed to download backup');
             }
         } catch (error) {
@@ -560,7 +560,7 @@ const BackupManagementView: React.FC = () => {
             
             const data = await apiCall(`/api/admin/delete-backup/${backupId}`, {
                 method: 'DELETE'
-            });
+            }) as { message: string };
             
 
             

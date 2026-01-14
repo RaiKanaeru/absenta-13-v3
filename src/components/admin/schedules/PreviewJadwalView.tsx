@@ -41,7 +41,7 @@ const extractFilenameFromHeader = (
   defaultFilename: string
 ): string => {
   if (!contentDisposition) return defaultFilename;
-  const match = contentDisposition.match(/filename="(.+)"/);
+  const match = /filename="(.+)"/.exec(contentDisposition);
   return match ? match[1] : defaultFilename;
 };
 
@@ -49,14 +49,14 @@ const extractFilenameFromHeader = (
  * Creates a download for a blob
  */
 const triggerBlobDownload = (blob: Blob, filename: string): void => {
-  const url = window.URL.createObjectURL(blob);
+  const url = globalThis.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+  globalThis.URL.revokeObjectURL(url);
 };
 
 /**
@@ -190,7 +190,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
 
       // Open print endpoint in new window using getApiUrl
       const printUrl = getApiUrl(`/api/admin/export/jadwal-print?${params.toString()}`);
-      const printWindow = window.open(printUrl, '_blank');
+      const printWindow = globalThis.open(printUrl, '_blank');
       
       if (!printWindow) {
         throw new Error('Tidak dapat membuka jendela print');
@@ -455,7 +455,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                   Total jadwal tersedia: {schedules.length}
                 </p>
                 <Button 
-                  onClick={() => window.location.reload()} 
+                  onClick={() => globalThis.location.reload()} 
                   variant="outline"
                   size="sm"
                 >

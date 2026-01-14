@@ -57,7 +57,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       const initialAttendance: {[key: number]: AttendanceStatus} = {};
       const initialNotes: {[key: number]: string} = {};
       data.forEach((student: Student) => {
-        initialAttendance[student.id] = (student.attendance_status as AttendanceStatus) || 'Hadir';
+        initialAttendance[student.id] = student.attendance_status || 'Hadir';
         initialNotes[student.id] = student.attendance_note || '';
       });
       setAttendance(initialAttendance);
@@ -86,7 +86,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         const initialAttendance: {[key: number]: AttendanceStatus} = {};
         const initialNotes: {[key: number]: string} = {};
         data.forEach((student: Student) => {
-          initialAttendance[student.id] = (student.attendance_status as AttendanceStatus) || 'Hadir';
+          initialAttendance[student.id] = student.attendance_status || 'Hadir';
           initialNotes[student.id] = student.attendance_note || '';
         });
         setAttendance(initialAttendance);
