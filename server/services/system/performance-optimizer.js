@@ -4,8 +4,8 @@
  * Target: 150+ concurrent users, <2s response time, >80% cache hit ratio
  */
 
-import { EventEmitter } from 'events';
-import { performance } from 'perf_hooks';
+import { EventEmitter } from 'node:events';
+import { performance } from 'node:perf_hooks';
 import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('Performance');

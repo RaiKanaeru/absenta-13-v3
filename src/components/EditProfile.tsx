@@ -233,7 +233,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
         };
       }
 
-      console.log(`📝 ${role} profile update request:`, requestBody);
+
 
       const response = await fetch(getApiUrl(`/api/${role}/update-profile`), {
         method: 'PUT',
@@ -247,7 +247,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Profile update response:', result);
+
         
         toast({
           title: "Berhasil!",

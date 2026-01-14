@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import os from 'os';
+import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 

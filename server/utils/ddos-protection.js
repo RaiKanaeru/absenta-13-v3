@@ -12,7 +12,7 @@
  */
 
 import crypto from 'node:crypto';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('DDoS');
@@ -274,12 +274,12 @@ class DDoSProtection extends EventEmitter {
         const now = Date.now();
         let record = this.fingerprints.get(fingerprint);
         
-        if (!record) {
-            record = { ips: new Set([ip]), count: 1, lastSeen: now };
-        } else {
+        if (record) {
             record.ips.add(ip);
             record.count++;
             record.lastSeen = now;
+        } else {
+            record = { ips: new Set([ip]), count: 1, lastSeen: now };
         }
         
         this.fingerprints.set(fingerprint, record);

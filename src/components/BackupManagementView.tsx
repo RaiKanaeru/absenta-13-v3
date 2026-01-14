@@ -547,13 +547,13 @@ const BackupManagementView: React.FC = () => {
         }
 
         try {
-            console.log(`🗑️ Attempting to delete backup: ${backupId}`);
+
             
             const data = await apiCall(`/api/admin/delete-backup/${backupId}`, {
                 method: 'DELETE'
             });
             
-            console.log('✅ Backup deleted successfully:', data);
+
             
             loadBackups();
             toast({

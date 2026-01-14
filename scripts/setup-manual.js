@@ -1,4 +1,4 @@
-import readline from 'readline';
+import readline from 'node:readline';
 import fs from 'node:fs';
 
 const rl = readline.createInterface({

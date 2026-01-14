@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { enterFullscreen, exitFullscreen, isFullscreen } from '@/utils/fullscreenHelper';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6067,36 +6068,23 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
     const dashboardRef = useRef<HTMLDivElement>(null);
 
     // Fullscreen toggle handler with cross-browser compatibility
-    const toggleFullscreen = useCallback(() => {
+    const toggleFullscreen = useCallback(async () => {
       const elem = dashboardRef.current;
       if (!elem) return;
 
-      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement && !(document as any).msFullscreenElement) {
-        // Enter fullscreen
-        if (elem.requestFullscreen) {
-          elem.requestFullscreen();
-        } else if ((elem as any).webkitRequestFullscreen) {
-          (elem as any).webkitRequestFullscreen();
-        } else if ((elem as any).msRequestFullscreen) {
-          (elem as any).msRequestFullscreen();
-        }
+      if (!isFullscreen()) {
+        await enterFullscreen(elem);
       } else {
-        // Exit fullscreen
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          (document as any).webkitExitFullscreen();
-        } else if ((document as any).msExitFullscreen) {
-          (document as any).msExitFullscreen();
-        }
+        await exitFullscreen();
       }
     }, []);
 
     // Listen for fullscreen changes
     useEffect(() => {
       const handleFullscreenChange = () => {
-        setIsFullscreen(!!document.fullscreenElement || !!(document as any).webkitFullscreenElement || !!(document as any).msFullscreenElement);
+        setIsFullscreen(isFullscreen());
       };
+      
       document.addEventListener('fullscreenchange', handleFullscreenChange);
       document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.addEventListener('msfullscreenchange', handleFullscreenChange);

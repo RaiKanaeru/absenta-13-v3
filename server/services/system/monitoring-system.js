@@ -6,8 +6,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { EventEmitter } from 'events';
-import { performance } from 'perf_hooks';
+import { EventEmitter } from 'node:events';
+import { performance } from 'node:perf_hooks';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';

@@ -3,7 +3,7 @@
  * Phase 8: Security & Backup - Rate limiting, Input validation, Audit logging
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
