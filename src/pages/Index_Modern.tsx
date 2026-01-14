@@ -348,6 +348,7 @@ const Index = () => {
         description: "Anda telah keluar dari sistem",
       });
     } catch (error) {
+      console.error('Logout error (forced logout):', error);
       // Force logout even if request fails
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');

@@ -28,7 +28,7 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     let inputValue = e.target.value;
     
     // Hanya izinkan angka dan titik dua
-    inputValue = inputValue.replace(/[^0-9:]/g, '');
+    inputValue = inputValue.replace(/[^\d:]/g, '');
     
     // Batasi panjang maksimal 5 karakter (HH:MM)
     if (inputValue.length > 5) {
@@ -46,7 +46,7 @@ export const TimeInput: React.FC<TimeInputProps> = ({
 
   const handleBlur = () => {
     // Validasi dan format ulang saat kehilangan fokus
-    if (displayValue && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(displayValue)) {
+    if (displayValue && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(displayValue)) {
       if (displayValue.includes(':')) {
         const [hours, minutes] = displayValue.split(':');
         const validHours = Math.min(23, Math.max(0, Number.parseInt(hours) || 0));
@@ -73,7 +73,7 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     }
     
     // Izinkan angka dan titik dua
-    if (!/[0-9:]/.test(e.key)) {
+    if (!/[\d:]/.test(e.key)) {
       e.preventDefault();
     }
   };

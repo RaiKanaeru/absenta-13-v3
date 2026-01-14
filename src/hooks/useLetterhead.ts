@@ -30,6 +30,16 @@ const letterheadCache: Map<string, LetterheadConfig> = new Map();
 const cacheTimestamps: Map<string, number> = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 menit
 
+const getCachedLetterhead = (cacheKey: string): LetterheadConfig | null => {
+  if (letterheadCache.has(cacheKey)) {
+    const timestamp = cacheTimestamps.get(cacheKey) || 0;
+    if ((Date.now() - timestamp) < CACHE_DURATION) {
+      return letterheadCache.get(cacheKey) || null;
+    }
+  }
+  return null;
+};
+
 export function useLetterhead(reportKey?: string) {
   const [letterhead, setLetterhead] = useState<LetterheadConfig>(DEFAULT_LETTERHEAD);
   const [loading, setLoading] = useState(false);
@@ -39,10 +49,9 @@ export function useLetterhead(reportKey?: string) {
     const cacheKey = reportKey || 'global';
     
     // Cek cache jika tidak force refresh
-    if (!forceRefresh && letterheadCache.has(cacheKey)) {
-      const timestamp = cacheTimestamps.get(cacheKey) || 0;
-      if ((Date.now() - timestamp) < CACHE_DURATION) {
-        const cached = letterheadCache.get(cacheKey)!;
+    if (!forceRefresh) {
+      const cached = getCachedLetterhead(cacheKey);
+      if (cached) {
         setLetterhead(cached);
         return cached;
       }

@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       // Di production, Nginx yang mengurus port 80/443.
       // Namun, biarkan untuk build (jika diperlukan)
       host: true, 
-      port: parseInt(env.VITE_FRONTEND_PORT) || 8080,
+      port: Number.parseInt(env.VITE_FRONTEND_PORT) || 8080,
 
       // AllowedHosts/Proxy TIDAK dibutuhkan untuk production build
       // (Nginx yang akan melayani)

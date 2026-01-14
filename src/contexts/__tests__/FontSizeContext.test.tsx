@@ -52,12 +52,12 @@ describe('FontSizeContext', () => {
     localStorageMock = createStorageMock();
     sessionStorageMock = createStorageMock();
 
-    Object.defineProperty(window, 'localStorage', {
+    Object.defineProperty(globalThis, 'localStorage', {
       value: localStorageMock,
       configurable: true,
     });
 
-    Object.defineProperty(window, 'sessionStorage', {
+    Object.defineProperty(globalThis, 'sessionStorage', {
       value: sessionStorageMock,
       configurable: true,
     });
@@ -127,12 +127,12 @@ describe('FontSizeContext', () => {
     localStorageMock = createStorageMock({ fontSize: 'xl' });
     sessionStorageMock = createStorageMock({ fontSize: 'lg' });
 
-    Object.defineProperty(window, 'localStorage', {
+    Object.defineProperty(globalThis, 'localStorage', {
       value: localStorageMock,
       configurable: true,
     });
 
-    Object.defineProperty(window, 'sessionStorage', {
+    Object.defineProperty(globalThis, 'sessionStorage', {
       value: sessionStorageMock,
       configurable: true,
     });
@@ -153,12 +153,12 @@ describe('FontSizeContext', () => {
     localStorageMock = createStorageMock();
     sessionStorageMock = createStorageMock({ fontSize: 'sm' });
 
-    Object.defineProperty(window, 'localStorage', {
+    Object.defineProperty(globalThis, 'localStorage', {
       value: localStorageMock,
       configurable: true,
     });
 
-    Object.defineProperty(window, 'sessionStorage', {
+    Object.defineProperty(globalThis, 'sessionStorage', {
       value: sessionStorageMock,
       configurable: true,
     });

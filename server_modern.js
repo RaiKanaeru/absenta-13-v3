@@ -9,7 +9,11 @@ console.log(`🌐 API Base URL: ${process.env.API_BASE_URL || 'http://localhost:
 import express from 'express';
 import { mkdir } from 'fs/promises';
 import path from 'path';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import multer from 'multer';
 import DatabaseOptimization from './server/services/system/database-optimization.js';
+
 import QueryOptimizer from './server/services/system/query-optimizer.js';
 import BackupSystem from './server/services/system/backup-system.js';
 import DownloadQueue from './server/services/system/queue-system.js';

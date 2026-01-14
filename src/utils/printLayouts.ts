@@ -115,7 +115,7 @@ export const printReport = (
 
   const title = reportType === 'student' ? 'Laporan Kehadiran Siswa' : 'Laporan Kehadiran Guru';
 
-  printWindow.document.write(`
+  printWindow.document.documentElement.innerHTML = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -192,15 +192,15 @@ export const printReport = (
     </head>
     <body>
       ${content}
-      <script>
-        window.onload = function() {
-          window.print();
-        }
-      </script>
     </body>
     </html>
-  `);
+  `;
   printWindow.document.close();
+  
+  // Trigger print after delay to ensure styles render
+  printWindow.setTimeout(() => {
+    printWindow.print();
+  }, 500);
 };
 
 const generateSimpleLayout = (data: PrintData[], dateRange: DateRange, reportType: 'student' | 'teacher', letterhead: LetterheadConfig | null = null) => {

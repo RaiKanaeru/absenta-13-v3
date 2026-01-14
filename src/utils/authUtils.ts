@@ -22,7 +22,7 @@ export const getAuthToken = (): string | null => {
  */
 export const getCleanToken = (): string => {
   const token = getAuthToken();
-  return token ? token.replace(/['"]/g, '') : '';
+  return token ? token.split(/['"]/).join('') : '';
 };
 
 /**
