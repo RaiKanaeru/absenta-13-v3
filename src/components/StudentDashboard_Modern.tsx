@@ -106,6 +106,47 @@ const getGuruIdFromJadwal = (
   return guruId || null;
 };
 
+/** Result type for resolveGuruIdForUpdate helper */
+type ResolveGuruIdResult = 
+  | { success: true; guruId: number }
+  | { success: false; error: 'not_found' | 'multi_guru' | 'invalid_id' };
+
+/**
+ * Resolve guru ID for status update - extracted to reduce CC (S3776 compliance)
+ * @returns ResolveGuruIdResult with either guruId or error type
+ */
+const resolveGuruIdForUpdate = (
+  jadwalId: number | null,
+  initialGuruId: number | null,
+  isMultiGuru: boolean,
+  jadwalList: Array<{ id_jadwal: number; is_multi_guru?: boolean; guru_list?: unknown[]; guru_id?: number; id_guru?: number }>,
+  kehadiranDataEntry: { guru_id?: number } | null
+): ResolveGuruIdResult => {
+  // If already multi-guru key, use provided guruId
+  if (isMultiGuru && initialGuruId) {
+    return { success: true, guruId: initialGuruId };
+  }
+
+  // Find jadwal
+  const jadwal = jadwalList.find(j => j.id_jadwal === jadwalId);
+  if (!jadwal) {
+    return { success: false, error: 'not_found' };
+  }
+
+  // Check if multi-guru jadwal requires specific guru selection
+  if (jadwal.is_multi_guru && Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
+    return { success: false, error: 'multi_guru' };
+  }
+
+  // Get guru_id from jadwal
+  const guruId = getGuruIdFromJadwal(jadwal, kehadiranDataEntry);
+  if (!jadwalId || !guruId) {
+    return { success: false, error: 'invalid_id' };
+  }
+
+  return { success: true, guruId };
+};
+
 // =============================================================================
 // LABEL MAPS (extracted to reduce nesting depth and cognitive complexity)
 // =============================================================================
@@ -1390,36 +1431,31 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       // Tentukan jadwal_id dan guru_id dari key menggunakan helper
       const parsedKey = parseJadwalKey(key);
       const { jadwalId } = parsedKey;
-      let { guruId } = parsedKey;
+      const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
+      
+      // Use extracted helper to resolve guru ID (reduces CC)
+      const guruIdResult = resolveGuruIdForUpdate(
+        jadwalId,
+        parsedKey.guruId,
+        parsedKey.isMultiGuru,
+        jadwalData,
+        kehadiranData[key]
+      );
 
-      // Jika bukan multi-guru key, cari jadwal dan guru_id
-      if (!parsedKey.isMultiGuru) {
-        const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
-        const jadwal = jadwalData.find(j => j.id_jadwal === jadwalId);
-        
-        if (!jadwal) {
-          throw new Error('Jadwal tidak ditemukan');
-        }
-        
-        // Check if multi-guru jadwal requires specific guru selection
-        if (jadwal.is_multi_guru && Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
-          toast({
-            title: "Pilih Guru",
-            description: "Jadwal ini multi-guru. Silakan set status per guru.",
-            variant: "destructive"
-          });
-          setKehadiranData(prev => ({ ...prev, [key]: previousState }));
-          return;
-        }
-        
-        // Get guru_id from jadwal object using helper
-        guruId = getGuruIdFromJadwal(jadwal, kehadiranData[key]);
+      if (!guruIdResult.success) {
+        const errorType = guruIdResult.error; // TypeScript narrow to error type
+        const errorMessages: Record<'not_found' | 'multi_guru' | 'invalid_id', { title: string; desc: string }> = {
+          'not_found': { title: 'Error', desc: 'Jadwal tidak ditemukan' },
+          'multi_guru': { title: 'Pilih Guru', desc: 'Jadwal ini multi-guru. Silakan set status per guru.' },
+          'invalid_id': { title: 'Error', desc: 'Jadwal ID atau Guru ID tidak valid' }
+        };
+        const msg = errorMessages[errorType];
+        toast({ title: msg.title, description: msg.desc, variant: 'destructive' });
+        setKehadiranData(prev => ({ ...prev, [key]: previousState }));
+        return;
       }
 
-      if (!jadwalId || !guruId) {
-        console.error('❌ Invalid IDs:', { jadwalId, guruId, key, kehadiranData: kehadiranData[key] });
-        throw new Error('Jadwal ID atau Guru ID tidak valid');
-      }
+      const guruId = guruIdResult.guruId;
 
       const tanggalTarget = isEditMode ? selectedDate : getCurrentDateWIB();
       
