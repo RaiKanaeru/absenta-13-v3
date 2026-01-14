@@ -114,6 +114,11 @@ setInterval(() => {
     }
 }, 60000); // Run every minute
 
+// Constants
+const ERROR_INVALID_CREDENTIALS = 'Username atau password salah';
+const MSG_LOGIN_SUCCESS = 'Login berhasil';
+const MSG_LOGOUT_SUCCESS = 'Logout berhasil';
+
 /**
  * Login user
  * POST /api/login
@@ -164,7 +169,7 @@ export const login = async (req, res) => {
             log.warn('Login failed - user not found', { username, ip: clientIP });
             return res.status(401).json({ 
                 success: false,
-                error: 'Username atau password salah' 
+                error: ERROR_INVALID_CREDENTIALS 
             });
         }
 
@@ -193,7 +198,7 @@ export const login = async (req, res) => {
             
             return res.status(401).json({ 
                 success: false,
-                error: 'Username atau password salah' 
+                error: ERROR_INVALID_CREDENTIALS 
             });
         }
 
@@ -263,7 +268,7 @@ export const login = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Login berhasil',
+            message: MSG_LOGIN_SUCCESS,
             user: tokenPayload,
             token
         });
@@ -289,7 +294,7 @@ export const logout = (req, res) => {
     res.clearCookie('token');
     log.info('User logged out', { userId: req.user?.id, username: req.user?.username });
     
-    return sendSuccessResponse(res, null, 'Logout berhasil');
+    return sendSuccessResponse(res, null, MSG_LOGOUT_SUCCESS);
 };
 
 /**

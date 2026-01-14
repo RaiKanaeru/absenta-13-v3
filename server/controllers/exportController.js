@@ -15,6 +15,16 @@ const ERROR_DATE_REQUIRED = 'Tanggal mulai dan akhir harus diisi';
 const ERROR_YEAR_REQUIRED = 'Tahun harus diisi';
 const ERROR_TEMPLATE_NOT_FOUND = 'Template file tidak ditemukan';
 
+// Import constants from config
+import { 
+    EXCEL_MIME_TYPE, 
+    CONTENT_TYPE, 
+    CONTENT_DISPOSITION,
+    EXPORT_TITLES,
+    MONTH_NAMES_SHORT,
+    EXPORT_HEADERS
+} from '../config/exportConfig.js';
+
 import { buildExcel } from '../../backend/export/excelBuilder.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { formatWIBTime, formatWIBDate, getWIBTime } from '../utils/timeUtils.js';
@@ -96,6 +106,7 @@ const MONTH_NAMES = {
     1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MEI', 6: 'JUN',
     7: 'JUL', 8: 'AGT', 9: 'SEP', 10: 'OKT', 11: 'NOV', 12: 'DES'
 };
+// Use MONTH_NAMES_SHORT from config where applicable if needed, but keeping this map for index lookup consistency
 
 /**
  * Calculate attendance percentages for a student
@@ -212,8 +223,8 @@ export const exportAbsensi = async (req, res) => {
         });
 
         // Set response headers
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=absensi-guru-${formatWIBDate()}.xlsx`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename=absensi-guru-${formatWIBDate()}.xlsx`);
 
         // Write to response
         await workbook.xlsx.write(res);
@@ -247,8 +258,8 @@ export const exportTeacherList = async (req, res) => {
 
         const workbook = await exportSystem.exportTeacherList(teachers, academicYear);
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Daftar_Guru_${academicYear.replace('-', '_')}_${Date.now()}.xlsx"`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Daftar_Guru_${academicYear.replace('-', '_')}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -327,8 +338,8 @@ export const exportStudentSummary = async (req, res) => {
             rows: reportData
         });
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -393,8 +404,8 @@ export const exportTeacherSummary = async (req, res) => {
             rows: reportData
         });
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Guru_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Ringkasan_Kehadiran_Guru_${startDate}_${endDate}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -497,8 +508,8 @@ export const exportBandingAbsen = async (req, res) => {
             rows: reportData
         });
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Banding_Absen_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Banding_Absen_${startDate}_${endDate}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -580,15 +591,15 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 
         // Title Headers (Row 1-3)
         worksheet.mergeCells('A1:Q1');
-        worksheet.getCell('A1').value = 'REKAP KETIDAKHADIRAN GURU';
+        worksheet.getCell('A1').value = EXPORT_TITLES.REKAP_GURU;
         Object.assign(worksheet.getCell('A1'), titleStyle);
 
         worksheet.mergeCells('A2:Q2');
-        worksheet.getCell('A2').value = 'SMK NEGERI 13 BANDUNG';
+        worksheet.getCell('A2').value = EXPORT_TITLES.SCHOOL_NAME;
         Object.assign(worksheet.getCell('A2'), titleStyle);
 
         worksheet.mergeCells('A3:Q3');
-        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahunAjaran}-${Number.parseInt(tahunAjaran) + 1}`;
+        worksheet.getCell('A3').value = `${EXPORT_TITLES.YEAR_PREFIX} ${tahunAjaran}-${Number.parseInt(tahunAjaran) + 1}`;
         Object.assign(worksheet.getCell('A3'), titleStyle);
 
         // Header Row 1 - BULAN / JUMLAH HARI EFEKTIF KERJA (Row 5)
@@ -611,11 +622,11 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 
         // Header Row 2 - Month names with hari efektif (Row 6)
         const headerRow2 = 6;
-        const monthOrder = ['JUL', 'AGT', 'SEP', 'OKT', 'NOV', 'DES', 'JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN'];
+        const monthOrder = MONTH_NAMES_SHORT;
         const monthCols = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // C-N
 
-        worksheet.getCell(`A${headerRow2}`).value = 'NO.';
-        worksheet.getCell(`B${headerRow2}`).value = 'NAMA GURU';
+        worksheet.getCell(`A${headerRow2}`).value = EXPORT_HEADERS.NO;
+        worksheet.getCell(`B${headerRow2}`).value = EXPORT_HEADERS.NAMA_GURU;
         Object.assign(worksheet.getCell(`A${headerRow2}`), { ...headerStyle, fill: yellowFill });
         Object.assign(worksheet.getCell(`B${headerRow2}`), { ...headerStyle, fill: yellowFill });
 
@@ -629,8 +640,8 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         const headerRow3 = 7;
         worksheet.mergeCells(`A${headerRow1}:A${headerRow3}`);
         worksheet.mergeCells(`B${headerRow1}:B${headerRow3}`);
-        worksheet.getCell(`A${headerRow1}`).value = 'NO.';
-        worksheet.getCell(`B${headerRow1}`).value = 'NAMA GURU';
+        worksheet.getCell(`A${headerRow1}`).value = EXPORT_HEADERS.NO;
+        worksheet.getCell(`B${headerRow1}`).value = EXPORT_HEADERS.NAMA_GURU;
         Object.assign(worksheet.getCell(`A${headerRow1}`), { ...headerStyle, fill: yellowFill });
         Object.assign(worksheet.getCell(`B${headerRow1}`), { ...headerStyle, fill: yellowFill });
 
@@ -685,8 +696,8 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         worksheet.getRow(headerRow3).height = 20;
 
         const filename = `Rekap_Ketidakhadiran_Guru_${tahunAjaran}-${Number.parseInt(tahunAjaran) + 1}`;
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="${filename}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();

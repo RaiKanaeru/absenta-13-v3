@@ -12,6 +12,42 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ================================================
+// CONSTANTS FOR CONTROLLER
+// ================================================
+export const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+export const CONTENT_TYPE = 'Content-Type';
+export const CONTENT_DISPOSITION = 'Content-Disposition';
+
+export const EXPORT_HEADERS = {
+    NO: 'NO.',
+    NAMA_GURU: 'NAMA GURU',
+    NAMA_SISWA: 'NAMA SISWA',
+    NIS: 'NIS',
+    KELAS: 'KELAS',
+    TANGGAL: 'TANGGAL',
+    STATUS: 'STATUS',
+    KETERANGAN: 'KETERANGAN',
+    MATA_PELAJARAN: 'MATA PELAJARAN',
+    JAM_MULAI: 'JAM MULAI',
+    JAM_SELESAI: 'JAM SELESAI',
+    WAKTU_ABSEN: 'WAKTU ABSEN',
+    JADWAL: 'JADWAL',
+    HARI: 'HARI',
+    JAM_KE: 'JAM KE',
+    WAKTU: 'WAKTU',
+    NIP: 'NIP',
+    NAMA_PENCATAT: 'NAMA PENCATAT'
+};
+
+export const EXPORT_TITLES = {
+    REKAP_GURU: 'REKAP KETIDAKHADIRAN GURU',
+    SCHOOL_NAME: 'SMK NEGERI 13 BANDUNG',
+    YEAR_PREFIX: 'TAHUN PELAJARAN'
+};
+
+export const MONTH_NAMES_SHORT = ['JUL', 'AGT', 'SEP', 'OKT', 'NOV', 'DES', 'JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN'];
+
+// ================================================
 // TAHUN PELAJARAN
 // ================================================
 export const TAHUN_PELAJARAN = '2025-2026';
