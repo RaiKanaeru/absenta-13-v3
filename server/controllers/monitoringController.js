@@ -3,6 +3,7 @@
  * Menangani monitoring sistem, keamanan, dan performa
  */
 
+import os from 'node:os';
 import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { formatBytes } from '../utils/formatUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -172,6 +173,135 @@ function getLoadBalancerSafeStats() {
         circuitBreaker: { isOpen: false, failureCount: 0, successCount: 0 },
         queueSizes: { critical: 0, high: 0, normal: 0, low: 0 },
         totalQueueSize: 0
+    };
+}
+
+/**
+ * Helper to build system metrics object
+ */
+function buildSystemMetrics({ memoryUsage, uptime, cpuUsageData, cpus, loadAvg, totalMemory, freeMemory, usedMemory, cpuUsagePercent }) {
+    return {
+        uptime: uptime,
+        memory: {
+            used: memoryUsage.heapUsed,
+            total: memoryUsage.heapTotal,
+            external: memoryUsage.external,
+            arrayBuffers: memoryUsage.arrayBuffers || 0,
+            systemTotal: totalMemory,
+            systemUsed: usedMemory,
+            systemFree: freeMemory,
+            systemPercentage: totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0
+        },
+        cpu: {
+            user: cpuUsageData.user,
+            system: cpuUsageData.system,
+            usage: cpuUsagePercent,
+            cores: cpus.length,
+            model: cpus[0]?.model || 'Unknown',
+            speed: cpus[0]?.speed || 0,
+            loadAverage: loadAvg
+        },
+        device: {
+            platform: os.platform(),
+            architecture: os.arch(),
+            hostname: os.hostname(),
+            type: os.type(),
+            cores: cpus.length,
+            totalMemory: totalMemory,
+            memoryFormatted: formatBytes(totalMemory)
+        }
+    };
+}
+
+/**
+ * Helper to build dashboard response object
+ */
+function buildDashboardResponse(systemData, appData, dbData, otherData) {
+    const { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus } = systemData;
+    const { systemMonitorMetrics, dbConnectionStats } = dbData;
+    const { loadBalancerStats, alerts, healthStatus } = otherData;
+
+    return {
+        metrics: {
+            system: {
+                memory: {
+                    used: usedMemory,
+                    total: totalMemory,
+                    percentage: (usedMemory / totalMemory) * 100
+                },
+                cpu: {
+                    usage: cpuUsage,
+                    loadAverage: loadAverage
+                },
+                disk: {
+                    used: 0,
+                    total: 40 * 1024 * 1024 * 1024,
+                    percentage: 0
+                },
+                uptime: process.uptime()
+            },
+            application: {
+                requests: {
+                    total: systemMonitorMetrics?.application?.requests?.total || 0,
+                    active: systemMonitorMetrics?.application?.requests?.active || 0,
+                    completed: systemMonitorMetrics?.application?.requests?.completed || 0,
+                    failed: systemMonitorMetrics?.application?.requests?.failed || 0
+                },
+                responseTime: {
+                    average: systemMonitorMetrics?.application?.responseTime?.average || 0,
+                    min: systemMonitorMetrics?.application?.responseTime?.min || 0,
+                    max: systemMonitorMetrics?.application?.responseTime?.max || 0
+                },
+                errors: {
+                    count: systemMonitorMetrics?.application?.requests?.failed || 0,
+                    lastError: systemMonitorMetrics?.application?.errors?.lastError || null
+                }
+            },
+            database: {
+                connections: dbConnectionStats,
+                queries: {
+                    total: systemMonitorMetrics?.database?.queries?.total || 0,
+                    slow: systemMonitorMetrics?.database?.queries?.slow || 0,
+                    failed: systemMonitorMetrics?.database?.queries?.failed || 0
+                },
+                responseTime: {
+                    average: systemMonitorMetrics?.database?.responseTime?.average || 0,
+                    min: systemMonitorMetrics?.database?.responseTime?.min || 0,
+                    max: systemMonitorMetrics?.database?.responseTime?.max || 0
+                }
+            }
+        },
+        system: {
+            uptime: process.uptime(),
+            memory: {
+                used: usedMemory,
+                total: totalMemory,
+                free: freeMemory,
+                percentage: (usedMemory / totalMemory) * 100
+            },
+            cpu: {
+                usage: cpuUsage,
+                cores: cpus.length,
+                model: cpus[0]?.model || 'Unknown',
+                loadAvg: loadAverage
+            },
+            platform: os.platform(),
+            hostname: os.hostname()
+        },
+        health: healthStatus,
+        loadBalancer: loadBalancerStats,
+        alerts: alerts.slice(0, 10),
+        alertStats: {
+            total: alerts.length,
+            active: alerts.filter(a => !a.resolved).length,
+            resolved: alerts.filter(a => a.resolved).length,
+            last24h: alerts.filter(a => new Date(a.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length,
+            bySeverity: {
+                warning: alerts.filter(a => a.severity === 'warning').length,
+                critical: alerts.filter(a => a.severity === 'critical').length,
+                emergency: alerts.filter(a => a.severity === 'emergency').length
+            }
+        }
     };
 }
 
@@ -513,7 +643,7 @@ export const getSystemPerformance = async (req, res) => {
         // Get system metrics
         const memoryUsage = process.memoryUsage();
         const uptime = process.uptime();
-        const os = await import('os');
+        // os is imported at top level now
         const cpuUsageData = process.cpuUsage();
         
         const totalMemory = os.totalmem();
@@ -529,37 +659,10 @@ export const getSystemPerformance = async (req, res) => {
 
         // Use shared formatBytes utility
 
-        const systemMetrics = {
-            uptime: uptime,
-            memory: {
-                used: memoryUsage.heapUsed,
-                total: memoryUsage.heapTotal,
-                external: memoryUsage.external,
-                arrayBuffers: memoryUsage.arrayBuffers || 0,
-                systemTotal: totalMemory,
-                systemUsed: usedMemory,
-                systemFree: freeMemory,
-                systemPercentage: totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0
-            },
-            cpu: {
-                user: cpuUsageData.user,
-                system: cpuUsageData.system,
-                usage: cpuUsagePercent,
-                cores: cpus.length,
-                model: cpus[0]?.model || 'Unknown',
-                speed: cpus[0]?.speed || 0,
-                loadAverage: loadAvg
-            },
-            device: {
-                platform: os.platform(),
-                architecture: os.arch(),
-                hostname: os.hostname(),
-                type: os.type(),
-                cores: cpus.length,
-                totalMemory: totalMemory,
-                memoryFormatted: formatBytes(totalMemory)
-            }
-        };
+        const systemMetrics = buildSystemMetrics({
+            memoryUsage, uptime, cpuUsageData, cpus, loadAvg, 
+            totalMemory, freeMemory, usedMemory, cpuUsagePercent
+        });
 
         // Get Redis stats
         let redisStats = { connected: false, error: 'Redis not available' };
@@ -594,7 +697,7 @@ export const getMonitoringDashboard = async (req, res) => {
     log.requestStart('GetMonitoringDashboard', {});
 
     try {
-        const os = await import('os');
+        // os is imported at top level
         const totalMemory = os.totalmem();
         const freeMemory = os.freemem();
         const usedMemory = totalMemory - freeMemory;
@@ -632,88 +735,12 @@ export const getMonitoringDashboard = async (req, res) => {
         const healthStatus = globalThis.systemMonitor ? globalThis.systemMonitor.getHealthStatus() : { status: 'unknown', issues: [] };
 
         // Structure response to match frontend expectations
-        const responseData = {
-            metrics: {
-                system: {
-                    memory: {
-                        used: usedMemory,
-                        total: totalMemory,
-                        percentage: (usedMemory / totalMemory) * 100
-                    },
-                    cpu: {
-                        usage: cpuUsage,
-                        loadAverage: loadAverage
-                    },
-                    disk: {
-                        used: 0,
-                        total: 40 * 1024 * 1024 * 1024,
-                        percentage: 0
-                    },
-                    uptime: process.uptime()
-                },
-                application: {
-                    requests: {
-                        total: systemMonitorMetrics?.application?.requests?.total || 0,
-                        active: systemMonitorMetrics?.application?.requests?.active || 0,
-                        completed: systemMonitorMetrics?.application?.requests?.completed || 0,
-                        failed: systemMonitorMetrics?.application?.requests?.failed || 0
-                    },
-                    responseTime: {
-                        average: systemMonitorMetrics?.application?.responseTime?.average || 0,
-                        min: systemMonitorMetrics?.application?.responseTime?.min || 0,
-                        max: systemMonitorMetrics?.application?.responseTime?.max || 0
-                    },
-                    errors: {
-                        count: systemMonitorMetrics?.application?.requests?.failed || 0,
-                        lastError: systemMonitorMetrics?.application?.errors?.lastError || null
-                    }
-                },
-                database: {
-                    connections: dbConnectionStats,
-                    queries: {
-                        total: systemMonitorMetrics?.database?.queries?.total || 0,
-                        slow: systemMonitorMetrics?.database?.queries?.slow || 0,
-                        failed: systemMonitorMetrics?.database?.queries?.failed || 0
-                    },
-                    responseTime: {
-                        average: systemMonitorMetrics?.database?.responseTime?.average || 0,
-                        min: systemMonitorMetrics?.database?.responseTime?.min || 0,
-                        max: systemMonitorMetrics?.database?.responseTime?.max || 0
-                    }
-                }
-            },
-            system: {
-                uptime: process.uptime(),
-                memory: {
-                    used: usedMemory,
-                    total: totalMemory,
-                    free: freeMemory,
-                    percentage: (usedMemory / totalMemory) * 100
-                },
-                cpu: {
-                    usage: cpuUsage,
-                    cores: cpus.length,
-                    model: cpus[0]?.model || 'Unknown',
-                    loadAvg: loadAverage
-                },
-                platform: os.platform(),
-                hostname: os.hostname()
-            },
-            health: healthStatus,
-            loadBalancer: loadBalancerStats,
-            alerts: alerts.slice(0, 10),
-            alertStats: {
-                total: alerts.length,
-                active: alerts.filter(a => !a.resolved).length,
-                resolved: alerts.filter(a => a.resolved).length,
-                last24h: alerts.filter(a => new Date(a.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length,
-                bySeverity: {
-                    warning: alerts.filter(a => a.severity === 'warning').length,
-                    critical: alerts.filter(a => a.severity === 'critical').length,
-                    emergency: alerts.filter(a => a.severity === 'emergency').length
-                }
-            }
-        };
+        const responseData = buildDashboardResponse(
+            { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus },
+            {}, // appData is handled inside helper via systemMonitorMetrics
+            { systemMonitorMetrics, dbConnectionStats },
+            { loadBalancerStats, alerts, healthStatus }
+        );
 
         log.success('GetMonitoringDashboard', { alertCount: alerts.length, uptime: process.uptime() });
         return sendSuccessResponse(res, responseData);

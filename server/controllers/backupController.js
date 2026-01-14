@@ -66,6 +66,64 @@ function calculateNextBackupDate(schedule) {
 }
 
 /**
+ * Validate backup ID to prevent path traversal
+ */
+function validateBackupId(backupId) {
+    if (!backupId || typeof backupId !== 'string') return false;
+    // Allow only alphanumeric, dashes, underscores, and dots
+    if (!/^[a-zA-Z0-9.\-_]+$/.test(backupId)) return false;
+    // Prevent directory traversal
+    if (backupId.includes('..') || backupId.includes('/') || backupId.includes('\\')) return false;
+    return true;
+}
+
+/**
+ * Perform SQL transaction execution
+ */
+async function executeSqlCommands(commands) {
+    const connection = await globalThis.dbPool.pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        for (const command of commands) {
+            if (command.trim()) {
+                await connection.execute(command);
+            }
+        }
+        await connection.commit();
+        return commands.length;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+/**
+ * Helper to read custom schedules
+ */
+async function readCustomSchedules() {
+    try {
+        const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
+        const schedulesData = await fs.readFile(schedulesPath, 'utf8');
+        return JSON.parse(schedulesData);
+    } catch (error) {
+        return [];
+    }
+}
+
+/**
+ * Helper to write custom schedules
+ */
+async function writeCustomSchedules(schedules) {
+    const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
+    await fs.writeFile(schedulesPath, JSON.stringify(schedules, null, 2));
+}
+
+/**
+ * Helper function to process SQL backup
+ */
+/**
  * Helper function to process SQL backup
  */
 async function restoreDatabaseFromSqlFile(filePath) {
@@ -77,32 +135,14 @@ async function restoreDatabaseFromSqlFile(filePath) {
             throw new Error('File SQL tidak valid');
         }
 
-        // Execute SQL commands in transaction for better performance
         const commands = sqlContent.split(';').filter(cmd => cmd.trim());
-        const connection = await globalThis.dbPool.pool.getConnection();
-        
-        try {
-            await connection.beginTransaction();
-            
-            for (const command of commands) {
-                if (command.trim()) {
-                    await connection.execute(command);
-                }
-            }
-            
-            await connection.commit();
-        } catch (txError) {
-            await connection.rollback();
-            throw txError;
-        } finally {
-            connection.release();
-        }
+        const executedCount = await executeSqlCommands(commands);
 
         return {
             type: 'sql',
             message: 'Database berhasil dipulihkan dari file SQL',
             tablesRestored: sqlContent.match(/CREATE TABLE/g)?.length || 0,
-            commandsExecuted: commands.length
+            commandsExecuted: executedCount
         };
     } catch (error) {
         throw new Error(`Gagal memproses file SQL: ${error.message}`);
@@ -130,33 +170,14 @@ async function restoreDatabaseFromZipArchive(filePath) {
         }
 
         const sqlContent = zip.readAsText(sqlFile);
-
-        // Execute SQL commands in transaction for better performance
         const commands = sqlContent.split(';').filter(cmd => cmd.trim());
-        const connection = await globalThis.dbPool.pool.getConnection();
-        
-        try {
-            await connection.beginTransaction();
-            
-            for (const command of commands) {
-                if (command.trim()) {
-                    await connection.execute(command);
-                }
-            }
-            
-            await connection.commit();
-        } catch (txError) {
-            await connection.rollback();
-            throw txError;
-        } finally {
-            connection.release();
-        }
+        const executedCount = await executeSqlCommands(commands);
 
         return {
             type: 'zip',
             message: 'Database berhasil dipulihkan dari file ZIP',
             filesExtracted: zipEntries.length,
-            commandsExecuted: commands.length
+            commandsExecuted: executedCount
         };
     } catch (error) {
         throw new Error(`Gagal memproses file ZIP: ${error.message}`);
@@ -519,80 +540,37 @@ const deleteBackup = async (req, res) => {
             });
         }
 
+        if (!validateBackupId(backupId)) {
+            return res.status(400).json({ error: 'Invalid input', message: 'Invalid backup ID format' });
+        }
+
         // Try to delete using backup system first
         try {
             const result = await globalThis.backupSystem.deleteBackup(backupId);
             logger.info('Backup deleted via backup system', { backupId });
-
-            res.json({
-                success: true,
-                message: 'Backup berhasil dihapus',
-                data: result
-            });
+            return res.json({ success: true, message: 'Backup berhasil dihapus', data: result });
         } catch (backupSystemError) {
             logger.warn('Backup system delete failed, trying manual deletion', { error: backupSystemError.message });
 
-            // Fallback: Manual deletion
-            const backupDir = path.join(process.cwd(), 'backups');
+             // Fallback: Manual deletion using safe path resolution
+             const { filePath, filename } = await resolveBackupFilePath(BACKUP_DIR, backupId);
 
-            // First, check if it's a folder-based backup
-            const folderPath = path.join(backupDir, backupId);
-            const folderStats = await fs.stat(folderPath).catch(() => null);
+             if (!filePath) {
+                 throw new Error(`No backup files found for ID: ${backupId}`);
+             }
 
-            if (folderStats && folderStats.isDirectory()) {
-                logger.debug('Found backup folder for manual deletion', { backupId });
+             const stat = await fs.stat(filePath);
+             if (stat.isDirectory()) {
+                 await fs.rm(filePath, { recursive: true, force: true });
+             } else {
+                 await fs.unlink(filePath);
+             }
 
-                // Delete the entire folder and its contents
-                await fs.rm(folderPath, { recursive: true, force: true });
-                logger.info('Manually deleted backup folder', { backupId });
-
-                res.json({
-                    success: true,
-                    message: 'Backup berhasil dihapus',
-                    data: {
-                        deletedFiles: [backupId],
-                        method: 'manual_folder'
-                    }
-                });
-                return;
-            }
-
-            // If not a folder, try different possible file formats
-            const possibleFiles = [
-                `${backupId}.zip`,
-                `${backupId}`,
-                `${backupId}.sql`,
-                `${backupId}.tar.gz`
-            ];
-
-            let deleted = false;
-            let deletedFiles = [];
-
-            for (const filename of possibleFiles) {
-                const filePath = path.join(backupDir, filename);
-                try {
-                    await fs.access(filePath);
-                    await fs.unlink(filePath);
-                    deleted = true;
-                    deletedFiles.push(filename);
-                    logger.debug('Manually deleted file', { filename });
-                } catch (fileError) {
-                    logger.warn('Could not delete file', { filename, error: fileError.message });
-                }
-            }
-
-            if (deleted) {
-                res.json({
-                    success: true,
-                    message: 'Backup berhasil dihapus',
-                    data: {
-                        deletedFiles: deletedFiles,
-                        method: 'manual_file'
-                    }
-                });
-            } else {
-                throw new Error(`No backup files found for ID: ${backupId}`);
-            }
+             res.json({
+                 success: true,
+                 message: 'Backup berhasil dihapus',
+                 data: { deletedFiles: [filename], method: 'manual' }
+             });
         }
 
     } catch (error) {
@@ -611,6 +589,9 @@ const deleteBackup = async (req, res) => {
  * @returns {Promise<{filePath: string|null, filename: string|null}>}
  */
 const resolveBackupFilePath = async (backupDir, backupId) => {
+    // Validate ID first
+    if (!validateBackupId(backupId)) return { filePath: null, filename: null };
+
     // 1. Check directory
     const backupSubDir = path.join(backupDir, backupId);
     try {
@@ -774,7 +755,7 @@ const restoreBackupFromFile = async (req, res) => {
 
         // Save uploaded file temporarily - use safe filename to prevent path traversal (S2083)
         const safeFilename = `backup_${Date.now()}${fileExtension}`;
-        const tempFilePath = path.join(tempDir, safeFilename);
+        const tempFilePath = path.join(TEMP_DIR, safeFilename);
         await fs.writeFile(tempFilePath, req.file.buffer);
 
         // Process the backup file
