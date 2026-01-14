@@ -63,7 +63,7 @@ try {
     
     for (const test of testQueries) {
         const startTime = Date.now();
-        const [result] = await dbOptimization.execute(test.query);
+        await dbOptimization.execute(test.query);
         const endTime = Date.now();
         const executionTime = endTime - startTime;
         

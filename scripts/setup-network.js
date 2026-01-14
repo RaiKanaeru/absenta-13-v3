@@ -2,7 +2,6 @@
 
 import os from 'node:os';
 import fs from 'node:fs';
-import path from 'node:path';
 
 console.log('🌐 ABSENTA Network Setup Helper');
 console.log('================================');
