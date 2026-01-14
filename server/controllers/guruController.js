@@ -246,6 +246,25 @@ export const getGuru = async (req, res) => {
     }
 };
 
+// Helper to execute create guru transaction
+const executeCreateGuruTransaction = async (connection, data, hashedPassword) => {
+    // Create user account
+    const [userResult] = await connection.execute(
+        'INSERT INTO users (username, password, role, nama, email, status) VALUES (?, ?, "guru", ?, ?, ?)',
+        [data.username, hashedPassword, data.nama, data.email || null, data.status]
+    );
+
+    // Create guru record
+    const mapelIdValue = (data.mapel_id && data.mapel_id > 0) ? data.mapel_id : null;
+    
+    await connection.execute(
+        'INSERT INTO guru (id_guru, nip, nama, username, email, no_telp, jenis_kelamin, alamat, mapel_id, user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userResult.insertId, data.nip, data.nama, data.username, data.email || null, data.no_telp || null, data.jenis_kelamin || null, data.alamat || null, mapelIdValue, userResult.insertId, data.status]
+    );
+
+    return userResult.insertId;
+};
+
 /**
  * Membuat guru baru dengan akun user
  * POST /api/admin/guru
@@ -276,23 +295,13 @@ export const createGuru = async (req, res) => {
         await connection.beginTransaction();
 
         try {
-            // Create user account
-            const [userResult] = await connection.execute(
-                'INSERT INTO users (username, password, role, nama, email, status) VALUES (?, ?, "guru", ?, ?, ?)',
-                [username, hashedPassword, nama, email || null, status]
-            );
-
-            // Create guru record
-            const mapelIdValue = (mapel_id && mapel_id > 0) ? mapel_id : null;
-            
-            await connection.execute(
-                'INSERT INTO guru (id_guru, nip, nama, username, email, no_telp, jenis_kelamin, alamat, mapel_id, user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [userResult.insertId, nip, nama, username, email || null, no_telp || null, jenis_kelamin || null, alamat || null, mapelIdValue, userResult.insertId, status]
-            );
+            const userId = await executeCreateGuruTransaction(connection, {
+                username, nama, email, status, nip, no_telp, jenis_kelamin, alamat, mapel_id
+            }, hashedPassword);
 
             await connection.commit();
-            log.success('CreateGuru', { nama, nip, userId: userResult.insertId });
-            return sendSuccessResponse(res, { id: userResult.insertId }, 'Guru berhasil ditambahkan', 201);
+            log.success('CreateGuru', { nama, nip, userId });
+            return sendSuccessResponse(res, { id: userId }, 'Guru berhasil ditambahkan', 201);
 
         } catch (error) {
             await connection.rollback();
@@ -314,6 +323,55 @@ export const createGuru = async (req, res) => {
     }
 };
 
+// Helper to build update fields for guru table
+const buildGuruUpdateFields = (data) => {
+    const fields = [];
+    const values = [];
+    const fieldMap = {
+        nip: data.nip, nama: data.nama, username: data.username,
+        email: data.email, no_telp: data.no_telp, jenis_kelamin: data.jenis_kelamin,
+        alamat: data.alamat, mapel_id: data.mapel_id, status: data.status
+    };
+    for (const [key, value] of Object.entries(fieldMap)) {
+        if (value !== undefined) {
+            fields.push(`${key} = ?`);
+            values.push(value);
+        }
+    }
+    return { fields, values };
+};
+
+// Helper to build update fields for users table
+const buildUserUpdateFields = async (data, bcrypt, saltRounds) => {
+    const fields = [];
+    const values = [];
+    const fieldMap = {
+        nama: data.nama, username: data.username,
+        email: data.email, status: data.status
+    };
+    for (const [key, value] of Object.entries(fieldMap)) {
+        if (value !== undefined) {
+            fields.push(`${key} = ?`);
+            values.push(value);
+        }
+    }
+    if (data.password !== undefined && data.password !== '') {
+        const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+        fields.push('password = ?');
+        values.push(hashedPassword);
+    }
+    return { fields, values };
+};
+
+// Helper to get guru by ID with user relation
+const getGuruById = async (connection, id) => {
+    const [existingGuru] = await connection.execute(
+        'SELECT g.*, u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
+        [id]
+    );
+    return existingGuru[0];
+};
+
 /**
  * Memperbarui data guru
  * PUT /api/admin/guru/:id
@@ -331,18 +389,13 @@ export const updateGuru = async (req, res) => {
 
     try {
         // Cek apakah guru ada
-        const [existingGuru] = await connection.execute(
-            'SELECT g.*, u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
-            [id]
-        );
+        const guru = await getGuruById(connection, id);
 
-        if (existingGuru.length === 0) {
+        if (!guru) {
             connection.release();
             log.warn('UpdateGuru - guru not found', { id });
             return sendNotFoundError(res, 'Guru tidak ditemukan');
         }
-
-        const guru = existingGuru[0];
 
         // Validasi payload
         const validation = await validateGuruPayload(req.body, {
@@ -360,46 +413,6 @@ export const updateGuru = async (req, res) => {
         await connection.beginTransaction();
 
         try {
-            // Helper to build update fields
-            const buildGuruUpdateFields = (data) => {
-                const fields = [];
-                const values = [];
-                const fieldMap = {
-                    nip: data.nip, nama: data.nama, username: data.username,
-                    email: data.email, no_telp: data.no_telp, jenis_kelamin: data.jenis_kelamin,
-                    alamat: data.alamat, mapel_id: data.mapel_id, status: data.status
-                };
-                for (const [key, value] of Object.entries(fieldMap)) {
-                    if (value !== undefined) {
-                        fields.push(`${key} = ?`);
-                        values.push(value);
-                    }
-                }
-                return { fields, values };
-            };
-
-            // Helper to build user update fields
-            const buildUserUpdateFields = async (data, bcrypt, saltRounds) => {
-                const fields = [];
-                const values = [];
-                const fieldMap = {
-                    nama: data.nama, username: data.username,
-                    email: data.email, status: data.status
-                };
-                for (const [key, value] of Object.entries(fieldMap)) {
-                    if (value !== undefined) {
-                        fields.push(`${key} = ?`);
-                        values.push(value);
-                    }
-                }
-                if (data.password !== undefined && data.password !== '') {
-                    const hashedPassword = await bcrypt.hash(data.password, saltRounds);
-                    fields.push('password = ?');
-                    values.push(hashedPassword);
-                }
-                return { fields, values };
-            };
-
             // Update guru record
             const guruUpdate = buildGuruUpdateFields(req.body);
             if (guruUpdate.fields.length > 0) {
@@ -459,18 +472,13 @@ export const deleteGuru = async (req, res) => {
 
     try {
         // Cek apakah guru ada
-        const [existingGuru] = await connection.execute(
-            'SELECT g.*, u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
-            [id]
-        );
+        const guru = await getGuruById(connection, id);
 
-        if (existingGuru.length === 0) {
+        if (!guru) {
             connection.release();
             log.warn('DeleteGuru - guru not found', { id });
             return sendNotFoundError(res, 'Guru tidak ditemukan');
         }
-
-        const guru = existingGuru[0];
 
         await connection.beginTransaction();
 

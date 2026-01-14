@@ -138,9 +138,9 @@ export interface GuruInSchedule {
   id_guru: number;
   nama_guru: string;
   nip: string;
-  is_primary: boolean;
+  is_primary?: boolean;
   status_kehadiran: string;
-  keterangan_guru: string;
+  keterangan_guru?: string;
   waktu_absen?: string;
   is_submitted?: boolean;
 }

@@ -13,7 +13,8 @@ import { EditProfile } from './EditProfile';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { getCleanToken } from '@/utils/authUtils';
-import { 
+import { GuruInSchedule } from '@/types/dashboard';
+import {
   LogOut, Clock, User, BookOpen, CheckCircle2, XCircle, Calendar, Save,
   GraduationCap, Settings, Menu, X, Home, Users, FileText, Send, AlertCircle, MessageCircle, Eye, Plus, Edit,
   ChevronLeft, ChevronRight, RefreshCw, ChevronDown, ChevronUp
@@ -1658,16 +1659,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                   // Sumber prioritas guru_list:
                   // 1) Jika jadwal.guru_list sudah array (hasil parsing), pakai itu
                   if (Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
-                    acc[key].guru_list = jadwal.guru_list as Array<{
-                      id_guru: number;
-                      nama_guru: string;
-                      nip: string;
-                      is_primary?: boolean;
-                      status_kehadiran: string;
-                      keterangan_guru?: string;
-                      waktu_absen?: string;
-                      is_submitted?: boolean;
-                    }>;
+                    acc[key].guru_list = jadwal.guru_list as GuruInSchedule[];
                   } else {
                     // 2) Jika ada id_guru di record ini, dorong satu guru
                     if (jadwal.id_guru) {
@@ -1678,7 +1670,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                         is_primary: (jadwal.is_primary ?? false) as boolean,
                         status_kehadiran: jadwal.status_kehadiran as string,
                         keterangan_guru: (jadwal.keterangan_guru ?? '') as string
-                      } as any);
+                      } as GuruInSchedule);
                     } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
                       // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
                       const raw = jadwal.nama_guru as string;
@@ -1706,14 +1698,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                   }
                   
                   return acc;
-                }, {} as Record<number, JadwalHariIni & { guru_list: Array<{
-                  id_guru: number;
-                  nama_guru: string;
-                  nip: string;
-                  is_primary?: boolean;
-                  status_kehadiran: string;
-                  keterangan_guru?: string;
-                }> }>);
+                }, {} as Record<number, JadwalHariIni & { guru_list: GuruInSchedule[] }>);
                 
                 const uniqueJadwal = Object.values(groupedJadwal);
                 
