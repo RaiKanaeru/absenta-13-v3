@@ -167,7 +167,7 @@ const BackupManagementView: React.FC = () => {
         loadArchiveStats();
         loadBackupSettings();
         loadCustomSchedules();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []); // Intentional: Load only on component mount, no dependencies needed.
 
     // Auto-refresh custom schedules every minute to update countdown
     useEffect(() => {
