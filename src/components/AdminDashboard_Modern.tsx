@@ -125,6 +125,24 @@ const createSessionExpiredHandler = (
 };
 
 /**
+ * Activity type emoji labels for schedule display (S3776 - extracted to reduce CC)
+ */
+const ACTIVITY_EMOJI_MAP: Record<string, string> = {
+  upacara: '🏳️ Upacara',
+  istirahat: '☕ Istirahat',
+  kegiatan_khusus: '🎯 Kegiatan Khusus',
+  libur: '🏖️ Libur',
+  ujian: '📝 Ujian',
+  pelajaran: '📚 Pelajaran',
+  lainnya: '📋 Lainnya'
+};
+
+/** Get activity label with emoji */
+const getActivityEmojiLabel = (jenisAktivitas: string): string => {
+  return ACTIVITY_EMOJI_MAP[jenisAktivitas] || `📋 ${jenisAktivitas}`;
+};
+
+/**
  * Generates page numbers for pagination (extracted to reduce cognitive complexity)
  * @param currentPage - Current active page
  * @param totalPages - Total number of pages
@@ -3922,21 +3940,12 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <div>
                         <span className="text-gray-500">Jenis:</span>
                         <div className="mt-1">
-                          {schedule.jenis_aktivitas !== 'pelajaran' ? (() => {
-                            const activityMap: Record<string, string> = {
-                              upacara: '🏳️ Upacara', istirahat: '☕ Istirahat',
-                              kegiatan_khusus: '🎯 Kegiatan Khusus', libur: '🏖️ Libur', ujian: '📝 Ujian'
-                            };
-                            return (
-                              <Badge variant="secondary" className="text-xs">
-                                {activityMap[schedule.jenis_aktivitas] || '📋 ' + schedule.jenis_aktivitas}
-                              </Badge>
-                            );
-                          })() : (
-                            <Badge variant="default" className="text-xs">
-                              📚 Pelajaran
-                            </Badge>
-                          )}
+                          <Badge 
+                            variant={schedule.jenis_aktivitas === 'pelajaran' ? 'default' : 'secondary'} 
+                            className="text-xs"
+                          >
+                            {getActivityEmojiLabel(schedule.jenis_aktivitas)}
+                          </Badge>
                         </div>
                       </div>
                       <div>
