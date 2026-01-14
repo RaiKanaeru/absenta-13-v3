@@ -95,7 +95,6 @@ const getHttpErrorMessage = (status: number, defaultMessage: string): string => 
 };
 
 /**
-
  * Get guru_id from jadwal object, trying multiple field names
  */
 const getGuruIdFromJadwal = (
@@ -106,6 +105,75 @@ const getGuruIdFromJadwal = (
   const guruId = jadwal?.guru_id || jadwal?.id_guru || kehadiranDataEntry?.guru_id;
   return guruId || null;
 };
+
+// =============================================================================
+// LABEL MAPS (extracted to reduce nesting depth and cognitive complexity)
+// =============================================================================
+
+/** Status attendance label map */
+const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
+  'Hadir': 'Hadir',
+  'hadir': 'Hadir',
+  'Izin': 'Izin',
+  'izin': 'Izin',
+  'Sakit': 'Sakit',
+  'sakit': 'Sakit',
+  'Alpa': 'Alpa',
+  'alpa': 'Alpa',
+  'Dispen': 'Dispen',
+  'dispen': 'Dispen',
+  'belum_diambil': 'Belum Diabsen',
+  'tidak_hadir': 'Tidak Hadir',
+  'terlambat': 'Terlambat'
+};
+
+/** Get attendance status label */
+const getAttendanceStatusLabel = (status: string): string => {
+  return ATTENDANCE_STATUS_LABELS[status] || status;
+};
+
+/** Activity type label map */
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  'upacara': 'Upacara',
+  'istirahat': 'Istirahat',
+  'kegiatan_khusus': 'Kegiatan Khusus',
+  'libur': 'Libur',
+  'ujian': 'Ujian',
+  'pelajaran': 'Pelajaran',
+  'lainnya': 'Lainnya'
+};
+
+/** Get activity type label */
+const getActivityTypeLabel = (jenisAktivitas: string | undefined): string => {
+  if (!jenisAktivitas) return 'Khusus';
+  return ACTIVITY_TYPE_LABELS[jenisAktivitas] || jenisAktivitas;
+};
+
+/** Banding status label map */
+const BANDING_STATUS_LABELS: Record<string, string> = {
+  'pending': 'Menunggu',
+  'disetujui': 'Disetujui',
+  'ditolak': 'Ditolak'
+};
+
+/** Get banding status label */
+const getBandingStatusLabel = (status: string): string => {
+  return BANDING_STATUS_LABELS[status] || status;
+};
+
+/** Banding status badge color map */
+const BANDING_STATUS_COLORS: Record<string, string> = {
+  'pending': 'bg-yellow-100 text-yellow-800',
+  'disetujui': 'bg-green-100 text-green-800',
+  'ditolak': 'bg-red-100 text-red-800'
+};
+
+/** Get banding status badge color */
+const getBandingStatusColor = (status: string): string => {
+  return BANDING_STATUS_COLORS[status] || 'bg-gray-100 text-gray-800';
+};
+
+// =============================================================================
 
 interface BandingAbsen {
   id_banding: number;
@@ -1755,17 +1823,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                         <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
                         <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
                         <Badge className={`text-xs ${getStatusBadgeColor(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}`}>
-                          {(() => {
-                            const status = kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil';
-                            const labelMap: Record<string, string> = {
-                              hadir: 'Hadir',
-                              'tidak hadir': 'Tidak Hadir',
-                              izin: 'Izin',
-                              sakit: 'Sakit',
-                              belum_diambil: 'Belum Diambil'
-                            };
-                            return labelMap[status.toLowerCase()] || status;
-                          })()}
+                          {getAttendanceStatusLabel(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}
                         </Badge>
                         {jadwal.waktu_catat && (
                           <Badge variant="secondary" className="text-xs">
