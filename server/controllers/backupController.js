@@ -20,14 +20,12 @@ const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'backups')
 const TEMP_DIR = path.join(process.cwd(), 'temp');
 
 // Ensure directories exist
-(async () => {
-    try {
-        await fs.mkdir(BACKUP_DIR, { recursive: true });
-        await fs.mkdir(TEMP_DIR, { recursive: true });
-    } catch (err) {
-        logger.error('Failed to create backup/temp directories', err);
-    }
-})();
+try {
+    await fs.mkdir(BACKUP_DIR, { recursive: true });
+    await fs.mkdir(TEMP_DIR, { recursive: true });
+} catch (err) {
+    logger.error('Failed to create backup/temp directories', err);
+}
 
 // ================================================
 // HELPER FUNCTIONS
@@ -219,6 +217,7 @@ async function updateBackupSettings() {
             const settingsData = await fs.readFile(settingsPath, 'utf8');
             settings = JSON.parse(settingsData);
         } catch (fileError) {
+            logger.debug('Settings file not found or invalid, using defaults', { error: fileError.message });
             settings = {
                 autoBackupSchedule: 'weekly',
                 maxBackups: 10,
@@ -243,7 +242,10 @@ async function updateBackupSettings() {
  */
 function validateBackupDates(startDate, endDate) {
     if (!startDate) {
-        throw { status: 400, message: 'Start date is required', error: 'Invalid input' };
+        const err = new Error('Start date is required');
+        err.status = 400;
+        err.error = 'Invalid input';
+        throw err;
     }
 
     // Jika endDate tidak ada, gunakan startDate sebagai endDate (backup satu hari)
@@ -253,18 +255,27 @@ function validateBackupDates(startDate, endDate) {
     const endDateObj = new Date(actualEndDate);
 
     if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
-        throw { status: 400, message: 'Please provide valid dates in YYYY-MM-DD format', error: 'Invalid date format' };
+        const err = new Error('Please provide valid dates in YYYY-MM-DD format');
+        err.status = 400;
+        err.error = 'Invalid date format';
+        throw err;
     }
 
     if (startDateObj > endDateObj) {
-        throw { status: 400, message: 'Start date cannot be after end date', error: 'Invalid date range' };
+        const err = new Error('Start date cannot be after end date');
+        err.status = 400;
+        err.error = 'Invalid date range';
+        throw err;
     }
 
     // Cek apakah tanggal tidak di masa depan
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     if (startDateObj > today) {
-        throw { status: 400, message: 'Cannot backup future dates', error: 'Invalid date' };
+        const err = new Error('Cannot backup future dates');
+        err.status = 400;
+        err.error = 'Invalid date';
+        throw err;
     }
 
     return { actualEndDate, startDateObj, endDateObj };
@@ -405,6 +416,7 @@ const createDateBackup = async (req, res) => {
             startDateObj = validation.startDateObj;
             endDateObj = validation.endDateObj;
         } catch (validationError) {
+            logger.warn('Backup date validation failed', { error: validationError.message });
             return res.status(validationError.status || 400).json({
                 error: validationError.error,
                 message: validationError.message
@@ -932,7 +944,7 @@ const getArchiveStats = async (req, res) => {
             const [studentArchive] = await globalThis.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
             studentArchiveCount = studentArchive[0]?.count || 0;
         } catch (error) {
-            logger.warn('Student archive table not found, using 0');
+            logger.warn('Student archive table not found, using 0', { error: error.message });
         }
 
         // Get teacher archive count
@@ -941,7 +953,7 @@ const getArchiveStats = async (req, res) => {
             const [teacherArchive] = await globalThis.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
             teacherArchiveCount = teacherArchive[0]?.count || 0;
         } catch (error) {
-            logger.warn('Teacher archive table not found, using 0');
+            logger.warn('Teacher archive table not found, using 0', { error: error.message });
         }
 
         // Get total archive size (approximate)
@@ -957,7 +969,8 @@ const getArchiveStats = async (req, res) => {
                 const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
                 lastArchive = lastArchiveResult[0]?.last_archive || null;
             } catch (err) {
-                // Table doesn't exist
+                // Table doesn't exist, ignore
+                logger.debug('Archive table check failed', { error: err.message });
             }
         }
 
@@ -1408,6 +1421,7 @@ const createManualBackup = async (req, res) => {
         try {
             await fs.access(backupDir);
         } catch (error) {
+            // Directory doesn't exist, create it
             await fs.mkdir(backupDir, { recursive: true });
         }
 
@@ -1435,7 +1449,7 @@ const createManualBackup = async (req, res) => {
             res.send(fileContent);
 
         } catch (mysqldumpError) {
-            logger.debug('mysqldump not available, using manual backup');
+            logger.debug('mysqldump not available, using manual backup', { error: mysqldumpError.message });
             const result = await performManualDatabaseBackup(filepath, filename);
 
             res.setHeader('Content-Type', 'application/sql');

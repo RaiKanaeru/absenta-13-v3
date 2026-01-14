@@ -269,6 +269,54 @@ async function parseJadwalFriendlyFormat(rowData) {
 }
 
 /**
+ * Process a single jadwal row and return parsed data or error
+ */
+async function processJadwalRow(rowData, rowNum, isBasicFormat) {
+    const fieldErrors = validateRequiredJadwalFields(rowData);
+    if (fieldErrors.length > 0) {
+        return { error: { index: rowNum, errors: fieldErrors, data: rowData } };
+    }
+
+    const parsedIds = isBasicFormat
+        ? await parseJadwalBasicFormat(rowData)
+        : await parseJadwalFriendlyFormat(rowData);
+    
+    const { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array } = parsedIds;
+
+    if (!kelas_id) {
+        return { error: { index: rowNum, errors: ['Kelas tidak ditemukan'], data: rowData } };
+    }
+
+    const jadwalObj = buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array);
+    return { valid: jadwalObj };
+}
+
+/**
+ * Persist jadwal batch to database
+ */
+async function persistJadwalBatch(conn, validItems) {
+    for (const v of validItems) {
+        const [result] = await conn.execute(
+            `INSERT INTO jadwal_pelajaran (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable, keterangan_khusus, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus, v.status]
+        );
+        
+        const jadwalId = result.insertId;
+
+        // Insert guru pendamping / multi-guru
+        if (v.guru_ids && v.guru_ids.length > 0) {
+            for (const gid of v.guru_ids) {
+                await conn.execute(
+                    `INSERT INTO jadwal_guru (jadwal_id, guru_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE guru_id=guru_id`,
+                    [jadwalId, gid]
+                );
+            }
+        }
+    }
+}
+
+/**
  * Import jadwal from Excel file
  * POST /api/admin/import/jadwal
  */
@@ -285,37 +333,14 @@ const importJadwal = async (req, res) => {
         const errors = [];
         const valid = [];
 
+        // Process each row using extracted helper
         for (let i = 0; i < rows.length; i++) {
-            const rowData = rows[i];
-            const rowNum = i + 2;
-
             try {
-                // validation
-                const fieldErrors = validateRequiredJadwalFields(rowData);
-                if (fieldErrors.length > 0) {
-                    errors.push({ index: rowNum, errors: fieldErrors, data: rowData });
-                    continue;
-                }
-
-                // parse IDs
-                let parsedIds;
-                if (isBasicFormat) {
-                    parsedIds = await parseJadwalBasicFormat(rowData);
-                } else {
-                    parsedIds = await parseJadwalFriendlyFormat(rowData);
-                }
-                
-                const { kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array } = parsedIds;
-
-                if (!kelas_id) {
-                    errors.push({ index: rowNum, errors: ['Kelas tidak ditemukan'], data: rowData });
-                    continue;
-                }
-
-                const jadwalObj = buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array);
-                valid.push(jadwalObj);
+                const result = await processJadwalRow(rows[i], i + 2, isBasicFormat);
+                if (result.error) errors.push(result.error);
+                else valid.push(result.valid);
             } catch (err) {
-                errors.push({ index: rowNum, errors: [err.message], data: rowData });
+                errors.push({ index: i + 2, errors: [err.message], data: rows[i] });
             }
         }
 
@@ -334,34 +359,7 @@ const importJadwal = async (req, res) => {
         const conn = await globalThis.dbPool.getConnection();
         try {
             await conn.beginTransaction();
-
-            // Clear existing jadwal for affected classes? Or just append/update?
-            // Strategy: Insert/Update based on unique key? 
-            // Jadwal table structure usually ID auto increment. 
-            // Here we just insert new records. 
-            
-            for (const v of valid) {
-                // Insert main jadwal
-                const [result] = await conn.execute(
-                    `INSERT INTO jadwal_pelajaran (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable, keterangan_khusus, status)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus, v.status]
-                );
-                
-                const jadwalId = result.insertId;
-
-                // Insert guru pendamping / multi-guru
-                if (v.guru_ids && v.guru_ids.length > 0) {
-                    for (const gid of v.guru_ids) {
-                        // Avoid duplicate if primary guru is same
-                        await conn.execute(
-                            `INSERT INTO jadwal_guru (jadwal_id, guru_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE guru_id=guru_id`,
-                            [jadwalId, gid]
-                        );
-                    }
-                }
-            }
-
+            await persistJadwalBatch(conn, valid);
             await conn.commit();
         } catch (e) {
             await conn.rollback();
@@ -376,6 +374,7 @@ const importJadwal = async (req, res) => {
         return sendDatabaseError(res, err, 'Gagal impor jadwal');
     }
 };
+
 
 // ================================================
 // IMPORT SISWA (Student Data)

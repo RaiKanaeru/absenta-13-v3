@@ -35,6 +35,7 @@ SET @t_1345 = '13:45:00';
 SET @t_1430 = '14:30:00';
 SET @ket_ist1 = 'Setelah Istirahat 1';
 SET @ket_ist2 = 'Setelah Istirahat 2';
+SET @status_aktif = 'aktif';
 
 -- Insert default jam pelajaran for all existing classes
 -- Using standard 10 jam pelajaran template
@@ -58,7 +59,7 @@ CROSS JOIN (
     UNION ALL SELECT 9, @t_1300, @t_1345, @ket_ist2
     UNION ALL SELECT 10, @t_1345, @t_1430, NULL
 ) j
-WHERE k.status = 'aktif'
+WHERE k.status = @status_aktif
 ON DUPLICATE KEY UPDATE 
     jam_mulai = VALUES(jam_mulai),
     jam_selesai = VALUES(jam_selesai);
