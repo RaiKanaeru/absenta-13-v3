@@ -235,7 +235,7 @@ class DatabaseOptimization {
         try {
             for (const test of testQueries) {
                 const startTime = Date.now();
-                const [result] = await this.pool.execute(test.query);
+                await this.pool.execute(test.query);
                 const endTime = Date.now();
                 const executionTime = endTime - startTime;
                 
@@ -279,7 +279,7 @@ class DatabaseOptimization {
 
                 if (existingTables.length === 0) {
                     // Create archive table with same structure as source table
-                    const [createTableResult] = await this.pool.execute(
+                    await this.pool.execute(
                         `CREATE TABLE ${table.name} LIKE ${table.sourceTable}`
                     );
                     

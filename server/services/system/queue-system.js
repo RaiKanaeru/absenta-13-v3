@@ -253,7 +253,7 @@ class DownloadQueue {
      * Add Excel download job to queue
      */
     async addExcelDownloadJob(jobData) {
-        const { type, userRole, userId, filters, priority = 'normal' } = jobData;
+        const { type, userRole, userId } = jobData;
         
         // Determine priority based on user role
         const jobPriority = this.priorityLevels[userRole] || 3;
@@ -295,7 +295,7 @@ class DownloadQueue {
      * Process student attendance download
      */
     async processStudentAttendanceDownload(job) {
-        const { filters, userId, userRole } = job.data;
+        const { filters } = job.data;
         const { tanggal_mulai, tanggal_selesai, kelas_id } = filters;
         
         logger.debug('Processing student attendance download', { jobId: job.id });
@@ -405,7 +405,7 @@ class DownloadQueue {
      * Process teacher attendance download
      */
     async processTeacherAttendanceDownload(job) {
-        const { filters, userId, userRole } = job.data;
+        const { filters } = job.data;
         const { tanggal_mulai, tanggal_selesai, guru_id } = filters;
         
         logger.debug('Processing teacher attendance download', { jobId: job.id });
@@ -511,7 +511,7 @@ class DownloadQueue {
      * Process analytics report download
      */
     async processAnalyticsReportDownload(job) {
-        const { filters, userId, userRole } = job.data;
+        const { filters } = job.data;
         const { semester, year } = filters;
         
         logger.debug('Processing analytics report download', { jobId: job.id });
@@ -604,7 +604,7 @@ class DownloadQueue {
      * Process semester report generation
      */
     async processSemesterReportGeneration(job) {
-        const { semester, year, userId } = job.data;
+        const { semester, year } = job.data;
         
         logger.debug('Processing semester report generation', { jobId: job.id });
         
