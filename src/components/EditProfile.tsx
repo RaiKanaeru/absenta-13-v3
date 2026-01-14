@@ -16,7 +16,8 @@ import {
   X, 
   AlertCircle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  User
 } from 'lucide-react';
 
 interface UserProfile {

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { Download, Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, CheckCircle, AlertTriangle } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 
@@ -95,7 +95,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       
       if (response.ok) {
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        const url = globalThis.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         
@@ -114,7 +114,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
+        globalThis.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
         toast({

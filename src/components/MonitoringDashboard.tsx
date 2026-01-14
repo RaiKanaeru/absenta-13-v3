@@ -211,7 +211,7 @@ const MonitoringDashboard: React.FC = () => {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         const sizeIndex = Math.min(i, sizes.length - 1);
         
-        return parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
+        return Number.parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
     };
 
     const formatUptime = (seconds: number) => {

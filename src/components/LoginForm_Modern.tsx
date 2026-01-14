@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Lock, User, Eye, EyeOff, CheckCircle2, Sparkles, Shield, Zap, AlertTriangle, Clock } from "lucide-react";
+import { Loader2, Sparkles, Shield, Zap, AlertTriangle, Clock, User, Lock, Eye, EyeOff } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 interface LoginFormProps {
@@ -38,7 +38,9 @@ const getFailedAttempts = (): { count: number; timestamp: number } => {
         return data;
       }
     }
-  } catch (e) { /* abaikan error parsing */ }
+  } catch (e) { 
+    console.debug('Error parsing login attempts:', e);
+  }
   return { count: 0, timestamp: Date.now() };
 };
 
@@ -82,7 +84,9 @@ const getLockout = (): { lockedUntil: number } | null => {
       // Hapus lockout yang sudah expired
       localStorage.removeItem(LOCKOUT_KEY);
     }
-  } catch (e) { /* abaikan */ }
+  } catch (e) { 
+    console.debug('Error parsing lockout:', e);
+  }
   return null;
 };
 
@@ -190,9 +194,9 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const prevErrorRef = useRef<string | null>(null);
   useEffect(() => {
     // Check if error contains lockout message (429 response)
-    if (error && error.includes('Coba lagi dalam')) {
+    if (error?.includes('Coba lagi dalam')) {
       // Extract retry time from error message
-      const match = error.match(/(\d+)\s*menit/);
+      const match = /(\d+)\s*menit/.exec(error);
       if (match) {
         const minutes = Number.parseInt(match[1]);
         setLockout(minutes * 60);

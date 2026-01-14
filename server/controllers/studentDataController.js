@@ -10,6 +10,38 @@ import * as studentService from '../services/studentService.js';
 const logger = createLogger('StudentData');
 
 /**
+ * Handles student service errors with appropriate HTTP responses
+ */
+function handleStudentServiceError(res, error, context, defaultMessage) {
+    if (error instanceof studentService.ServiceError) {
+        if (error.code === 'DUPLICATE_NIS') return sendDuplicateError(res, error.message);
+        if (error.code === 'DUPLICATE_PHONE') return sendDuplicateError(res, error.message);
+        if (error.code === 'NOT_FOUND') return sendNotFoundError(res, error.message);
+    }
+    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+        return sendValidationError(res, 'Kelas tidak ditemukan', { field: 'kelas_id' });
+    }
+    context.log.dbError(context.operation, error, context.data);
+    return sendDatabaseError(res, error, defaultMessage);
+}
+
+/**
+ * Validates promotion input parameters
+ */
+function validatePromoteInput(fromClassId, toClassId, studentIds, log) {
+    if (!fromClassId || !toClassId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+        log.validationFail('required_fields', null, 'fromClassId, toClassId, studentIds required');
+        return 'fromClassId, toClassId, dan studentIds wajib diisi (array tidak kosong)';
+    }
+    if (typeof fromClassId !== 'string' && typeof fromClassId !== 'number') return 'Invalid fromClassId type';
+    if (typeof toClassId !== 'string' && typeof toClassId !== 'number') return 'Invalid toClassId type';
+    if (!studentIds.every(id => typeof id === 'number' && Number.isInteger(id) && id > 0)) {
+        return 'studentIds harus berupa integer positif';
+    }
+    return null; // No error
+}
+
+/**
  * Mengambil data semua siswa untuk dashboard admin
  * GET /api/admin/students/data
  */
@@ -85,18 +117,10 @@ export const updateStudentData = async (req, res) => {
         log.success('Update', { id, nis, nama });
         return sendSuccessResponse(res, null, 'Data siswa berhasil diupdate');
     } catch (error) {
-        if (error instanceof studentService.ServiceError) {
-             if (error.code === 'DUPLICATE_PHONE') return sendDuplicateError(res, error.message);
-             if (error.code === 'DUPLICATE_NIS') return sendDuplicateError(res, error.message);
-             if (error.code === 'NOT_FOUND') return sendNotFoundError(res, error.message);
-        }
-        if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-             return sendValidationError(res, 'Kelas tidak ditemukan', { field: 'kelas_id' });
-        }
-        log.dbError('update', error, { id, nis, nama });
-        return sendDatabaseError(res, error, 'Gagal mengupdate data siswa');
+        return handleStudentServiceError(res, error, { log, operation: 'update', data: { id, nis, nama } }, 'Gagal mengupdate data siswa');
     }
 };
+
 
 /**
  * Menghapus data siswa
@@ -132,15 +156,10 @@ export const promoteStudents = async (req, res) => {
     log.requestStart('PromoteStudents', { fromClassId, toClassId, studentCount: studentIds?.length });
 
     try {
-        // Validasi input
-        if (!fromClassId || !toClassId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
-            log.validationFail('required_fields', null, 'fromClassId, toClassId, studentIds required');
-            return sendValidationError(res, 'fromClassId, toClassId, dan studentIds wajib diisi (array tidak kosong)');
-        }
-        if (typeof fromClassId !== 'string' && typeof fromClassId !== 'number') return sendValidationError(res, 'Invalid fromClassId type');
-        if (typeof toClassId !== 'string' && typeof toClassId !== 'number') return sendValidationError(res, 'Invalid toClassId type');
-        if (!studentIds.every(id => typeof id === 'number' && Number.isInteger(id) && id > 0)) {
-            return sendValidationError(res, 'studentIds harus berupa integer positif');
+        // Validate input using helper
+        const validationError = validatePromoteInput(fromClassId, toClassId, studentIds, log);
+        if (validationError) {
+            return sendValidationError(res, validationError);
         }
 
         const result = await studentService.promoteStudents(fromClassId, toClassId, studentIds);
@@ -148,13 +167,19 @@ export const promoteStudents = async (req, res) => {
         log.success('PromoteStudents', result);
         return sendSuccessResponse(res, result, 'Siswa berhasil dinaikkan kelas');
     } catch (error) {
+        // Handle specific promotion errors
         if (error instanceof studentService.ServiceError) {
-             if (error.code === 'CLASS_NOT_FOUND') return sendNotFoundError(res, error.message);
-             if (error.code === 'INVALID_PROMOTION_LEVEL') return sendValidationError(res, error.message);
-             if (error.code === 'INVALID_PROMOTION_PATH') return sendValidationError(res, error.message);
-             if (error.code === 'STUDENT_MISMATCH') return sendValidationError(res, error.message);
+            const errorMap = {
+                'CLASS_NOT_FOUND': () => sendNotFoundError(res, error.message),
+                'INVALID_PROMOTION_LEVEL': () => sendValidationError(res, error.message),
+                'INVALID_PROMOTION_PATH': () => sendValidationError(res, error.message),
+                'STUDENT_MISMATCH': () => sendValidationError(res, error.message)
+            };
+            const handler = errorMap[error.code];
+            if (handler) return handler();
         }
         log.dbError('promote', error, { fromClassId, toClassId });
         return sendDatabaseError(res, error, 'Gagal mempromosikan siswa');
     }
 };
+

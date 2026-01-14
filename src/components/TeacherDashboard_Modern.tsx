@@ -1,22 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, getCurrentYearWIB, formatDateWIB, getWIBTime, toWIBTime, getMonthRangeWIB, parseDateWIB, getDayNameWIB } from "@/lib/time-utils";
+import { formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { FontSizeControl } from "@/components/ui/font-size-control";
 import { 
-  Clock, Users, CheckCircle, LogOut, ArrowLeft, History, MessageCircle, Calendar,
-  BookOpen, GraduationCap, Settings, Menu, X, Home, Bell, FileText, ClipboardList, Download, Search,
-  Edit, XCircle, Filter, Eye, ChevronLeft, ChevronRight
+  Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings
 } from "lucide-react";
 import ExcelPreview from './ExcelPreview';
 import { EditProfile } from './EditProfile';

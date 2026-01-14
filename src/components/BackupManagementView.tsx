@@ -1613,7 +1613,7 @@ const BackupManagementView: React.FC = () => {
                             )}
 
                             {/* Jadwal Mendatang */}
-                            {customSchedules.filter(s => s.enabled && !s.lastRun).length > 0 && (
+                            {customSchedules.some(s => s.enabled && !s.lastRun) && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                     <h4 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
                                         <Calendar className="w-4 h-4" />

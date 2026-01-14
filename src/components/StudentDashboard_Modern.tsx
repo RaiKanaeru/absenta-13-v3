@@ -7,16 +7,16 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, getCurrentYearWIB, formatDateWIB, getWIBTime, toWIBTime } from '@/lib/time-utils';
+import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, getCurrentYearWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
 import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
-import { apiCall } from '@/utils/apiClient';
+
 import { getApiUrl } from '@/config/api';
 import { getCleanToken } from '@/utils/authUtils';
 import { GuruInSchedule } from '@/types/dashboard';
 import {
   LogOut, Clock, User, BookOpen, CheckCircle2, XCircle, Calendar, Save,
-  GraduationCap, Settings, Menu, X, Home, Users, FileText, Send, AlertCircle, MessageCircle, Eye, Plus, Edit,
+  Settings, Menu, X, Users, AlertCircle, MessageCircle, Eye, Edit,
   ChevronLeft, ChevronRight, RefreshCw, ChevronDown, ChevronUp
 } from 'lucide-react';
 
@@ -532,6 +532,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             errorMessage = errorData.error || errorMessage;
           } catch (parseError) {
             // Ignore JSON parse errors for error responses
+            console.debug('Error parsing error response:', parseError);
           }
           
           if (response.status === 401) {
@@ -1539,7 +1540,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button 
                   variant="outline" 
-                  onClick={() => window.location.reload()}
+                  onClick={() => globalThis.location.reload()}
                   className="flex items-center gap-2 text-sm"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -2669,7 +2670,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                             value={selectedSiswaId ?? ''}
                             onChange={(e) => {
-                              const val = e.target.value ? Number.parseInt(e.target.value, 10) : NaN;
+                              const val = e.target.value ? Number.parseInt(e.target.value, 10) : Number.NaN;
                               const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === val) || undefined;
 
                               setSelectedSiswaId(Number.isNaN(val) ? null : val);
@@ -3275,7 +3276,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                   setError(null);
                   setInitialLoading(true);
                   // Retry the initial data fetch
-                  window.location.reload();
+                  globalThis.location.reload();
                 }} 
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
