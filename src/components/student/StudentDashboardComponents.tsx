@@ -1,8 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, RefreshCw, Clock, User } from 'lucide-react';
+import { Calendar, RefreshCw, Clock, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateWIB, formatTime24 } from '@/lib/time-utils';
 
 // Types extracted/adapted from parent
@@ -11,49 +12,48 @@ export interface EmptyScheduleViewProps {
   onRefresh: () => void;
 }
 
-export const EmptyScheduleView: React.FC<EmptyScheduleViewProps> = ({ isEditMode, onRefresh }) => (
-  <div className="space-y-4 sm:space-y-6">
-    {isEditMode && (
-      <Card className="border-blue-200 bg-blue-50">
-        <CardHeader className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Clock className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="text-sm text-blue-800">
-              <p className="font-medium">Mode Edit Absen Aktif</p>
-              <p>Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-    )}
+const getBandingStatusClass = (status: string) => {
+  switch (status) {
+    case 'disetujui': return 'bg-green-100 text-green-800 hover:bg-green-200';
+    case 'ditolak': return 'bg-red-100 text-red-800 hover:bg-red-200';
+    default: return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+  }
+};
 
-    <Card>
-      <CardContent className="p-6 sm:p-12 text-center">
-        <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
-        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Tidak Ada Jadwal Hari Ini</h3>
-        <p className="text-sm sm:text-base text-gray-600 mb-4">
-          Selamat beristirahat! Tidak ada mata pelajaran yang terjadwal untuk hari ini.
+const getBandingStatusLabel = (status: string) => {
+  switch (status) {
+    case 'disetujui': return 'Disetujui';
+    case 'ditolak': return 'Ditolak';
+    default: return 'Menunggu';
+  }
+};
+
+// Renamed for clarity: This is just the empty state card
+export const EmptyScheduleCard: React.FC<{ isEditMode: boolean; onRefresh: () => void }> = ({ isEditMode, onRefresh }) => (
+  <Card>
+    <CardContent className="p-6 sm:p-12 text-center">
+      <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
+      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Tidak Ada Jadwal Hari Ini</h3>
+      <p className="text-sm sm:text-base text-gray-600 mb-4">
+        Selamat beristirahat! Tidak ada mata pelajaran yang terjadwal untuk hari ini.
+      </p>
+      {!isEditMode && (
+        <p className="text-xs sm:text-sm text-gray-500 mb-4">
+          Gunakan tombol "Edit Absen (30 Hari)" di atas untuk melihat jadwal hari lain.
         </p>
-        {!isEditMode && (
-          <p className="text-xs sm:text-sm text-gray-500 mb-4">
-            Gunakan tombol "Edit Absen (30 Hari)" di atas untuk melihat jadwal hari lain.
-          </p>
-        )}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button 
-            variant="outline" 
-            onClick={onRefresh}
-            className="flex items-center gap-2 text-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh Jadwal
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
+      )}
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Button 
+          variant="outline" 
+          onClick={onRefresh}
+          className="flex items-center gap-2 text-sm"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh Jadwal
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
 );
 
 interface EditModeHeaderProps {
@@ -111,21 +111,20 @@ export interface BandingItemProps {
     catatan_guru?: string;
     status_asli?: string;
     status_diajukan?: string;
+    tanggal_absen?: string;
+    jam_mulai?: string;
+    jam_selesai?: string;
+    nama_mapel?: string;
+    nama_guru?: string;
+    nama_kelas?: string;
   };
+  isExpanded: boolean;
+  onToggle: () => void;
 }
 
-export const BandingCardItem: React.FC<BandingItemProps> = ({ banding }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'disetujui': return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'ditolak': return 'bg-red-100 text-red-800 hover:bg-red-200';
-      default: return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
-    }
-  };
+export const BandingCardItem: React.FC<BandingItemProps> = ({ banding, isExpanded, onToggle }) => {
+  const statusLabel = getBandingStatusLabel(banding.status_banding);
 
-  const statusLabel = 
-    banding.status_banding === 'disetujui' ? 'Disetujui' :
-    banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu';
 
   return (
     <Card className="border-l-4 border-l-orange-500 mb-4">
@@ -140,43 +139,398 @@ export const BandingCardItem: React.FC<BandingItemProps> = ({ banding }) => {
               {formatTime24(banding.tanggal_pengajuan)}
             </div>
           </div>
-          <Badge className={getStatusColor(banding.status_banding)}>
+          <Badge className={getBandingStatusClass(banding.status_banding)}>
             {statusLabel}
           </Badge>
         </div>
 
-        {/* Info Siswa (jika ada) */}
-        {banding.nama_siswa && (
-            <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-            <User className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium">{banding.nama_siswa}</span>
+        {/* Informasi jadwal (Mobile View) */}
+        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium">{formatDateWIB(banding.tanggal_absen || '')}</span>
+            <span className="text-xs text-gray-500">({banding.jam_mulai}-{banding.jam_selesai})</span>
+            </div>
+            <div className="text-sm">
+            <div className="font-medium">{banding.nama_mapel}</div>
+            <div className="text-gray-600">{banding.nama_guru}</div>
+            <div className="text-xs text-gray-500">{banding.nama_kelas}</div>
+            </div>
+        </div>
+
+        {/* Detail Siswa & Toggle */}
+        <div className="space-y-2">
+            <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">
+                {banding.nama_siswa || 'Siswa Individual'}
+            </span>
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggle}
+                className="h-6 w-6 p-0"
+            >
+                {isExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+                ) : (
+                <ChevronDown className="h-4 w-4" />
+                )}
+            </Button>
+            </div>
+            <div className="flex items-center gap-2">
+            <Badge 
+                variant="outline" 
+                className="text-xs px-1 py-0"
+            >
+                {banding.status_asli} → {banding.status_diajukan}
+            </Badge>
+            </div>
+        </div>
+
+        {/* Respon guru */}
+        {banding.catatan_guru && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-xs font-medium text-blue-700 mb-1">Respon Guru:</div>
+            <div className="text-xs text-blue-600 break-words">{banding.catatan_guru}</div>
             </div>
         )}
 
-        {/* Detail Banding */}
-        <div className="grid grid-cols-2 gap-2 text-sm border-t pt-2">
-            <div>
-            <p className="text-xs text-gray-500">Status Awal</p>
-            <p className="font-medium capitalize">{banding.status_asli || '-'}</p>
+        {/* Expanded Detail */}
+        {isExpanded && (
+            <div className="border-t pt-3 space-y-3">
+            <div className="bg-white rounded-lg border p-3">
+                <h4 className="font-semibold text-gray-800 mb-3 text-sm">Detail Siswa Banding</h4>
+                
+                <div className="grid grid-cols-1 gap-3">
+                <div>
+                    <div className="text-xs font-medium text-gray-600 mb-1">Nama Siswa</div>
+                    <div className="text-sm text-gray-800">
+                    {banding.nama_siswa || 'Siswa Individual'}
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                    <div className="text-xs font-medium text-gray-600 mb-1">Status Tercatat</div>
+                    <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
+                    </div>
+                    <div>
+                    <div className="text-xs font-medium text-gray-600 mb-1">Status Diajukan</div>
+                    <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
+                    </div>
+                </div>
+                <div>
+                    <div className="text-xs font-medium text-gray-600 mb-1">Alasan</div>
+                    <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
+                </div>
+                </div>
             </div>
-            <div>
-            <p className="text-xs text-gray-500">Diajukan</p>
-            <p className="font-medium capitalize">{banding.status_diajukan || '-'}</p>
-            </div>
-        </div>
-
-        <div className="text-sm border-t pt-2">
-            <p className="text-xs text-gray-500 mb-1">Alasan:</p>
-            <p className="text-gray-700 italic">"{banding.alasan_banding}"</p>
-        </div>
-
-        {banding.catatan_guru && (
-            <div className="text-sm bg-gray-50 p-2 rounded border border-gray-100 mt-2">
-            <p className="text-xs text-gray-500 font-semibold mb-1">Catatan Guru:</p>
-            <p className="text-gray-700">{banding.catatan_guru}</p>
             </div>
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// =============================================================================
+// NEW: BandingList and Dependencies for Refactoring
+// =============================================================================
+
+export type BandingStatusAsli = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+export type BandingStatusDiajukan = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+
+export interface BandingAbsen {
+  id_banding: number;
+  siswa_id: number;
+  jadwal_id: number;
+  tanggal_absen: string;
+  status_asli: BandingStatusAsli;
+  status_diajukan: BandingStatusDiajukan;
+  alasan_banding: string;
+  status_banding: 'pending' | 'disetujui' | 'ditolak';
+  catatan_guru?: string;
+  tanggal_pengajuan: string;
+  tanggal_keputusan?: string;
+  nama_mapel?: string;
+  nama_guru?: string;
+  jam_mulai?: string;
+  jam_selesai?: string;
+  nama_kelas?: string;
+  jenis_banding?: 'individual';
+  nama_siswa?: string;
+}
+
+export const Pagination = React.memo(({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; }) => {
+  const getVisiblePages = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+        range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+        rangeWithDots.push(1, '...');
+    } else {
+        rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+        rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+        rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
+  if (totalPages <= 1 || totalPages === 0) {
+    return null;
+  }
+
+  return (
+    <div className="w-full overflow-x-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2 mt-4 sm:mt-6 min-w-0">
+        <div className="flex sm:hidden items-center gap-2 w-full justify-between px-2">
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="flex items-center h-9 px-3 text-xs min-w-0 flex-shrink-0"
+            >
+            <ChevronLeft className="w-3 h-3 mr-1" />
+            <span className="text-xs">Sebelumnya</span>
+            </Button>
+            
+            <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-gray-600 whitespace-nowrap">
+                {currentPage}/{totalPages}
+            </span>
+            </div>
+            
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="flex items-center h-9 px-3 text-xs min-w-0 flex-shrink-0"
+            >
+            <span className="text-xs">Selanjutnya</span>
+            <ChevronRight className="w-3 h-3 ml-1" />
+            </Button>
+        </div>
+
+        <div className="hidden sm:flex items-center space-x-1 min-w-0">
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="flex items-center h-8 px-2 text-xs"
+            >
+            <ChevronLeft className="w-3 h-3 mr-1" />
+            <span className="text-xs">Sebelumnya</span>
+            </Button>
+            
+            <div className="flex items-center space-x-1 overflow-x-auto">
+            {getVisiblePages().map((page, index) => (
+                <Button
+                key={index}
+                variant={page === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => typeof page === 'number' && onPageChange(page)}
+                disabled={page === '...'}
+                className="w-8 h-8 p-0 text-xs min-w-8"
+                >
+                {page}
+                </Button>
+            ))}
+            </div>
+            
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="flex items-center h-8 px-2 text-xs"
+            >
+            <span className="text-xs">Selanjutnya</span>
+            <ChevronRight className="w-3 h-3 ml-1" />
+            </Button>
+        </div>
+        </div>
+    </div>
+  );
+});
+
+export const BandingList: React.FC<{
+  bandingAbsen: BandingAbsen[];
+  expandedBanding: number | null;
+  setExpandedBanding: (id: number | null) => void;
+  bandingAbsenPage: number;
+  setBandingAbsenPage: (page: number) => void;
+  itemsPerPage: number;
+}> = ({ bandingAbsen, expandedBanding, setExpandedBanding, bandingAbsenPage, setBandingAbsenPage, itemsPerPage }) => {
+
+  // Logic from original code for deduplication
+  const uniqueBandingAbsen = bandingAbsen.filter((banding, index, self) => {
+    const key = `${banding.id_banding}-${banding.tanggal_pengajuan}-${banding.siswa_id}`;
+    return self.findIndex(b => 
+      `${b.id_banding}-${b.tanggal_pengajuan}-${b.siswa_id}` === key
+    ) === index;
+  });
+  
+  const currentItems = uniqueBandingAbsen.slice(
+      (bandingAbsenPage - 1) * itemsPerPage, 
+      bandingAbsenPage * itemsPerPage
+  );
+
+  return (
+    <div className="space-y-4">
+        {/* Mobile View */}
+        <div className="lg:hidden space-y-4">
+             {currentItems.map((banding) => (
+                <BandingCardItem 
+                  key={banding.id_banding} 
+                  banding={banding} 
+                  isExpanded={expandedBanding === banding.id_banding}
+                  onToggle={() => setExpandedBanding(expandedBanding === banding.id_banding ? null : banding.id_banding)}
+                />
+              ))}
+              <Pagination
+                currentPage={bandingAbsenPage}
+                totalPages={Math.ceil(uniqueBandingAbsen.length / itemsPerPage)}
+                onPageChange={setBandingAbsenPage}
+              />
+        </div>
+
+        {/* Desktop View */}
+        <div className="hidden lg:block overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tanggal Pengajuan</TableHead>
+                <TableHead>Tanggal Absen</TableHead>
+                <TableHead>Jadwal</TableHead>
+                <TableHead>Detail Siswa & Alasan</TableHead>
+                <TableHead>Status Banding</TableHead>
+                <TableHead>Respon Guru</TableHead>
+                <TableHead>Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+               {currentItems.map((banding) => (
+                 <React.Fragment key={banding.id_banding}>
+                 <TableRow>
+                    <TableCell>
+                      <div className="font-medium">{formatDateWIB(banding.tanggal_pengajuan)}</div>
+                      <div className="text-xs text-gray-500">{formatTime24(banding.tanggal_pengajuan)}</div>
+                    </TableCell>
+                    <TableCell>
+                       <div>{formatDateWIB(banding.tanggal_absen)}</div>
+                       <div className="text-xs text-gray-500">{banding.jam_mulai}-{banding.jam_selesai}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div className="text-sm">
+                        <div className="font-medium">{banding.nama_mapel}</div>
+                        <div className="text-gray-600">{banding.nama_guru}</div>
+                        <div className="text-xs text-gray-500">{banding.nama_kelas}</div>
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                        <div className="max-w-xs space-y-1">
+                        <div className="text-sm font-medium">{banding.nama_siswa || 'Siswa Individual'}</div>
+                        <div className="flex items-center gap-1 text-xs">
+                            <Badge variant="outline" className="px-1 py-0">{banding.status_asli}</Badge>
+                            <span>→</span>
+                            <Badge variant="outline" className="px-1 py-0">{banding.status_diajukan}</Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 italic truncate max-w-[200px]" title={banding.alasan_banding}>
+                            "{banding.alasan_banding}"
+                        </p>
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                        <Badge className={getBandingStatusClass(banding.status_banding)}>
+                              {getBandingStatusLabel(banding.status_banding)}
+                        </Badge>
+                        {banding.tanggal_keputusan && (
+                            <div className="text-xs text-gray-500 mt-1">
+                            {formatDateWIB(banding.tanggal_keputusan)}
+                            </div>
+                        )}
+                    </TableCell>
+                    <TableCell>
+                        <div className="max-w-xs">
+                        {banding.catatan_guru ? (
+                            <div className="text-sm bg-gray-50 p-2 rounded border-l-2 border-gray-300">
+                            <div className="font-medium text-gray-700 mb-1">Respon Guru:</div>
+                            <div className="text-gray-600 break-words">{banding.catatan_guru}</div>
+                            </div>
+                        ) : (
+                            <span className="text-gray-400 text-sm">Belum ada respon</span>
+                        )}
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                        <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setExpandedBanding(
+                            expandedBanding === banding.id_banding ? null : banding.id_banding
+                        )}
+                        className="text-xs"
+                        >
+                        {expandedBanding === banding.id_banding ? 'Tutup Detail' : 'Lihat Detail'}
+                        </Button>
+                    </TableCell>
+                 </TableRow>
+                 {expandedBanding === banding.id_banding && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="bg-gray-50 p-0">
+                        <div className="p-4">
+                          <div className="bg-white rounded-lg border p-4">
+                            <h4 className="font-semibold text-gray-800 mb-3">Detail Siswa Banding</h4>
+                            <div className="border rounded-lg p-3">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-600 mb-1">Nama Siswa</div>
+                                  <div className="text-sm text-gray-800">
+                                    {banding.nama_siswa || 'Siswa Individual'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-600 mb-1">Status Tercatat</div>
+                                  <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-600 mb-1">Status Diajukan</div>
+                                  <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-600 mb-1">Alasan</div>
+                                  <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                 )}
+                 </React.Fragment>
+               ))}
+            </TableBody>
+          </Table>
+          <Pagination
+             currentPage={bandingAbsenPage}
+             totalPages={Math.ceil(uniqueBandingAbsen.length / itemsPerPage)}
+             onPageChange={setBandingAbsenPage}
+          />
+        </div>
+    </div>
   );
 };

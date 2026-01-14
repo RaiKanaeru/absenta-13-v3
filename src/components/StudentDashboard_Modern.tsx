@@ -11,6 +11,7 @@ import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, form
 import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
 import { GuruAttendanceCard } from './student';
+import { EmptyScheduleCard, StudentStatusBadge, BandingCardItem, BandingList, Pagination, BandingAbsen } from './student/StudentDashboardComponents';
 
 import { getApiUrl } from '@/config/api';
 import { getCleanToken } from '@/utils/authUtils';
@@ -229,26 +230,7 @@ const getStatusButtonClass = (status: string, isSelected: boolean): string => {
 
 // =============================================================================
 
-interface BandingAbsen {
-  id_banding: number;
-  siswa_id: number;
-  jadwal_id: number;
-  tanggal_absen: string;
-  status_asli: BandingStatusAsli;
-  status_diajukan: BandingStatusDiajukan;
-  alasan_banding: string;
-  status_banding: 'pending' | 'disetujui' | 'ditolak';
-  catatan_guru?: string;
-  tanggal_pengajuan: string;
-  tanggal_keputusan?: string;
-  nama_mapel?: string;
-  nama_guru?: string;
-  jam_mulai?: string;
-  jam_selesai?: string;
-  nama_kelas?: string;
-  jenis_banding?: 'individual';
-  nama_siswa?: string;
-}
+
 
 interface JadwalHariIni {
   id_jadwal: number;
@@ -332,121 +314,9 @@ interface RiwayatData {
 }
 
 // Komponen Pagination
-interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}
 
-const Pagination = React.memo(({ currentPage, totalPages, onPageChange }: PaginationProps) => {
-  const getVisiblePages = () => {
-    const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
 
-    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
-      range.push(i);
-    }
 
-    if (currentPage - delta > 2) {
-      rangeWithDots.push(1, '...');
-    } else {
-      rangeWithDots.push(1);
-    }
-
-    rangeWithDots.push(...range);
-
-    if (currentPage + delta < totalPages - 1) {
-      rangeWithDots.push('...', totalPages);
-    } else if (totalPages > 1) {
-      rangeWithDots.push(totalPages);
-    }
-
-    return rangeWithDots;
-  };
-
-  // FIXED: Don't show pagination if no data or only one page
-  if (totalPages <= 1 || totalPages === 0) {
-    return null; // Don't render pagination if no data
-  }
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2 mt-4 sm:mt-6 min-w-0">
-        {/* Mobile: Show only prev/next with page info */}
-        <div className="flex sm:hidden items-center gap-2 w-full justify-between px-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="flex items-center h-9 px-3 text-xs min-w-0 flex-shrink-0"
-          >
-            <ChevronLeft className="w-3 h-3 mr-1" />
-            <span className="text-xs">Sebelumnya</span>
-          </Button>
-          
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-xs text-gray-600 whitespace-nowrap">
-              {currentPage}/{totalPages}
-            </span>
-          </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="flex items-center h-9 px-3 text-xs min-w-0 flex-shrink-0"
-          >
-            <span className="text-xs">Selanjutnya</span>
-            <ChevronRight className="w-3 h-3 ml-1" />
-          </Button>
-        </div>
-
-        {/* Desktop: Show full pagination */}
-        <div className="hidden sm:flex items-center space-x-1 min-w-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="flex items-center h-8 px-2 text-xs"
-          >
-            <ChevronLeft className="w-3 h-3 mr-1" />
-            <span className="text-xs">Sebelumnya</span>
-          </Button>
-          
-          <div className="flex items-center space-x-1 overflow-x-auto">
-            {getVisiblePages().map((page, index) => (
-              <Button
-                key={index}
-                variant={page === currentPage ? "default" : "outline"}
-                size="sm"
-                onClick={() => typeof page === 'number' && onPageChange(page)}
-                disabled={page === '...'}
-                className="w-8 h-8 p-0 text-xs min-w-8"
-              >
-                {page}
-              </Button>
-            ))}
-          </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="flex items-center h-8 px-2 text-xs"
-          >
-            <span className="text-xs">Selanjutnya</span>
-            <ChevronRight className="w-3 h-3 ml-1" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-});
 
 export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) => {
 
@@ -1435,7 +1305,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
       const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
       
       // Use extracted helper to resolve guru ID (reduces CC)
-      const guruIdResult = resolveGuruIdForUpdate(
+      const guruIdResult: ResolveGuruIdResult = resolveGuruIdForUpdate(
         jadwalId,
         parsedKey.guruId,
         parsedKey.isMultiGuru,
@@ -1443,7 +1313,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
         kehadiranData[key]
       );
 
-      if (!guruIdResult.success) {
+      if (guruIdResult.success === false) {
         const errorType = guruIdResult.error; // TypeScript narrow to error type
         const errorMessages: Record<'not_found' | 'multi_guru' | 'invalid_id', { title: string; desc: string }> = {
           'not_found': { title: 'Error', desc: 'Jadwal tidak ditemukan' },
@@ -1659,28 +1529,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardContent className="p-6 sm:p-12 text-center">
-              <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Tidak Ada Jadwal Hari Ini</h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-4">Selamat beristirahat! Tidak ada mata pelajaran yang terjadwal untuk hari ini.</p>
-              {!isEditMode && (
-                <p className="text-xs sm:text-sm text-gray-500 mb-4">
-                  Gunakan tombol "Edit Absen (30 Hari)" di atas untuk melihat jadwal hari lain.
-                </p>
-              )}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button 
-                  variant="outline" 
-                  onClick={() => globalThis.location.reload()}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh Jadwal
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <EmptyScheduleCard isEditMode={isEditMode} onRefresh={() => globalThis.location.reload()} />
         </div>
       );
     }
@@ -2548,15 +2397,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                                   NIS: {nisSiswa}
                                 </p>
                               </div>
-                              <Badge 
-                                variant={
-                                  statusSiswa === 'izin' ? 'secondary' :
-                                  statusSiswa === 'sakit' ? 'outline' : 'destructive'
-                                }
-                                className="capitalize text-xs flex-shrink-0 w-fit"
-                              >
-                                {statusSiswa}
-                              </Badge>
+                              <StudentStatusBadge status={statusSiswa} />
                             </div>
                             {siswa.keterangan && (
                               <div className="pt-1 border-t border-gray-200">
@@ -2862,317 +2703,16 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
               </div>
             ) : (
               <>
-                {/* Mobile Card Layout */}
-                <div className="block lg:hidden space-y-4">
-                  {(() => {
-                    // FIXED: Enhanced deduplication to prevent looping
-                    const uniqueBandingAbsen = bandingAbsen.filter((banding, index, self) => {
-                      // Use multiple fields to ensure uniqueness
-                      const key = `${banding.id_banding}-${banding.tanggal_pengajuan}-${banding.siswa_id}`;
-                      return self.findIndex(b => 
-                        `${b.id_banding}-${b.tanggal_pengajuan}-${b.siswa_id}` === key
-                      ) === index;
-                    });
-                    
-                    return uniqueBandingAbsen
-                      .slice((bandingAbsenPage - 1) * itemsPerPage, bandingAbsenPage * itemsPerPage)
-                      .map((banding) => (
-                        <Card key={banding.id_banding} className="border-l-4 border-l-orange-500">
-                          <CardContent className="p-4 space-y-3">
-                            {/* Header dengan tanggal */}
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {formatDateWIB(banding.tanggal_pengajuan)}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {formatTime24(banding.tanggal_pengajuan)}
-                                </div>
-                              </div>
-                              <Badge className={
-                                banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
-                                banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
-                                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                              }>
-                                {banding.status_banding === 'disetujui' ? 'Disetujui' :
-                                 banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
-                              </Badge>
-                            </div>
+                <BandingList
+                  bandingAbsen={bandingAbsen}
+                  expandedBanding={expandedBanding}
+                  setExpandedBanding={setExpandedBanding}
+                  bandingAbsenPage={bandingAbsenPage}
+                  setBandingAbsenPage={setBandingAbsenPage}
+                  itemsPerPage={itemsPerPage}
+                />
 
-                            {/* Informasi jadwal */}
-                            <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm font-medium">{formatDateWIB(banding.tanggal_absen)}</span>
-                                <span className="text-xs text-gray-500">({banding.jam_mulai}-{banding.jam_selesai})</span>
-                              </div>
-                              <div className="text-sm">
-                                <div className="font-medium">{banding.nama_mapel}</div>
-                                <div className="text-gray-600">{banding.nama_guru}</div>
-                                <div className="text-xs text-gray-500">{banding.nama_kelas}</div>
-                              </div>
-                            </div>
 
-                            {/* Detail siswa */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-700">
-                                  {banding.nama_siswa || 'Siswa Individual'}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setExpandedBanding(
-                                    expandedBanding === banding.id_banding ? null : banding.id_banding
-                                  )}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  {expandedBanding === banding.id_banding ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronDown className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs px-1 py-0"
-                                >
-                                  {banding.status_asli} → {banding.status_diajukan}
-                                </Badge>
-                              </div>
-                            </div>
-
-                            {/* Respon guru */}
-                            {banding.catatan_guru && (
-                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                <div className="text-xs font-medium text-blue-700 mb-1">Respon Guru:</div>
-                                <div className="text-xs text-blue-600 break-words">{banding.catatan_guru}</div>
-                              </div>
-                            )}
-
-                            {/* Expanded Detail */}
-                            {expandedBanding === banding.id_banding && (
-                              <div className="border-t pt-3 space-y-3">
-                                <div className="bg-white rounded-lg border p-3">
-                                  <h4 className="font-semibold text-gray-800 mb-3 text-sm">Detail Siswa Banding</h4>
-                                  
-                                  <div className="grid grid-cols-1 gap-3">
-                                    <div>
-                                      <div className="text-xs font-medium text-gray-600 mb-1">Nama Siswa</div>
-                                      <div className="text-sm text-gray-800">
-                                        {banding.nama_siswa || 'Siswa Individual'}
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div>
-                                        <div className="text-xs font-medium text-gray-600 mb-1">Status Tercatat</div>
-                                        <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
-                                      </div>
-                                      <div>
-                                        <div className="text-xs font-medium text-gray-600 mb-1">Status Diajukan</div>
-                                        <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-medium text-gray-600 mb-1">Alasan</div>
-                                      <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ));
-                  })()}
-                </div>
-
-                {/* Desktop Table Layout */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tanggal Pengajuan</TableHead>
-                        <TableHead>Tanggal Absen</TableHead>
-                        <TableHead>Jadwal</TableHead>
-                        <TableHead>Detail Siswa & Alasan</TableHead>
-                        <TableHead>Status Banding</TableHead>
-                        <TableHead>Respon Guru</TableHead>
-                        <TableHead>Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        // FIXED: Enhanced deduplication to prevent looping
-                        const uniqueBandingAbsen = bandingAbsen.filter((banding, index, self) => {
-                          // Use multiple fields to ensure uniqueness
-                          const key = `${banding.id_banding}-${banding.tanggal_pengajuan}-${banding.siswa_id}`;
-                          return self.findIndex(b => 
-                            `${b.id_banding}-${b.tanggal_pengajuan}-${b.siswa_id}` === key
-                          ) === index;
-                        });
-                        
-                        return uniqueBandingAbsen
-                          .slice((bandingAbsenPage - 1) * itemsPerPage, bandingAbsenPage * itemsPerPage)
-                          .map((banding) => (
-                          <React.Fragment key={banding.id_banding}>
-                          <TableRow className="hover:bg-gray-50">
-                          <TableCell>
-                              <div className="text-sm font-medium">
-                            {formatDateWIB(banding.tanggal_pengajuan)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {formatTime24(banding.tanggal_pengajuan)}
-                              </div>
-                          </TableCell>
-                          <TableCell>
-                              <div className="text-sm font-medium">
-                            {formatDateWIB(banding.tanggal_absen)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {banding.jam_mulai}-{banding.jam_selesai}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                              <div className="space-y-1">
-                                <div className="font-medium text-sm">{banding.nama_mapel}</div>
-                                <div className="text-xs text-gray-600">
-                                  {banding.nama_guru}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {banding.nama_kelas}
-                                    </div>
-                                    </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-gray-700">
-                                    1 siswa
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setExpandedBanding(
-                                      expandedBanding === banding.id_banding ? null : banding.id_banding
-                                    )}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    {expandedBanding === banding.id_banding ? (
-                                      <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronDown className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </div>
-                                <div className="text-xs text-gray-600 space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">
-                                      {banding.nama_siswa || 'Siswa Individual'}
-                                    </span>
-                                    <Badge 
-                                      variant="outline" 
-                                      className="text-xs px-1 py-0"
-                                    >
-                                      {banding.status_asli} → {banding.status_diajukan}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                                banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
-                                banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
-                                'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                            }>
-                              {banding.status_banding === 'disetujui' ? 'Disetujui' :
-                               banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
-                            </Badge>
-                              {banding.tanggal_keputusan && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {formatDateWIB(banding.tanggal_keputusan)}
-                                </div>
-                              )}
-                          </TableCell>
-                          <TableCell>
-                              <div className="max-w-xs">
-                                {banding.catatan_guru ? (
-                                  <div className="text-sm bg-gray-50 p-2 rounded border-l-2 border-gray-300">
-                                    <div className="font-medium text-gray-700 mb-1">Respon Guru:</div>
-                                    <div className="text-gray-600 break-words">{banding.catatan_guru}</div>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 text-sm">Belum ada respon</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setExpandedBanding(
-                                  expandedBanding === banding.id_banding ? null : banding.id_banding
-                                )}
-                                className="text-xs"
-                              >
-                                {expandedBanding === banding.id_banding ? 'Tutup Detail' : 'Lihat Detail'}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                          
-                          {/* Expanded Detail Row */}
-                          {expandedBanding === banding.id_banding && (
-                            <TableRow>
-                              <TableCell colSpan={7} className="bg-gray-50 p-0">
-                                <div className="p-4">
-                                  <div className="bg-white rounded-lg border p-4">
-                                    <h4 className="font-semibold text-gray-800 mb-3">Detail Siswa Banding</h4>
-                                    
-                                    <div className="border rounded-lg p-3">
-                                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-600 mb-1">Nama Siswa</div>
-                                          <div className="text-sm text-gray-800">
-                                            {banding.nama_siswa || 'Siswa Individual'}
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-600 mb-1">Status Tercatat</div>
-                                          <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
-                                        </div>
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-600 mb-1">Status Diajukan</div>
-                                          <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
-                                        </div>
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-600 mb-1">Alasan</div>
-                                          <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                          </React.Fragment>
-                          ));
-                        })()}
-                    </TableBody>
-                  </Table>
-                </div>
-                
-                {/* Pagination untuk Banding Absen - FIXED: Only show if there's data */}
-                {bandingAbsen.length > 0 && (
-                  <Pagination
-                    currentPage={bandingAbsenPage}
-                    totalPages={Math.ceil(bandingAbsen.length / itemsPerPage)}
-                    onPageChange={setBandingAbsenPage}
-                  />
-                )}
               </>
             )}
           </CardContent>
