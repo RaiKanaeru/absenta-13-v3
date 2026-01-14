@@ -18,6 +18,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
+// Font size type for proper typing
+type FontSizeKey = 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl';
+
 interface FontSizeControlProps {
   variant?: 'compact' | 'full' | 'floating';
   className?: string;
@@ -111,7 +114,7 @@ export const FontSizeControl: React.FC<FontSizeControlProps> = ({
             {Object.entries(fontSizeLabels).map(([size, label]) => (
               <DropdownMenuItem
                 key={size}
-                onClick={() => setFontSize(size as any)}
+                onClick={() => setFontSize(size as FontSizeKey)}
                 className={`flex items-center justify-between ${
                   fontSize === size ? 'bg-accent' : ''
                 }`}
@@ -191,7 +194,7 @@ export const FontSizeControl: React.FC<FontSizeControlProps> = ({
             key={size}
             variant={fontSize === size ? "default" : "outline"}
             size="sm"
-            onClick={() => setFontSize(size as any)}
+            onClick={() => setFontSize(size as FontSizeKey)}
             className={`h-8 text-xs ${
               fontSizeSizes[size as keyof typeof fontSizeSizes]
             }`}

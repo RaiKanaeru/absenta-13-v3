@@ -1657,8 +1657,8 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                   
                   // Sumber prioritas guru_list:
                   // 1) Jika jadwal.guru_list sudah array (hasil parsing), pakai itu
-                  if (Array.isArray((jadwal as any).guru_list) && (jadwal as any).guru_list.length > 0) {
-                    acc[key].guru_list = (jadwal as any).guru_list as Array<{
+                  if (Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
+                    acc[key].guru_list = jadwal.guru_list as Array<{
                       id_guru: number;
                       nama_guru: string;
                       nip: string;
@@ -1670,18 +1670,18 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                     }>;
                   } else {
                     // 2) Jika ada id_guru di record ini, dorong satu guru
-                    if ((jadwal as any).id_guru) {
+                    if (jadwal.id_guru) {
                     acc[key].guru_list!.push({
-                        id_guru: (jadwal as any).id_guru as number,
-                        nama_guru: (jadwal as any).nama_guru as string,
-                        nip: (jadwal as any).nip as string,
-                        is_primary: (jadwal as any).is_primary as boolean,
-                        status_kehadiran: (jadwal as any).status_kehadiran as string,
-                        keterangan_guru: (jadwal as any).keterangan_guru as string
+                        id_guru: jadwal.id_guru as number,
+                        nama_guru: jadwal.nama_guru as string,
+                        nip: jadwal.nip as string,
+                        is_primary: (jadwal.is_primary ?? false) as boolean,
+                        status_kehadiran: jadwal.status_kehadiran as string,
+                        keterangan_guru: (jadwal.keterangan_guru ?? '') as string
                       } as any);
-                    } else if (jadwal.is_multi_guru && typeof (jadwal as any).nama_guru === 'string' && acc[key].guru_list!.length === 0) {
+                    } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
                       // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
-                      const raw = (jadwal as any).nama_guru as string;
+                      const raw = jadwal.nama_guru as string;
                       const parts = raw.split(/,|&| dan /gi).map(s => s.trim()).filter(Boolean);
                       if (parts.length > 1) {
                         parts.forEach((nama: string, idx: number) => {

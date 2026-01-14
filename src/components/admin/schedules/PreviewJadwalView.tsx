@@ -420,11 +420,11 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
             )}
             
             {/* Baris teks kop laporan */}
-            {letterhead.lines.map((line: any, index: number) => (
+            {letterhead.lines.map((line: { text: string; fontWeight?: string }, index: number) => (
               <div 
                 key={index} 
                 className={`text-xs lg:text-sm ${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'}`}
-                style={{ textAlign: letterhead.alignment as any }}
+                style={{ textAlign: letterhead.alignment as React.CSSProperties['textAlign'] }}
               >
                 {line.text}
               </div>
