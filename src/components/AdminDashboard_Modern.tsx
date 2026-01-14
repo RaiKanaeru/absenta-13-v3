@@ -7026,6 +7026,134 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
 };
 
 // Student Promotion View Component
+
+// =============================================================================
+// CLASS PARSING HELPER FUNCTIONS (Extracted to reduce Cognitive Complexity)
+// =============================================================================
+
+/** Mapping jurusan untuk kompatibilitas */
+const MAJOR_MAPPING: Record<string, string> = {
+  'KA': 'AK',
+  'KEJURUAN': 'AK',
+  'KEJURUANAN': 'AK',
+  'KEJURUAN_AN': 'AK',
+  'KEJURUAN-AN': 'AK'
+};
+
+/** Daftar jurusan yang valid */
+const VALID_MAJORS = 'IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK';
+
+/** Konversi angka ke romawi */
+const convertLevelToRoman = (level: string): string => {
+  if (level === '10') return 'X';
+  if (level === '11') return 'XI';
+  if (level === '12') return 'XII';
+  return level;
+};
+
+/** Terapkan mapping jurusan */
+const applyMajorMapping = (major: string): string => {
+  return MAJOR_MAPPING[major] || major;
+};
+
+/** Pattern untuk parsing nama kelas */
+const CLASS_PATTERNS = [
+  new RegExp(`^(X|XI|XII)\\s+(${VALID_MAJORS})\\s*(\\d+)?$`),
+  new RegExp(`^(10|11|12)\\s+(${VALID_MAJORS})\\s*(\\d+)?$`),
+  new RegExp(`^(X|XI|XII)\\s+(${VALID_MAJORS})$`),
+  new RegExp(`^(X|XI|XII)[\\s\\-_]+(${VALID_MAJORS})[\\s\\-_]*(\\d+)?$`),
+];
+
+/** Fallback patterns untuk ekstrak tingkat */
+const FALLBACK_PATTERNS = [/^(X|XI|XII)/, /^(10|11|12)/];
+const MAJOR_EXTRACT_REGEX = new RegExp(`(${VALID_MAJORS})`);
+const NUMBER_EXTRACT_REGEX = /(\d+)/;
+
+interface ParsedClass {
+  level: string;
+  major: string;
+  number: number;
+  fullName: string;
+}
+
+/** Coba match dengan pattern utama */
+const tryMatchPatterns = (cleanName: string, className: string): ParsedClass | null => {
+  for (const pattern of CLASS_PATTERNS) {
+    const match = pattern.exec(cleanName);
+    if (match) {
+      const level = convertLevelToRoman(match[1]);
+      const major = applyMajorMapping(match[2]);
+      const number = match[3] ? Number.parseInt(match[3]) : 1;
+      return { level, major, number, fullName: className };
+    }
+  }
+  return null;
+};
+
+/** Coba match dengan fallback pattern */
+const tryFallbackMatch = (cleanName: string, className: string): ParsedClass | null => {
+  for (const pattern of FALLBACK_PATTERNS) {
+    const match = pattern.exec(cleanName);
+    if (match) {
+      const level = convertLevelToRoman(match[1]);
+      const remaining = cleanName.replace(pattern, '').trim();
+      
+      const majorMatch = MAJOR_EXTRACT_REGEX.exec(remaining);
+      const major = applyMajorMapping(majorMatch ? majorMatch[1] : 'UMUM');
+      
+      const numberMatch = NUMBER_EXTRACT_REGEX.exec(remaining);
+      const number = numberMatch ? Number.parseInt(numberMatch[1]) : 1;
+      
+      return { level, major, number, fullName: className };
+    }
+  }
+  return null;
+};
+
+// =============================================================================
+// TARGET CLASS DETECTION HELPERS (Extracted to reduce Cognitive Complexity)
+// =============================================================================
+
+/** Dapatkan level tujuan dari level asal */
+const getNextLevel = (currentLevel: string): string | null => {
+  if (currentLevel === 'X') return 'XI';
+  if (currentLevel === 'XI') return 'XII';
+  return null; // XII tidak bisa dinaikkan
+};
+
+/** Cari kelas fallback berdasarkan tingkat dan jurusan */
+const findFallbackByLevelAndMajor = (
+  classes: Kelas[],
+  targetLevel: string,
+  major: string
+): Kelas | null => {
+  const found = classes.find(cls => {
+    if ((cls as unknown as Record<string, string>).status !== 'aktif') return false;
+    const name = cls.nama_kelas?.toUpperCase() || '';
+    return name.includes(targetLevel) && name.includes(major);
+  });
+  return found || null;
+};
+
+/** Deteksi level sederhana dari nama kelas */
+const detectSimpleLevel = (className: string): string | null => {
+  const upper = className.toUpperCase();
+  if (upper.includes('X ') && !upper.includes('XI') && !upper.includes('XII')) return 'XI';
+  if (upper.includes('XI ') && !upper.includes('XII')) return 'XII';
+  return null;
+};
+
+/** Cari kelas berdasarkan tingkat saja */
+const findClassByLevel = (classes: Kelas[], targetLevel: string): Kelas | null => {
+  const found = classes.find(cls => {
+    if ((cls as unknown as Record<string, string>).status !== 'aktif') return false;
+    return cls.nama_kelas?.toUpperCase().includes(targetLevel);
+  });
+  return found || null;
+};
+
+// =============================================================================
+
 const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
   const [fromClassId, setFromClassId] = useState<string>('');
   const [toClassId, setToClassId] = useState<string>('');
@@ -7085,98 +7213,16 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     }
   }, [fromClassId, fetchStudents]);
 
-  // 🧠 SMART CLASS PARSER - Parsing nama kelas secara cerdas dan fleksibel
-  const parseClassName = useCallback((className: string) => {
+  // 🧠 SMART CLASS PARSER - Simplified using extracted helpers
+  const parseClassName = useCallback((className: string): ParsedClass | null => {
     const cleanName = className.trim().toUpperCase();
     
-    // Pattern yang lebih fleksibel untuk berbagai format kelas
-    const patterns = [
-      // Format standar: X IPA 1, XI IPS 2, XII BAHASA 1
-      /^(X|XI|XII)\s+(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)\s*(\d+)?$/,
-      // Format dengan angka: 10 IPA 1, 11 IPS 2, 12 BAHASA 1
-      /^(10|11|12)\s+(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)\s*(\d+)?$/,
-      // Format tanpa nomor: X IPA, XI IPS, XII BAHASA
-      /^(X|XI|XII)\s+(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)$/,
-      // Format dengan dash: X-IPA-1, XI-IPS-2
-      /^(X|XI|XII)[\s\-_]+(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)[\s\-_]*(\d+)?$/,
-      // Format dengan underscore: X_IPA_1, XI_IPS_2
-      /^(X|XI|XII)[\s\-_]+(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)[\s\-_]*(\d+)?$/,
-    ];
-    
-    for (const pattern of patterns) {
-      const match = pattern.exec(cleanName);
-      
-      if (match) {
-        let level = match[1];
-        // Konversi angka ke romawi
-        if (level === '10') level = 'X';
-        if (level === '11') level = 'XI';
-        if (level === '12') level = 'XII';
-        
-        let major = match[2];
-        const number = match[3] ? Number.parseInt(match[3]) : 1;
-        
-        // Mapping jurusan untuk kompatibilitas
-        const majorMapping = {
-          'KA': 'AK',  // KA -> AK (Akuntansi)
-          'KEJURUAN': 'AK',
-          'KEJURUANAN': 'AK',
-          'KEJURUAN_AN': 'AK',
-          'KEJURUAN-AN': 'AK'
-        };
-        
-        if (majorMapping[major]) {
-          major = majorMapping[major];
-        }
-        
-        const result = { level, major, number, fullName: className };
-        return result;
-      }
-    }
+    // Coba match dengan pattern utama
+    const primaryMatch = tryMatchPatterns(cleanName, className);
+    if (primaryMatch) return primaryMatch;
     
     // Fallback: coba ekstrak tingkat dari awal string
-    const fallbackPatterns = [
-      /^(X|XI|XII)/,
-      /^(10|11|12)/
-    ];
-    
-    for (const pattern of fallbackPatterns) {
-      const match = pattern.exec(cleanName);
-      if (match) {
-        let level = match[1];
-        if (level === '10') level = 'X';
-        if (level === '11') level = 'XI';
-        if (level === '12') level = 'XII';
-        
-        // Coba ekstrak jurusan dari sisa string
-        const remaining = cleanName.replace(pattern, '').trim();
-        const majorRegex = /(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)/;
-        const majorMatch = majorRegex.exec(remaining);
-        let major = majorMatch ? majorMatch[1] : 'UMUM';
-        
-        // Mapping jurusan untuk kompatibilitas
-        const majorMapping = {
-          'KA': 'AK',  // KA -> AK (Akuntansi)
-          'KEJURUAN': 'AK',
-          'KEJURUANAN': 'AK',
-          'KEJURUAN_AN': 'AK',
-          'KEJURUAN-AN': 'AK'
-        };
-        
-        if (majorMapping[major]) {
-          major = majorMapping[major];
-        }
-        
-        // Coba ekstrak nomor
-        const numberRegex = /(\d+)/;
-        const numberMatch = numberRegex.exec(remaining);
-        const number = numberMatch ? Number.parseInt(numberMatch[1]) : 1;
-        
-        const result = { level, major, number, fullName: className };
-        return result;
-      }
-    }
-    return null;
+    return tryFallbackMatch(cleanName, className);
   }, []);
 
   // 🎯 AUTO-DETECT TARGET CLASS - Otomatis cari kelas tujuan berdasarkan kelas asal
@@ -7213,118 +7259,71 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     return targetClass || null;
   }, [classes, parseClassName]);
 
-  // Auto-detect dan set kelas tujuan saat kelas asal dipilih
+  // Auto-detect dan set kelas tujuan saat kelas asal dipilih (Simplified)
   useEffect(() => {
-    if (fromClassId && classes.length > 0) {
-      
-      const targetClass = findTargetClass(fromClassId);
-      
-      if (targetClass) {
-        setToClassId(targetClass.id?.toString() || '');
-        
-        // Parsing untuk notifikasi
-        const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
-        const sourceParsed = parseClassName(sourceClass?.nama_kelas || '');
-        const targetParsed = parseClassName(targetClass.nama_kelas || '');
-        
-        if (sourceParsed && targetParsed) {
-          toast({
-            title: "✓ Kelas Tujuan Terdeteksi",
-            description: `${sourceParsed.level} ${sourceParsed.major} ${sourceParsed.number} → ${targetParsed.level} ${targetParsed.major} ${targetParsed.number}`,
-            variant: "default"
-          });
-        }
-      } else {
-        
-        // Jika tidak ditemukan, coba cari manual berdasarkan tingkat dan jurusan
-        const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
-        const sourceParsed = parseClassName(sourceClass?.nama_kelas || '');
-        
-        if (sourceParsed) {
-          // Validasi kelas XII tidak bisa dinaikkan
-          if (sourceParsed.level === 'XII') {
-            setToClassId('');
-            toast({
-              title: "❌ Tidak Dapat Dipromosikan",
-              description: "Siswa kelas XII sudah lulus dan tidak dapat dinaikkan kelas",
-              variant: "destructive"
-            });
-            return;
-          }
-          
-          let targetLevel = '';
-          if (sourceParsed.level === 'X') targetLevel = 'XI';
-          else if (sourceParsed.level === 'XI') targetLevel = 'XII';
-          
-          // Cari kelas dengan tingkat tujuan dan jurusan sama (abaikan nomor)
-          const fallbackClass = classes.find(cls => {
-            if ((cls as Record<string, string | number | boolean>).status !== 'aktif') return false;
-            
-            const name = cls.nama_kelas?.toUpperCase() || '';
-            const isMatch = name.includes(targetLevel) && name.includes(sourceParsed.major);
-            return isMatch;
-          });
-          
-          if (fallbackClass) {
-            setToClassId(fallbackClass.id?.toString() || '');
-            toast({
-              title: "⚠ Kelas Tujuan Ditemukan (Parsial)",
-              description: `Nomor kelas mungkin berbeda. Mohon periksa: ${fallbackClass.nama_kelas}`,
-              variant: "default"
-            });
-          } else {
-            setToClassId('');
-            toast({
-              title: "❌ Kelas Tujuan Tidak Ditemukan",
-              description: `Kelas ${targetLevel} ${sourceParsed.major} belum dibuat di sistem`,
-              variant: "destructive"
-            });
-          }
-        } else {
-          setToClassId('');
-          
-          // Coba fallback sederhana: cari kelas dengan tingkat yang lebih tinggi
-          const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
-          if (sourceClass?.nama_kelas) {
-            const className = sourceClass.nama_kelas.toUpperCase();
-            
-            // Coba deteksi tingkat sederhana
-            let targetLevel = '';
-            if (className.includes('X ') && !className.includes('XI') && !className.includes('XII')) {
-              targetLevel = 'XI';
-            } else if (className.includes('XI ') && !className.includes('XII')) {
-              targetLevel = 'XII';
-            }
-            
-            if (targetLevel) {
-              // Cari kelas dengan tingkat target
-              const fallbackClass = classes.find(cls => {
-                if ((cls as Record<string, string | number | boolean>).status !== 'aktif') return false;
-                return cls.nama_kelas?.toUpperCase().includes(targetLevel);
-              });
-              
-              if (fallbackClass) {
-                setToClassId(fallbackClass.id?.toString() || '');
-                toast({
-                  title: "⚠ Kelas Tujuan Ditemukan (Sederhana)",
-                  description: `Ditemukan kelas ${targetLevel}: ${fallbackClass.nama_kelas}`,
-                  variant: "default"
-                });
-                return;
-              }
-            }
-          }
-          
-          toast({
-            title: "⚠ Kelas Tujuan Tidak Ditemukan",
-            description: "Tidak dapat mendeteksi kelas tujuan. Silakan buat kelas yang sesuai terlebih dahulu.",
-            variant: "destructive"
-          });
+    // Guard: no action if no class selected or no classes loaded
+    if (!fromClassId) {
+      setToClassId('');
+      return;
+    }
+    if (classes.length === 0) return;
+
+    // Try primary detection
+    const targetClass = findTargetClass(fromClassId);
+    if (targetClass) {
+      setToClassId(targetClass.id?.toString() || '');
+      const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
+      const sourceParsed = parseClassName(sourceClass?.nama_kelas || '');
+      const targetParsed = parseClassName(targetClass.nama_kelas || '');
+      if (sourceParsed && targetParsed) {
+        toast({
+          title: "✓ Kelas Tujuan Terdeteksi",
+          description: `${sourceParsed.level} ${sourceParsed.major} ${sourceParsed.number} → ${targetParsed.level} ${targetParsed.major} ${targetParsed.number}`,
+        });
+      }
+      return;
+    }
+
+    // Fallback: Try manual detection
+    const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
+    const sourceParsed = parseClassName(sourceClass?.nama_kelas || '');
+
+    // Case 1: sourceParsed exists - try fallback by level and major
+    if (sourceParsed) {
+      const targetLevel = getNextLevel(sourceParsed.level);
+      if (!targetLevel) {
+        setToClassId('');
+        toast({ title: "❌ Tidak Dapat Dipromosikan", description: "Siswa kelas XII sudah lulus", variant: "destructive" });
+        return;
+      }
+
+      const fallbackClass = findFallbackByLevelAndMajor(classes, targetLevel, sourceParsed.major);
+      if (fallbackClass) {
+        setToClassId(fallbackClass.id?.toString() || '');
+        toast({ title: "⚠ Kelas Tujuan Ditemukan (Parsial)", description: `Mohon periksa: ${fallbackClass.nama_kelas}` });
+        return;
+      }
+
+      setToClassId('');
+      toast({ title: "❌ Kelas Tujuan Tidak Ditemukan", description: `Kelas ${targetLevel} ${sourceParsed.major} belum dibuat`, variant: "destructive" });
+      return;
+    }
+
+    // Case 2: sourceParsed is null - try simple level detection
+    if (sourceClass?.nama_kelas) {
+      const simpleLevel = detectSimpleLevel(sourceClass.nama_kelas);
+      if (simpleLevel) {
+        const simpleFallback = findClassByLevel(classes, simpleLevel);
+        if (simpleFallback) {
+          setToClassId(simpleFallback.id?.toString() || '');
+          toast({ title: "⚠ Kelas Tujuan Ditemukan (Sederhana)", description: `Ditemukan: ${simpleFallback.nama_kelas}` });
+          return;
         }
       }
-    } else if (!fromClassId) {
-      setToClassId('');
     }
+
+    setToClassId('');
+    toast({ title: "⚠ Kelas Tujuan Tidak Ditemukan", description: "Silakan buat kelas yang sesuai terlebih dahulu.", variant: "destructive" });
   }, [fromClassId, classes, findTargetClass, parseClassName]);
 
   // Reset states when fromClassId changes
