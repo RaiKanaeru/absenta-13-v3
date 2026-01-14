@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { formatTime24WithSeconds, formatDateTime24, formatDateOnly, getCurrentDateWIB, getCurrentYearWIB, formatDateWIB, getWIBTime } from "@/lib/time-utils";
+import { formatTime24WithSeconds, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from "@/lib/time-utils";
 import { JadwalService } from "@/services/jadwalService";
 import { FontSizeControl } from "@/components/ui/font-size-control";
 import { Textarea } from "@/components/ui/textarea";
@@ -984,7 +984,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
     }
 
     // NIS format: 8-20 digit angka
-    if (!/^[0-9]{8,20}$/.test(formData.nis)) {
+    if (!/^\d{8,20}$/.test(formData.nis)) {
       toast({ title: "Error", description: "NIS harus berupa angka 8-20 digit!", variant: "destructive" });
       return;
     }
@@ -1070,7 +1070,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   };
 
   const handleDelete = async (id: number, nama: string) => {
-    if (!window.confirm(`Yakin ingin menghapus data siswa "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!globalThis.confirm(`Yakin ingin menghapus data siswa "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
     }
     try {
@@ -1618,7 +1618,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   };
 
   const handleDelete = async (id: number, nama: string) => {
-    if (!window.confirm(`Yakin ingin menghapus data guru "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!globalThis.confirm(`Yakin ingin menghapus data guru "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
     }
     try {
@@ -2130,7 +2130,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
   };
 
   const handleDelete = async (id: number, nama: string) => {
-    if (!window.confirm(`Yakin ingin menghapus mata pelajaran "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!globalThis.confirm(`Yakin ingin menghapus mata pelajaran "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
     }
     try {
@@ -2530,7 +2530,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
   };
 
   const handleDelete = async (id: number, nama: string) => {
-    if (!window.confirm(`Yakin ingin menghapus kelas "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!globalThis.confirm(`Yakin ingin menghapus kelas "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
       return;
     }
     try {
@@ -4148,7 +4148,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Yakin ingin menghapus ruang ini? Tindakan ini tidak dapat dibatalkan.')) {
+    if (!globalThis.confirm('Yakin ingin menghapus ruang ini? Tindakan ini tidak dapat dibatalkan.')) {
       return;
     }
     try {
@@ -4835,7 +4835,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       const headers = Object.keys(exportData[0]).join(',');
       const rows = exportData.map(row =>
         Object.values(row).map(value =>
-          typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+          typeof value === 'string' && value.includes(',') ? `"${value}"` : String(value ?? '')
         ).join(',')
       );
       const csvContent = BOM + headers + '\n' + rows.join('\n');
@@ -5214,7 +5214,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
 
         if (response.ok) {
           const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
+          const url = globalThis.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.style.display = 'none';
           a.href = url;
@@ -5223,7 +5223,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
+          globalThis.URL.revokeObjectURL(url);
           
           toast({
             title: "Berhasil",
@@ -5815,7 +5815,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         const headers = Object.keys(exportData[0]).join(',');
         const rows = exportData.map(row => 
           Object.values(row).map(value => 
-            typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+            typeof value === 'string' && value.includes(',') ? `"${value}"` : String(value ?? '')
           ).join(',')
         );
         const csvContent = BOM + headers + '\n' + rows.join('\n');
@@ -7103,9 +7103,8 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
       /^(X|XI|XII)[\s\-_]+(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)[\s\-_]*(\d+)?$/,
     ];
     
-    for (let i = 0; i < patterns.length; i++) {
-      const pattern = patterns[i];
-      const match = cleanName.match(pattern);
+    for (const pattern of patterns) {
+      const match = pattern.exec(cleanName);
       
       if (match) {
         let level = match[1];
@@ -7142,7 +7141,7 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     ];
     
     for (const pattern of fallbackPatterns) {
-      const match = cleanName.match(pattern);
+      const match = pattern.exec(cleanName);
       if (match) {
         let level = match[1];
         if (level === '10') level = 'X';
@@ -7151,7 +7150,8 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         
         // Coba ekstrak jurusan dari sisa string
         const remaining = cleanName.replace(pattern, '').trim();
-        const majorMatch = remaining.match(/(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)/);
+        const majorRegex = /(IPA|IPS|BAHASA|AGAMA|UMUM|TEKNIK|MULTIMEDIA|TKJ|RPL|AKUNTANSI|PEMASARAN|ADMINISTRASI|KEBIDANAN|KEPERAWATAN|FARMASI|KIMIA|FISIKA|BIOLOGI|MATEMATIKA|BHS|BAHASA|SOSIAL|EKONOMI|SEJARAH|GEOGRAFI|SENI|OLAHRAGA|PENDIDIKAN|GURU|SISWA|KA|KEJURUAN|KEJURUANAN|KEJURUAN_AN|KEJURUAN-AN|AK)/;
+        const majorMatch = majorRegex.exec(remaining);
         let major = majorMatch ? majorMatch[1] : 'UMUM';
         
         // Mapping jurusan untuk kompatibilitas
@@ -7168,7 +7168,8 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
         }
         
         // Coba ekstrak nomor
-        const numberMatch = remaining.match(/(\d+)/);
+        const numberRegex = /(\d+)/;
+        const numberMatch = numberRegex.exec(remaining);
         const number = numberMatch ? Number.parseInt(numberMatch[1]) : 1;
         
         const result = { level, major, number, fullName: className };
@@ -7999,8 +8000,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               updated_at: profileResponse.updated_at
             });
           }
-        } catch (profileErr) {
-          console.error("Failed to load latest profile data:", profileErr);
+        } catch (error_) {
+          console.error("Failed to load latest profile data:", error_);
         }
       } catch (err) {
         console.error("Token verification failed:", err);
