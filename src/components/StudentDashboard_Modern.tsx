@@ -227,7 +227,25 @@ const getStatusButtonClass = (status: string, isSelected: boolean): string => {
   return colorMap[status] || 'bg-yellow-500 text-white border-yellow-500';
 };
 
-// =============================================================================
+/** Attendance status badge color map (used in multiple places, S3776 compliance) */
+const ATTENDANCE_STATUS_BADGE_COLORS: Record<string, string> = {
+  'Hadir': 'bg-green-100 text-green-800',
+  'hadir': 'bg-green-100 text-green-800',
+  'Tidak Hadir': 'bg-red-100 text-red-800',
+  'Alpa': 'bg-red-100 text-red-800',
+  'alpa': 'bg-red-100 text-red-800',
+  'Izin': 'bg-yellow-100 text-yellow-800',
+  'izin': 'bg-yellow-100 text-yellow-800',
+  'Sakit': 'bg-blue-100 text-blue-800',
+  'sakit': 'bg-blue-100 text-blue-800',
+  'Dispen': 'bg-purple-100 text-purple-800',
+  'dispen': 'bg-purple-100 text-purple-800'
+};
+
+/** Get attendance status badge class */
+const getAttendanceStatusBadgeClass = (status: string): string => {
+  return ATTENDANCE_STATUS_BADGE_COLORS[status] || 'bg-gray-100 text-gray-800';
+};
 
 
 
@@ -1869,13 +1887,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                                     <span className="text-gray-700">{guru.nama_guru}</span>
                                     <div className="flex items-center gap-2">
                                       <Badge 
-                                        className={`text-xs ${
-                                          status === 'Hadir' ? 'bg-green-100 text-green-800' :
-                                          status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
-                                          status === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
-                                          status === 'Sakit' ? 'bg-blue-100 text-blue-800' :
-                                          'bg-gray-100 text-gray-800'
-                                        }`}
+                                        className={`text-xs ${getAttendanceStatusBadgeClass(status)}`}
                                       >
                                         {status}
                                       </Badge>
@@ -2033,13 +2045,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                                   <div key={guru.id_guru || idx} className="flex items-center gap-2">
                                     <Badge 
                                       variant="outline" 
-                                      className={`text-xs ${
-                                        guru.status_kehadiran === 'Hadir' ? 'bg-green-100 text-green-800' :
-                                        guru.status_kehadiran === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
-                                        guru.status_kehadiran === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
-                                        guru.status_kehadiran === 'Sakit' ? 'bg-blue-100 text-blue-800' :
-                                        'bg-gray-100 text-gray-800'
-                                      }`}
+                                      className={`text-xs ${getAttendanceStatusBadgeClass(guru.status_kehadiran)}`}
                                     >
                                       {guru.nama_guru}
                                     </Badge>
@@ -2178,13 +2184,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                                           <div key={guru.id_guru || idx} className="flex items-center gap-2">
                                             <Badge 
                                               variant="outline" 
-                                              className={`text-xs ${
-                                                guru.status_kehadiran === 'Hadir' ? 'bg-green-100 text-green-800' :
-                                                guru.status_kehadiran === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
-                                                guru.status_kehadiran === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
-                                                guru.status_kehadiran === 'Sakit' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-gray-100 text-gray-800'
-                                              }`}
+                                              className={`text-xs ${getAttendanceStatusBadgeClass(guru.status_kehadiran)}`}
                                             >
                                               {guru.nama_guru}
                                             </Badge>
