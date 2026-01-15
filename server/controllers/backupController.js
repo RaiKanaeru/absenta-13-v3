@@ -1440,8 +1440,8 @@ const createManualBackup = async (req, res) => {
 
         // Try mysqldump first, fallback to manual
         try {
-            const { exec } = require('child_process');
-            const { promisify } = require('util');
+            const { exec } = require('node:child_process');
+            const { promisify } = require('node:util');
             const execAsync = promisify(exec);
 
             await execAsync('mysqldump --version');

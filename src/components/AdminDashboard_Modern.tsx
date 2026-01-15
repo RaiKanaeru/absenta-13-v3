@@ -43,7 +43,7 @@ import {
   Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Menu, X,
   TrendingUp, Home, Clock, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, Activity,
   Database, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, AlertTriangle
 } from "lucide-react";
 
 /**
@@ -253,6 +253,9 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
+type GenderType = 'L' | 'P' | '';
+type AccountStatusType = 'aktif' | 'nonaktif';
+
 const menuItems = [
   { id: 'add-teacher', title: 'Tambah Akun Guru', icon: UserPlus, description: 'Kelola akun guru', gradient: 'from-blue-500 to-blue-700' },
   { id: 'add-student', title: 'Tambah Akun Siswa', icon: UserPlus, description: 'Kelola akun siswa perwakilan', gradient: 'from-green-500 to-green-700' },
@@ -280,9 +283,9 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     mapel_id: '', 
     email: '', 
     no_telp: '', 
-    jenis_kelamin: '' as 'L' | 'P' | '', 
+    jenis_kelamin: '' as GenderType, 
     alamat: '', 
-    status: 'aktif' as 'aktif' | 'nonaktif'
+    status: 'aktif' as AccountStatusType
   });
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -5803,7 +5806,8 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         const headers = Object.keys(exportData[0]).join(',');
         const rows = exportData.map(row => 
           Object.values(row).map(value => 
-            typeof value === 'string' && value.includes(',') ? `"${value}"` : String(value ?? '')
+            typeof value === 'string' && value.includes(',') ? `"${value}"` : 
+            (typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? ''))
           ).join(',')
         );
         const csvContent = BOM + headers + '\n' + rows.join('\n');
@@ -6453,9 +6457,11 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
   
 
 
+type ReportDataRow = Record<string, string | number | boolean>;
+
 // Student Attendance Summary Component
 const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
-  const [reportData, setReportData] = useState<Record<string, string | number | boolean>[]>([]);
+  const [reportData, setReportData] = useState<ReportDataRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState(() => {

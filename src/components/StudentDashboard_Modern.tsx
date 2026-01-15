@@ -11,7 +11,7 @@ import { formatDateTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, get
 import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
 import { GuruAttendanceCard } from './student';
-import { EmptyScheduleCard, StudentStatusBadge, BandingList } from './student/StudentDashboardComponents';
+import { EmptyScheduleCard, StudentStatusBadge, BandingList, BandingAbsen, Pagination } from './student/StudentDashboardComponents';
 
 import { getApiUrl } from '@/config/api';
 import { getCleanToken } from '@/utils/authUtils';
@@ -387,19 +387,21 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   // State untuk expandable rows
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   
+type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+
   // State untuk form banding absen kelas
   const [formBanding, setFormBanding] = useState({
     jadwal_id: '',
     tanggal_absen: '',
     siswa_banding: [{
       nama: '',
-      status_asli: 'alpa' as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen',
-      status_diajukan: 'hadir' as 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen',
+      status_asli: 'alpa' as StatusType,
+      status_diajukan: 'hadir' as StatusType,
       alasan_banding: ''
     }] as Array<{
       nama: string;
-      status_asli: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
-      status_diajukan: 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+      status_asli: StatusType;
+      status_diajukan: StatusType;
       alasan_banding: string;
     }>
   });
@@ -2701,7 +2703,6 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                 <p className="text-sm sm:text-base text-gray-600">Kelas belum memiliki riwayat pengajuan banding absen</p>
               </div>
             ) : (
-              <>
                 <BandingList
                   bandingAbsen={bandingAbsen}
                   expandedBanding={expandedBanding}
@@ -2712,7 +2713,7 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
                 />
 
 
-              </>
+
             )}
           </CardContent>
         </Card>

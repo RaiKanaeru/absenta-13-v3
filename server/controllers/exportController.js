@@ -2280,8 +2280,8 @@ export const downloadFile = async (req, res) => {
         const userId = req.user.id;
         
         // Use path and fs imports (will need to be added to top of file)
-        const path = await import('path');
-        const fs = await import('fs/promises');
+        const path = await import('node:path');
+        const fs = await import('node:fs/promises');
 
         const filePath = path.default.join(globalThis.downloadQueue.downloadDir, filename);
 
@@ -2420,8 +2420,8 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
 
         // Generate Excel
         const ExcelJS = (await import('exceljs')).default;
-        const fs = await import('fs');
-        const path = await import('path');
+        const fs = await import('node:fs');
+        const path = await import('node:path');
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
@@ -2773,11 +2773,11 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         const namaKelas = kelasRows[0].nama_kelas;
 
         // Determine tingkat (X, XI, XII, XIII) from kelas name
-        let tingkat = 'X';
+        let tingkat = 'X'; // Default fallback for kelas X
         if (namaKelas.includes('XIII')) tingkat = 'XIII';
         else if (namaKelas.includes('XII')) tingkat = 'XII';
         else if (namaKelas.includes('XI')) tingkat = 'XI';
-        else if (namaKelas.includes('X')) tingkat = 'X';
+        // else: already 'X' by default, no need to reassign
 
         const mapping = templateExportService.REKAP_KELAS_GASAL_MAPPING;
         const templateFile = mapping.templateFile(tingkat);

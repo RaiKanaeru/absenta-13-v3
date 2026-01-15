@@ -28,7 +28,8 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     let inputValue = e.target.value;
     
     // Hanya izinkan angka dan titik dua
-    inputValue = inputValue.replace(/[^\d:]/g, '');
+    // @ts-expect-error replaceAll is not in ES2020 lib but supported in modern browsers
+    inputValue = inputValue.replaceAll(/[^\d:]/g, '');
     
     // Batasi panjang maksimal 5 karakter (HH:MM)
     if (inputValue.length > 5) {
