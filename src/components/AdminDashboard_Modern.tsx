@@ -4826,7 +4826,8 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       const headers = Object.keys(exportData[0]).join(',');
       const rows = exportData.map(row =>
         Object.values(row).map(value =>
-          typeof value === 'string' && value.includes(',') ? `"${value}"` : String(value ?? '')
+          typeof value === 'string' && value.includes(',') ? `"${value}"` : 
+          (typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? ''))
         ).join(',')
       );
       const csvContent = BOM + headers + '\n' + rows.join('\n');
@@ -5928,7 +5929,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                   <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
                   Auto Refresh: {autoRefresh ? 'ON' : 'OFF'}
                 </Button>
-                <Button onClick={handleExport} size="sm" disabled={!filteredData?.length}>
+                <Button onClick={handleExport} size="sm" disabled={filteredData?.length === 0}>
                   <Download className="w-4 h-4 mr-2" />
                   Export ke CSV
                 </Button>
@@ -5940,7 +5941,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pencarian (Nama, NIP, atau Mata Pelajaran)
+                  Pencarian (Nama, NIP, atau Mata Pelajaran){' '}
                   <span className="text-xs text-gray-500 ml-2">
                     (Menampilkan semua guru yang sesuai kriteria pencarian)
                   </span>
@@ -7052,10 +7053,10 @@ const applyMajorMapping = (major: string): string => {
 
 /** Pattern untuk parsing nama kelas */
 const CLASS_PATTERNS = [
-  new RegExp(`^(X|XI|XII)\\s+(${VALID_MAJORS})\\s*(\\d+)?$`),
-  new RegExp(`^(10|11|12)\\s+(${VALID_MAJORS})\\s*(\\d+)?$`),
-  new RegExp(`^(X|XI|XII)\\s+(${VALID_MAJORS})$`),
-  new RegExp(`^(X|XI|XII)[\\s\\-_]+(${VALID_MAJORS})[\\s\\-_]*(\\d+)?$`),
+  new RegExp(String.raw`^(X|XI|XII)\s+(${VALID_MAJORS})\s*(\d+)?$`),
+  new RegExp(String.raw`^(10|11|12)\s+(${VALID_MAJORS})\s*(\d+)?$`),
+  new RegExp(String.raw`^(X|XI|XII)\s+(${VALID_MAJORS})$`),
+  new RegExp(String.raw`^(X|XI|XII)[\s\-_]+(${VALID_MAJORS})[\s\-_]*(\d+)?$`),
 ];
 
 /** Fallback patterns untuk ekstrak tingkat */

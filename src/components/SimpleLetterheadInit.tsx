@@ -25,7 +25,7 @@ const SimpleLetterheadInit: React.FC = () => {
 
       // Check if response is HTML (error page)
       const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/html')) {
+      if (contentType?.includes('text/html')) {
         setStatus('error');
         setMessage('Server mengembalikan halaman error. Pastikan server berjalan dengan benar.');
         return;

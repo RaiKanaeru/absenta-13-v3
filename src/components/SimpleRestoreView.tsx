@@ -25,12 +25,12 @@ interface SimpleRestoreViewProps {
 // VALIDATION HELPERS (extracted to reduce cognitive complexity)
 // =============================================================================
 
-const ALLOWED_FILE_TYPES = ['.sql', '.zip'];
+const ALLOWED_FILE_TYPES = new Set(['.sql', '.zip']);
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 function validateFileType(filename: string): string | null {
   const fileExtension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
-  if (!ALLOWED_FILE_TYPES.includes(fileExtension)) {
+  if (!ALLOWED_FILE_TYPES.has(fileExtension)) {
     return 'File harus berformat .sql atau .zip';
   }
   return null;
@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS presensi (
     a.download = 'backup_template.sql';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(url);
   };
 

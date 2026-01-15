@@ -89,9 +89,8 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
 
   // Reload config when scope or reportKey changes
   useEffect(() => {
-    if (scope === 'report' && selectedReportKey) {
-      loadConfig();
-    } else if (scope === 'global') {
+    // Both scopes need config reload when dependencies change
+    if (scope === 'global' || (scope === 'report' && selectedReportKey)) {
       loadConfig();
     }
   }, [scope, selectedReportKey, loadConfig]);
@@ -263,11 +262,15 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       
       if (response.ok) {
         // Delete old file if exists
-        const currentUrl = logoType === 'logo' ? config.logo : 
-                          logoType === 'logoLeft' ? config.logoLeftUrl : 
-                          config.logoRightUrl;
+        // Helper to get current logo URL based on type
+        const getLogoUrl = () => {
+          if (logoType === 'logo') return config.logo;
+          if (logoType === 'logoLeft') return config.logoLeftUrl;
+          return config.logoRightUrl;
+        };
+        const currentUrl = getLogoUrl();
         
-        if (currentUrl && currentUrl.startsWith('/uploads/letterheads/')) {
+        if (currentUrl?.startsWith('/uploads/letterheads/')) {
           try {
             await deleteOldLogoFile(currentUrl);
           } catch (deleteError) {

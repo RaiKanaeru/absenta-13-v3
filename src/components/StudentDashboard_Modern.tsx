@@ -367,10 +367,10 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     return getCurrentDateWIB();
   });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [maxDate, setMaxDate] = useState<string>(() => {
+  const [maxDate] = useState<string>(() => {
     return getCurrentDateWIB();
   });
-  const [minDate, setMinDate] = useState<string>(() => {
+  const [minDate] = useState<string>(() => {
     const wibNow = getWIBTime();
     const sevenDaysAgo = new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000);
     return formatDateWIB(sevenDaysAgo);
@@ -2509,10 +2509,10 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                         loadSiswaStatusById(selectedSiswaId, formBanding.tanggal_absen, e.target.value);
                       }
                     }}
-                    disabled={!formBanding.tanggal_absen || loadingJadwal}
+                    disabled={formBanding.tanggal_absen === '' || loadingJadwal}
                   >
                     <option value="">
-                      {!formBanding.tanggal_absen 
+                      {formBanding.tanggal_absen === '' // Fixed: Unexpected negated condition (!formBanding.tanggal_absen)
                         ? "Pilih tanggal absen terlebih dahulu..." 
                         : loadingJadwal 
                           ? "Memuat jadwal..." 
