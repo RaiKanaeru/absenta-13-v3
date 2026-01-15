@@ -18,15 +18,15 @@ import { FontSizeControl } from "@/components/ui/font-size-control";
 import { Textarea } from "@/components/ui/textarea";
 
 import ErrorBoundary from "./ErrorBoundary";
-import BackupManagementView from "./BackupManagementView";
-import MonitoringDashboard from "./MonitoringDashboard";
+const BackupManagementView = React.lazy(() => import("./BackupManagementView"));
+const MonitoringDashboard = React.lazy(() => import("./MonitoringDashboard"));
 import { Teacher, TeacherData, StudentData, Subject, Kelas, Schedule, Room, LiveData } from '@/types/dashboard';
 // Lazy load to avoid circular dependencies
 // import { ManageStudentsView } from './admin/students/ManageStudentsView';
 const ManageStudentsView = React.lazy(() => import('./admin/students/ManageStudentsView').then(module => ({ default: module.ManageStudentsView })));
-import { PreviewJadwalView } from './admin/schedules/PreviewJadwalView';
-import JamPelajaranConfig from "./JamPelajaranConfig";
-import SimpleRestoreView from "./SimpleRestoreView";
+const PreviewJadwalView = React.lazy(() => import('./admin/schedules/PreviewJadwalView').then(module => ({ default: module.PreviewJadwalView })));
+const JamPelajaranConfig = React.lazy(() => import("./JamPelajaranConfig"));
+const SimpleRestoreView = React.lazy(() => import("./SimpleRestoreView"));
 
 import ExcelPreview from './ExcelPreview';
 
@@ -8196,7 +8196,9 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                   Kembali ke Menu
                 </Button>
                 
-                {renderActiveView()}
+                <React.Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
+                  {renderActiveView()}
+                </React.Suspense>
              </div>
           ) : (
             <div className="space-y-8">
