@@ -24,10 +24,10 @@ import { Teacher, TeacherData, StudentData, Subject, Kelas, Schedule, Room, Live
 // Lazy load to avoid circular dependencies
 // import { ManageStudentsView } from './admin/students/ManageStudentsView';
 const ManageStudentsView = React.lazy(() => import('./admin/students/ManageStudentsView').then(module => ({ default: module.ManageStudentsView })));
-const ManageStudentDataView = React.lazy(() => import('./admin/students/ManageStudentDataView').then(module => ({ default: module.ManageStudentDataView })));
-const StudentPromotionView = React.lazy(() => import('./admin/students/StudentPromotionView').then(module => ({ default: module.StudentPromotionView })));
-const ManageTeacherAccountsView = React.lazy(() => import('./admin/teachers/ManageTeacherAccountsView').then(module => ({ default: module.ManageTeacherAccountsView })));
-const ManageTeacherDataView = React.lazy(() => import('./admin/teachers/ManageTeacherDataView').then(module => ({ default: module.ManageTeacherDataView })));
+const ManageStudentDataView = React.lazy(() => import('./admin/students/ManageStudentDataView'));
+const StudentPromotionView = React.lazy(() => import('./admin/students/StudentPromotionView'));
+const ManageTeacherAccountsView = React.lazy(() => import('./admin/teachers/ManageTeacherAccountsView'));
+const ManageTeacherDataView = React.lazy(() => import('./admin/teachers/ManageTeacherDataView'));
 const PreviewJadwalView = React.lazy(() => import('./admin/schedules/PreviewJadwalView').then(module => ({ default: module.PreviewJadwalView })));
 const JamPelajaranConfig = React.lazy(() => import("./JamPelajaranConfig"));
 const SimpleRestoreView = React.lazy(() => import("./SimpleRestoreView"));
@@ -278,6 +278,12 @@ const menuItems = [
   { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' }
 ];
 
+// Helper: Get submit button label to avoid nested ternary (S3358)
+const getSubmitButtonLabel = (isLoading: boolean, editingId: number | null, loadingText = 'Menyimpan...', updateText = 'Update', addText = 'Tambah'): string => {
+  if (isLoading) return loadingText;
+  if (editingId) return updateText;
+  return addText;
+};
 
 // ManageSubjectsView Component  
 const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
@@ -480,7 +486,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
             
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-sm">
-                {isLoading ? 'Menyimpan...' : (editingId ? 'Update' : 'Tambah')}
+                {getSubmitButtonLabel(isLoading, editingId)}
               </Button>
               {editingId && (
                 <Button type="button" variant="outline" onClick={() => {
@@ -842,7 +848,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700 text-sm">
-                {isLoading ? 'Menyimpan...' : (editingId ? 'Update' : 'Tambah')}
+                {getSubmitButtonLabel(isLoading, editingId)}
               </Button>
               {editingId && (
                 <Button type="button" variant="outline" onClick={() => {
@@ -1271,7 +1277,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         
         // Set all data with proper response handling
         setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
-        setTeachers(Array.isArray(teachersData?.data) ? teachersData.data : Array.isArray(teachersData) ? teachersData : []);
+        // Normalize teachersData to array (S3358 - avoid nested ternary)
+        const normalizedTeachers = Array.isArray(teachersData?.data) 
+          ? teachersData.data 
+          : Array.isArray(teachersData) 
+            ? teachersData 
+            : [];
+        setTeachers(normalizedTeachers);
         setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
         setClasses(Array.isArray(classesData) ? classesData : []);
         setRooms(Array.isArray(roomsData) ? roomsData : []);
@@ -1857,7 +1869,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
 
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="text-sm">
-                {isLoading ? 'Processing...' : (editingId ? 'Update Jadwal' : `Tambah ${consecutiveHours} Jam Pelajaran`)}
+                {getSubmitButtonLabel(isLoading, editingId, 'Processing...', 'Update Jadwal', `Tambah ${consecutiveHours} Jam Pelajaran`)}
               </Button>
               {editingId && (
                 <Button type="button" variant="outline" onClick={() => {
@@ -2657,7 +2669,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                 Batal
               </Button>
               <Button type="submit" disabled={isLoading} className="text-sm">
-                {isLoading ? 'Menyimpan...' : (editingId ? 'Perbarui' : 'Tambah')}
+                {getSubmitButtonLabel(isLoading, editingId, 'Menyimpan...', 'Perbarui', 'Tambah')}
               </Button>
             </DialogFooter>
           </form>
