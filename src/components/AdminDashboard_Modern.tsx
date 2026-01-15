@@ -43,7 +43,7 @@ import {
   Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Menu, X,
   TrendingUp, Home, Clock, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, Activity,
   Database, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
-  Maximize2, Minimize2, AlertTriangle
+  Maximize2, Minimize2, AlertTriangle, ChevronLeft
 } from "lucide-react";
 
 /**
