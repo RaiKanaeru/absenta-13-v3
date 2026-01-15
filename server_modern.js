@@ -96,7 +96,11 @@ const uploadLogo = multer({
 });
 
 // Ensure upload directory exists
-mkdir(`${uploadDir}/letterheads`, { recursive: true }).catch(console.error);
+try {
+    await mkdir(`${uploadDir}/letterheads`, { recursive: true });
+} catch (err) {
+    console.error(err);
+}
 
 const app = express();
 app.set('trust proxy', 2);
@@ -334,7 +338,7 @@ async function initializeDatabase() {
             inputValidation: {
                 enabled: true,
                 maxLength: 10000000, // 10MB untuk mengakomodasi base64 data
-                allowedChars: /^[a-zA-Z0-9\s\-_@.!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~+/=]+$/, // Menambahkan +/= untuk base64
+                allowedChars: /^[a-zA-Z0-9\s_@.!#$%^&*()+=[\]{};':"\\|,.<>\x2F?`~=-]+$/, // Menambahkan +/= untuk base64
                 sqlInjectionPatterns: [
                     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/i,
                     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
@@ -643,7 +647,9 @@ app.use(globalErrorHandler);  // Handle all unhandled errors
 
 import { initAutoAttendanceScheduler } from './server/services/system/autoAttendanceService.js';
 
-initializeDatabase().then(() => {
+try {
+    await initializeDatabase();
+    
     // Initialize scheduled tasks (Cron Jobs)
     initAutoAttendanceScheduler();
 
@@ -679,7 +685,7 @@ initializeDatabase().then(() => {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
 
-}).catch(error => {
+} catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
-});
+}
