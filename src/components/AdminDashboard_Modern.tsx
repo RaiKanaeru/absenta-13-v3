@@ -21,7 +21,9 @@ import ErrorBoundary from "./ErrorBoundary";
 import BackupManagementView from "./BackupManagementView";
 import MonitoringDashboard from "./MonitoringDashboard";
 import { Teacher, TeacherData, StudentData, Subject, Kelas, Schedule, Room, LiveData } from '@/types/dashboard';
-import { ManageStudentsView } from './admin/students/ManageStudentsView';
+// Lazy load to avoid circular dependencies
+// import { ManageStudentsView } from './admin/students/ManageStudentsView';
+const ManageStudentsView = React.lazy(() => import('./admin/students/ManageStudentsView').then(module => ({ default: module.ManageStudentsView })));
 import { PreviewJadwalView } from './admin/schedules/PreviewJadwalView';
 import JamPelajaranConfig from "./JamPelajaranConfig";
 import SimpleRestoreView from "./SimpleRestoreView";
