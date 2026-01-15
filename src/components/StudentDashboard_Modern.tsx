@@ -1015,7 +1015,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       Object.keys(kehadiranData).forEach(key => {
         // Check if this is a multi-guru key (format: "jadwalId-guruId")
         if (key.includes('-')) {
-          const [jadwalId, guruId] = key.split('-');
+          const [, guruId] = key.split('-'); // jadwalId unused, only guruId needed
           kehadiranDataWithFlags[key] = {
             status: kehadiranData[key].status,
             keterangan: kehadiranData[key].keterangan,
@@ -1294,8 +1294,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
         throw new Error(errorData.error || 'Gagal menyimpan status');
       }
 
-      const result = await resp.json();
-    
+      await resp.json(); // Parse response but result unused
 
       // Tampilkan notifikasi sukses
       toast({
