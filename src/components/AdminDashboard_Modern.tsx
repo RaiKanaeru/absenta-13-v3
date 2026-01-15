@@ -8195,7 +8195,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 </Button>
                 
                 {activeView === 'add-teacher' && <ManageTeacherAccountsView onBack={() => setActiveView(null)} onLogout={onLogout} />}
-                {activeView === 'monitoring' && <SystemMonitoringView onBack={() => setActiveView(null)} onLogout={onLogout} />}
+                {activeView === 'monitoring' && <MonitoringDashboard />}
                 {/* Add other components here as needed */}
              </div>
           ) : (
