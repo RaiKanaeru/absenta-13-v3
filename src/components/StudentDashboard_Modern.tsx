@@ -1598,40 +1598,38 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                   // 1) Jika jadwal.guru_list sudah array (hasil parsing), pakai itu
                   if (Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
                     acc[key].guru_list = jadwal.guru_list as GuruInSchedule[];
-                  } else {
+                  } else if (jadwal.id_guru) {
                     // 2) Jika ada id_guru di record ini, dorong satu guru
-                    if (jadwal.id_guru) {
                     acc[key].guru_list!.push({
-                        id_guru: jadwal.id_guru,
-                        nama_guru: jadwal.nama_guru,
-                        nip: jadwal.nip,
-                        is_primary: jadwal.is_primary ?? false,
-                        status_kehadiran: jadwal.status_kehadiran,
-                        keterangan_guru: jadwal.keterangan_guru ?? ''
-                      } as GuruInSchedule);
-                    } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
-                      // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
-                      const raw = jadwal.nama_guru as string;
-                      const parts = raw.split(/,|&| dan /gi).map(s => s.trim()).filter(Boolean);
-                      if (parts.length > 1) {
-                        parts.forEach((nama: string, idx: number) => {
-                          acc[key].guru_list!.push({
-                            id_guru: 0, // placeholder, belum bisa diupdate ke server
-                            nama_guru: nama,
-                            nip: '',
-                            is_primary: idx === 0,
-                            status_kehadiran: 'belum_diambil',
-                            keterangan_guru: ''
-                          } as {
-                            id_guru: number;
-                            nama_guru: string;
-                            nip: string;
-                            is_primary?: boolean;
-                            status_kehadiran: string;
-                            keterangan_guru?: string;
-                          });
+                      id_guru: jadwal.id_guru,
+                      nama_guru: jadwal.nama_guru,
+                      nip: jadwal.nip,
+                      is_primary: jadwal.is_primary ?? false,
+                      status_kehadiran: jadwal.status_kehadiran,
+                      keterangan_guru: jadwal.keterangan_guru ?? ''
+                    } as GuruInSchedule);
+                  } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
+                    // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
+                    const raw = jadwal.nama_guru as string;
+                    const parts = raw.split(/,|&| dan /gi).map(s => s.trim()).filter(Boolean);
+                    if (parts.length > 1) {
+                      parts.forEach((nama: string, idx: number) => {
+                        acc[key].guru_list!.push({
+                          id_guru: 0, // placeholder, belum bisa diupdate ke server
+                          nama_guru: nama,
+                          nip: '',
+                          is_primary: idx === 0,
+                          status_kehadiran: 'belum_diambil',
+                          keterangan_guru: ''
+                        } as {
+                          id_guru: number;
+                          nama_guru: string;
+                          nip: string;
+                          is_primary?: boolean;
+                          status_kehadiran: string;
+                          keterangan_guru?: string;
                         });
-                      }
+                      });
                     }
                   }
                   
