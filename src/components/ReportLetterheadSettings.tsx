@@ -233,6 +233,16 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
     setLogoRightPreview("");
   };
 
+  // Helper to get config key from logo type (S3776 compliance - avoid nested ternary)
+  const getLogoConfigKey = (logoType: string): string => {
+    const keyMap: Record<string, string> = {
+      'logo': 'logo',
+      'logoLeft': 'logoLeftUrl',
+      'logoRight': 'logoRightUrl'
+    };
+    return keyMap[logoType] || 'logo';
+  };
+
   const convertFileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -347,7 +357,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
           // Update state
           setConfig(prev => ({
             ...prev,
-            [logoType === 'logo' ? 'logo' : logoType === 'logoLeft' ? 'logoLeftUrl' : 'logoRightUrl']: ''
+            [getLogoConfigKey(logoType)]: ''
           }));
           
           // Clear preview
@@ -497,7 +507,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
           <div className={`text-${alignment} space-y-1 clear-both`}>
             {logoElement}
             {config.lines.map((line, index) => (
-              <div key={index} className={`${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'} text-sm`}>
+              <div key={`line-preview-${index}-${line.text?.slice(0, 10) || 'empty'}`} className={`${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'} text-sm`}>
                 {line.text || `Baris ${index + 1}`}
               </div>
             ))}
@@ -719,7 +729,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                   </div>
                   
                   {config.lines.map((line, index) => (
-                    <div key={index} className="space-y-2">
+                    <div key={`line-edit-${index}-${line.text?.slice(0, 10) || 'empty'}`} className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <Input
                           value={line.text}
