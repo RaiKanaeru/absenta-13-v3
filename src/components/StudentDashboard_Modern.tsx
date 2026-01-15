@@ -415,8 +415,8 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
   // State untuk menyimpan siswa yang dipilih (berbasis id)
   const [selectedSiswaId, setSelectedSiswaId] = useState<number | null>(null);
   
-  // State untuk menyimpan data status kehadiran siswa
-  const [siswaStatusData, setSiswaStatusData] = useState<{[key: string]: string}>({});
+  // State untuk menyimpan data status kehadiran siswa (getter unused, only setter used)
+  const [, setSiswaStatusData] = useState<{[key: string]: string}>({});
   
   const [loadingJadwal, setLoadingJadwal] = useState(false);
   
@@ -449,16 +449,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     [isEditMode, jadwalBerdasarkanTanggal, jadwalHariIni]
   );
 
-  // Helper functions for expandable rows
-  const toggleRowExpansion = (rowId: number) => {
-    const newExpandedRows = new Set(expandedRows);
-    if (newExpandedRows.has(rowId)) {
-      newExpandedRows.delete(rowId);
-    } else {
-      newExpandedRows.add(rowId);
-    }
-    setExpandedRows(newExpandedRows);
-  };
+  // Note: toggleRowExpansion removed - was unused (only defined, never called)
 
   const handleUpdateProfile = (updatedData: {
     id: number;
@@ -783,7 +774,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       } else {
         // Check if response is JSON before trying to parse
         const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
+        if (contentType?.includes('application/json')) {
           const errorData = await response.json();
           toast({
             title: "Error memuat jadwal",
@@ -924,59 +915,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     }
   }, [siswaId]);
 
-  // Load status kehadiran siswa untuk banding absen
-  const loadSiswaStatus = useCallback(async (siswaNama: string, tanggal: string, jadwalId: string) => {
-    if (!siswaId || !siswaNama || !tanggal || !jadwalId) return;
-    
-    try {
-      const rawToken = localStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      if (!cleanToken) {
-        console.error('❌ Token tidak ditemukan');
-        return;
-      }
-      
-      // Cari ID siswa berdasarkan nama
-      const siswa = daftarSiswa.find(s => s.nama === siswaNama);
-      if (!siswa) {
-        console.error('❌ Siswa tidak ditemukan');
-        return;
-      }
-      
-      const response = await fetch(getApiUrl(`/api/siswa/${siswa.id}/status-kehadiran?tanggal=${tanggal}&jadwal_id=${jadwalId}`), {
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-      
-        
-        // Update status data
-        const statusKey = `${siswaNama}_${tanggal}_${jadwalId}`;
-        setSiswaStatusData(prev => ({
-          ...prev,
-          [statusKey]: data.status || 'alpa'
-        }));
-        
-        // Update form dengan status yang ditemukan
-        const newSiswaBanding = [{
-          nama: siswaNama,
-          status_asli: data.status || 'alpa',
-          status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
-          alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
-        }];
-        setFormBanding({...formBanding, siswa_banding: newSiswaBanding});
-      } else {
-        console.error('Error loading status kehadiran siswa:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error loading status kehadiran siswa:', error);
-    }
-  }, [siswaId, daftarSiswa, formBanding]);
+  // Note: loadSiswaStatus removed - was unused (replaced by loadSiswaStatusById)
 
   // Versi by-id: Load status kehadiran siswa menggunakan id_siswa (menghindari duplikasi nama)
   const loadSiswaStatusById = useCallback(async (idSiswa: number, tanggal: string, jadwalId: string) => {

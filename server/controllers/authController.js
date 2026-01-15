@@ -213,8 +213,8 @@ export const login = async (req, res) => {
                 `SELECT g.*, m.nama_mapel 
                  FROM guru g 
                  LEFT JOIN mapel m ON g.mapel_id = m.id_mapel 
-                 WHERE g.user_id = ?`,
-                [user.id]
+                 WHERE g.username = ?`,
+                [user.username]
             );
             if (guruData.length > 0) {
                 additionalData = {
