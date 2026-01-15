@@ -7,19 +7,18 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { formatTime24, formatDateTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
+import { formatDateTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
 import { FontSizeControl } from '@/components/ui/font-size-control';
 import { EditProfile } from './EditProfile';
 import { GuruAttendanceCard } from './student';
-import { EmptyScheduleCard, StudentStatusBadge, BandingCardItem, BandingList, Pagination, BandingAbsen } from './student/StudentDashboardComponents';
+import { EmptyScheduleCard, StudentStatusBadge, BandingList } from './student/StudentDashboardComponents';
 
 import { getApiUrl } from '@/config/api';
 import { getCleanToken } from '@/utils/authUtils';
 import { GuruInSchedule } from '@/types/dashboard';
 import {
   LogOut, Clock, User, BookOpen, CheckCircle2, XCircle, Calendar, Save,
-  Settings, Menu, X, Users, AlertCircle, MessageCircle, Eye, Edit,
-  ChevronLeft, ChevronRight, RefreshCw, ChevronDown, ChevronUp
+  Settings, Menu, X, Users, MessageCircle, Eye, Edit
 } from 'lucide-react';
 
 interface StudentDashboardProps {

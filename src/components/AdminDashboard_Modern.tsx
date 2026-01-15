@@ -3332,6 +3332,26 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     }
   };
 
+  // Helper: Remove selected guru from multi-guru form (reduces nesting depth S3358)
+  const handleRemoveSelectedGuru = (guruIdToRemove: number) => {
+    setFormData(prev => ({
+      ...prev,
+      guru_ids: prev.guru_ids.filter(id => id !== guruIdToRemove),
+      guru_id: prev.guru_ids.length === 1 ? '' : prev.guru_id
+    }));
+  };
+
+  // Helper: Add guru to multi-guru form (reduces nesting depth S3358)
+  const handleAddSelectedGuru = (guruId: string) => {
+    if (guruId && !formData.guru_ids.includes(Number.parseInt(guruId))) {
+      setFormData(prev => ({
+        ...prev,
+        guru_ids: [...prev.guru_ids, Number.parseInt(guruId)],
+        guru_id: prev.guru_ids.length === 0 ? guruId : prev.guru_id
+      }));
+    }
+  };
+
   if (showImport) {
     return <ExcelImportView entityType="jadwal" entityName="Jadwal Pelajaran" onBack={() => setShowImport(false)} />;
   }
@@ -3476,13 +3496,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                             <span>{teacher.nama}</span>
                             <button
                               type="button"
-                              onClick={() => {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  guru_ids: prev.guru_ids.filter(id => id !== guruId),
-                                  guru_id: prev.guru_ids.length === 1 ? '' : prev.guru_id
-                                }));
-                              }}
+                              onClick={() => handleRemoveSelectedGuru(guruId)}
                               className="ml-1 text-blue-600 hover:text-blue-800"
                             >
                               ×
@@ -3493,15 +3507,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     </div>
                     <Select 
                       value="" 
-                      onValueChange={(value) => {
-                        if (value && !formData.guru_ids.includes(Number.parseInt(value))) {
-                          setFormData(prev => ({
-                            ...prev,
-                            guru_ids: [...prev.guru_ids, Number.parseInt(value)],
-                            guru_id: prev.guru_ids.length === 0 ? value : prev.guru_id
-                          }));
-                        }
-                      }}
+                      onValueChange={handleAddSelectedGuru}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih guru (bisa lebih dari 1)" />
