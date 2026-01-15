@@ -205,6 +205,7 @@ class DatabaseOptimization {
 
     /**
      * Test query performance before and after optimization
+     * NOTE: This is optional - failures should not block server startup
      */
     async testQueryPerformance() {
         logger.info('Testing query performance');
@@ -232,26 +233,27 @@ class DatabaseOptimization {
             }
         ];
 
-        try {
-            for (const test of testQueries) {
+        // Run tests but don't fail if tables don't exist
+        for (const test of testQueries) {
+            try {
                 const startTime = Date.now();
                 await this.pool.execute(test.query);
                 const endTime = Date.now();
                 const executionTime = endTime - startTime;
                 
                 logger.debug('Query test', { name: test.name, executionTime, expectedTime: test.expectedTime, passed: executionTime <= test.expectedTime });
+            } catch (queryError) {
+                // Gracefully handle missing tables - just warn, don't throw
+                logger.warn('Query test skipped (table may not exist)', { name: test.name, error: queryError.message });
             }
-            
-            logger.info('Query performance testing completed');
-            
-        } catch (error) {
-            logger.error('Query performance testing failed', error);
-            throw error;
         }
+        
+        logger.info('Query performance testing completed (some tests may have been skipped)');
     }
 
     /**
      * Create archive tables for data partitioning
+     * NOTE: This is optional - failures should not block server startup
      */
     async createArchiveTables() {
         logger.info('Creating archive tables for data partitioning');
@@ -269,14 +271,24 @@ class DatabaseOptimization {
             }
         ];
 
-        try {
-            for (const table of archiveTables) {
+        for (const table of archiveTables) {
+            try {
                 // Check if archive table already exists
                 const [existingTables] = await this.pool.execute(
                     `SHOW TABLES LIKE '${table.name}'`
                 );
 
                 if (existingTables.length === 0) {
+                    // Check if source table exists first
+                    const [sourceTables] = await this.pool.execute(
+                        `SHOW TABLES LIKE '${table.sourceTable}'`
+                    );
+                    
+                    if (sourceTables.length === 0) {
+                        logger.warn('Source table does not exist, skipping archive', { sourceTable: table.sourceTable, archiveTable: table.name });
+                        continue;
+                    }
+                    
                     // Create archive table with same structure as source table
                     await this.pool.execute(
                         `CREATE TABLE ${table.name} LIKE ${table.sourceTable}`
@@ -291,14 +303,13 @@ class DatabaseOptimization {
                 } else {
                     logger.debug('Archive table already exists', { name: table.name });
                 }
+            } catch (tableError) {
+                // Gracefully handle errors - just warn, don't throw
+                logger.warn('Failed to create archive table (source may not exist)', { name: table.name, error: tableError.message });
             }
-            
-            logger.info('Archive tables creation completed');
-            
-        } catch (error) {
-            logger.error('Archive tables creation failed', error);
-            throw error;
         }
+        
+        logger.info('Archive tables creation completed (some tables may have been skipped)');
     }
 
     /**
