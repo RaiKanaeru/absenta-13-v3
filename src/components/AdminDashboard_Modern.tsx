@@ -2783,23 +2783,6 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     };
   }, [onLogout, autoRefresh]);
 
-  // Fungsi untuk mengelompokkan data berdasarkan waktu - single pass
-  const groupAttendanceByTime = (data: LiveStudentRow[]) => {
-    type TimeGroups = { pagi: LiveStudentRow[]; siang: LiveStudentRow[]; sore: LiveStudentRow[]; belumAbsen: LiveStudentRow[] };
-    const initial: TimeGroups = { pagi: [], siang: [], sore: [], belumAbsen: [] };
-    
-    return data.reduce((groups, item) => {
-      if (item.waktu_absen) {
-        const hour = Number.parseInt(item.waktu_absen.split(':')[0]);
-        if (hour >= 6 && hour < 12) groups.pagi.push(item);
-        else if (hour >= 12 && hour < 15) groups.siang.push(item);
-        else if (hour >= 15 && hour < 18) groups.sore.push(item);
-      } else {
-        groups.belumAbsen.push(item);
-      }
-      return groups;
-    }, initial);
-  };
 
   // Komponen statistik kehadiran - Modern Design
   const AttendanceStats = ({ data }: { data: LiveStudentRow[] }) => {
@@ -4318,7 +4301,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
     const handlePermissionRequest = async (notificationId: number, newStatus: 'disetujui' | 'ditolak') => {
       setProcessingNotif(notificationId);
       try {
-        const data = await apiCall(`/api/admin/izin/${notificationId}`, {
+        await apiCall(`/api/admin/izin/${notificationId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
