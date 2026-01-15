@@ -384,9 +384,9 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
   const filteredSubjects = subjects.filter(subject => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      (subject.nama_mapel && subject.nama_mapel.toLowerCase().includes(searchLower)) ||
-      (subject.kode_mapel && subject.kode_mapel.toLowerCase().includes(searchLower)) ||
-      (subject.deskripsi && subject.deskripsi.toLowerCase().includes(searchLower))
+      subject.nama_mapel?.toLowerCase().includes(searchLower) ||
+      subject.kode_mapel?.toLowerCase().includes(searchLower) ||
+      subject.deskripsi?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -784,7 +784,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
   const filteredClasses = classes.filter(kelas => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      kelas.nama_kelas && kelas.nama_kelas.toLowerCase().includes(searchLower)
+      kelas.nama_kelas?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -2373,8 +2373,8 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
 
   const filteredRooms = rooms.filter(room =>
     room.kode_ruang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (room.lokasi && room.lokasi.toLowerCase().includes(searchTerm.toLowerCase()))
+    room.nama_ruang?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    room.lokasi?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (showImport) {
@@ -3718,10 +3718,10 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       const matchesSearch = searchQuery === '' || 
         item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.nip.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.nama_mapel && item.nama_mapel.toLowerCase().includes(searchQuery.toLowerCase()));
+        item.nama_mapel?.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesMapel = selectedMapel === 'all' || 
-        (item.nama_mapel && item.nama_mapel.includes(selectedMapel));
+        item.nama_mapel?.includes(selectedMapel);
       
       // Selalu tampilkan semua data yang sesuai dengan filter pencarian dan mata pelajaran
       // Tidak perlu membedakan antara ada/tidak ada pencarian
@@ -4765,7 +4765,7 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         let errorMessage = 'Gagal mengunduh file';
         try {
           const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
+          if (contentType?.includes('application/json')) {
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
           }
@@ -5051,7 +5051,7 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         let errorMessage = 'Gagal mengunduh file';
         try {
           const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
+          if (contentType?.includes('application/json')) {
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
           }
