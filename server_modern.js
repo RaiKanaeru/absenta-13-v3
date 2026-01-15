@@ -7,8 +7,8 @@ console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🌐 API Base URL: ${process.env.API_BASE_URL || 'http://localhost:3001'}`);
 
 import express from 'express';
-import { mkdir } from 'fs/promises';
-import path from 'path';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';

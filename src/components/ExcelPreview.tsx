@@ -56,19 +56,16 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
   const getCellStyle = (format?: string, value?: string | number | null, columnKey?: string, align?: string) => {
     const baseStyle = "px-1 sm:px-2 py-1 text-xs border-r border-b border-gray-400 overflow-hidden";
     
-    // Explicit alignment from column config takes precedence
-    let alignStyle = "text-left";
-    if (align) {
-        alignStyle = `text-${align}`;
-    } else {
-        // Default alignment based on format
-        const formatAlignMap: Record<string, string> = {
-            number: 'text-right font-mono',
-            percentage: 'text-right font-mono',
-            date: 'text-center'
-        };
-        alignStyle = formatAlignMap[format || ''] || 'text-left';
-    }
+    // Explicit alignment from column config takes precedence, otherwise use default based on format
+    const formatAlignMap: Record<string, string> = {
+        number: 'text-right font-mono',
+        percentage: 'text-right font-mono',
+        date: 'text-center'
+    };
+    
+    const alignStyle = align 
+        ? `text-${align}` 
+        : (formatAlignMap[format || ''] || 'text-left');
 
     // Special styling for attendance columns (with type guard)
     const numValue = typeof value === 'number' ? value : 0;

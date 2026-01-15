@@ -29,12 +29,16 @@ interface ValidationError {
   };
 }
 
+interface PreviewDataRow {
+  [key: string]: string | number | boolean;
+}
+
 interface ImportResult {
   total: number;
   valid: number;
   invalid: number;
   errors: ValidationError[];
-  previewData?: Record<string, string | number | boolean>[];
+  previewData?: PreviewDataRow[];
 }
 
 const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityName, onBack }) => {
@@ -44,7 +48,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
   const [validationResult, setValidationResult] = useState<ImportResult | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<Record<string, string | number | boolean>[]>([]);
+  const [previewData, setPreviewData] = useState<PreviewDataRow[]>([]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -116,7 +120,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         document.body.appendChild(a);
         a.click();
         globalThis.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        a.remove();
         
         toast({
           title: "Berhasil",
@@ -282,7 +286,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
     )) || [];
   };
 
-  const getPreviewTableCells = (data: Record<string, string | number | boolean>) => {
+  const getPreviewTableCells = (data: PreviewDataRow) => {
     const cells = {
       'mapel': [
         data.kode_mapel,
@@ -557,8 +561,8 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {validationResult.errors.map((error, index) => (
-                        <TableRow key={index}>
+                      {validationResult.errors.map((error) => (
+                        <TableRow key={error.index}>
                           <TableCell className="font-medium">{error.index}</TableCell>
                           <TableCell className="text-xs text-gray-600">
                             {error.data ? (
@@ -674,12 +678,11 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
               </div>
               <Progress value={undefined} className="w-full" />
               <div className="text-xs text-gray-500">
-                {isValidating 
-                  ? "Memeriksa format data dan validasi..." 
-                  : entityType === 'jadwal'
-                  ? "Menyimpan jadwal ke database dengan validasi jenis aktivitas..."
-                  : "Menyimpan data ke database..."
-                }
+                {(() => {
+                  if (isValidating) return "Memeriksa format data dan validasi...";
+                  if (entityType === 'jadwal') return "Menyimpan jadwal ke database dengan validasi jenis aktivitas...";
+                  return "Menyimpan data ke database...";
+                })()}
               </div>
               {entityType === 'jadwal' && (
                 <div className="text-xs text-blue-600">

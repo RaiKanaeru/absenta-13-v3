@@ -361,7 +361,7 @@ const JamPelajaranConfig: React.FC = () => {
 
                                 {/* Jam Rows */}
                                 {jamPelajaran.map((jam, index) => (
-                                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                                    <div key={jam.jam_ke} className="grid grid-cols-12 gap-2 items-center">
                                         <div className="col-span-1">
                                             <Badge variant="secondary" className="w-full justify-center">
                                                 {jam.jam_ke}

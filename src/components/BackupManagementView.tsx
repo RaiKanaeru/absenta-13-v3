@@ -116,6 +116,17 @@ const DEFAULT_NEW_SCHEDULE: Partial<CustomSchedule> = {
 };
 
 /**
+ * Get today's date in YYYY-MM-DD format for date input max attribute
+ */
+const getTodayDateString = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+/**
  * Get progress step description based on percentage
  */
 function getProgressStep(progress: number): string {
@@ -828,13 +839,7 @@ const BackupManagementView: React.FC = () => {
                                                 type="date" 
                                                 value={selectedDate} 
                                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                                max={(() => {
-                                                  const now = new Date();
-                                                  const year = now.getFullYear();
-                                                  const month = String(now.getMonth() + 1).padStart(2, '0');
-                                                  const day = String(now.getDate()).padStart(2, '0');
-                                                  return `${year}-${month}-${day}`;
-                                                })()}
+                                                max={getTodayDateString()}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -844,13 +849,7 @@ const BackupManagementView: React.FC = () => {
                                                 value={selectedEndDate} 
                                                 onChange={(e) => setSelectedEndDate(e.target.value)}
                                                 min={selectedDate}
-                                                max={(() => {
-                                                  const now = new Date();
-                                                  const year = now.getFullYear();
-                                                  const month = String(now.getMonth() + 1).padStart(2, '0');
-                                                  const day = String(now.getDate()).padStart(2, '0');
-                                                  return `${year}-${month}-${day}`;
-                                                })()}
+                                                max={getTodayDateString()}
                                             />
                                             <p className="text-xs text-muted-foreground">
                                                 Kosongkan untuk backup satu hari saja
@@ -1518,6 +1517,7 @@ const BackupManagementView: React.FC = () => {
                                                                 if (Number.isNaN(dateObj.getTime())) return 'N/A';
                                                                 return dateObj.toLocaleDateString('id-ID');
                                                             } catch {
+                                                                // Ignore invalid date errors
                                                                 return 'N/A';
                                                             }
                                                         })()}

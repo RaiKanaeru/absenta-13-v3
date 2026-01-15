@@ -27,7 +27,7 @@ import JamPelajaranConfig from "./JamPelajaranConfig";
 import SimpleRestoreView from "./SimpleRestoreView";
 
 import ExcelPreview from './ExcelPreview';
-// import ReportHeader from './ReportHeader';
+
 import PresensiSiswaView from './PresensiSiswaView';
 import RekapKetidakhadiranView from './RekapKetidakhadiranView';
 import RekapKetidakhadiranGuruView from './RekapKetidakhadiranGuruView';
@@ -2964,10 +2964,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
   const [consecutiveHours, setConsecutiveHours] = useState(1);
   const [showImport, setShowImport] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [previewFilter, setPreviewFilter] = useState({
-    kelas: 'all',
-    hari: 'all'
-  });
+
   
   // State untuk pencarian
   const [searchTerm, setSearchTerm] = useState('');
@@ -5231,7 +5228,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           a.download = `riwayat-banding-absen-${dateRange.startDate || 'all'}-${dateRange.endDate || 'all'}.xlsx`;
           document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
+          a.remove();
           globalThis.URL.revokeObjectURL(url);
           
           toast({
@@ -6446,7 +6443,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                     <div key={`top-absent-teacher-${teacher.nama}-${index}`} 
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
-                        ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-amber-400' : 'bg-amber-300'}`}>
+                        ${['bg-amber-500', 'bg-amber-400', 'bg-amber-300'][index] || 'bg-amber-300'}`}>
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">

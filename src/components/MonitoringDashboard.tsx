@@ -100,7 +100,6 @@ const MonitoringDashboard: React.FC = () => {
     });
     const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
     const { toast } = useToast();
-    const isMobile = useIsMobile();
 
     const fetchMonitoringData = async () => {
         try {
