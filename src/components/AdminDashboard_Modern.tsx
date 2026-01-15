@@ -28,15 +28,14 @@ const PreviewJadwalView = React.lazy(() => import('./admin/schedules/PreviewJadw
 const JamPelajaranConfig = React.lazy(() => import("./JamPelajaranConfig"));
 const SimpleRestoreView = React.lazy(() => import("./SimpleRestoreView"));
 
-import ExcelPreview from './ExcelPreview';
-
-import PresensiSiswaView from './PresensiSiswaView';
-import RekapKetidakhadiranView from './RekapKetidakhadiranView';
-import RekapKetidakhadiranGuruView from './RekapKetidakhadiranGuruView';
-import ExcelImportView from './ExcelImportView';
+const ExcelPreview = React.lazy(() => import('./ExcelPreview'));
+const PresensiSiswaView = React.lazy(() => import('./PresensiSiswaView'));
+const RekapKetidakhadiranView = React.lazy(() => import('./RekapKetidakhadiranView'));
+const RekapKetidakhadiranGuruView = React.lazy(() => import('./RekapKetidakhadiranGuruView'));
+const ExcelImportView = React.lazy(() => import('./ExcelImportView'));
 import { VIEW_TO_REPORT_KEY } from '../utils/reportKeys';
-import { EditProfile } from './EditProfile';
-import ReportLetterheadSettings from './ReportLetterheadSettings';
+const EditProfile = React.lazy(() => import('./EditProfile').then(module => ({ default: module.EditProfile })));
+const ReportLetterheadSettings = React.lazy(() => import('./ReportLetterheadSettings'));
 
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
@@ -8245,12 +8244,14 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       
       {/* Edit Profile Modal */}
       {showEditProfile && userData && (
-        <EditProfile
-          userData={userData}
-          onUpdate={handleUpdateProfile}
-          onClose={() => setShowEditProfile(false)}
-          role="admin"
-        />
+        <React.Suspense fallback={null}>
+          <EditProfile
+            userData={userData}
+            onUpdate={handleUpdateProfile}
+            onClose={() => setShowEditProfile(false)}
+            role="admin"
+          />
+        </React.Suspense>
       )}
     </div>
   );
