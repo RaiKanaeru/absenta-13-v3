@@ -216,7 +216,7 @@ function calculateProgressUpdate(currentProgress: number): BackupProgress {
 
 const BackupManagementView: React.FC = () => {
     const [backups, setBackups] = useState<BackupInfo[]>([]);
-    const [loading, setLoading] = useState(false);
+
     const [loadingStates, setLoadingStates] = useState(DEFAULT_LOADING_STATES);
     const [backupProgress, setBackupProgress] = useState<BackupProgress>(DEFAULT_BACKUP_PROGRESS);
     const [selectedSemester, setSelectedSemester] = useState<string>('');

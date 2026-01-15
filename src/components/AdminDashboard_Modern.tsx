@@ -104,7 +104,11 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
     );
   }
   // Case 4: No teacher
-  return <span className="text-sm text-gray-500">-</span>;
+  return (
+    <Badge variant="secondary" className="text-xs">
+      Belum ada guru
+    </Badge>
+  );
 };
 
 /**
@@ -3964,37 +3968,9 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
                           <div className="space-y-1">
                             <div className="font-medium">{schedule.nama_mapel || '-'}</div>
-                            
-                            {/* Display teachers - handle multiple formats */}
+                            {/* Display teachers - using extracted component */}
                             <div className="flex flex-wrap gap-1">
-                              {/* Check for guru_list format first (multi-guru with IDs) */}
-                              {schedule.guru_list && schedule.guru_list.includes('||') ? (
-                                schedule.guru_list.split('||').map((guru, index) => {
-                                  const [guruId, guruName] = guru.split(':');
-                                  return (
-                                    <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                      {guruName}
-                                    </Badge>
-                                  );
-                                })
-                              ) : schedule.nama_guru && schedule.nama_guru.includes(',') ? (
-                                // Multiple teachers separated by comma
-                                schedule.nama_guru.split(',').map((guru, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                    {guru.trim()}
-                                  </Badge>
-                                ))
-                              ) : schedule.nama_guru ? (
-                                // Single teacher
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                  {schedule.nama_guru}
-                                </Badge>
-                              ) : (
-                                // No teacher assigned
-                                <Badge variant="secondary" className="text-xs">
-                                  Belum ada guru
-                                </Badge>
-                              )}
+                              <TeacherBadgeDisplay guruList={schedule.guru_list} namaGuru={schedule.nama_guru} />
                             </div>
                             
                             {/* Show multi-guru indicator if applicable */}
@@ -6405,7 +6381,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                     <div key={`top-absent-student-${student.nama}-${index}`} 
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white
-                        ${index === 0 ? 'bg-rose-500' : index === 1 ? 'bg-rose-400' : 'bg-rose-300'}`}>
+                        ${['bg-rose-500', 'bg-rose-400', 'bg-rose-300'][index] || 'bg-rose-300'}`}>
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -7265,6 +7241,53 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
     return targetClass || null;
   }, [classes, parseClassName]);
 
+  // Helper: Handle fallback class detection when primary detection fails
+  // Extracted to reduce Cognitive Complexity of useEffect (S3776 compliance)
+  const handleFallbackClassDetection = useCallback((
+    sourceClassId: string,
+    setToClassIdFn: (id: string) => void
+  ): void => {
+    const sourceClass = classes.find(c => c.id?.toString() === sourceClassId);
+    const sourceParsed = parseClassName(sourceClass?.nama_kelas || '');
+
+    // Case 1: sourceParsed exists - try fallback by level and major
+    if (sourceParsed) {
+      const targetLevel = getNextLevel(sourceParsed.level);
+      if (!targetLevel) {
+        setToClassIdFn('');
+        toast({ title: "❌ Tidak Dapat Dipromosikan", description: "Siswa kelas XII sudah lulus", variant: "destructive" });
+        return;
+      }
+
+      const fallbackClass = findFallbackByLevelAndMajor(classes, targetLevel, sourceParsed.major);
+      if (fallbackClass) {
+        setToClassIdFn(fallbackClass.id?.toString() || '');
+        toast({ title: "⚠ Kelas Tujuan Ditemukan (Parsial)", description: `Mohon periksa: ${fallbackClass.nama_kelas}` });
+        return;
+      }
+
+      setToClassIdFn('');
+      toast({ title: "❌ Kelas Tujuan Tidak Ditemukan", description: `Kelas ${targetLevel} ${sourceParsed.major} belum dibuat`, variant: "destructive" });
+      return;
+    }
+
+    // Case 2: sourceParsed is null - try simple level detection
+    if (sourceClass?.nama_kelas) {
+      const simpleLevel = detectSimpleLevel(sourceClass.nama_kelas);
+      if (simpleLevel) {
+        const simpleFallback = findClassByLevel(classes, simpleLevel);
+        if (simpleFallback) {
+          setToClassIdFn(simpleFallback.id?.toString() || '');
+          toast({ title: "⚠ Kelas Tujuan Ditemukan (Sederhana)", description: `Ditemukan: ${simpleFallback.nama_kelas}` });
+          return;
+        }
+      }
+    }
+
+    setToClassIdFn('');
+    toast({ title: "⚠ Kelas Tujuan Tidak Ditemukan", description: "Silakan buat kelas yang sesuai terlebih dahulu.", variant: "destructive" });
+  }, [classes, parseClassName]);
+
   // Auto-detect dan set kelas tujuan saat kelas asal dipilih (Simplified)
   useEffect(() => {
     // Guard: no action if no class selected or no classes loaded
@@ -7289,48 +7312,9 @@ const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogo
       }
       return;
     }
-
-    // Fallback: Try manual detection
-    const sourceClass = classes.find(c => c.id?.toString() === fromClassId);
-    const sourceParsed = parseClassName(sourceClass?.nama_kelas || '');
-
-    // Case 1: sourceParsed exists - try fallback by level and major
-    if (sourceParsed) {
-      const targetLevel = getNextLevel(sourceParsed.level);
-      if (!targetLevel) {
-        setToClassId('');
-        toast({ title: "❌ Tidak Dapat Dipromosikan", description: "Siswa kelas XII sudah lulus", variant: "destructive" });
-        return;
-      }
-
-      const fallbackClass = findFallbackByLevelAndMajor(classes, targetLevel, sourceParsed.major);
-      if (fallbackClass) {
-        setToClassId(fallbackClass.id?.toString() || '');
-        toast({ title: "⚠ Kelas Tujuan Ditemukan (Parsial)", description: `Mohon periksa: ${fallbackClass.nama_kelas}` });
-        return;
-      }
-
-      setToClassId('');
-      toast({ title: "❌ Kelas Tujuan Tidak Ditemukan", description: `Kelas ${targetLevel} ${sourceParsed.major} belum dibuat`, variant: "destructive" });
-      return;
-    }
-
-    // Case 2: sourceParsed is null - try simple level detection
-    if (sourceClass?.nama_kelas) {
-      const simpleLevel = detectSimpleLevel(sourceClass.nama_kelas);
-      if (simpleLevel) {
-        const simpleFallback = findClassByLevel(classes, simpleLevel);
-        if (simpleFallback) {
-          setToClassId(simpleFallback.id?.toString() || '');
-          toast({ title: "⚠ Kelas Tujuan Ditemukan (Sederhana)", description: `Ditemukan: ${simpleFallback.nama_kelas}` });
-          return;
-        }
-      }
-    }
-
-    setToClassId('');
-    toast({ title: "⚠ Kelas Tujuan Tidak Ditemukan", description: "Silakan buat kelas yang sesuai terlebih dahulu.", variant: "destructive" });
-  }, [fromClassId, classes, findTargetClass, parseClassName]);
+    // Fallback: Use extracted helper for detection
+    handleFallbackClassDetection(fromClassId, setToClassId);
+  }, [fromClassId, classes, findTargetClass, parseClassName, handleFallbackClassDetection]);
 
   // Reset states when fromClassId changes
   useEffect(() => {

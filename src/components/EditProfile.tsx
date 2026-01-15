@@ -796,7 +796,12 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                     <li>• Field dengan tanda (*) wajib diisi</li>
                     <li>• Username harus unik dan tidak boleh sama dengan user lain</li>
                     <li>• Password minimal 6 karakter</li>
-                    <li>• Data yang tidak dapat diubah: {role === 'guru' ? 'NIP' : role === 'siswa' ? 'NIS dan Kelas' : 'ID'}</li>
+                    <li>• Data yang tidak dapat diubah: {
+                      ({
+                        'guru': 'NIP',
+                        'siswa': 'NIS dan Kelas'
+                      }[role] || 'ID')
+                    }</li>
                     {role === 'admin' && (
                       <li>• Admin hanya dapat mengubah nama, username, dan email</li>
                     )}
