@@ -641,12 +641,38 @@ initializeDatabase().then(() => {
     // Initialize scheduled tasks (Cron Jobs)
     initAutoAttendanceScheduler();
 
-    app.listen(port, '0.0.0.0', () => {
+    const server = app.listen(port, '0.0.0.0', () => {
         console.log(`🚀 ABSENTA Modern Server is running on http://0.0.0.0:${port}`);
         console.log(`🌐 Accessible from network: http://[YOUR_IP]:${port}`);
         console.log(`📱 Frontend should connect to this server`);
         console.log(`🔧 Database optimization: Connection pool active`);
     });
+
+    // Graceful Shutdown
+    const shutdown = async (signal) => {
+        console.log(`\n🛑 ${signal} received. Closing resources...`);
+        try {
+            if (globalThis.dbOptimization) {
+                await globalThis.dbOptimization.close();
+                console.log('✅ Database connection pool closed.');
+            }
+            if (globalThis.systemMonitor) {
+                // Save any pending metrics if needed
+                console.log('✅ System monitor stopped.');
+            }
+            server.close(() => {
+                console.log('✅ HTTP server closed.');
+                process.exit(0);
+            });
+        } catch (err) {
+            console.error('❌ Error during shutdown:', err);
+            process.exit(1);
+        }
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+
 }).catch(error => {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

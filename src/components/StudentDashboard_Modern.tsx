@@ -1694,7 +1694,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                               Multi-Guru ({jadwal.guru_list.length} guru)
                             </Badge>
                             {jadwal.guru_list.slice(1).map((guru, idx: number) => (
-                              <Badge key={guru.id_guru || idx} variant="outline" className="text-xs">
+                              <Badge key={`guru-${guru.id_guru}-${guru.nama_guru}`} variant="outline" className="text-xs">
                                 {guru.nama_guru}
                               </Badge>
                             ))}
@@ -2040,7 +2040,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                               </Badge>
                               <div className="space-y-1">
                                 {jadwal.guru_list.map((guru, idx: number) => (
-                                  <div key={guru.id_guru || idx} className="flex items-center gap-2">
+                                  <div key={`guru-multi-${guru.id_guru}-${guru.nama_guru}`} className="flex items-center gap-2">
                                     <Badge 
                                       variant="outline" 
                                       className={`text-xs ${getAttendanceStatusBadgeClass(guru.status_kehadiran)}`}
@@ -2179,7 +2179,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                                       </div>
                                       <div className="space-y-1">
                                         {jadwal.guru_list.map((guru, idx: number) => (
-                                          <div key={guru.id_guru || idx} className="flex items-center gap-2">
+                                          <div key={`guru-table-${guru.id_guru}-${guru.nama_guru}`} className="flex items-center gap-2">
                                             <Badge 
                                               variant="outline" 
                                               className={`text-xs ${getAttendanceStatusBadgeClass(guru.status_kehadiran)}`}
@@ -2323,7 +2323,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                       const statusSiswa = siswa.status || 'Status tidak tersedia';
                       
                       return (
-                        <div key={idx} className="border rounded-lg p-2 sm:p-3 space-y-2 bg-gray-50">
+                        <div key={`siswa-${siswa.nis || siswa.nama_siswa}-${idx}`} className="border rounded-lg p-2 sm:p-3 space-y-2 bg-gray-50">
                           <div className="flex flex-col gap-2">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-2">
                               <div className="min-w-0 flex-1">
