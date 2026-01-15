@@ -451,7 +451,13 @@ async function initializeDatabase() {
     } catch (error) {
         console.error('❌ Failed to initialize database optimization:', error.message);
         console.log('🔄 Retrying initialization in 5 seconds...');
-        setTimeout(initializeDatabase, 5000);
+        
+        // Correctly chain the promise for retry so server doesn't start prematurely
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                initializeDatabase().then(resolve).catch(reject);
+            }, 5000);
+        });
     }
 }
 
