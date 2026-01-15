@@ -8194,9 +8194,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                   Kembali ke Menu
                 </Button>
                 
-                {activeView === 'add-teacher' && <ManageTeacherAccountsView onBack={() => setActiveView(null)} onLogout={onLogout} />}
-                {activeView === 'monitoring' && <MonitoringDashboard />}
-                {/* Add other components here as needed */}
+                {renderActiveView()}
              </div>
           ) : (
             <div className="space-y-8">
