@@ -12,6 +12,7 @@ const router = Router();
 
 // Banding Absen Report - Admin only
 router.get('/banding-absen-report', authenticateToken, requireRole(['admin']), bandingAbsenController.getBandingAbsenReport);
+router.get('/banding-absen', authenticateToken, requireRole(['admin']), bandingAbsenController.getBandingAbsenReport); // Alias for frontend compatibility
 router.get('/download-banding-absen', authenticateToken, requireRole(['admin']), bandingAbsenController.downloadBandingAbsen);
 
 // Compatibility endpoints for schedule management

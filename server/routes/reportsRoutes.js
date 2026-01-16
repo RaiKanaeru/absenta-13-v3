@@ -53,12 +53,14 @@ router.get('/teacher-attendance-report', getTeacherAttendanceReport);
 router.get('/download-teacher-attendance', downloadTeacherAttendanceReport);
 router.get('/download-teacher-attendance-excel', downloadTeacherAttendanceReport); // Alias for frontend compatibility
 router.get('/teacher-attendance-summary', getTeacherAttendanceSummary);
+router.get('/teacher-summary', getTeacherAttendanceSummary); // Alias for frontend
 router.get('/rekap-ketidakhadiran-guru', getRekapKetidakhadiranGuru);
 
 // Student Attendance
 router.get('/student-attendance-report', getStudentAttendanceReport);
 router.get('/download-student-attendance', downloadStudentAttendanceReport);
 router.get('/student-attendance-summary', getStudentAttendanceSummary);
+router.get('/student-summary', getStudentAttendanceSummary); // Alias for frontend
 router.get('/download-student-attendance-excel', downloadStudentAttendanceExcel);
 router.get('/rekap-ketidakhadiran', getRekapKetidakhadiranSiswa);
 router.get('/presensi-siswa', getPresensiSiswa);
