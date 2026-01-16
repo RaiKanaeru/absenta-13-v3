@@ -8,7 +8,18 @@ import {
     getJadwalGuru,
     addJadwalGuru,
     removeJadwalGuru,
-    getJadwalToday
+    getJadwalToday,
+    bulkCreateJadwal,
+    cloneJadwal,
+    checkBulkConflicts,
+    getJamPelajaran,
+    getGuruAvailabilityList,
+    checkGuruAvailabilityApi,
+    getAppSettings,
+    bulkUpdateGuruAvailability,
+    getMatrixSchedule,
+    updateMatrixSchedule,
+    checkMatrixConflict
 } from '../controllers/jadwalController.js';
 
 const router = express.Router();
@@ -18,9 +29,26 @@ router.use(authenticateToken);
 
 // Public/Shared Routes (Guru, Siswa, Admin)
 router.get('/today', requireRole(['admin', 'guru', 'siswa']), getJadwalToday);
+router.get('/jam-pelajaran', requireRole(['admin', 'guru']), getJamPelajaran);
 
 // Admin-only Routes
 router.use(requireRole(['admin']));
+
+// Matrix/Grid Editor Routes
+router.get('/matrix', getMatrixSchedule);
+router.post('/matrix/update', updateMatrixSchedule);
+router.get('/matrix/check-conflict', checkMatrixConflict);
+
+// Reference Data Routes
+router.get('/guru-availability', getGuruAvailabilityList);
+router.post('/guru-availability/bulk', bulkUpdateGuruAvailability);
+router.post('/check-guru-availability', checkGuruAvailabilityApi);
+router.get('/settings', getAppSettings);
+
+// Bulk Operations (must be before /:id routes)
+router.post('/bulk', bulkCreateJadwal);
+router.post('/clone', cloneJadwal);
+router.post('/check-conflicts', checkBulkConflicts);
 
 // Main CRUD Routes
 router.get('/', getJadwal);
@@ -34,3 +62,4 @@ router.post('/:id/guru', addJadwalGuru);
 router.delete('/:id/guru/:guruId', removeJadwalGuru);
 
 export default router;
+

@@ -192,6 +192,22 @@ export const ACTIVITY_DISPLAY_MAP: Record<string, string> = {
   'ujian': '📝 Ujian',
 };
 
+
 export const getActivityDisplay = (activity: string): string => {
   return ACTIVITY_DISPLAY_MAP[activity] || '📋 ' + activity;
+};
+
+/**
+ * Helper to get submit button label (avoids nested ternary S3358)
+ */
+export const getSubmitButtonLabel = (
+  isLoading: boolean, 
+  editingId: number | null | undefined, 
+  loadingText = 'Menyimpan...', 
+  updateText = 'Update', 
+  addText = 'Tambah'
+): string => {
+  if (isLoading) return loadingText;
+  if (editingId) return updateText;
+  return addText;
 };

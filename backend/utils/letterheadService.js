@@ -29,17 +29,17 @@ export const REPORT_KEYS = {
   JADWAL_PELAJARAN: 'REPORT_JADWAL_PELAJARAN'
 };
 
-// Default letterhead configuration
 const DEFAULT_LETTERHEAD = {
   enabled: true,
   logo: "",
   logoLeftUrl: "",
   logoRightUrl: "",
   lines: [
-    { text: "PEMERINTAH DAERAH PROVINSI DKI JAKARTA", fontWeight: "bold" },
+    { text: "PEMERINTAH DAERAH PROVINSI JAWA BARAT", fontWeight: "bold" },
     { text: "DINAS PENDIDIKAN", fontWeight: "bold" },
-    { text: "SMK NEGERI 13 JAKARTA", fontWeight: "bold" },
-    { text: "Jl. Raya Bekasi Km. 18, Cakung, Jakarta Timur 13910", fontWeight: "normal" }
+    { text: "SMK NEGERI 13 BANDUNG", fontWeight: "bold" },
+    { text: "Jl. Soekarno-Hatta Km. 10 Bandung, Jawa Barat 40286", fontWeight: "normal" },
+    { text: "Telepon: (022) 7318960 | Website: http://www.smkn-13.sch.id", fontWeight: "normal" }
   ],
   alignment: "center"
 };

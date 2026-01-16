@@ -144,3 +144,102 @@ export interface GuruInSchedule {
   waktu_absen?: string;
   is_submitted?: boolean;
 }
+
+export interface LiveStudentRow {
+  id?: number;
+  nama: string;
+  nis: string;
+  nama_kelas: string;
+  status: string;
+  waktu_absen: string | null;
+  keterangan: string | null;
+  keterangan_waktu?: string;
+  periode_absen?: string;
+}
+
+export interface LiveTeacherRow {
+  id?: number;
+  nama: string;
+  nip: string;
+  nama_mapel: string;
+  nama_kelas: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  status: string;
+  waktu_absen: string | null;
+  keterangan: string | null;
+  keterangan_waktu?: string;
+  periode_absen?: string;
+}
+
+export type ReportDataRow = Record<string, string | number | boolean>;
+
+// ============================================================
+// NEW TYPES: Schedule Management Enhancement (2026-01-16)
+// ============================================================
+
+/**
+ * Jam Pelajaran - Durasi jam per hari dengan variasi (Jumat lebih pendek)
+ */
+export interface JamPelajaran {
+  id: number;
+  hari: 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu';
+  jam_ke: number; // 0 = Pembiasaan, 1-12 = Jam pelajaran
+  jam_mulai: string;
+  jam_selesai: string;
+  durasi_menit: number;
+  jenis: 'pelajaran' | 'istirahat' | 'pembiasaan';
+  label?: string; // 'Upacara', 'Tadarus', 'Istirahat Dzuhur', etc.
+  tahun_ajaran: string;
+}
+
+/**
+ * Guru Availability - Ketersediaan guru per hari
+ */
+export interface GuruAvailability {
+  id: number;
+  guru_id: number;
+  nama_guru?: string;
+  hari: 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu';
+  is_available: boolean;
+  keterangan?: string;
+  tahun_ajaran: string;
+}
+
+/**
+ * App Settings - Config dinamis per tahun ajaran
+ */
+export interface AppSetting {
+  setting_key: string;
+  setting_value: unknown;
+  category: string;
+  description?: string;
+}
+
+/**
+ * Ruang Mapel Binding - Lab terikat mapel tertentu
+ */
+export interface RuangMapelBinding {
+  id: number;
+  ruang_id: number;
+  mapel_id: number;
+  is_exclusive: boolean;
+  kode_ruang?: string;
+  nama_mapel?: string;
+}
+
+/**
+ * Schedule Conflict Result
+ */
+export interface ScheduleConflict {
+  type: 'guru' | 'ruang' | 'kelas';
+  message: string;
+  conflicting_schedule?: {
+    id: number;
+    nama_kelas: string;
+    nama_mapel: string;
+    jam_mulai: string;
+    jam_selesai: string;
+  };
+}
+

@@ -38,10 +38,11 @@ const DEFAULT_LETTERHEAD: LetterheadConfig = {
   logoLeftUrl: "",
   logoRightUrl: "",
   lines: [
-    { text: "PEMERINTAH DAERAH PROVINSI DKI JAKARTA", fontWeight: "bold" },
+    { text: "PEMERINTAH DAERAH PROVINSI JAWA BARAT", fontWeight: "bold" },
     { text: "DINAS PENDIDIKAN", fontWeight: "bold" },
-    { text: "SMK NEGERI 13 JAKARTA", fontWeight: "bold" },
-    { text: "Jl. Raya Bekasi Km. 18, Cakung, Jakarta Timur 13910", fontWeight: "normal" }
+    { text: "SMK NEGERI 13 BANDUNG", fontWeight: "bold" },
+    { text: "Jl. Soekarno-Hatta Km. 10 Bandung, Jawa Barat 40286", fontWeight: "normal" },
+    { text: "Telepon: (022) 7318960 | Website: http://www.smkn-13.sch.id", fontWeight: "normal" }
   ],
   alignment: "center"
 };
@@ -81,19 +82,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
   const [logoLeftPreview, setLogoLeftPreview] = useState<string>("");
   const [logoRightFile, setLogoRightFile] = useState<File | null>(null);
   const [logoRightPreview, setLogoRightPreview] = useState<string>("");
-
-  // Load configuration on mount
-  useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
-
-  // Reload config when scope or reportKey changes
-  useEffect(() => {
-    // Both scopes need config reload when dependencies change
-    if (scope === 'global' || (scope === 'report' && selectedReportKey)) {
-      loadConfig();
-    }
-  }, [scope, selectedReportKey, loadConfig]);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -143,6 +131,19 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       setLoading(false);
     }
   }, [scope, selectedReportKey]);
+
+  // Load configuration on mount
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  // Reload config when scope or reportKey changes
+  useEffect(() => {
+    // Both scopes need config reload when dependencies change
+    if (scope === 'global' || (scope === 'report' && selectedReportKey)) {
+      loadConfig();
+    }
+  }, [scope, selectedReportKey, loadConfig]);
 
   const handleSave = async () => {
     try {

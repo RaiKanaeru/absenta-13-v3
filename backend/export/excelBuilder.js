@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getLetterhead } from '../utils/letterheadService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -200,33 +201,6 @@ function addLetterheadLines(worksheet, lines, alignment, currentRow, columnsCoun
     });
 
     return currentRow + 1; // Add separator
-}
-
-/**
- * Add fallback hardcoded letterhead (backward compatibility)
- * @param {ExcelJS.Worksheet} worksheet - Excel worksheet
- * @param {number} currentRow - Current row number
- * @param {number} columnsCount - Number of columns
- * @returns {number} Updated row number
- */
-function addFallbackLetterhead(worksheet, currentRow, columnsCount) {
-    // School name
-    const schoolHeader = worksheet.getRow(currentRow);
-    schoolHeader.getCell(1).value = 'SMK NEGERI 13 JAKARTA';
-    schoolHeader.getCell(1).font = { bold: true, size: 16 };
-    schoolHeader.getCell(1).alignment = { horizontal: 'center' };
-    worksheet.mergeCells(currentRow, 1, currentRow, columnsCount);
-    currentRow++;
-
-    // Address
-    const addressHeader = worksheet.getRow(currentRow);
-    addressHeader.getCell(1).value = 'Jl. Raya Bekasi Km. 18, Cakung, Jakarta Timur 13910';
-    addressHeader.getCell(1).font = { size: 12 };
-    addressHeader.getCell(1).alignment = { horizontal: 'center' };
-    worksheet.mergeCells(currentRow, 1, currentRow, columnsCount);
-    currentRow++;
-
-    return currentRow + 1; // Separator
 }
 
 // ============================================
@@ -428,16 +402,25 @@ async function buildExcel(options) {
 
     let currentRow = 1;
 
-    // Determine letterhead visibility
+    // Determine letterhead visibility and fetch from DB if needed
+    let activeLetterhead = letterhead;
     const shouldShowLetterhead = letterhead.enabled ?? showLetterhead;
-    const hasLetterheadLines = letterhead.lines?.length > 0;
+    let hasLetterheadLines = letterhead.lines?.length > 0;
+
+    // If showLetterhead is requested but no letterhead data, fetch from database
+    if (shouldShowLetterhead && !hasLetterheadLines) {
+        try {
+            activeLetterhead = await getLetterhead({ reportKey: null }); // Get global letterhead
+            hasLetterheadLines = activeLetterhead?.lines?.length > 0;
+        } catch (error) {
+            console.warn('Could not fetch letterhead from database:', error.message);
+        }
+    }
 
     // Add letterhead section
-    if (shouldShowLetterhead && hasLetterheadLines) {
-        currentRow = addLogosRow(workbook, worksheet, letterhead, currentRow, columnsCount);
-        currentRow = addLetterheadLines(worksheet, letterhead.lines, letterhead.alignment || 'center', currentRow, columnsCount);
-    } else if (showLetterhead) {
-        currentRow = addFallbackLetterhead(worksheet, currentRow, columnsCount);
+    if (shouldShowLetterhead && hasLetterheadLines && activeLetterhead) {
+        currentRow = addLogosRow(workbook, worksheet, activeLetterhead, currentRow, columnsCount);
+        currentRow = addLetterheadLines(worksheet, activeLetterhead.lines, activeLetterhead.alignment || 'center', currentRow, columnsCount);
     }
 
     // Add title section

@@ -7,6 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { createLogger } from './logger.js';
+import { getLetterhead } from '../../backend/utils/letterheadService.js';
 
 const logger = createLogger('ExcelLetterhead');
 
@@ -20,34 +21,34 @@ const logger = createLogger('ExcelLetterhead');
  */
 export async function addLetterheadToWorksheet(workbook, worksheet, letterhead, columnCount = 11) {
     let currentRow = 1;
+    let activeLetterhead = letterhead;
     
+    // If no letterhead provided or empty, fetch from database
     if (!letterhead?.enabled || !letterhead?.lines?.length) {
-        return addFallbackHeader(worksheet);
+        try {
+            activeLetterhead = await getLetterhead({ reportKey: null }); // Get global letterhead
+            if (!activeLetterhead?.enabled || !activeLetterhead?.lines?.length) {
+                logger.warn('No letterhead configuration found in database');
+                return currentRow; // Return without letterhead
+            }
+        } catch (error) {
+            logger.warn('Could not fetch letterhead from database:', error.message);
+            return currentRow; // Return without letterhead
+        }
     }
 
-    const alignment = letterhead.alignment || 'center';
+    const alignment = activeLetterhead.alignment || 'center';
 
     // Add logos if available
-    if (letterhead.logoLeftUrl || letterhead.logoRightUrl) {
-        await addLogosToWorksheet(workbook, worksheet, letterhead, columnCount, currentRow);
+    if (activeLetterhead.logoLeftUrl || activeLetterhead.logoRightUrl) {
+        await addLogosToWorksheet(workbook, worksheet, activeLetterhead, columnCount, currentRow);
         currentRow += 4; // Space for logo
     }
 
     // Add letterhead lines
-    currentRow = addLetterheadLines(worksheet, letterhead.lines, alignment, currentRow, columnCount);
+    currentRow = addLetterheadLines(worksheet, activeLetterhead.lines, alignment, currentRow, columnCount);
 
     return currentRow + 1; // Separator
-}
-
-/**
- * Add fallback hardcoded header
- */
-function addFallbackHeader(worksheet) {
-    worksheet.getCell('A1').value = 'PEMERINTAH DAERAH PROVINSI JAWA BARAT';
-    worksheet.getCell('A2').value = 'DINAS PENDIDIKAN';
-    worksheet.getCell('A3').value = 'CABANG DINAS PENDIDIKAN WILAYAH VII';
-    worksheet.getCell('A4').value = 'SEKOLAH MENENGAH KEJURUAN NEGERI 13';
-    return 6;
 }
 
 /**

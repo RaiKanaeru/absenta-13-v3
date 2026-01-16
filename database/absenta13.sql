@@ -1116,6 +1116,76 @@ ALTER TABLE `pengajuan_banding_absen`
 ALTER TABLE `siswa`
   ADD CONSTRAINT `fk_siswa_kelas` FOREIGN KEY (`kelas_id`) REFERENCES `kelas` (`id_kelas`) ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_siswa_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ============================================================
+-- MIGRATION: Schedule Management Enhancement (2026-01-16)
+-- ============================================================
+
+-- 1. ALTER TABLE guru - Add is_system_entity column
+ALTER TABLE guru
+ADD COLUMN IF NOT EXISTS is_system_entity TINYINT(1) NOT NULL DEFAULT 0
+COMMENT 'True untuk entitas sistem (MANDIRI, WALI KELAS, dll)';
+
+-- 2. CREATE TABLE jam_pelajaran - Durasi jam per hari
+CREATE TABLE IF NOT EXISTS `jam_pelajaran` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `hari` enum('Senin','Selasa','Rabu','Kamis','Jumat','Sabtu') NOT NULL,
+  `jam_ke` tinyint NOT NULL COMMENT '0 = Pembiasaan pagi, 1-12 = Jam pelajaran',
+  `jam_mulai` time NOT NULL,
+  `jam_selesai` time NOT NULL,
+  `durasi_menit` int NOT NULL DEFAULT 45,
+  `jenis` enum('pelajaran','istirahat','pembiasaan') NOT NULL DEFAULT 'pelajaran',
+  `label` varchar(50) DEFAULT NULL COMMENT 'Label khusus: Upacara, Tadarus, dll',
+  `tahun_ajaran` varchar(9) NOT NULL DEFAULT '2025/2026',
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_jam_pelajaran_lookup (hari, jam_ke),
+  UNIQUE KEY unique_hari_jam_tahun (hari, jam_ke, tahun_ajaran)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+COMMENT='Master jam pelajaran per hari dengan durasi variabel';
+
+-- 3. CREATE TABLE guru_availability - Ketersediaan guru per hari
+CREATE TABLE IF NOT EXISTS `guru_availability` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `guru_id` int NOT NULL,
+  `hari` enum('Senin','Selasa','Rabu','Kamis','Jumat','Sabtu') NOT NULL,
+  `is_available` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1=ADA, 0=TIDAK ADA',
+  `keterangan` text DEFAULT NULL,
+  `tahun_ajaran` varchar(9) NOT NULL DEFAULT '2025/2026',
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_guru_hari (guru_id, hari, tahun_ajaran),
+  CONSTRAINT fk_availability_guru FOREIGN KEY (guru_id) 
+    REFERENCES guru(id_guru) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+COMMENT='Ketersediaan guru per hari (dari MASTER GURU HARIAN)';
+
+-- 4. CREATE TABLE app_settings - Config dinamis
+CREATE TABLE IF NOT EXISTS `app_settings` (
+  `setting_key` varchar(100) PRIMARY KEY,
+  `setting_value` JSON NOT NULL,
+  `category` varchar(50) DEFAULT 'general',
+  `description` text,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+COMMENT='Konfigurasi aplikasi per tahun ajaran';
+
+-- 5. CREATE TABLE ruang_mapel_binding - Lab terikat mapel
+CREATE TABLE IF NOT EXISTS `ruang_mapel_binding` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `ruang_id` int NOT NULL,
+  `mapel_id` int NOT NULL,
+  `is_exclusive` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1=Wajib di ruang ini',
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_ruang_mapel (ruang_id, mapel_id),
+  CONSTRAINT fk_binding_ruang FOREIGN KEY (ruang_id) 
+    REFERENCES ruang_kelas(id_ruang) ON DELETE CASCADE,
+  CONSTRAINT fk_binding_mapel FOREIGN KEY (mapel_id) 
+    REFERENCES mapel(id_mapel) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+COMMENT='Binding ruang khusus ke mapel tertentu (Lab)';
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

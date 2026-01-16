@@ -1387,7 +1387,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         worksheet.getCell('A1').alignment = { horizontal: 'center' };
 
         worksheet.mergeCells('A2:AH2');
-        worksheet.getCell('A2').value = 'SMK NEGERI 13 BANDUNG';
+        worksheet.getCell('A2').value = EXPORT_TITLES.SCHOOL_NAME;
         worksheet.getCell('A2').font = { bold: true, size: 12, color: { argb: 'FFCC0000' } };
         worksheet.getCell('A2').alignment = { horizontal: 'center' };
 
