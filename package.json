@@ -36,7 +36,10 @@
     "test:server": "node --test server/__tests__/*.test.js",
     "generate:secrets": "node scripts/generate-secrets.js",
     "deploy:setup": "npm install --production && npm run build:production",
-    "deploy:start": "pm2 start ecosystem.config.js --env production"
+    "deploy:start": "pm2 start ecosystem.config.js --env production",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "docs:reference": "npx typedoc"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
