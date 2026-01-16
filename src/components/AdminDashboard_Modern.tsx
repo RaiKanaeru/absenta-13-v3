@@ -47,7 +47,7 @@ import { MultiGuruDisplay, TeacherBadgeDisplay, getSubmitButtonLabel } from './a
 const EditProfile = React.lazy(() => import('./EditProfile').then(module => ({ default: module.EditProfile })));
 const ReportLetterheadSettings = React.lazy(() => import('./ReportLetterheadSettings'));
 const LiveSummaryView = React.lazy(() => import('./admin/dashboard/LiveSummaryView'));
-const ReportsView = React.lazy(() => import('./admin/reports/ReportsView'));
+const ReportsView = React.lazy(() => import('@/components/admin/reports/ReportsView'));
 
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
