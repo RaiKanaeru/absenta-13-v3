@@ -13,7 +13,7 @@ SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 -- 1. ALTER TABLE `guru` - Add is_system_entity column
 -- ============================================================
 ALTER TABLE guru
-ADD COLUMN IF NOT EXISTS is_system_entity TINYINT(1) NOT NULL DEFAULT 0
+ADD COLUMN is_system_entity TINYINT(1) NOT NULL DEFAULT 0
 COMMENT 'True untuk entitas sistem (MANDIRI, WALI KELAS, dll)';
 
 -- ============================================================
