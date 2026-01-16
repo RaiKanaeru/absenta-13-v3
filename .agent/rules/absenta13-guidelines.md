@@ -226,3 +226,26 @@ Sebuah perubahan dianggap selesai jika:
 14) Referensi Internal
 - informasisekolah13.md adalah sumber tunggal untuk identitas sekolah dan kop surat
 - Jika ada dokumen template resmi (scan kop surat), tambahkan ke folder dokumentasi dan jadikan rujukan utama.
+
+----------------------------------------------------------------
+
+15) Workflow Strict: Think Before Code (Anti-Asal)
+Tujuan: Mencegah kerja dua kali, regresi, dan solusi setengah matang.
+
+Setiap task non-trivial (fitur baru, refactor, bugfix kompleks) WAJIB mengikuti flow:
+1. **Analisa & Observasi**:
+   - Jangan langsung edit code!
+   - Baca file terkait, pahami flow eksisting.
+   - Identifikasi dampak perubahan (side effects).
+2. **Implementation Plan (The "Plant")**:
+   - Tulis rencana detail di `implementation_plan.md`.
+   - Jelaskan "Kenapa" solusi ini dipilih.
+   - List file yang akan disentuh.
+   - Pikirkan skenario error/edge case.
+3. **Validasi Rencana**:
+   - Review rencana sendiri: "Apakah ini akan merusak fitur lain?", "Apakah ada cara lebih simpel?".
+4. **Eksekusi Bertahap**:
+   - Coding sesuai rencana.
+   - Jika rencana ternyata salah di tengah jalan -> STOP -> Update Plan -> Lanjut Coding.
+5. **Finalisasi**:
+   - Git commit & push (sesuai aturan Quality Gate).
