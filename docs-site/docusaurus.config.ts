@@ -56,7 +56,7 @@ const config: Config = {
       {
         specs: [
           {
-            spec: 'http://localhost:3001/api-docs.json',
+            spec: './specs/swagger.json',
             route: '/api/',
           },
         ],
