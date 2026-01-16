@@ -49,9 +49,3 @@ export const HARI_EFEKTIF_MAP = {
     1: 21, 2: 20, 3: 22, 4: 20, 5: 20, 6: 18,
     7: 21, 8: 21, 9: 21, 10: 22, 11: 21, 12: 18
 };
-
-export const HARI_EFEKTIF_SEMESTER = {
-    GASAL: 95,
-    GENAP: 142,
-    TAHUNAN: 237
-};

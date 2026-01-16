@@ -11,6 +11,11 @@ Catatan validitas:
 - Aturan bisnis Absenta13 bersifat kebijakan internal dan bisa berubah.
 - Dokumen ini tidak boleh membuat asumsi file/komponen ada; semua rujukan file wajib diverifikasi di repo.
 
+Dokumen terkait:
+- .agent/rules/informasisekolah13.md (identitas sekolah dan kop surat)
+- .agent/rules/absenta13-guidelines2.md (spesifikasi export dan QA)
+- .agent/workflows/absenta13-development.md (konvensi endpoint dan deploy)
+
 ----------------------------------------------------------------
 
 1) Konteks Sistem
@@ -29,14 +34,14 @@ Prinsip:
 
 2) Repo Rules (Wajib sebelum kerja)
 Sebelum membuat perubahan apa pun:
-- jalankan check_repo_initialized pada repo target
+- jalankan helper repo init jika ada; jika tidak ada, lanjutkan dengan pengecekan manual
 - baca struktur yang sudah ada (controller, routes, utils, scripts)
 - cari pola yang sudah dipakai sebelum menambah file baru
 
 Aturan perubahan:
 - Minim diff, maksimal dampak
 - Hindari refactor besar kalau tidak diminta
-- Hindari duplikasi utilitas (jangan bikin “versi kedua” dari helper yang sudah ada)
+- Hindari duplikasi utilitas (jangan bikin versi kedua dari helper yang sudah ada)
 
 ----------------------------------------------------------------
 

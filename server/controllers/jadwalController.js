@@ -406,6 +406,149 @@ async function checkAllScheduleConflicts(params) {
 // MATRIX GRID FUNCTIONS (For Schedule Grid Editor)
 // ================================================
 
+// 7. Helper: Basic data fetchers for matrix
+const fetchJamSlotsByDay = async () => {
+    const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+    const [allJamSlots] = await globalThis.dbPool.execute(
+        `SELECT hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
+         FROM jam_pelajaran 
+         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'), jam_ke`
+    );
+
+    const jamSlotsByDay = {};
+    for (const hari of HARI_LIST) {
+        jamSlotsByDay[hari] = allJamSlots.filter(s => s.hari === hari);
+    }
+    return { jamSlotsByDay, HARI_LIST, hasData: allJamSlots.length > 0 };
+};
+
+const fetchClassesByTingkat = async (tingkat) => {
+    let kelasQuery = 'SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"';
+    const kelasParams = [];
+    if (tingkat && tingkat !== 'all') {
+        kelasQuery += ' AND nama_kelas LIKE ?';
+        kelasParams.push(`${tingkat}%`);
+    }
+    kelasQuery += ' ORDER BY nama_kelas';
+    const [classes] = await globalThis.dbPool.execute(kelasQuery, kelasParams);
+    return classes;
+};
+
+const fetchAllSchedules = async () => {
+    const [allSchedules] = await globalThis.dbPool.execute(
+        `SELECT 
+            j.id_jadwal, j.kelas_id, j.hari, j.jam_ke, 
+            j.mapel_id, j.guru_id, j.ruang_id,
+            j.jenis_aktivitas, j.keterangan_khusus,
+            COALESCE(m.kode_mapel, LEFT(j.keterangan_khusus, 6)) as kode_mapel,
+            COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+            m.warna as mapel_color,
+            COALESCE(g.kode_guru, 'SYS') as kode_guru,
+            COALESCE(g.nama, 'Sistem') as nama_guru,
+            COALESCE(rk.kode_ruang, '') as kode_ruang,
+            rk.nama_ruang
+         FROM jadwal j
+         LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+         LEFT JOIN guru g ON j.guru_id = g.id_guru
+         LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+         WHERE j.status = 'aktif'`
+    );
+    return allSchedules;
+};
+
+const fetchMultiGuruMap = async () => {
+    const [multiGuruData] = await globalThis.dbPool.execute(
+        `SELECT jg.jadwal_id, jg.guru_id, g.nama as nama_guru, g.kode_guru
+         FROM jadwal_guru jg
+         JOIN guru g ON jg.guru_id = g.id_guru
+         WHERE jg.is_primary = 0`
+    );
+
+    const multiGuruMap = {};
+    for (const mg of multiGuruData) {
+        if (!multiGuruMap[mg.jadwal_id]) multiGuruMap[mg.jadwal_id] = [];
+        multiGuruMap[mg.jadwal_id].push({
+            guru_id: mg.guru_id,
+            nama_guru: mg.nama_guru,
+            kode_guru: mg.kode_guru
+        });
+    }
+    return multiGuruMap;
+};
+
+// 8. Helper: Build single schedule cell
+const buildCellData = (sched, multiGuruMap) => {
+    // Build guru list (primary + additional)
+    const guruList = [{
+        guru_id: sched.guru_id,
+        nama_guru: sched.nama_guru,
+        kode_guru: sched.kode_guru
+    }];
+    
+    // Add multi-guru if exists
+    if (multiGuruMap[sched.id_jadwal]) {
+        guruList.push(...multiGuruMap[sched.id_jadwal]);
+    }
+
+    return {
+        id: sched.id_jadwal,
+        mapel: sched.kode_mapel || sched.nama_mapel,
+        mapel_id: sched.mapel_id,
+        nama_mapel: sched.nama_mapel,
+        ruang: sched.kode_ruang,
+        ruang_id: sched.ruang_id,
+        nama_ruang: sched.nama_ruang,
+        guru: guruList.map(g => g.kode_guru || g.nama_guru),
+        guru_detail: guruList,
+        color: sched.mapel_color || '#E5E7EB',
+        jenis: sched.jenis_aktivitas
+    };
+};
+
+const buildSpecialCell = (slot) => ({
+    id: null,
+    mapel: slot.label || slot.jenis.toUpperCase(),
+    ruang: slot.jenis === 'istirahat' ? 'DZUHUR' : '',
+    guru: [],
+    color: slot.jenis === 'istirahat' ? '#FFA500' : '#87CEEB',
+    jenis: slot.jenis,
+    isSpecial: true
+});
+
+// 9. Helper: Build schedule for a single class
+const buildClassSchedule = (kelas, HARI_LIST, jamSlotsByDay, allSchedules, multiGuruMap) => {
+    const schedule = {};
+    const tingkatMatch = kelas.nama_kelas.match(/^(X{1,3}I?)/);
+
+    for (const hari of HARI_LIST) {
+        schedule[hari] = {};
+        const daySlots = jamSlotsByDay[hari] || [];
+
+        for (const slot of daySlots) {
+            const sched = allSchedules.find(s => 
+                s.kelas_id === kelas.id_kelas && 
+                s.hari === hari && 
+                s.jam_ke === slot.jam_ke
+            );
+
+            if (sched) {
+                schedule[hari][slot.jam_ke] = buildCellData(sched, multiGuruMap);
+            } else if (slot.jenis !== 'pelajaran') {
+                schedule[hari][slot.jam_ke] = buildSpecialCell(slot);
+            } else {
+                schedule[hari][slot.jam_ke] = null;
+            }
+        }
+    }
+
+    return {
+        kelas_id: kelas.id_kelas,
+        nama_kelas: kelas.nama_kelas,
+        tingkat: tingkatMatch ? tingkatMatch[1] : '',
+        schedule
+    };
+};
+
 /**
  * Get schedule matrix data for Grid Editor
  * GET /api/admin/jadwal/matrix?hari=Senin&tingkat=XII
@@ -413,114 +556,57 @@ async function checkAllScheduleConflicts(params) {
  */
 export const getScheduleMatrix = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { hari = 'Senin', tingkat } = req.query;
+    const { tingkat } = req.query;
 
-    log.requestStart('GetScheduleMatrix', { hari, tingkat });
+    log.requestStart('GetScheduleMatrix', { tingkat });
 
     try {
-        // 1. Get jam_pelajaran for this day
-        const [jamSlots] = await globalThis.dbPool.execute(
-            `SELECT jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
-             FROM jam_pelajaran 
-             WHERE hari = ? AND jenis = 'pelajaran'
-             ORDER BY jam_ke`,
-            [hari]
-        );
+        // 1. Fetch Basic Data
+        const { jamSlotsByDay, HARI_LIST, hasData } = await fetchJamSlotsByDay();
 
-        if (jamSlots.length === 0) {
-            log.warn('No jam_pelajaran found', { hari });
+        if (!hasData) {
+            log.warn('No jam_pelajaran found');
             return sendSuccessResponse(res, {
-                hari,
-                jam_slots: [],
-                rows: [],
+                days: HARI_LIST,
+                jamSlots: {},
+                classes: [],
                 message: 'Silakan seed tabel jam_pelajaran terlebih dahulu'
             });
         }
 
-        // 2. Get classes filtered by tingkat
-        let kelasQuery = 'SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"';
-        const kelasParams = [];
-        if (tingkat && tingkat !== 'all') {
-            kelasQuery += ' AND nama_kelas LIKE ?';
-            kelasParams.push(`${tingkat}%`);
-        }
-        kelasQuery += ' ORDER BY nama_kelas';
+        // 2. Fetch Classes, Schedules, and Guru Data in Parallel
+        const [classes, allSchedules, multiGuruMap] = await Promise.all([
+            fetchClassesByTingkat(tingkat),
+            fetchAllSchedules(),
+            fetchMultiGuruMap()
+        ]);
 
-        const [classes] = await globalThis.dbPool.execute(kelasQuery, kelasParams);
-
-        // 3. Get jadwal for this day
-        const [schedules] = await globalThis.dbPool.execute(
-            `SELECT 
-                j.id_jadwal, j.kelas_id, j.jam_ke, 
-                j.mapel_id, j.guru_id, j.ruang_id,
-                j.jenis_aktivitas, j.keterangan_khusus,
-                COALESCE(m.kode_mapel, LEFT(j.keterangan_khusus, 6)) as kode_mapel,
-                COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                COALESCE(g.kode_guru, 'SYS') as kode_guru,
-                COALESCE(g.nama, 'Sistem') as nama_guru,
-                COALESCE(rk.kode_ruang, '') as kode_ruang
-             FROM jadwal j
-             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-             LEFT JOIN guru g ON j.guru_id = g.id_guru
-             LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-             WHERE j.hari = ? AND j.status = 'aktif'`,
-            [hari]
+        // 3. Build Class Schedules
+        const classData = classes.map(kelas => 
+            buildClassSchedule(kelas, HARI_LIST, jamSlotsByDay, allSchedules, multiGuruMap)
         );
 
-        // 4. Build matrix rows
-        const rows = classes.map(kelas => {
-            const cells = {};
-            
-            // Initialize empty cells for each jam slot
-            for (const slot of jamSlots) {
-                cells[slot.jam_ke] = null;
-            }
-
-            // Fill in schedule data
-            for (const schedule of schedules) {
-                if (schedule.kelas_id === kelas.id_kelas) {
-                    cells[schedule.jam_ke] = {
-                        id: schedule.id_jadwal,
-                        mapel_id: schedule.mapel_id,
-                        guru_id: schedule.guru_id,
-                        ruang_id: schedule.ruang_id,
-                        kode_mapel: schedule.kode_mapel,
-                        nama_mapel: schedule.nama_mapel,
-                        kode_guru: schedule.kode_guru,
-                        nama_guru: schedule.nama_guru,
-                        kode_ruang: schedule.kode_ruang,
-                        jenis_aktivitas: schedule.jenis_aktivitas
-                    };
-                }
-            }
-
-            // Extract tingkat from nama_kelas
-            const tingkatMatch = kelas.nama_kelas.match(/^(X{1,3}I?)/);
-
-            return {
-                kelas_id: kelas.id_kelas,
-                nama_kelas: kelas.nama_kelas,
-                tingkat: tingkatMatch ? tingkatMatch[1] : '',
-                cells
-            };
-        });
-
-        log.success('GetScheduleMatrix', { 
-            hari, 
-            jamSlotsCount: jamSlots.length, 
-            rowsCount: rows.length 
-        });
-
-        return sendSuccessResponse(res, {
-            hari,
-            jam_slots: jamSlots.map(s => ({
+        // 4. Prepare Response
+        const jamSlotsResponse = {};
+        for (const hari of HARI_LIST) {
+            jamSlotsResponse[hari] = (jamSlotsByDay[hari] || []).map(s => ({
                 jam_ke: s.jam_ke,
                 jam_mulai: s.jam_mulai,
                 jam_selesai: s.jam_selesai,
                 jenis: s.jenis,
                 label: s.label
-            })),
-            rows
+            }));
+        }
+
+        log.success('GetScheduleMatrix', { 
+            classCount: classData.length,
+            days: HARI_LIST.length
+        });
+
+        return sendSuccessResponse(res, {
+            days: HARI_LIST,
+            jamSlots: jamSlotsResponse,
+            classes: classData
         });
 
     } catch (error) {
@@ -528,7 +614,6 @@ export const getScheduleMatrix = async (req, res) => {
         return sendDatabaseError(res, error, 'Gagal memuat matrix jadwal');
     }
 };
-
 /**
  * Batch update multiple schedule cells
  * POST /api/admin/jadwal/matrix/batch

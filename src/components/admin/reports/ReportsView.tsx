@@ -1,140 +1,324 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-  Users, BarChart3, FileText, Globe, GraduationCap, ClipboardList, Activity 
-} from "lucide-react";
-import LiveStudentAttendanceView from './LiveStudentAttendanceView';
-import LiveTeacherAttendanceView from './LiveTeacherAttendanceView';
-import StudentAttendanceSummaryView from './StudentAttendanceSummaryView';
-import TeacherAttendanceSummaryView from './TeacherAttendanceSummaryView';
-import BandingAbsenReportView from './BandingAbsenReportView';
-import AnalyticsDashboardView from './AnalyticsDashboardView';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { FileText, Download, Users, GraduationCap, ArrowLeft, Loader2, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { apiCall } from '@/utils/apiClient';
+import { getApiUrl } from '@/config/api';
+import { Kelas } from '@/types/dashboard';
 
 interface ReportsViewProps {
+  onBack: () => void;
   onLogout: () => void;
 }
 
-type ReportType = 
-  | 'menu' 
-  | 'live_student' 
-  | 'live_teacher' 
-  | 'rekap_siswa' 
-  | 'rekap_guru' 
-  | 'banding' 
-  | 'analytics';
+export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('siswa');
+  const [classes, setClasses] = useState<Kelas[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  
+  // Student Report State
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedYearStudent, setSelectedYearStudent] = useState<string>(new Date().getFullYear().toString());
+  
+  // Teacher Report State
+  const [selectedYearTeacher, setSelectedYearTeacher] = useState<string>(new Date().getFullYear().toString());
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ onLogout }) => {
-  const [currentView, setCurrentView] = useState<ReportType>('menu');
+  // Fetch classes on mount
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setLoading(true);
+        const data = await apiCall('/api/kelas', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        setClasses(data);
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+        toast({
+          title: "Gagal memuat data kelas",
+          description: "Periksa koneksi internet anda",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClasses();
+  }, []);
 
-  const menuItems = [
-    {
-      id: 'live_student',
-      title: 'Pemantauan Siswa Live',
-      description: 'Pantau kehadiran siswa secara realtime hari ini',
-      icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100'
-    },
-    {
-      id: 'live_teacher',
-      title: 'Pemantauan Guru Live',
-      description: 'Pantau kehadiran guru secara realtime hari ini',
-      icon: GraduationCap,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-100'
-    },
-    {
-      id: 'rekap_siswa',
-      title: 'Rekap Absensi Siswa',
-      description: 'Laporan kehadiran siswa per kelas dan semester',
-      icon: FileText,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100'
-    },
-    {
-      id: 'rekap_guru',
-      title: 'Rekap Absensi Guru',
-      description: 'Laporan kehadiran guru bulanan dan semester',
-      icon: ClipboardList,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100'
-    },
-    {
-      id: 'banding',
-      title: 'Laporan Banding',
-      description: 'Kelola pengajuan banding absensi siswa',
-      icon: Globe,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100'
-    },
-    {
-      id: 'analytics',
-      title: 'Analitik Sistem',
-      description: 'Dashboard statistik dan performa absensi',
-      icon: BarChart3,
-      color: 'text-rose-600',
-      bgColor: 'bg-rose-100'
+  const handleExportStudentRecap = async () => {
+    if (!selectedClassId || !selectedYearStudent) {
+      toast({
+        title: "Data tidak lengkap",
+        description: "Pilih kelas dan tahun ajaran terlebih dahulu",
+        variant: "destructive"
+      });
+      return;
     }
-  ];
 
-  const handleBack = () => {
-    setCurrentView('menu');
+    try {
+      setExporting(true);
+      const params = new URLSearchParams({
+        kelas_id: selectedClassId,
+        tahun: selectedYearStudent
+      });
+
+      // Use the new TEMPLATE-based endpoint
+      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-kelas-template?${params}`), {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Filename will be set by Content-Disposition header typically, or we fallback
+      const className = classes.find(c => c.id.toString() === selectedClassId)?.nama_kelas || 'Kelas';
+      a.download = `REKAP_KETIDAKHADIRAN_${className.replace(/ /g, '_')}_${selectedYearStudent}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Berhasil",
+        description: "File Excel sedang diunduh...",
+        variant: "default" // success
+      });
+
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Gagal",
+        description: error.message || "Terjadi kesalahan saat mengunduh file",
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
-  // Render sub-components based on currentView
-  switch (currentView) {
-    case 'live_student':
-      return <LiveStudentAttendanceView onBack={handleBack} onLogout={onLogout} />;
-    case 'live_teacher':
-      return <LiveTeacherAttendanceView onBack={handleBack} onLogout={onLogout} />;
-    case 'rekap_siswa':
-      return <StudentAttendanceSummaryView onBack={handleBack} onLogout={onLogout} />;
-    case 'rekap_guru':
-      return <TeacherAttendanceSummaryView onBack={handleBack} onLogout={onLogout} />;
-    case 'banding':
-      return <BandingAbsenReportView onBack={handleBack} onLogout={onLogout} />;
-    case 'analytics':
-      return <AnalyticsDashboardView onBack={handleBack} onLogout={onLogout} />;
-    case 'menu':
-    default:
-      return (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Pusat Laporan & Analitik</h2>
-            <p className="text-gray-500">Pilih jenis laporan yang ingin ditampilkan</p>
-          </div>
+  const handleExportTeacherRecap = async () => {
+    if (!selectedYearTeacher) {
+      toast({
+        title: "Data tidak lengkap",
+        description: "Pilih tahun ajaran terlebih dahulu",
+        variant: "destructive"
+      });
+      return;
+    }
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Card 
-                  key={item.id} 
-                  className="hover:shadow-lg transition-all cursor-pointer border-l-4 hover:-translate-y-1"
-                  onClick={() => setCurrentView(item.id as ReportType)}
-                  style={{ borderLeftColor: item.color.replace('text-', 'bg-').replace('600', '500') }}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className={`p-3 rounded-xl ${item.bgColor}`}>
-                        <Icon className={`w-8 h-8 ${item.color}`} />
-                      </div>
-                      <Activity className="w-5 h-5 text-gray-300" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardTitle className="text-lg font-bold mb-2 text-gray-800">{item.title}</CardTitle>
-                    <CardDescription className="text-gray-600">
-                      {item.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+    try {
+      setExporting(true);
+      const params = new URLSearchParams({
+        tahun: selectedYearTeacher
+      });
+
+      // Use the new TEMPLATE-based endpoint
+      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-guru-template?${params}`), {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedYearTeacher}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Berhasil",
+        description: "File Excel Guru sedang diunduh...",
+        variant: "default"
+      });
+
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Gagal",
+        description: error.message || "Terjadi kesalahan saat mengunduh file",
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="sm" onClick={onBack}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Kembali
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pusat Laporan & Export</h1>
+          <p className="text-gray-500">Unduh laporan absensi dalam format Excel resmi.</p>
         </div>
-      );
-  }
+      </div>
+
+      <Tabs defaultValue="siswa" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="siswa" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Laporan Siswa
+          </TabsTrigger>
+          <TabsTrigger value="guru" className="flex items-center gap-2">
+            <GraduationCap className="w-4 h-4" />
+            Laporan Guru
+          </TabsTrigger>
+        </TabsList>
+
+        {/* --- STUDENT REPORT TAB --- */}
+        <TabsContent value="siswa" className="mt-6 space-y-6">
+          <Card className="border-l-4 border-l-blue-500 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-blue-700">
+                <FileSpreadsheet className="w-5 h-5" />
+                Rekap Ketidakhadiran Semester (Official)
+              </CardTitle>
+              <CardDescription>
+                Export data kehadiran siswa ke format Excel resmi sekolah (Template Kuning/Hijau). 
+                Data akan diisikan otomatis ke kolom bulanan, dan total/persentase dihitung oleh rumus Excel.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Pilih Kelas</Label>
+                  <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="-- Pilih Kelas --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map(c => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.nama_kelas}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tahun Pelajaran (Awal)</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="2025" 
+                    value={selectedYearStudent}
+                    onChange={(e) => setSelectedYearStudent(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">Contoh: Masukkan 2025 untuk TP 2025-2026</p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <Button 
+                  onClick={handleExportStudentRecap} 
+                  disabled={exporting || !selectedClassId || !selectedYearStudent}
+                  className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Memproses Excel...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Excel (Template)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertTriangle className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Informasi Template</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              Sistem akan otomatis memilih template berdasarkan tingkat kelas (X, XI, XII, XIII). 
+              Pastikan file template <code>REKAP KETIDAKHADIRAN KELAS [X/XI/XII] 2025-2026.xlsx</code> sudah tersedia di server.
+            </AlertDescription>
+          </Alert>
+        </TabsContent>
+
+        {/* --- TEACHER REPORT TAB --- */}
+        <TabsContent value="guru" className="mt-6 space-y-6">
+          <Card className="border-l-4 border-l-amber-500 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-amber-700">
+                <FileSpreadsheet className="w-5 h-5" />
+                Rekap Ketidakhadiran Guru (Tahunan)
+              </CardTitle>
+              <CardDescription>
+                Export rekap kehadiran guru 1 tahun penuh (Juli s/d Juni) menggunakan template resmi.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-2">
+                  <Label>Tahun Pelajaran (Awal)</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="2025" 
+                    value={selectedYearTeacher}
+                    onChange={(e) => setSelectedYearTeacher(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">Contoh: Masukkan 2025 untuk TP 2025-2026</p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <Button 
+                  onClick={handleExportTeacherRecap} 
+                  disabled={exporting || !selectedYearTeacher}
+                  className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Memproses Excel...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Excel (Template)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 };
 
 export default ReportsView;

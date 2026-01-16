@@ -48,6 +48,6 @@ router.get('/guru/banding-absen-history', authenticateToken, requireRole(['guru'
 // We will mount this router at /api so we need to include /banding-absen prefix here for this specific route
 // or rely on how we mount it in server.js. 
 // If we mount at /api, then the path here should be /banding-absen/:bandingId/respond
-router.put('/banding-absen/:bandingId/respond', authenticateToken, requireRole(['guru']), respondBandingAbsen);
+router.put('/banding-absen/:bandingId/respond', authenticateToken, requireRole(['guru', 'admin']), respondBandingAbsen);
 
 export default router;

@@ -2,9 +2,13 @@
 trigger: always_on
 ---
 
-# absenta13-guidelines.md — Development, Business Rules, & Export Specs
+# absenta13-guidelines2.md - Export Specs and QA
 
-Dokumen ini adalah aturan main untuk pengembangan **ABSENTA 13 (v3)**. Fokusnya: konsistensi, keamanan, dan output laporan yang “serasa buatan TU”, bukan “serasa buatan AI”.
+Scope:
+- Export template rules, QA checklist, and report output requirements.
+- For general system rules, see .agent/rules/absenta13-guidelines.md.
+
+Dokumen ini adalah aturan export dan QA untuk ABSENTA 13 (v3). Fokusnya: konsistensi output laporan yang serasa buatan TU, bukan buatan AI.
 
 ---
 

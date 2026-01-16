@@ -54,8 +54,6 @@ import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './serv
 import { 
     formatWIBTime, getWIBTimestamp 
 } from './server/utils/timeUtils.js';
-import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './server/config/swaggerConfig.js';
 
 // Configuration from environment variables
 const port = Number.parseInt(process.env.PORT) || 3001;
@@ -98,11 +96,7 @@ const uploadLogo = multer({
 });
 
 // Ensure upload directory exists
-try {
-    await mkdir(`${uploadDir}/letterheads`, { recursive: true });
-} catch (err) {
-    console.error(err);
-}
+mkdir(`${uploadDir}/letterheads`, { recursive: true }).catch(console.error);
 
 const app = express();
 app.set('trust proxy', 2);
@@ -340,7 +334,7 @@ async function initializeDatabase() {
             inputValidation: {
                 enabled: true,
                 maxLength: 10000000, // 10MB untuk mengakomodasi base64 data
-                allowedChars: /^[a-zA-Z0-9\s_@.!#$%^&*()+=[\]{};':"\\|,.<>\x2F?`~=-]+$/, // Menambahkan +/= untuk base64
+                allowedChars: /^[a-zA-Z0-9\s\-_@.!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~+/=]+$/, // Menambahkan +/= untuk base64
                 sqlInjectionPatterns: [
                     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/i,
                     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
@@ -532,12 +526,6 @@ app.use((req, res, next) => {
 // ================================================
 // HEALTH CHECK ENDPOINT
 // ================================================
-
-// Swagger API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
-console.log('📄 Swagger Docs available at /api-docs');
-
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
@@ -655,9 +643,7 @@ app.use(globalErrorHandler);  // Handle all unhandled errors
 
 import { initAutoAttendanceScheduler } from './server/services/system/autoAttendanceService.js';
 
-try {
-    await initializeDatabase();
-    
+initializeDatabase().then(() => {
     // Initialize scheduled tasks (Cron Jobs)
     initAutoAttendanceScheduler();
 
@@ -693,7 +679,7 @@ try {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
 
-} catch (error) {
+}).catch(error => {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
-}
+});

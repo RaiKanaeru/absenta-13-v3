@@ -1,9 +1,0 @@
-{
-  "entryPoints": ["./src"],
-  "entryPointStrategy": "expand",
-  "out": "docs/reference",
-  "plugin": ["typedoc-plugin-markdown"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"],
-  "name": "Absenta13 Technical Documentation",
-  "readme": "none"
-}

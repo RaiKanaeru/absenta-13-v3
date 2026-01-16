@@ -233,48 +233,6 @@ async function getPrimaryTeacherForSchedule(connection, jadwalId) {
     return anyGuruDetails.length > 0 ? anyGuruDetails[0].guru_id : null;
 }
 
-/**
- * Automatically records attendance for the Piket student performing the duty
- * @param {Object} connection - Database connection
- * @param {number} siswaId - ID of the piket student
- * @param {number|string} jadwalId - Schedule ID
- * @param {string} tanggal - Date of duty (YYYY-MM-DD)
- * @param {string} waktuAbsen - Timestamp
- */
-async function recordPiketDuty(connection, siswaId, jadwalId, tanggal, waktuAbsen) {
-    if (!siswaId || !jadwalId) return;
-
-    try {
-        // Check if student already has attendance for this slot
-        const [existing] = await connection.execute(
-            'SELECT id, status FROM absensi_siswa WHERE siswa_id = ? AND jadwal_id = ? AND tanggal = ?',
-            [siswaId, jadwalId, tanggal]
-        );
-
-        // If no record exists, insert 'Dispen' (Duty)
-        if (existing.length === 0) {
-            await connection.execute(`
-                INSERT INTO absensi_siswa 
-                (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, terlambat, ada_tugas)
-                VALUES (?, ?, ?, 'Dispen', 'Tugas Piket (Mencatat Guru)', ?, 0, 0)
-            `, [siswaId, jadwalId, tanggal, waktuAbsen]);
-            
-            logger.info('Auto-recorded Piket duty', { siswaId, jadwalId, status: 'Dispen' });
-        } 
-        // Optional: Upgrade 'Alpa' to 'Dispen' if explicitly marked Alpa (unlikely but safe)
-        else if (existing[0].status === 'Alpa') {
-             await connection.execute(
-                `UPDATE absensi_siswa SET status = 'Dispen', keterangan = 'Tugas Piket (Revisi Alpa)', waktu_absen = ? WHERE id = ?`,
-                [waktuAbsen, existing[0].id]
-            );
-            logger.info('Upgraded Piket status from Alpa to Dispen', { siswaId, jadwalId });
-        }
-    } catch (error) {
-        // Non-blocking error - just log it
-        logger.error('Failed to record Piket duty', error, { siswaId, jadwalId });
-    }
-}
-
 // ===========================
 // STUDENT ATTENDANCE OPERATIONS
 // (Recorded by Teachers)
@@ -641,11 +599,7 @@ export async function submitTeacherAttendance(req, res) {
             await connection.beginTransaction();
 
             for (const [key, data] of Object.entries(kehadiran_data)) {
-                const { jadwalId } = await processTeacherAttendanceEntry(connection, key, data, siswa_id, targetDate);
-                
-                // Auto-record Piket Duty for this schedule
-                // We use getMySQLDateTimeWIB() for consistent timestamp
-                await recordPiketDuty(connection, siswa_id, jadwalId, targetDate, getMySQLDateTimeWIB());
+                await processTeacherAttendanceEntry(connection, key, data, siswa_id, targetDate);
             }
 
             await connection.commit();
@@ -766,8 +720,6 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
             [jadwalId, guru_id, kelas_id, siswa_id, targetDate, jam_ke, finalStatus, keterangan || null, waktuCatatWIB, isLate, hasTask]
         );
     }
-    
-    return { jadwalId };
 }
 
 /**
@@ -776,7 +728,7 @@ async function processTeacherAttendanceEntry(connection, key, data, siswa_id, ta
  */
 export async function updateTeacherStatus(req, res) {
     const log = logger.withRequest(req, res);
-    const { jadwal_id, guru_id, status, keterangan, tanggal_absen, ada_tugas, terlambat } = req.body;
+    const { jadwal_id, guru_id, status, keterangan, tanggal_absen, ada_tugas } = req.body;
     const siswa_id = req.user.siswa_id;
     log.requestStart('UpdateTeacherStatus', { jadwal_id, guru_id, status });
 
@@ -814,33 +766,22 @@ export async function updateTeacherStatus(req, res) {
             [jadwal_id, guru_id, tanggal_absen]
         );
 
-        // Normalize flags
-        const isLate = terlambat ? 1 : 0;
-        const hasTask = ada_tugas ? 1 : 0;
-
         if (existing.length > 0) {
             await globalThis.dbPool.execute(`
                 UPDATE absensi_guru 
-                SET status = ?, keterangan = ?, siswa_pencatat_id = ?, waktu_catat = ?, ada_tugas = ?, terlambat = ?
+                SET status = ?, keterangan = ?, siswa_pencatat_id = ?, waktu_catat = ?, ada_tugas = ?
                 WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ?`,
-                [status, keterangan || null, siswa_id, waktuCatatWIB, hasTask, isLate, jadwal_id, guru_id, tanggal_absen]
+                [status, keterangan || null, siswa_id, waktuCatatWIB, ada_tugas ? 1 : 0, jadwal_id, guru_id, tanggal_absen]
             );
-            log.debug('Updated teacher status', { jadwal_id, guru_id, status, isLate, hasTask });
+            log.debug('Updated teacher status', { jadwal_id, guru_id, status });
         } else {
             await globalThis.dbPool.execute(`
                 INSERT INTO absensi_guru 
-                (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, jam_ke, status, keterangan, waktu_catat, ada_tugas, terlambat)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [jadwal_id, guru_id, kelas_id, siswa_id, tanggal_absen, jam_ke, status, keterangan || null, waktuCatatWIB, hasTask, isLate]
+                (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, jam_ke, status, keterangan, waktu_catat, ada_tugas)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [jadwal_id, guru_id, kelas_id, siswa_id, tanggal_absen, jam_ke, status, keterangan || null, waktuCatatWIB, ada_tugas ? 1 : 0]
             );
-            log.debug('Inserted teacher status', { jadwal_id, guru_id, status, isLate, hasTask });
-        }
-
-        // Auto-record Piket Duty
-        if (siswa_id) {
-            // Re-use connection pool directly since this function doesn't use explicit transaction object yet
-            // logic inside recordPiketDuty uses 'connection' which can be the pool
-            await recordPiketDuty(globalThis.dbPool, siswa_id, jadwal_id, tanggal_absen, waktuCatatWIB);
+            log.debug('Inserted teacher status', { jadwal_id, guru_id, status });
         }
 
         log.success('UpdateTeacherStatus', { jadwal_id, guru_id, status });

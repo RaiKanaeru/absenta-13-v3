@@ -26,7 +26,7 @@ You are working on "Absenta 13", a School Attendance System.
 
 
 * **Frontend-First Validation:** Before creating a backend route, YOU MUST CHECK if the frontend is already calling it.
-* Command: `grep -r "getApiUrl" src/`.
+* Command: `rg -n "getApiUrl" src/`.
 * Ensure the backend route matches the frontend call exactly.
 
 

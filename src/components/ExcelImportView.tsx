@@ -13,8 +13,7 @@ import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 
 interface ExcelImportViewProps {
-  entityType: 'mapel' | 'kelas' | 'guru' | 'siswa' | 'jadwal' | 'teacher-account' | 'student-account' | 'ruang' | 'jadwal-master';
-
+  entityType: 'mapel' | 'kelas' | 'guru' | 'siswa' | 'jadwal' | 'teacher-account' | 'student-account' | 'ruang' | 'schedule-master';
   entityName: string;
   onBack: () => void;
 }
@@ -54,7 +53,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (entityType !== 'jadwal-master' && file.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      if (file.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
         toast({
           title: "Error",
           description: "File harus berformat .xlsx",
@@ -62,7 +61,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         });
         return;
       }
-
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Error", 
@@ -115,7 +113,9 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
           'mapel': 'mata-pelajaran',
           'kelas': 'kelas',
           'ruang': 'ruang-kelas',
-          'jadwal': 'jadwal-pelajaran'
+          'ruang': 'ruang-kelas',
+          'jadwal': 'jadwal-pelajaran',
+          'schedule-master': 'master-schedule'
         };
         a.download = `template-${entityNames[entityType] || entityType}.xlsx`;
         
@@ -149,33 +149,13 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      let validationEndpoint = `/api/admin/import/${entityType}?dryRun=true`;
-      
-      // Special override for Master Schedule (Direct Import, no validation step yet or uses different logic)
-      if (entityType === 'jadwal-master') {
-         // Skip validation for now, or implement strict validation endpoint
-         // For now, we'll mimic a "valid" response so user can proceed to Import
-         // because the Master Parse logic is complex and done in one go.
-         setValidationResult({
-             total: 0, 
-             valid: 1, 
-             invalid: 0, 
-             errors: [],
-             previewData: []
-         });
-         setIsValidating(false);
-         setShowPreview(true);
-         return;
-      }
-
-      const result = await apiCall<ImportResult>(validationEndpoint, {
+      const result = await apiCall<ImportResult>(`/api/admin/import/${entityType}?dryRun=true`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
         body: formData
       });
-
       
       setValidationResult(result);
       setShowPreview(true);
@@ -209,12 +189,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      let importEndpoint = `/api/admin/import/${entityType}`;
-      if (entityType === 'jadwal-master') {
-          importEndpoint = `/api/admin/jadwal/import-master`;
-      }
-
-      const result = await apiCall<ImportResult & { processed?: number, inserted_or_updated?: number, inserted?: number, classesProcessed?: number }>(importEndpoint, {
+      const result = await apiCall<ImportResult & { processed?: number, inserted_or_updated?: number, inserted?: number }>(`/api/admin/import/${entityType}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
@@ -222,13 +197,11 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         body: formData
       });
 
-
       setImportResult(result);
       toast({
         title: "Import Berhasil",
-        description: `Berhasil memproses ${result.processed || result.inserted_or_updated || result.inserted || result.classesProcessed} data`
+        description: `Berhasil memproses ${result.processed || result.inserted_or_updated || result.inserted} baris data`
       });
-
     } catch (error) {
       console.error('Error importing file:', error);
       toast({
@@ -292,14 +265,13 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         description: "Format: kode_ruang (wajib), nama_ruang (wajib), lokasi (opsional), kapasitas (opsional), status (aktif/nonaktif)",
         example: "LAB-01, Laboratorium Komputer, Lantai 2, 30, aktif"
       },
-      'jadwal-master': {
-        title: "Import Jadwal Master (CSV)",
-        description: "Format khusus: File CSV dengan blok 3 baris per kelas (Mapel, Ruang, Guru) secara horizontal (Senin-Jumat). Pastikan format sesuai dengan file 'Master Schedule' sekolah.",
-        example: "Format 3 baris: [Kelas, MAPEL, ...], [..., RUANG, ...], [..., GURU, ...]"
+      'schedule-master': {
+        title: "Template Master Schedule (CSV Matrix)",
+        description: "Format Matrix: Kolom (Waktu), Baris (Kelas x 3). Baris 1: Mapel, Baris 2: Ruang, Baris 3: Guru. Mendukung format CSV dari aplikasi pembuat jadwal.",
+        example: "Lihat dokumen analisis master schedule untuk detail."
       }
     };
-
-    return instructions[entityType];
+    return instructions[entityType as keyof typeof instructions];
   };
 
   const instructions = getEntityInstructions();
@@ -431,10 +403,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       </Card>
 
       {/* Download Template */}
-
-      
-      {/* Hide Template Download for Master Schedule as it uses specific existing format */
-       entityType !== 'jadwal-master' && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -476,7 +444,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
           </div>
         </CardContent>
       </Card>
-      )}
 
       {/* Upload Section */}
       <Card>
@@ -512,15 +479,14 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="file">Pilih File {entityType === 'jadwal-master' ? 'CSV (.csv)' : 'Excel (.xlsx)'}</Label>
+            <Label htmlFor="file">Pilih File (.xlsx)</Label>
             <Input
               id="file"
               type="file"
-              accept={entityType === 'jadwal-master' ? '.csv' : '.xlsx'}
+              accept=".xlsx"
               onChange={handleFileSelect}
               className="cursor-pointer"
             />
-
             {selectedFile && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <FileSpreadsheet className="w-4 h-4" />
