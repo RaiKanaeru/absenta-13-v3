@@ -19,8 +19,19 @@ import {
     bulkUpdateGuruAvailability,
     getMatrixSchedule,
     updateMatrixSchedule,
-    checkMatrixConflict
+    checkMatrixConflict,
+    importMasterSchedule
 } from '../controllers/jadwalController.js';
+import multer from 'multer';
+import path from 'path';
+
+// Setup basic storage for CSV upload
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'public/uploads/'), // Ensure this dir exists
+    filename: (req, file, cb) => cb(null, `import-${Date.now()}${path.extname(file.originalname)}`)
+});
+const upload = multer({ storage });
+
 
 const router = express.Router();
 
@@ -38,6 +49,8 @@ router.use(requireRole(['admin']));
 router.get('/matrix', getMatrixSchedule);
 router.post('/matrix/update', updateMatrixSchedule);
 router.get('/matrix/check-conflict', checkMatrixConflict);
+router.post('/import-master', upload.single('file'), importMasterSchedule);
+
 
 // Reference Data Routes
 router.get('/guru-availability', getGuruAvailabilityList);

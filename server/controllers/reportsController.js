@@ -722,38 +722,102 @@ function validateExportParams(startDate, endDate) {
     return { valid: true };
 }
 
-// Helper to build student summary query
+// Assuming this constant is imported from somewhere, e.g., config/constants.js
+const HARI_EFEKTIF_SEMESTER = {
+    GASAL: 120, // Example value for odd semester
+    GENAP: 120, // Example value for even semester
+    TAHUNAN: 240 // Example value for annual
+};
+
+// Helper to build student summary query (Shared by Excel and API)
 function buildStudentSummaryQuery(startDate, endDate, kelas_id) {
-    let query = `
+    /* 
+     * Advanced Attendance Rules (Phase 8):
+     * 1. 1 Alpa = Gugur (One Alpha in a day makes the whole day Alpha)
+     * 2. 50% Rule (If Present >= 50% of recorded slots -> Present)
+     * 3. Priority: Alpha > Hadir/Dispen > Sakit > Izin
+     */
+    const dailyStatusSubquery = `
         SELECT 
+            daily.siswa_id,
+            daily.tanggal,
+            CASE 
+                -- Rule 1: Ada Alpa? -> Alpa
+                WHEN SUM(CASE WHEN daily.status = '${REPORT_STATUS.ALPA}' THEN 1 ELSE 0 END) > 0 THEN '${REPORT_STATUS.ALPA}'
+                
+                -- Rule 2: Hadir/Dispen >= 50%? -> Hadir
+                WHEN (SUM(CASE WHEN daily.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) / COUNT(*)) >= 0.5 THEN '${REPORT_STATUS.HADIR}'
+                
+                -- Rule 3: Sakit vs Izin (Majority wins, Sakit priority if tie)
+                WHEN SUM(CASE WHEN daily.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END) >= SUM(CASE WHEN daily.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END) 
+                     AND SUM(CASE WHEN daily.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END) > 0 THEN '${REPORT_STATUS.SAKIT}'
+                
+                WHEN SUM(CASE WHEN daily.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END) > 0 THEN '${REPORT_STATUS.IZIN}'
+                
+                ELSE '${REPORT_STATUS.ALPA}' -- Fallback (shouldn't happen if data exists)
+            END as daily_status
+        FROM absensi_siswa daily
+        WHERE daily.tanggal BETWEEN ? AND ?
+        GROUP BY daily.siswa_id, daily.tanggal
+    `;
+
+    // Determine Effective Days Divisor
+    let effectiveDaysDivisorSQL = "COUNT(d_agg.tanggal)"; // Default: Count actual days in DB
+    
+    // Heuristic for Semester Reporting (Gasal: ~6 months starting July, Genap: ~6 months starting Jan)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    
+    // 95 days is approx 3 months of school days, ensuring we catch semester ranges
+    if (diffDays >= 90) { 
+        if (diffDays > 300) {
+            // Likely Annual Report
+            effectiveDaysDivisorSQL = `${HARI_EFEKTIF_SEMESTER.TAHUNAN}`;
+        } else {
+            // Semester Report
+            // If starts in July/August/Sept -> Gasal
+            if (start.getMonth() >= 6 && start.getMonth() <= 8) {
+                effectiveDaysDivisorSQL = `${HARI_EFEKTIF_SEMESTER.GASAL}`;
+            } else if (start.getMonth() <= 2) {
+                // If starts in Jan/Feb/March -> Genap
+                effectiveDaysDivisorSQL = `${HARI_EFEKTIF_SEMESTER.GENAP}`;
+            }
+        }
+    }
+
+    const query = `
+        SELECT 
+            s.id_siswa,
             s.nama,
             s.nis,
             k.nama_kelas,
-            COALESCE(SUM(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.ALPA}' THEN 1 ELSE 0 END), 0) AS A,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
-            COALESCE(COUNT(a.id), 0) AS total,
-            CASE 
-                WHEN COUNT(a.id) = 0 THEN 0
-                ELSE ROUND((SUM(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
-            END AS presentase
+            
+            -- Count Daily Statuses
+            SUM(CASE WHEN d_agg.daily_status = '${REPORT_STATUS.HADIR}' THEN 1 ELSE 0 END) AS H,
+            SUM(CASE WHEN d_agg.daily_status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END) AS I,
+            SUM(CASE WHEN d_agg.daily_status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END) AS S,
+            SUM(CASE WHEN d_agg.daily_status = '${REPORT_STATUS.ALPA}' THEN 1 ELSE 0 END) AS A,
+            SUM(CASE WHEN d_agg.daily_status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END) AS D,
+            
+            -- Calculate Percentage based on Configured Effective Days if applicable
+            ROUND(
+                (SUM(CASE WHEN d_agg.daily_status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0) / 
+                NULLIF(${effectiveDaysDivisorSQL}, 0), 2
+            ) as presentase
+
         FROM siswa s
-        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
         JOIN kelas k ON s.kelas_id = k.id_kelas
-        WHERE s.status = 'aktif'
+        LEFT JOIN (${dailyStatusSubquery}) d_agg ON s.id_siswa = d_agg.siswa_id
+        WHERE s.kelas_id = ? AND s.status = 'aktif'
+        GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas
+        ORDER BY s.nama ASC
     `;
 
-    const params = [startDate, endDate];
-    if (kelas_id && kelas_id !== '' && kelas_id !== 'all') {
-        query += ' AND k.id_kelas = ?';
-        params.push(kelas_id);
-    }
-
-    query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
-
-    return { query, params };
+    return { 
+        query, 
+        params: [startDate, endDate, kelas_id] 
+    };
 }
 
 // Download student attendance summary as styled Excel

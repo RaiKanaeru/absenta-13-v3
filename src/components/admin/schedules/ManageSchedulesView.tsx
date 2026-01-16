@@ -341,8 +341,9 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
   };
 
   if (showImport) {
-    return <ExcelImportView entityType="jadwal" entityName="Jadwal Pelajaran" onBack={() => setShowImport(false)} />;
+    return <ExcelImportView entityType="jadwal-master" entityName="Jadwal Master (CSV)" onBack={() => setShowImport(false)} />;
   }
+
 
   if (showPreview) {
     return <PreviewJadwalView onBack={() => setShowPreview(false)} schedules={schedules} classes={classes} />;
@@ -445,8 +446,9 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
           </Button>
           <Button onClick={() => setShowImport(true)} variant="outline" size="sm" className="text-xs">
             <Download className="w-3 h-3 mr-1" />
-            Import
+            Import Master
           </Button>
+
         </div>
       </div>
 

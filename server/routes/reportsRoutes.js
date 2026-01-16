@@ -38,6 +38,30 @@ router.use(requireRole(['admin']));
 router.put('/izin/:id', updatePermissionStatus);
 
 // Main Analytics Dashboard
+/**
+ * @swagger
+ * /admin/analytics:
+ *   get:
+ *     summary: Get dashboard analytics overview
+ *     description: Retrieve summary stats for students, teachers, and attendance
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Analytics data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/analytics', getAnalyticsDashboard);
 
 // Live Attendance

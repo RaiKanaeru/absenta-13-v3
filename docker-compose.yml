@@ -21,6 +21,36 @@ services:
       - absenta-network
 
   # ===========================================
+  # DOCS - Docusaurus Site (port 28082)
+  # ===========================================
+  docs:
+    build:
+      context: ./docs-site
+      dockerfile: Dockerfile
+    container_name: absenta13-docs
+    restart: unless-stopped
+    ports:
+      - "28082:3000"
+    networks:
+      - absenta-network
+
+  # ===========================================
+  # STORYBOOK - UI Components (port 28083)
+  # ===========================================
+  storybook:
+    build:
+      context: .
+      dockerfile: docker/storybook/Dockerfile
+    container_name: absenta13-storybook
+    restart: unless-stopped
+    ports:
+      - "28083:80"
+    networks:
+      - absenta-network
+
+
+
+  # ===========================================
   # APPLICATION - Node.js Backend (port 28081)
   # ===========================================
   app:

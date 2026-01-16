@@ -34,6 +34,7 @@ const ManageClassesView = React.lazy(() => import('./admin/classes/ManageClasses
 const ManageSchedulesView = React.lazy(() => import('./admin/schedules/ManageSchedulesView'));
 const ManageRoomsView = React.lazy(() => import('./admin/rooms/ManageRoomsView'));
 const PreviewJadwalView = React.lazy(() => import('./admin/schedules/PreviewJadwalView').then(module => ({ default: module.PreviewJadwalView })));
+const RecapScheduleView = React.lazy(() => import('./admin/schedules/RecapScheduleView'));
 const JamPelajaranConfig = React.lazy(() => import("./JamPelajaranConfig"));
 const SimpleRestoreView = React.lazy(() => import("./SimpleRestoreView"));
 
@@ -82,6 +83,7 @@ const menuItems = [
   { id: 'add-subject', title: 'Mata Pelajaran', icon: BookOpen, description: 'Kelola mata pelajaran', gradient: 'from-red-500 to-red-700' },
   { id: 'add-class', title: 'Kelas', icon: Home, description: 'Kelola kelas', gradient: 'from-indigo-500 to-indigo-700' },
   { id: 'add-schedule', title: 'Jadwal', icon: Calendar, description: 'Atur jadwal pelajaran', gradient: 'from-teal-500 to-teal-700' },
+  { id: 'recap-schedule', title: 'Rekap Jadwal', icon: Calendar, description: 'View detail 3 baris', gradient: 'from-blue-500 to-blue-700' },
   { id: 'add-room', title: 'Ruang Kelas', icon: Home, description: 'Kelola ruang kelas', gradient: 'from-amber-500 to-amber-700' },
   { id: 'backup-management', title: 'Backup & Archive', icon: Database, description: 'Kelola backup dan arsip data', gradient: 'from-cyan-500 to-cyan-700' },
   { id: 'monitoring', title: 'System Monitoring', icon: Monitor, description: 'Real-time monitoring & alerting', gradient: 'from-violet-500 to-violet-700' },
@@ -176,6 +178,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ManageClassesView onBack={handleBack} onLogout={onLogout} />;
       case 'add-schedule':
         return <ManageSchedulesView onBack={handleBack} onLogout={onLogout} />;
+      case 'recap-schedule':
+        return <ErrorBoundary><RecapScheduleView onBack={handleBack} /></ErrorBoundary>;
       case 'add-room':
         return <ManageRoomsView onBack={handleBack} onLogout={onLogout} />;
       case 'backup-management':
