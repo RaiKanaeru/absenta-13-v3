@@ -213,6 +213,7 @@ Sebuah perubahan dianggap selesai jika:
   - daftar file yang diubah
   - cara test singkat
   - catatan risiko/rollback jika menyentuh data
+- Kode yang selesai WAJIB di-commit dan di-push ke repository remote (git push origin main)
 
 ----------------------------------------------------------------
 
