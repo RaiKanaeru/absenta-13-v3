@@ -9,29 +9,10 @@ import {
     addJadwalGuru,
     removeJadwalGuru,
     getJadwalToday,
-    bulkCreateJadwal,
-    cloneJadwal,
-    checkBulkConflicts,
-    getJamPelajaran,
-    getGuruAvailabilityList,
-    checkGuruAvailabilityApi,
-    getAppSettings,
-    bulkUpdateGuruAvailability,
-    getMatrixSchedule,
-    updateMatrixSchedule,
-    checkMatrixConflict,
-    importMasterSchedule
+    getScheduleMatrix,
+    batchUpdateMatrix,
+    getJamPelajaran
 } from '../controllers/jadwalController.js';
-import multer from 'multer';
-import path from 'path';
-
-// Setup basic storage for CSV upload
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'public/uploads/'), // Ensure this dir exists
-    filename: (req, file, cb) => cb(null, `import-${Date.now()}${path.extname(file.originalname)}`)
-});
-const upload = multer({ storage });
-
 
 const router = express.Router();
 
@@ -40,28 +21,14 @@ router.use(authenticateToken);
 
 // Public/Shared Routes (Guru, Siswa, Admin)
 router.get('/today', requireRole(['admin', 'guru', 'siswa']), getJadwalToday);
-router.get('/jam-pelajaran', requireRole(['admin', 'guru']), getJamPelajaran);
 
 // Admin-only Routes
 router.use(requireRole(['admin']));
 
-// Matrix/Grid Editor Routes
-router.get('/matrix', getMatrixSchedule);
-router.post('/matrix/update', updateMatrixSchedule);
-router.get('/matrix/check-conflict', checkMatrixConflict);
-router.post('/import-master', upload.single('file'), importMasterSchedule);
-
-
-// Reference Data Routes
-router.get('/guru-availability', getGuruAvailabilityList);
-router.post('/guru-availability/bulk', bulkUpdateGuruAvailability);
-router.post('/check-guru-availability', checkGuruAvailabilityApi);
-router.get('/settings', getAppSettings);
-
-// Bulk Operations (must be before /:id routes)
-router.post('/bulk', bulkCreateJadwal);
-router.post('/clone', cloneJadwal);
-router.post('/check-conflicts', checkBulkConflicts);
+// Matrix Grid Routes (for Schedule Grid Editor)
+router.get('/matrix', getScheduleMatrix);
+router.post('/matrix/batch', batchUpdateMatrix);
+router.get('/jam-pelajaran', getJamPelajaran);
 
 // Main CRUD Routes
 router.get('/', getJadwal);

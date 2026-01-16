@@ -211,7 +211,7 @@ async function validateGuruIdsExist(guruIds) {
 }
 
 /**
- * Validasi required fields for jadwal based on activity type
+ * Validate required fields for jadwal based on activity type
  */
 function validateJadwalFields(data, jenisAktivitas, guruIds) {
     const { kelas_id, mapel_id, hari, jam_ke, jam_mulai, jam_selesai } = data;
@@ -301,125 +301,6 @@ async function insertJadwalGuru(jadwalId, guruIds) {
         `INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES ${placeholders}`,
         flatValues
     );
-}
-
-/**
- * Check if guru is available on a specific day (from MASTER GURU HARIAN)
- * @param {number} guruId - ID Guru
- * @param {string} hari - Hari (Senin, Selasa, dst)
- * @returns {Promise<{available: boolean, nama?: string, error?: string}>}
- */
-async function checkGuruAvailability(guruId, hari) {
-    // Skip check for system entities (Guru MANDIRI, etc.)
-    const [guruCheck] = await globalThis.dbPool.execute(
-        `SELECT nama, is_system_entity FROM guru WHERE id_guru = ?`,
-        [guruId]
-    );
-    
-    if (guruCheck.length === 0) {
-        return { available: false, error: 'Guru tidak ditemukan' };
-    }
-    
-    const guru = guruCheck[0];
-    
-    // System entities are always available
-    if (guru.is_system_entity) {
-        return { available: true, nama: guru.nama, isSystem: true };
-    }
-    
-    // Check availability table
-    const [availability] = await globalThis.dbPool.execute(
-        `SELECT is_available, keterangan FROM guru_availability 
-         WHERE guru_id = ? AND hari = ? AND tahun_ajaran = (
-             SELECT setting_value FROM app_settings WHERE setting_key = 'TAHUN_AJARAN_AKTIF' LIMIT 1
-         )`,
-        [guruId, hari]
-    );
-    
-    // If no record, assume available (default behavior)
-    if (availability.length === 0) {
-        return { available: true, nama: guru.nama };
-    }
-    
-    const record = availability[0];
-    if (!record.is_available) {
-        return { 
-            available: false, 
-            nama: guru.nama,
-            error: `${guru.nama} tidak tersedia pada hari ${hari}` + (record.keterangan ? ` (${record.keterangan})` : '')
-        };
-    }
-    
-    return { available: true, nama: guru.nama };
-}
-
-/**
- * Check if ruang is bound to specific mapel (Lab binding)
- * @param {number} ruangId - ID Ruang
- * @param {number} mapelId - ID Mapel
- * @returns {Promise<{valid: boolean, warning?: string}>}
- */
-async function checkRuangMapelBinding(ruangId, mapelId) {
-    if (!ruangId || !mapelId) return { valid: true };
-    
-    // Check if this room has exclusive bindings
-    const [bindings] = await globalThis.dbPool.execute(
-        `SELECT rmb.*, rk.kode_ruang, m.nama_mapel 
-         FROM ruang_mapel_binding rmb
-         JOIN ruang_kelas rk ON rmb.ruang_id = rk.id_ruang
-         JOIN mapel m ON rmb.mapel_id = m.id_mapel
-         WHERE rmb.ruang_id = ? AND rmb.is_exclusive = 1`,
-        [ruangId]
-    );
-    
-    if (bindings.length === 0) return { valid: true }; // No binding restrictions
-    
-    // Check if the mapel is in the allowed list
-    const allowedMapelIds = bindings.map(b => b.mapel_id);
-    if (!allowedMapelIds.includes(mapelId)) {
-        const allowedMapels = bindings.map(b => b.nama_mapel).join(', ');
-        return { 
-            valid: false, 
-            warning: `Ruang ${bindings[0].kode_ruang} hanya untuk mapel: ${allowedMapels}`
-        };
-    }
-    
-    return { valid: true };
-}
-
-/**
- * Validate all guru availability for a given day
- * @param {Array<number>} guruIds - Array of guru IDs
- * @param {string} hari - Day name
- * @returns {Promise<{allAvailable: boolean, unavailable?: Array}>}
- */
-async function validateAllGuruAvailability(guruIds, hari) {
-    const unavailable = [];
-    
-    for (const guruId of guruIds) {
-        const result = await checkGuruAvailability(guruId, hari);
-        if (!result.available) {
-            unavailable.push({ guruId, nama: result.nama, error: result.error });
-        }
-    }
-    
-    return {
-        allAvailable: unavailable.length === 0,
-        unavailable
-    };
-}
-
-/**
- * Skip conflict check for system entities
- * @param {number} guruId - ID Guru
- * @returns {Promise<boolean>} True if should skip conflict check
- */
-async function isSystemEntity(guruId) {
-    const [result] = await globalThis.dbPool.execute(
-        `SELECT is_system_entity FROM guru WHERE id_guru = ?`,
-        [guruId]
-    );
-    return result.length > 0 && result[0].is_system_entity === 1;
 }
 
 /**
@@ -520,6 +401,253 @@ async function checkAllScheduleConflicts(params) {
 
     return { hasConflict: false };
 }
+
+// ================================================
+// MATRIX GRID FUNCTIONS (For Schedule Grid Editor)
+// ================================================
+
+/**
+ * Get schedule matrix data for Grid Editor
+ * GET /api/admin/jadwal/matrix?hari=Senin&tingkat=XII
+ * @returns {Object} { data: { hari, jam_slots, rows } }
+ */
+export const getScheduleMatrix = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { hari = 'Senin', tingkat } = req.query;
+
+    log.requestStart('GetScheduleMatrix', { hari, tingkat });
+
+    try {
+        // 1. Get jam_pelajaran for this day
+        const [jamSlots] = await globalThis.dbPool.execute(
+            `SELECT jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
+             FROM jam_pelajaran 
+             WHERE hari = ? AND jenis = 'pelajaran'
+             ORDER BY jam_ke`,
+            [hari]
+        );
+
+        if (jamSlots.length === 0) {
+            log.warn('No jam_pelajaran found', { hari });
+            return sendSuccessResponse(res, {
+                hari,
+                jam_slots: [],
+                rows: [],
+                message: 'Silakan seed tabel jam_pelajaran terlebih dahulu'
+            });
+        }
+
+        // 2. Get classes filtered by tingkat
+        let kelasQuery = 'SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"';
+        const kelasParams = [];
+        if (tingkat && tingkat !== 'all') {
+            kelasQuery += ' AND nama_kelas LIKE ?';
+            kelasParams.push(`${tingkat}%`);
+        }
+        kelasQuery += ' ORDER BY nama_kelas';
+
+        const [classes] = await globalThis.dbPool.execute(kelasQuery, kelasParams);
+
+        // 3. Get jadwal for this day
+        const [schedules] = await globalThis.dbPool.execute(
+            `SELECT 
+                j.id_jadwal, j.kelas_id, j.jam_ke, 
+                j.mapel_id, j.guru_id, j.ruang_id,
+                j.jenis_aktivitas, j.keterangan_khusus,
+                COALESCE(m.kode_mapel, LEFT(j.keterangan_khusus, 6)) as kode_mapel,
+                COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                COALESCE(g.kode_guru, 'SYS') as kode_guru,
+                COALESCE(g.nama, 'Sistem') as nama_guru,
+                COALESCE(rk.kode_ruang, '') as kode_ruang
+             FROM jadwal j
+             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+             LEFT JOIN guru g ON j.guru_id = g.id_guru
+             LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+             WHERE j.hari = ? AND j.status = 'aktif'`,
+            [hari]
+        );
+
+        // 4. Build matrix rows
+        const rows = classes.map(kelas => {
+            const cells = {};
+            
+            // Initialize empty cells for each jam slot
+            for (const slot of jamSlots) {
+                cells[slot.jam_ke] = null;
+            }
+
+            // Fill in schedule data
+            for (const schedule of schedules) {
+                if (schedule.kelas_id === kelas.id_kelas) {
+                    cells[schedule.jam_ke] = {
+                        id: schedule.id_jadwal,
+                        mapel_id: schedule.mapel_id,
+                        guru_id: schedule.guru_id,
+                        ruang_id: schedule.ruang_id,
+                        kode_mapel: schedule.kode_mapel,
+                        nama_mapel: schedule.nama_mapel,
+                        kode_guru: schedule.kode_guru,
+                        nama_guru: schedule.nama_guru,
+                        kode_ruang: schedule.kode_ruang,
+                        jenis_aktivitas: schedule.jenis_aktivitas
+                    };
+                }
+            }
+
+            // Extract tingkat from nama_kelas
+            const tingkatMatch = kelas.nama_kelas.match(/^(X{1,3}I?)/);
+
+            return {
+                kelas_id: kelas.id_kelas,
+                nama_kelas: kelas.nama_kelas,
+                tingkat: tingkatMatch ? tingkatMatch[1] : '',
+                cells
+            };
+        });
+
+        log.success('GetScheduleMatrix', { 
+            hari, 
+            jamSlotsCount: jamSlots.length, 
+            rowsCount: rows.length 
+        });
+
+        return sendSuccessResponse(res, {
+            hari,
+            jam_slots: jamSlots.map(s => ({
+                jam_ke: s.jam_ke,
+                jam_mulai: s.jam_mulai,
+                jam_selesai: s.jam_selesai,
+                jenis: s.jenis,
+                label: s.label
+            })),
+            rows
+        });
+
+    } catch (error) {
+        log.dbError('getScheduleMatrix', error);
+        return sendDatabaseError(res, error, 'Gagal memuat matrix jadwal');
+    }
+};
+
+/**
+ * Batch update multiple schedule cells
+ * POST /api/admin/jadwal/matrix/batch
+ * @param {Object} req.body - { hari, changes: [{ kelas_id, jam_ke, mapel_id, guru_id, ruang_id, action }] }
+ */
+export const batchUpdateMatrix = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { hari, changes } = req.body;
+
+    log.requestStart('BatchUpdateMatrix', { hari, changesCount: changes?.length });
+
+    if (!hari || !Array.isArray(changes) || changes.length === 0) {
+        return sendValidationError(res, 'hari dan changes array diperlukan');
+    }
+
+    const connection = await globalThis.dbPool.getConnection();
+    
+    try {
+        await connection.beginTransaction();
+
+        let created = 0;
+        let updated = 0;
+        let deleted = 0;
+
+        for (const change of changes) {
+            const { kelas_id, jam_ke, mapel_id, guru_id, ruang_id, action } = change;
+
+            // Check if schedule exists
+            const [existing] = await connection.execute(
+                'SELECT id_jadwal FROM jadwal WHERE kelas_id = ? AND hari = ? AND jam_ke = ? AND status = "aktif"',
+                [kelas_id, hari, jam_ke]
+            );
+
+            // Get jam times from jam_pelajaran
+            const [jamSlot] = await connection.execute(
+                'SELECT jam_mulai, jam_selesai FROM jam_pelajaran WHERE hari = ? AND jam_ke = ? LIMIT 1',
+                [hari, jam_ke]
+            );
+
+            const jam_mulai = jamSlot[0]?.jam_mulai || '07:00';
+            const jam_selesai = jamSlot[0]?.jam_selesai || '07:45';
+
+            if (action === 'delete') {
+                if (existing.length > 0) {
+                    await connection.execute(
+                        'UPDATE jadwal SET status = "nonaktif" WHERE id_jadwal = ?',
+                        [existing[0].id_jadwal]
+                    );
+                    deleted++;
+                }
+            } else if (existing.length > 0) {
+                // Update existing
+                await connection.execute(
+                    `UPDATE jadwal 
+                     SET mapel_id = ?, guru_id = ?, ruang_id = ?, jam_mulai = ?, jam_selesai = ?
+                     WHERE id_jadwal = ?`,
+                    [mapel_id, guru_id, ruang_id, jam_mulai, jam_selesai, existing[0].id_jadwal]
+                );
+                updated++;
+            } else {
+                // Create new
+                await connection.execute(
+                    `INSERT INTO jadwal 
+                     (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', 'pelajaran')`,
+                    [kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai]
+                );
+                created++;
+            }
+        }
+
+        await connection.commit();
+
+        log.success('BatchUpdateMatrix', { created, updated, deleted });
+        return sendSuccessResponse(res, { created, updated, deleted }, 'Batch update berhasil');
+
+    } catch (error) {
+        await connection.rollback();
+        log.dbError('batchUpdateMatrix', error);
+        return sendDatabaseError(res, error, 'Gagal melakukan batch update');
+    } finally {
+        connection.release();
+    }
+};
+
+/**
+ * Get jam pelajaran configuration
+ * GET /api/admin/jadwal/jam-pelajaran
+ */
+export const getJamPelajaran = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { tahun_ajaran = '2025/2026' } = req.query;
+
+    log.requestStart('GetJamPelajaran', { tahun_ajaran });
+
+    try {
+        const [rows] = await globalThis.dbPool.execute(
+            `SELECT id, hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
+             FROM jam_pelajaran 
+             WHERE tahun_ajaran = ?
+             ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`,
+            [tahun_ajaran]
+        );
+
+        // Group by hari
+        const grouped = {};
+        for (const row of rows) {
+            if (!grouped[row.hari]) grouped[row.hari] = [];
+            grouped[row.hari].push(row);
+        }
+
+        log.success('GetJamPelajaran', { count: rows.length });
+        return sendSuccessResponse(res, grouped);
+
+    } catch (error) {
+        log.dbError('getJamPelajaran', error);
+        return sendDatabaseError(res, error, 'Gagal memuat jam pelajaran');
+    }
+};
 
 // ================================================
 // CONTROLLER FUNCTIONS
@@ -881,773 +1009,5 @@ export const getJadwalToday = async (req, res) => {
     } catch (error) {
         log.dbError('getJadwalToday', error, { role: req.user.role });
         return sendDatabaseError(res, error, 'Gagal memuat jadwal hari ini');
-    }
-};
-
-// ================================================
-// BULK OPERATIONS
-// ================================================
-
-/**
- * Bulk create jadwal - Tambah jadwal yang sama ke beberapa kelas
- * POST /api/jadwal/bulk
- * @param {Array<number>} req.body.kelas_ids - Array ID kelas target
- * @param {number} req.body.mapel_id - ID Mata Pelajaran
- * @param {Array<number>} req.body.guru_ids - Array ID Guru
- * @param {string} req.body.hari - Hari
- * @param {string} req.body.jam_mulai - Jam mulai
- * @param {string} req.body.jam_selesai - Jam selesai
- * @param {number} req.body.jam_ke - Jam ke
- * @returns {Object} Hasil bulk insert
- */
-export const bulkCreateJadwal = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const {
-        kelas_ids,
-        mapel_id,
-        guru_ids = [],
-        ruang_id,
-        hari,
-        jam_mulai,
-        jam_selesai,
-        jam_ke,
-        jenis_aktivitas = 'pelajaran',
-        is_absenable = true,
-        keterangan_khusus = null
-    } = req.body;
-
-    log.requestStart('BulkCreateJadwal', { kelas_ids, mapel_id, hari, jam_ke });
-
-    // Validation
-    if (!kelas_ids || !Array.isArray(kelas_ids) || kelas_ids.length === 0) {
-        return sendValidationError(res, 'Minimal satu kelas harus dipilih');
-    }
-
-    // Time validation
-    const timeValidation = validateTimeLogic(jam_mulai, jam_selesai);
-    if (!timeValidation.valid) {
-        return sendValidationError(res, timeValidation.error);
-    }
-
-    // Guru validation
-    const finalGuruIds = normalizeGuruIds(guru_ids, null);
-    if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length === 0) {
-        return sendValidationError(res, 'Minimal satu guru harus dipilih untuk jadwal pelajaran');
-    }
-
-    if (jenis_aktivitas === 'pelajaran') {
-        const guruValidation = await validateGuruIdsExist(finalGuruIds);
-        if (!guruValidation.valid) {
-            return sendValidationError(res, guruValidation.error);
-        }
-    }
-
-    try {
-        const results = { success: [], failed: [] };
-        const primaryGuruId = finalGuruIds.length > 0 ? finalGuruIds[0] : null;
-        const isMultiGuru = finalGuruIds.length > 1;
-        const finalMapelId = jenis_aktivitas === 'pelajaran' ? mapel_id : null;
-        const finalRuangId = ruang_id === 'none' || !ruang_id ? null : ruang_id;
-
-        for (const kelas_id of kelas_ids) {
-            try {
-                // Check conflicts for this class
-                if (jenis_aktivitas === 'pelajaran') {
-                    const conflictResult = await checkAllScheduleConflicts({
-                        kelas_id,
-                        hari,
-                        jam_mulai,
-                        jam_selesai,
-                        ruang_id: finalRuangId,
-                        guruIds: finalGuruIds,
-                        excludeJadwalId: null
-                    });
-
-                    if (conflictResult.hasConflict) {
-                        // Get class name for error message
-                        const [[kelasInfo]] = await globalThis.dbPool.execute(
-                            'SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]
-                        );
-                        results.failed.push({
-                            kelas_id,
-                            kelas_name: kelasInfo?.nama_kelas || `ID ${kelas_id}`,
-                            error: conflictResult.error
-                        });
-                        continue;
-                    }
-                }
-
-                // Insert jadwal
-                const [insertResult] = await globalThis.dbPool.execute(
-                    `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
-                    [kelas_id, finalMapelId, primaryGuruId, finalRuangId, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable ? 1 : 0, keterangan_khusus, isMultiGuru ? 1 : 0]
-                );
-
-                const jadwalId = insertResult.insertId;
-
-                // Insert guru relations
-                if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
-                    await insertJadwalGuru(jadwalId, finalGuruIds);
-                }
-
-                results.success.push({ kelas_id, jadwal_id: jadwalId });
-            } catch (error) {
-                results.failed.push({ kelas_id, error: error.message });
-            }
-        }
-
-        log.success('BulkCreateJadwal', { 
-            success: results.success.length, 
-            failed: results.failed.length 
-        });
-
-        return sendSuccessResponse(res, results, 
-            `Berhasil menambahkan ${results.success.length} jadwal, ${results.failed.length} gagal`
-        );
-    } catch (error) {
-        log.dbError('bulkCreateJadwal', error);
-        return sendDatabaseError(res, error, 'Gagal menambahkan jadwal massal');
-    }
-};
-
-/**
- * Clone jadwal - Salin semua jadwal dari satu kelas ke kelas lain
- * POST /api/jadwal/clone
- * @param {number} req.body.source_kelas_id - ID kelas sumber
- * @param {Array<number>} req.body.target_kelas_ids - Array ID kelas target
- * @param {boolean} req.body.include_guru - Salin guru atau tidak
- * @param {boolean} req.body.include_ruang - Salin ruang atau tidak
- * @returns {Object} Hasil clone
- */
-export const cloneJadwal = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const {
-        source_kelas_id,
-        target_kelas_ids,
-        include_guru = true,
-        include_ruang = true
-    } = req.body;
-
-    log.requestStart('CloneJadwal', { source_kelas_id, target_kelas_ids });
-
-    // Validation
-    if (!source_kelas_id) {
-        return sendValidationError(res, 'Kelas sumber harus dipilih');
-    }
-    if (!target_kelas_ids || !Array.isArray(target_kelas_ids) || target_kelas_ids.length === 0) {
-        return sendValidationError(res, 'Minimal satu kelas target harus dipilih');
-    }
-
-    try {
-        // Get source schedules
-        const [sourceSchedules] = await globalThis.dbPool.execute(`
-            SELECT j.*, GROUP_CONCAT(jg.guru_id) as all_guru_ids
-            FROM jadwal j
-            LEFT JOIN jadwal_guru jg ON j.id_jadwal = jg.jadwal_id
-            WHERE j.kelas_id = ? AND j.status = 'aktif'
-            GROUP BY j.id_jadwal
-        `, [source_kelas_id]);
-
-        if (sourceSchedules.length === 0) {
-            return sendValidationError(res, 'Kelas sumber tidak memiliki jadwal');
-        }
-
-        const results = { success: [], failed: [], total_created: 0 };
-
-        for (const target_kelas_id of target_kelas_ids) {
-            // Skip if target is same as source
-            if (target_kelas_id === source_kelas_id) continue;
-
-            let classSuccess = 0;
-            let classFailed = 0;
-
-            for (const schedule of sourceSchedules) {
-                try {
-                    const newRuangId = include_ruang ? schedule.ruang_id : null;
-                    const newGuruId = include_guru ? schedule.guru_id : null;
-                    const isMultiGuru = include_guru ? schedule.is_multi_guru : 0;
-
-                    // Insert cloned jadwal
-                    const [insertResult] = await globalThis.dbPool.execute(
-                        `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
-                        [target_kelas_id, schedule.mapel_id, newGuruId, newRuangId, schedule.hari, schedule.jam_ke, schedule.jam_mulai, schedule.jam_selesai, schedule.jenis_aktivitas, schedule.is_absenable, schedule.keterangan_khusus, isMultiGuru]
-                    );
-
-                    const newJadwalId = insertResult.insertId;
-
-                    // Clone guru relations if include_guru
-                    if (include_guru && schedule.all_guru_ids) {
-                        const guruIds = schedule.all_guru_ids.split(',').map(Number).filter(id => id > 0);
-                        if (guruIds.length > 0) {
-                            await insertJadwalGuru(newJadwalId, guruIds);
-                        }
-                    }
-
-                    classSuccess++;
-                    results.total_created++;
-                } catch (error) {
-                    classFailed++;
-                    log.warn('CloneJadwal - schedule failed', { 
-                        source_jadwal_id: schedule.id_jadwal, 
-                        target_kelas_id, 
-                        error: error.message 
-                    });
-                }
-            }
-
-            // Get class name
-            const [[kelasInfo]] = await globalThis.dbPool.execute(
-                'SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [target_kelas_id]
-            );
-
-            if (classFailed === 0) {
-                results.success.push({ 
-                    kelas_id: target_kelas_id, 
-                    kelas_name: kelasInfo?.nama_kelas,
-                    count: classSuccess 
-                });
-            } else {
-                results.failed.push({ 
-                    kelas_id: target_kelas_id, 
-                    kelas_name: kelasInfo?.nama_kelas,
-                    success: classSuccess, 
-                    failed: classFailed 
-                });
-            }
-        }
-
-        log.success('CloneJadwal', { 
-            total_created: results.total_created,
-            success_classes: results.success.length,
-            failed_classes: results.failed.length
-        });
-
-        return sendSuccessResponse(res, results, 
-            `Berhasil menyalin ${results.total_created} jadwal ke ${results.success.length} kelas`
-        );
-    } catch (error) {
-        log.dbError('cloneJadwal', error);
-        return sendDatabaseError(res, error, 'Gagal menyalin jadwal');
-    }
-};
-
-/**
- * Check conflicts for bulk operations
- * POST /api/jadwal/check-conflicts
- * @param {Array<number>} req.body.kelas_ids - Array ID kelas
- * @param {Array<number>} req.body.guru_ids - Array ID guru
- * @param {string} req.body.hari - Hari
- * @param {string} req.body.jam_mulai - Jam mulai
- * @param {string} req.body.jam_selesai - Jam selesai
- * @returns {Object} List of conflicts
- */
-export const checkBulkConflicts = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { kelas_ids, guru_ids = [], hari, jam_mulai, jam_selesai } = req.body;
-
-    log.requestStart('CheckBulkConflicts', { kelas_ids, guru_ids, hari });
-
-    try {
-        const conflicts = [];
-
-        for (const kelas_id of kelas_ids) {
-            // Check class conflict
-            const classConflict = await checkClassConflicts(kelas_id, hari, jam_mulai, jam_selesai);
-            if (classConflict.hasConflict) {
-                const [[kelasInfo]] = await globalThis.dbPool.execute(
-                    'SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]
-                );
-                conflicts.push({
-                    kelas_id,
-                    kelas_name: kelasInfo?.nama_kelas || `ID ${kelas_id}`,
-                    conflict_type: 'class',
-                    message: classConflict.error
-                });
-            }
-        }
-
-        // Check teacher conflicts (only once, applies to all classes)
-        if (guru_ids && guru_ids.length > 0) {
-            const teacherConflict = await validateScheduleConflicts(guru_ids, hari, jam_mulai, jam_selesai);
-            if (teacherConflict.hasConflict) {
-                const { guruId, conflict } = teacherConflict;
-                const [[guruInfo]] = await globalThis.dbPool.execute(
-                    'SELECT nama FROM guru WHERE id_guru = ?', [guruId]
-                );
-                conflicts.push({
-                    kelas_id: null,
-                    kelas_name: 'Semua kelas',
-                    conflict_type: 'teacher',
-                    message: `Guru ${guruInfo?.nama || guruId} sudah memiliki jadwal di ${conflict.kelas} pada jam tersebut`
-                });
-            }
-        }
-
-    log.success('CheckBulkConflicts', { conflict_count: conflicts.length });
-        return sendSuccessResponse(res, { conflicts });
-    } catch (error) {
-        log.dbError('checkBulkConflicts', error);
-        return sendDatabaseError(res, error, 'Gagal memeriksa konflik');
-    }
-};
-
-/**
- * Import master schedule from CSV
- * POST /api/jadwal/import-master
- * @param {Object} req.file - Uploaded CSV file
- * @returns {Object} Import results
- */
-export const importMasterSchedule = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    log.requestStart('ImportMasterSchedule');
-
-    if (!req.file) {
-        return sendValidationError(res, 'File CSV wajib diupload');
-    }
-
-    try {
-        const result = await processMasterScheduleImport(req.file.path);
-        log.success('ImportMasterSchedule', result);
-        return sendSuccessResponse(res, result, 'Jadwal master berhasil diimport');
-    } catch (error) {
-        log.error('ImportMasterSchedule', error);
-        return sendServerError(res, error, 'Gagal mengimport jadwal master');
-    }
-};
-
-// ================================================
-// NEW API: Jam Pelajaran (Time Slots)
-// ================================================
-
-/**
- * Get jam pelajaran for a specific day or all days
- * GET /api/jadwal/jam-pelajaran?hari=Senin&tahun_ajaran=2025/2026
- */
-export const getJamPelajaran = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { hari, tahun_ajaran = '2025/2026' } = req.query;
-
-    log.requestStart('GetJamPelajaran', { hari, tahun_ajaran });
-
-    try {
-        let query = `SELECT * FROM jam_pelajaran WHERE tahun_ajaran = ?`;
-        const params = [tahun_ajaran];
-
-        if (hari) {
-            query += ` AND hari = ?`;
-            params.push(hari);
-        }
-
-        query += ` ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`;
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
-
-        log.success('GetJamPelajaran', { count: rows.length });
-        return sendSuccessResponse(res, rows);
-    } catch (error) {
-        log.dbError('getJamPelajaran', error);
-        return sendDatabaseError(res, error, 'Gagal mengambil data jam pelajaran');
-    }
-};
-
-// ================================================
-// NEW API: Guru Availability
-// ================================================
-
-/**
- * Get guru availability for schedule planning
- * GET /api/jadwal/guru-availability?hari=Senin
- */
-export const getGuruAvailabilityList = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { hari, tahun_ajaran = '2025/2026' } = req.query;
-
-    log.requestStart('GetGuruAvailability', { hari, tahun_ajaran });
-
-    try {
-        let query = `
-            SELECT g.id_guru, g.nama, g.nip, g.is_system_entity,
-                   COALESCE(ga.is_available, 1) as is_available,
-                   ga.keterangan
-            FROM guru g
-            LEFT JOIN guru_availability ga ON g.id_guru = ga.guru_id 
-                AND ga.tahun_ajaran = ?
-                ${hari ? 'AND ga.hari = ?' : ''}
-            WHERE g.status = 'aktif'
-            ORDER BY g.is_system_entity DESC, g.nama
-        `;
-
-        const params = hari ? [tahun_ajaran, hari] : [tahun_ajaran];
-        const [rows] = await globalThis.dbPool.execute(query, params);
-
-        log.success('GetGuruAvailability', { count: rows.length });
-        return sendSuccessResponse(res, rows);
-    } catch (error) {
-        log.dbError('getGuruAvailabilityList', error);
-        return sendDatabaseError(res, error, 'Gagal mengambil data ketersediaan guru');
-    }
-};
-
-/**
- * Check single guru availability for a day
- * POST /api/jadwal/check-guru-availability
- */
-export const checkGuruAvailabilityApi = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { guru_id, hari } = req.body;
-
-    log.requestStart('CheckGuruAvailability', { guru_id, hari });
-
-    if (!guru_id || !hari) {
-        return sendValidationError(res, 'guru_id dan hari wajib diisi');
-    }
-
-    try {
-        const result = await checkGuruAvailability(guru_id, hari);
-        log.success('CheckGuruAvailability', result);
-        return sendSuccessResponse(res, result);
-    } catch (error) {
-        log.dbError('checkGuruAvailabilityApi', error);
-        return sendDatabaseError(res, error, 'Gagal memeriksa ketersediaan guru');
-    }
-};
-
-// ================================================
-// NEW API: App Settings
-// ================================================
-
-/**
- * Get app settings by category or key
- * GET /api/settings?category=schedule&key=EMPTY_SLOT_POLICY
- */
-export const getAppSettings = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { category, key } = req.query;
-
-    log.requestStart('GetAppSettings', { category, key });
-
-    try {
-        let query = `SELECT * FROM app_settings WHERE 1=1`;
-        const params = [];
-
-        if (category) {
-            query += ` AND category = ?`;
-            params.push(category);
-        }
-        if (key) {
-            query += ` AND setting_key = ?`;
-            params.push(key);
-        }
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
-
-        // Parse JSON values
-        const parsed = rows.map(row => ({
-            ...row,
-            setting_value: typeof row.setting_value === 'string' 
-                ? JSON.parse(row.setting_value) 
-                : row.setting_value
-        }));
-
-        log.success('GetAppSettings', { count: parsed.length });
-        return sendSuccessResponse(res, parsed);
-    } catch (error) {
-        log.dbError('getAppSettings', error);
-        return sendDatabaseError(res, error, 'Gagal mengambil pengaturan');
-    }
-};
-
-// ================================================
-// NEW API: Bulk Update Guru Availability
-// ================================================
-
-/**
- * Bulk update guru availability
- * POST /api/jadwal/guru-availability/bulk
- */
-export const bulkUpdateGuruAvailability = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { updates } = req.body;
-
-    log.requestStart('BulkUpdateGuruAvailability', { count: updates?.length });
-
-    if (!updates || !Array.isArray(updates)) {
-        return sendValidationError(res, 'updates array wajib diisi');
-    }
-
-    try {
-        let updatedCount = 0;
-
-        for (const update of updates) {
-            const { guru_id, hari, is_available, keterangan, tahun_ajaran = '2025/2026' } = update;
-
-            if (!guru_id || !hari) continue;
-
-            await globalThis.dbPool.execute(`
-                INSERT INTO guru_availability (guru_id, hari, is_available, keterangan, tahun_ajaran)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE 
-                    is_available = VALUES(is_available),
-                    keterangan = VALUES(keterangan)
-            `, [guru_id, hari, is_available ? 1 : 0, keterangan || null, tahun_ajaran]);
-
-            updatedCount++;
-        }
-
-        log.success('BulkUpdateGuruAvailability', { updated: updatedCount });
-        return sendSuccessResponse(res, { updated: updatedCount });
-    } catch (error) {
-        log.dbError('bulkUpdateGuruAvailability', error);
-        return sendDatabaseError(res, error, 'Gagal update ketersediaan guru');
-    }
-};
-
-// ================================================
-// NEW API: Matrix Schedule (Grid Editor)
-// ================================================
-
-/**
- * Get schedule data in matrix format for grid editor
- * GET /api/jadwal/matrix?hari=Senin&tingkat=XII&jurusan=rpl
- */
-export const getMatrixSchedule = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { hari = 'Senin', tingkat, jurusan, tahun_ajaran = '2025/2026' } = req.query;
-
-    log.requestStart('GetMatrixSchedule', { hari, tingkat, jurusan });
-
-    try {
-        // 1. Get jam slots for the day
-        const [jamSlots] = await globalThis.dbPool.execute(`
-            SELECT jam_ke, jenis, label, jam_mulai, jam_selesai, durasi_menit
-            FROM jam_pelajaran
-            WHERE hari = ? AND tahun_ajaran = ?
-            ORDER BY jam_ke
-        `, [hari, tahun_ajaran]);
-
-        // 2. Get filtered classes
-        let kelasQuery = `SELECT id_kelas as id, nama_kelas, tingkat FROM kelas WHERE status = 'aktif'`;
-        const kelasParams = [];
-
-        if (tingkat) {
-            kelasQuery += ` AND tingkat = ?`;
-            kelasParams.push(tingkat);
-        }
-        if (jurusan) {
-            kelasQuery += ` AND LOWER(nama_kelas) LIKE ?`;
-            kelasParams.push(`%${jurusan.toLowerCase()}%`);
-        }
-
-        kelasQuery += ` ORDER BY tingkat, nama_kelas`;
-        const [kelasList] = await globalThis.dbPool.execute(kelasQuery, kelasParams);
-
-        // 3. Get schedules for the day
-        const kelasIds = kelasList.map(k => k.id);
-        if (kelasIds.length === 0) {
-            return sendSuccessResponse(res, { hari, jam_slots: jamSlots, rows: [] });
-        }
-
-        const placeholders = kelasIds.map(() => '?').join(',');
-        const [schedules] = await globalThis.dbPool.execute(`
-            SELECT 
-                j.id_jadwal as id, j.kelas_id, j.jam_ke,
-                j.mapel_id, j.guru_id, j.ruang_id,
-                j.jenis_aktivitas, j.keterangan_khusus,
-                m.kode_mapel, m.nama_mapel,
-                g.nama as nama_guru,
-                SUBSTRING(g.nama, 1, 4) as kode_guru,
-                rk.kode_ruang
-            FROM jadwal j
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-            WHERE j.kelas_id IN (${placeholders}) 
-              AND j.hari = ? 
-              AND j.status = 'aktif'
-        `, [...kelasIds, hari]);
-
-        // 4. Build matrix structure
-        const scheduleMap = {};
-        for (const s of schedules) {
-            if (!scheduleMap[s.kelas_id]) scheduleMap[s.kelas_id] = {};
-            scheduleMap[s.kelas_id][s.jam_ke] = {
-                id: s.id,
-                mapel_id: s.mapel_id,
-                guru_id: s.guru_id,
-                ruang_id: s.ruang_id,
-                kode_mapel: s.kode_mapel || s.keterangan_khusus,
-                nama_mapel: s.nama_mapel || s.keterangan_khusus,
-                kode_guru: s.kode_guru,
-                nama_guru: s.nama_guru,
-                kode_ruang: s.kode_ruang,
-                jenis_aktivitas: s.jenis_aktivitas
-            };
-        }
-
-        const rows = kelasList.map(kelas => ({
-            kelas_id: kelas.id,
-            nama_kelas: kelas.nama_kelas,
-            tingkat: kelas.tingkat,
-            cells: scheduleMap[kelas.id] || {}
-        }));
-
-        log.success('GetMatrixSchedule', { kelas_count: rows.length, schedule_count: schedules.length });
-        return sendSuccessResponse(res, {
-            hari,
-            tahun_ajaran,
-            jam_slots: jamSlots,
-            rows
-        });
-    } catch (error) {
-        log.dbError('getMatrixSchedule', error);
-        return sendDatabaseError(res, error, 'Gagal mengambil data matrix jadwal');
-    }
-};
-
-/**
- * Batch update schedules from grid editor
- * POST /api/jadwal/matrix/update
- */
-export const updateMatrixSchedule = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { hari, changes } = req.body;
-
-    log.requestStart('UpdateMatrixSchedule', { hari, change_count: changes?.length });
-
-    if (!hari || !changes || !Array.isArray(changes)) {
-        return sendValidationError(res, 'hari dan changes array wajib diisi');
-    }
-
-    try {
-        const results = { created: 0, updated: 0, deleted: 0, errors: [] };
-
-        // Pre-fetch jam info (optimization)
-        const [jamSlots] = await globalThis.dbPool.execute(
-            'SELECT jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran WHERE hari = ?',
-            [hari]
-        );
-        const jamMap = jamSlots.reduce((map, slot) => {
-            map[slot.jam_ke] = { start: slot.jam_mulai, end: slot.jam_selesai };
-            return map;
-        }, {});
-
-        // Process changes in transaction-like loop
-        for (const change of changes) {
-            const { kelas_id, jam_ke, action } = change;
-
-            if (!kelas_id || jam_ke === undefined) {
-                results.errors.push({ change, error: 'kelas_id dan jam_ke wajib' });
-                continue;
-            }
-
-            try {
-                if (action === 'delete') {
-                    await deleteSchedule(kelas_id, hari, jam_ke);
-                    results.deleted++;
-                } else {
-                    const result = await upsertSchedule(change, hari, jamMap[jam_ke]);
-                    if (result.type === 'created') results.created++;
-                    else if (result.type === 'updated') results.updated++;
-                }
-            } catch (err) {
-                results.errors.push({ change, error: err.message });
-            }
-        }
-
-        log.success('UpdateMatrixSchedule', results);
-        return sendSuccessResponse(res, results);
-    } catch (error) {
-        log.dbError('updateMatrixSchedule', error);
-        return sendDatabaseError(res, error, 'Gagal update matrix jadwal');
-    }
-};
-
-// --- Helper Functions for UpdateMatrixSchedule ---
-
-async function deleteSchedule(kelas_id, hari, jam_ke) {
-    await globalThis.dbPool.execute(
-        'DELETE FROM jadwal WHERE kelas_id = ? AND hari = ? AND jam_ke = ?',
-        [kelas_id, hari, jam_ke]
-    );
-}
-
-async function upsertSchedule(change, hari, jamInfo) {
-    const { kelas_id, jam_ke, mapel_id, guru_id, ruang_id, jenis_aktivitas = 'pelajaran' } = change;
-    const defaultTime = { start: '07:00', end: '07:45' };
-    const time = jamInfo || defaultTime;
-
-    // Check existing
-    const [existing] = await globalThis.dbPool.execute(
-        'SELECT id_jadwal FROM jadwal WHERE kelas_id = ? AND hari = ? AND jam_ke = ?',
-        [kelas_id, hari, jam_ke]
-    );
-
-    if (existing.length > 0) {
-        await globalThis.dbPool.execute(
-            `UPDATE jadwal SET mapel_id = ?, guru_id = ?, ruang_id = ?, jenis_aktivitas = ?, jam_mulai = ?, jam_selesai = ?
-             WHERE id_jadwal = ?`,
-            [mapel_id, guru_id, ruang_id, jenis_aktivitas, time.start, time.end, existing[0].id_jadwal]
-        );
-        return { type: 'updated' };
-    } else {
-        await globalThis.dbPool.execute(
-            `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?)`,
-            [kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, time.start, time.end, jenis_aktivitas]
-        );
-        return { type: 'created' };
-    }
-}
-
-/**
- * Check conflicts for a guru on a specific day/time
- * GET /api/jadwal/matrix/check-conflict?guru_id=1&hari=Senin&jam_ke=2&exclude_kelas_id=5
- */
-export const checkMatrixConflict = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { guru_id, hari, jam_ke, exclude_kelas_id } = req.query;
-
-    if (!guru_id || !hari || jam_ke === undefined) {
-        return sendValidationError(res, 'guru_id, hari, dan jam_ke wajib diisi');
-    }
-
-    try {
-        // Check if guru is system entity
-        const isSystem = await isSystemEntity(Number(guru_id));
-        if (isSystem) {
-            return sendSuccessResponse(res, { has_conflict: false, is_system: true });
-        }
-
-        // Check for conflicts
-        let query = `
-            SELECT j.id_jadwal, k.nama_kelas, m.nama_mapel
-            FROM jadwal j
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            WHERE j.guru_id = ? AND j.hari = ? AND j.jam_ke = ? AND j.status = 'aktif'
-        `;
-        const params = [guru_id, hari, jam_ke];
-
-        if (exclude_kelas_id) {
-            query += ` AND j.kelas_id != ?`;
-            params.push(exclude_kelas_id);
-        }
-
-        const [conflicts] = await globalThis.dbPool.execute(query, params);
-
-        log.success('CheckMatrixConflict', { has_conflict: conflicts.length > 0 });
-        return sendSuccessResponse(res, {
-            has_conflict: conflicts.length > 0,
-            conflicts: conflicts.map(c => ({
-                jadwal_id: c.id_jadwal,
-                kelas: c.nama_kelas,
-                mapel: c.nama_mapel
-            }))
-        });
-    } catch (error) {
-        log.dbError('checkMatrixConflict', error);
-        return sendDatabaseError(res, error, 'Gagal cek konflik');
     }
 };
