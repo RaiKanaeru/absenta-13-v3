@@ -5,8 +5,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'Absenta 13',
-  tagline: 'Dokumentasi teknis sistem absensi sekolah',
+  title: 'absenta13',
+  tagline: 'Dokumentasi teknis absenta13',
   favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -42,17 +42,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -62,15 +52,15 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/logo.png',
     colorMode: {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'Absenta 13',
+      title: 'absenta13',
       logo: {
-        alt: 'Absenta 13 Logo',
-        src: 'img/logo.svg',
+        alt: 'absenta13 Logo',
+        src: 'img/logo.png',
       },
       items: [
         {
@@ -79,7 +69,6 @@ const config: Config = {
           position: 'left',
           label: 'Dokumentasi',
         },
-        {to: '/blog', label: 'Catatan', position: 'left'},
         {
           href: 'https://absenta13.my.id',
           label: 'Aplikasi',
@@ -116,17 +105,13 @@ const config: Config = {
           title: 'Lainnya',
           items: [
             {
-              label: 'Catatan',
-              to: '/blog',
-            },
-            {
               label: 'Aplikasi',
               href: 'https://absenta13.my.id',
             },
           ],
         },
       ],
-      copyright: `Copyright Ac ${new Date().getFullYear()} Absenta 13.`,
+      copyright: `Copyright Ac ${new Date().getFullYear()} absenta13.`,
     },
     prism: {
       theme: prismThemes.github,

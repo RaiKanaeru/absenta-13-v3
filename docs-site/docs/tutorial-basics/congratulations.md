@@ -1,23 +1,36 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 ---
 
-# Congratulations!
+# Checklist Perubahan
 
-You have just learned the **basics of Docusaurus** and made some changes to the **initial template**.
+Gunakan checklist ini sebelum merge atau rilis.
 
-Docusaurus has **much more to offer**!
+## Checklist Teknis
 
-Have **5 more minutes**? Take a look at **[versioning](../tutorial-extras/manage-docs-versions.md)** and **[i18n](../tutorial-extras/translate-your-site.md)**.
+- Validasi input di backend untuk endpoint baru.
+- Pastikan role dan auth diterapkan dengan benar.
+- Update `.env.example` jika menambah env baru.
+- Hindari hardcoded secret dan kredensial.
 
-Anything **unclear** or **buggy** in this tutorial? [Please report it!](https://github.com/facebook/docusaurus/discussions/4610)
+## Checklist Data
 
-## What's next?
+- Jika ada perubahan skema, buat migrasi SQL.
+- Pastikan dump dan seeder tidak tertimpa tanpa alasan.
+- Jangan menjalankan perintah destruktif tanpa konfirmasi.
 
-- Read the [official documentation](https://docusaurus.io/)
-- Modify your site configuration with [`docusaurus.config.js`](https://docusaurus.io/docs/api/docusaurus-config)
-- Add navbar and footer items with [`themeConfig`](https://docusaurus.io/docs/api/themes/configuration)
-- Add a custom [Design and Layout](https://docusaurus.io/docs/styling-layout)
-- Add a [search bar](https://docusaurus.io/docs/search)
-- Find inspirations in the [Docusaurus showcase](https://docusaurus.io/showcase)
-- Get involved in the [Docusaurus Community](https://docusaurus.io/community/support)
+## Checklist UI
+
+- Pastikan error handling jelas di dashboard.
+- Hindari duplikasi state dan util.
+- Uji halaman utama untuk admin, guru, dan siswa.
+
+## Checklist Test
+
+Jalankan tes jika logika berubah:
+
+```bash
+npm test
+```
+
+Jika tidak menjalankan tes, jelaskan alasannya di catatan perubahan.

@@ -2,54 +2,45 @@
 sidebar_position: 1
 ---
 
-# Manage Docs Versions
+# Backup, Archive, dan Restore
 
-Docusaurus can manage multiple versions of your docs.
+absenta13 menyediakan fitur backup dan archive untuk menjaga data tetap aman.
 
-## Create a docs version
+## Lokasi File
 
-Release a version 1.0 of your project:
+- Backup tersimpan di folder `backups/`.
+- Archive lama tersimpan di `archives/`.
+- Restore menerima file `.sql` atau `.zip`.
 
-```bash
-npm run docusaurus docs:version 1.0
-```
+## Backup
 
-The `docs` folder is copied into `versioned_docs/version-1.0` and `versions.json` is created.
+Dari menu admin, operator dapat:
 
-Your docs now have 2 versions:
+- Membuat backup semester.
+- Melihat daftar backup.
+- Menjalankan archive data lama.
 
-- `1.0` at `http://localhost:3000/docs/` for the version 1.0 docs
-- `current` at `http://localhost:3000/docs/next/` for the **upcoming, unreleased docs**
+Catatan:
 
-## Add a Version Dropdown
+- Pastikan MySQL dan Redis aktif sebelum proses backup.
+- Jalankan backup sebelum migrasi atau rilis besar.
 
-To navigate seamlessly across versions, add a version dropdown.
+## Restore
 
-Modify the `docusaurus.config.js` file:
+Restore dapat dilakukan melalui menu admin atau endpoint terkait. Proses ini
+mungkin menimpa data yang ada, jadi gunakan dengan hati-hati.
 
-```js title="docusaurus.config.js"
-export default {
-  themeConfig: {
-    navbar: {
-      items: [
-        // highlight-start
-        {
-          type: 'docsVersionDropdown',
-        },
-        // highlight-end
-      ],
-    },
-  },
-};
-```
+Validasi file:
 
-The docs version dropdown appears in your navbar:
+- Ekstensi hanya `.sql` atau `.zip`.
+- Ukuran maksimum 100MB.
+- Nama file tidak boleh mengandung path traversal.
 
-![Docs Version Dropdown](./img/docsVersionDropdown.png)
+## Konfigurasi Jadwal Backup
 
-## Update an existing version
+Jadwal backup disimpan di:
 
-It is possible to edit versioned docs in their respective folder:
+- `backup-settings.json`
+- `custom-schedules.json`
 
-- `versioned_docs/version-1.0/hello.md` updates `http://localhost:3000/docs/hello`
-- `docs/hello.md` updates `http://localhost:3000/docs/next/hello`
+Gunakan jadwal otomatis hanya jika server berjalan stabil pada waktu eksekusi.

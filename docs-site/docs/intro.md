@@ -2,9 +2,9 @@
 sidebar_position: 1
 ---
 
-# Pengantar Absenta 13
+# Pengantar absenta13
 
-Absenta 13 adalah sistem absensi sekolah berbasis web yang memisahkan frontend dan backend
+absenta13 adalah sistem absensi sekolah berbasis web yang memisahkan frontend dan backend
 untuk mendukung kinerja, skalabilitas, dan pemeliharaan jangka panjang. Dokumentasi ini
 menjelaskan arsitektur, alur utama, dan panduan teknis untuk pengembang serta operator.
 

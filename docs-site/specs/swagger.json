@@ -1,18 +1,22 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Absenta13 API",
+    "title": "absenta13 API",
     "version": "1.0.0",
-    "description": "API Documentation for Absenta13 School Attendance System",
+    "description": "Dokumentasi API absenta13 untuk layanan absensi sekolah.",
     "contact": {
-      "name": "Developer",
+      "name": "Tim absenta13",
       "url": "https://absenta13.my.id"
     }
   },
   "servers": [
     {
-      "url": "http://localhost:5000/api",
-      "description": "Development server"
+      "url": "http://localhost:3001/api",
+      "description": "Server pengembangan"
+    },
+    {
+      "url": "https://api.absenta13.my.id/api",
+      "description": "Server produksi"
     }
   ],
   "components": {

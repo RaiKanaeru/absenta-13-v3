@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Struktur Repositori
 
-Dokumen ini menjelaskan struktur utama repo Absenta 13 dan fungsi tiap folder.
+Dokumen ini menjelaskan struktur utama repo absenta13 dan fungsi tiap folder.
 
 ## Root
 
@@ -16,7 +16,7 @@ absenta13/
   database/       Dump dan seeder SQL
   migrations/     Migrasi SQL tingkat repo
   docs/           Dokumentasi internal project
-  docs-site/      Dokumentasi Docusaurus
+  docs-site/      Dokumentasi absenta13
   scripts/        Script setup dan utilitas
   public/         Aset statis frontend
   server_modern.js Entrypoint backend

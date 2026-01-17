@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Frontend: Halaman dan Komponen
 
-Frontend Absenta 13 dibangun dengan React + TypeScript. Alur utama ditentukan di
+Frontend absenta13 dibangun dengan React + TypeScript. Alur utama ditentukan di
 `src/pages/Index_Modern.tsx` yang menangani login dan routing berdasarkan role.
 
 ## Entry Point dan Routing

@@ -1,31 +1,61 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
-# Deploy your site
+# Menjalankan Lokal dan Deployment
 
-Docusaurus is a **static-site-generator** (also called **[Jamstack](https://jamstack.org/)**).
+Dokumen ini menjelaskan cara menjalankan absenta13 secara lokal dan opsi deployment.
 
-It builds your site as simple **static HTML, JavaScript and CSS files**.
+## Menjalankan Lokal
 
-## Build your site
+Instal dependensi:
 
-Build your site **for production**:
+```bash
+npm install
+```
+
+Jalankan backend:
+
+```bash
+node server_modern.js
+```
+
+Jalankan frontend:
+
+```bash
+npm run dev
+```
+
+Atau jalankan bersamaan:
+
+```bash
+npm run dev:full
+```
+
+## Environment
+
+Pastikan file `.env` berisi konfigurasi database, Redis, dan JWT.
+
+## Deployment Dengan PM2
 
 ```bash
 npm run build
+pm2 start ecosystem.config.cjs --env production
+pm2 status
 ```
 
-The static files are generated in the `build` folder.
+## Deployment Dengan Docker
 
-## Deploy your site
+Jika tersedia `docker-compose.yml`:
 
-Test your production build locally:
-
-```bash
-npm run serve
+```
+docker-compose up -d --build
 ```
 
-The `build` folder is now served at [http://localhost:3000/](http://localhost:3000/).
+Gunakan `docker-compose logs --tail=200 app` untuk inspeksi.
 
-You can now deploy the `build` folder **almost anywhere** easily, **for free** or very small cost (read the **[Deployment Guide](https://docusaurus.io/docs/deployment)**).
+## Catatan Operasional
+
+- Selalu backup sebelum perubahan besar.
+- Pastikan Redis dan MySQL aktif sebelum server dijalankan.
+- Periksa port 3001 dan 5173 tidak bentrok.

@@ -5,14 +5,16 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  Svg: React.ComponentType<React.ComponentProps<'svg'>>;
+  image: string;
+  alt: string;
   description: ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
   {
     title: 'Arsitektur Terpisah',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    image: require('@site/static/img/logo.png').default,
+    alt: 'Logo absenta13',
     description: (
       <>
         Frontend React + Vite (5173), backend Node.js + Express (3001),
@@ -23,7 +25,8 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Alur Absensi Terstruktur',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    image: require('@site/static/img/logo-kiri.png').default,
+    alt: 'Logo absenta13 kiri',
     description: (
       <>
         Jadwal mengacu pada jadwal dan jam_pelajaran. Guru mengambil absensi
@@ -34,7 +37,8 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Operasional dan Laporan',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    image: require('@site/static/img/logo-kanan.png').default,
+    alt: 'Logo absenta13 kanan',
     description: (
       <>
         Monitoring sistem, backup dan restore, export Excel berbasis template,
@@ -44,11 +48,11 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({title, Svg, description}: FeatureItem) {
+function Feature({title, image, alt, description}: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center">
-        <Svg className={styles.featureSvg} role="img" />
+        <img className={styles.featureSvg} src={image} alt={alt} />
       </div>
       <div className="text--center padding-horiz--md">
         <Heading as="h3">{title}</Heading>

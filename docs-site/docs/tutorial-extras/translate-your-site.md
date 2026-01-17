@@ -2,87 +2,39 @@
 sidebar_position: 2
 ---
 
-# Translate your site
+# Monitoring dan Keamanan
 
-Let's translate `docs/intro.md` to French.
+absenta13 menyediakan modul monitoring untuk metrik sistem dan keamanan.
 
-## Configure i18n
+## Monitoring
 
-Modify `docusaurus.config.js` to add support for the `fr` locale:
+Monitoring menampilkan metrik berikut:
 
-```js title="docusaurus.config.js"
-export default {
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en', 'fr'],
-  },
-};
-```
+- CPU, memory, dan disk.
+- Response time aplikasi dan database.
+- Jumlah request, error, dan status cache.
 
-## Translate a doc
+Sumber implementasi berada di:
 
-Copy the `docs/intro.md` file to the `i18n/fr` folder:
+- `server/services/system/monitoring-system.js`
+- `src/components/MonitoringDashboard.tsx`
 
-```bash
-mkdir -p i18n/fr/docusaurus-plugin-content-docs/current/
+## Keamanan
 
-cp docs/intro.md i18n/fr/docusaurus-plugin-content-docs/current/intro.md
-```
+Lapisan keamanan utama:
 
-Translate `i18n/fr/docusaurus-plugin-content-docs/current/intro.md` in French.
+- Rate limiting berbasis IP.
+- Audit logging untuk aksi penting.
+- Validasi input di controller.
+- Auto blocking IP untuk aktivitas mencurigakan.
 
-## Start your localized site
+Implementasi ada di:
 
-Start your site on the French locale:
+- `server/services/system/security-system.js`
+- `server/middleware/auth.js`
 
-```bash
-npm run start -- --locale fr
-```
+## Praktik Operasional
 
-Your localized site is accessible at [http://localhost:3000/fr/](http://localhost:3000/fr/) and the `Getting Started` page is translated.
-
-:::caution
-
-In development, you can only use one locale at a time.
-
-:::
-
-## Add a Locale Dropdown
-
-To navigate seamlessly across languages, add a locale dropdown.
-
-Modify the `docusaurus.config.js` file:
-
-```js title="docusaurus.config.js"
-export default {
-  themeConfig: {
-    navbar: {
-      items: [
-        // highlight-start
-        {
-          type: 'localeDropdown',
-        },
-        // highlight-end
-      ],
-    },
-  },
-};
-```
-
-The locale dropdown now appears in your navbar:
-
-![Locale Dropdown](./img/localeDropdown.png)
-
-## Build your localized site
-
-Build your site for a specific locale:
-
-```bash
-npm run build -- --locale fr
-```
-
-Or build your site to include all the locales at once:
-
-```bash
-npm run build
-```
+- Tinjau error dengan filter waktu.
+- Pastikan Redis aktif untuk cache dan queue.
+- Pantau query lambat dan endpoint berat.

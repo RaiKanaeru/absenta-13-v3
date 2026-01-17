@@ -34,7 +34,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={siteConfig.title}
-      description="Dokumentasi teknis Absenta 13 untuk frontend, backend, database, dan operasional.">
+      description="Dokumentasi teknis absenta13 untuk frontend, backend, database, dan operasional.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

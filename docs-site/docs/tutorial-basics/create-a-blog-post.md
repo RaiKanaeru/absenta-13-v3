@@ -1,34 +1,68 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
-# Create a Blog Post
+# Backend: Route, Controller, Service
 
-Docusaurus creates a **page for each blog post**, but also a **blog index page**, a **tag system**, an **RSS** feed...
+Backend absenta13 menggunakan Express dengan pemisahan route dan controller.
 
-## Create your first Post
+## Struktur Backend
 
-Create a file at `blog/2021-02-28-greetings.md`:
+- `server_modern.js`: entrypoint dan wiring route.
+- `server/routes/`: definisi endpoint.
+- `server/controllers/`: handler request dan response.
+- `server/services/`: logic bisnis dan proses data.
+- `server/middleware/`: autentikasi dan error handler.
 
-```md title="blog/2021-02-28-greetings.md"
----
-slug: greetings
-title: Greetings!
-authors:
-  - name: Joel Marcey
-    title: Co-creator of Docusaurus 1
-    url: https://github.com/JoelMarcey
-    image_url: https://github.com/JoelMarcey.png
-  - name: Sébastien Lorber
-    title: Docusaurus maintainer
-    url: https://sebastienlorber.com
-    image_url: https://github.com/slorber.png
-tags: [greetings]
----
+## Pola Endpoint
 
-Congratulations, you have made your first post!
+Contoh pola umum:
 
-Feel free to play around and edit this post as much as you like.
+```
+GET /api/admin/jadwal
+POST /api/admin/jadwal
+PUT /api/admin/jadwal/:id
+DELETE /api/admin/jadwal/:id
 ```
 
-A new blog post is now available at [http://localhost:3000/blog/greetings](http://localhost:3000/blog/greetings).
+## Autentikasi dan Role
+
+Gunakan middleware:
+
+- `authenticateToken` untuk validasi JWT.
+- `requireRole` untuk membatasi akses role.
+
+## Respons API
+
+Gunakan format respons yang konsisten:
+
+```
+{
+  "success": true,
+  "data": [...],
+  "message": "OK"
+}
+```
+
+Untuk error, gunakan status HTTP yang tepat dan pesan yang jelas:
+
+```
+{
+  "success": false,
+  "error": "Pesan error"
+}
+```
+
+## Validasi Input
+
+- Validasi tipe dan range nilai di controller.
+- Hindari query raw tanpa parameter.
+- Jangan percaya data dari body atau query.
+
+## Testing
+
+Tes backend berada di `server/__tests__/`. Jalankan:
+
+```bash
+npm run test:server
+```

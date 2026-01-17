@@ -1,10 +1,10 @@
 ---
-title: Ringkasan Sistem Absenta 13
+title: Ringkasan Sistem absenta13
 ---
 
-# Ringkasan Sistem Absenta 13
+# Ringkasan Sistem absenta13
 
-Halaman ini berisi ringkasan cepat sistem Absenta 13 untuk pembaca teknis.
+Halaman ini berisi ringkasan cepat sistem absenta13 untuk pembaca teknis.
 
 ## Fokus Utama
 
