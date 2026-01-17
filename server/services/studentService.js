@@ -63,7 +63,7 @@ export const createStudent = async (data) => {
         const dummyPassword = await bcrypt.hash('Siswa123!', SALT_ROUNDS);
 
         const [userResult] = await connection.execute(
-            'INSERT INTO users (username, password, email, role, nama, status, created_at) VALUES (?, ?, ?, "siswa", ?, "aktif", ?)',
+            'INSERT INTO users (username, password, email, role, nama, status, created_at) VALUES (?, ?, ?, "siswa", ?, "ditangguhkan", ?)',
             [username, dummyPassword, email, nama, createdAtWIB]
         );
         const userId = userResult.insertId;

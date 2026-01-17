@@ -81,7 +81,10 @@ function validateBackupId(backupId) {
 /**
  * Perform SQL transaction execution
  */
-async function executeSqlCommands(commands) {
+const executeSqlCommands = async (commands) => {
+    if (!globalThis.dbPool) {
+        throw new Error('Database connection pool is not initialized');
+    }
     const connection = await globalThis.dbPool.getConnection();
     try {
         await connection.beginTransaction();
@@ -752,6 +755,13 @@ const restoreBackupFromFile = async (req, res) => {
             return res.status(400).json({
                 error: 'File tidak ditemukan',
                 message: 'File backup harus diupload'
+            });
+        }
+
+        if (!globalThis.dbPool) {
+            return res.status(503).json({
+                error: 'System not ready',
+                message: 'Database connection is not initialized yet'
             });
         }
 
