@@ -119,9 +119,9 @@ export function GlobalEventView({
       const response = await apiCall('/api/admin/jadwal', {
         method: 'GET',
         onLogout
-      }) as { data?: Array<{ kelas_id: number; hari: string; jam_ke: number }> };
+      }) as Array<{ kelas_id: number; hari: string; jam_ke: number }> | { data?: Array<{ kelas_id: number; hari: string; jam_ke: number }> };
 
-      const schedules = response.data || [];
+      const schedules = Array.isArray(response) ? response : response.data || [];
       const existing: Record<string, number> = {};
 
       for (const kelasId of selectedClassIds) {
@@ -175,15 +175,20 @@ export function GlobalEventView({
         guru_ids: []
       };
 
-      await apiCall('/api/admin/jadwal/bulk', {
+      const response = await apiCall('/api/admin/jadwal/bulk', {
         method: 'POST',
         body: JSON.stringify(payload),
         onLogout
-      });
+      }) as { data?: { created?: number; skipped?: number } };
+
+      const created = response.data?.created ?? classesToInsert.length;
+      const skipped = response.data?.skipped ?? 0;
 
       toast({
         title: "Berhasil",
-        description: `${customLabel} ditambahkan ke ${classesToInsert.length} kelas`
+        description: skipped > 0
+          ? `${customLabel} ditambahkan ke ${created} kelas, ${skipped} kelas dilewati`
+          : `${customLabel} ditambahkan ke ${created} kelas`
       });
 
       onSuccess();

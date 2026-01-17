@@ -145,12 +145,14 @@ export function BulkAddScheduleView({
           guru_ids: formData.guru_ids,
           hari: formData.hari,
           jam_mulai: formData.jam_mulai,
-          jam_selesai: formData.jam_selesai
+          jam_selesai: formData.jam_selesai,
+          ruang_id: formData.ruang_id === 'none' ? null : Number.parseInt(formData.ruang_id)
         }),
         onLogout
-      }) as { conflicts: ConflictInfo[] };
+      }) as { data?: { conflicts?: ConflictInfo[] }; conflicts?: ConflictInfo[] };
 
-      setConflicts(response.conflicts || []);
+      const conflictList = response.data?.conflicts ?? response.conflicts ?? [];
+      setConflicts(conflictList);
       setShowPreview(true);
     } catch (error) {
       // If API doesn't exist yet, just show preview without conflict check
@@ -178,15 +180,20 @@ export function BulkAddScheduleView({
         keterangan_khusus: formData.keterangan_khusus
       };
 
-      await apiCall('/api/admin/jadwal/bulk', {
+      const response = await apiCall('/api/admin/jadwal/bulk', {
         method: 'POST',
         body: JSON.stringify(payload),
         onLogout
-      });
+      }) as { data?: { created?: number; skipped?: number } };
+
+      const created = response.data?.created ?? selectedClasses.length;
+      const skipped = response.data?.skipped ?? 0;
 
       toast({
         title: "Berhasil",
-        description: `Jadwal berhasil ditambahkan ke ${selectedClasses.length} kelas`
+        description: skipped > 0
+          ? `${created} jadwal ditambahkan, ${skipped} kelas dilewati karena konflik`
+          : `Jadwal berhasil ditambahkan ke ${created} kelas`
       });
 
       onSuccess();

@@ -224,6 +224,7 @@ Sebuah perubahan dianggap selesai jika:
 ----------------------------------------------------------------
 
 14) Referensi Internal
+
 - informasisekolah13.md adalah sumber tunggal untuk identitas sekolah dan kop surat
 - Jika ada dokumen template resmi (scan kop surat), tambahkan ke folder dokumentasi dan jadikan rujukan utama.
 
@@ -233,6 +234,7 @@ Sebuah perubahan dianggap selesai jika:
 Tujuan: Mencegah kerja dua kali, regresi, dan solusi setengah matang.
 
 Setiap task non-trivial (fitur baru, refactor, bugfix kompleks) WAJIB mengikuti flow:
+
 1. **Analisa & Observasi**:
    - Jangan langsung edit code!
    - Baca file terkait, pahami flow eksisting.

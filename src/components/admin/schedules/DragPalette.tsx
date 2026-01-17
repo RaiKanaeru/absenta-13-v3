@@ -9,7 +9,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+// import { CSS } from '@dnd-kit/utilities'; // Unused
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,8 +39,9 @@ function DraggableItem({ id, type, data, isDisabled }: Readonly<DraggableItemPro
   });
 
   const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
+    // Transform removed so the original item stays in place
+    // transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.3 : 1, // Dim the original item more
   };
 
   const isGuru = type === 'guru';

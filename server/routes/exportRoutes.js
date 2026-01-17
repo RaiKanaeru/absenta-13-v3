@@ -74,6 +74,7 @@ router.get('/rekap-jadwal-guru', authenticateToken, requireRole(['admin']), expo
 router.get('/templates', authenticateToken, requireRole(['admin']), exportController.listExportTemplates);
 router.get('/rekap-ketidakhadiran-guru-template', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranGuruTemplate);
 router.get('/rekap-ketidakhadiran-kelas-template', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranKelasTemplate);
+router.get('/checklist-jadwal', authenticateToken, requireRole(['admin']), exportController.exportScheduleExcel);
 
 // ================================================
 // ALL EXPORTS MIGRATED! 🎉

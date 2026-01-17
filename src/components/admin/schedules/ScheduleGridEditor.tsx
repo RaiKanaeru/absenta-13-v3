@@ -10,13 +10,13 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, useDroppable } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, useDroppable, DragStartEvent } from '@dnd-kit/core';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, RefreshCw, Calendar, Filter, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { ArrowLeft, Save, RefreshCw, Calendar, Filter, PanelRightOpen, PanelRightClose, GripVertical, User, BookOpen } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
 import { Teacher, Subject, Room } from '@/types/dashboard';
 import { DragPalette } from './DragPalette';
@@ -181,8 +181,21 @@ export function ScheduleGridEditor({
     fetchMatrix();
   }, [fetchMatrix]);
 
+  // Drag State
+  const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: 'guru' | 'mapel'; item: Teacher | Subject } | null>(null);
+
+  // Handle drag start
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const { type, item } = active.data.current || {};
+    if (type && item) {
+      setActiveDragItem({ id: active.id as string, type, item });
+    }
+  };
+
   // Handle drag end
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragItem(null); // Reset
     const { active, over } = event;
     
     if (!over || !active.data.current) return;
@@ -398,7 +411,7 @@ export function ScheduleGridEditor({
   );
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-[calc(100vh-120px)]">
         {/* Main Content */}
         <div className={`flex-1 flex flex-col space-y-4 ${showPalette ? 'mr-64' : ''}`}>
@@ -647,7 +660,28 @@ export function ScheduleGridEditor({
       )}
 
       <DragOverlay>
-        {/* Drag overlay handled by DndContext */}
+        {activeDragItem ? (
+          <div className="flex items-center gap-2 p-2 rounded-lg border bg-white shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-blue-500">
+            <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            {activeDragItem.type === 'guru' ? (
+              <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            ) : (
+              <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate">
+                {activeDragItem.type === 'guru' 
+                  ? (activeDragItem.item as Teacher).nama 
+                  : (activeDragItem.item as Subject).nama_mapel}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {activeDragItem.type === 'guru' 
+                  ? ((activeDragItem.item as Teacher).nip || '-') 
+                  : ((activeDragItem.item as Subject).kode_mapel || '-')}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

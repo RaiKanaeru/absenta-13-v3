@@ -1,0 +1,143 @@
+/**
+ * Validasi konflik jadwal (Guru, Ruang, Kelas)
+ * @param {Object} params - Parameter validasi
+ * @returns {Promise<{hasConflict: boolean, error: string | null}>}
+ */
+const checkAllScheduleConflicts = async ({
+    kelas_id,
+    hari,
+    jam_mulai,
+    jam_selesai,
+    ruang_id,
+    guruIds,
+    excludeJadwalId,
+    connection // Transaction connection
+}) => {
+    // 1. Validasi Input
+    if (!hari || !jam_mulai || !jam_selesai) {
+        return { hasConflict: true, error: "Data waktu tidak lengkap" };
+    }
+
+    // Gunakan connection transaksi jika ada, jika tidak pakai global pool
+    const db = connection || globalThis.dbPool;
+
+    // Helper untuk query overlap
+    // Overlap: (start1 < end2) AND (end1 > start2)
+    const timeOverlapCondition = `(jam_mulai < ? AND jam_selesai > ?)`;
+    const commonParams = [jam_selesai, jam_mulai, hari]; // Note: reversed for query logic if using BETWEEN, but helper uses start < end logic.
+    // Query Logic:
+    // Existing: Start=07:00, End=08:00
+    // New: Start=07:30, End=08:30
+    // 07:00 < 08:30 AND 08:00 > 07:30 => True (Overlap)
+    
+    // SQL: j.jam_mulai < ? (newEnd) AND j.jam_selesai > ? (newStart)
+    const sqlTime = `AND ${timeOverlapCondition}`; 
+    
+    try {
+        // 2. Cek Konflik Guru (Primary Teacher + Team Teaching)
+        if (guruIds && guruIds.length > 0) {
+            // Cek jadwal dimana guru ini mengajar (baik sebagai primary atau secondary)
+            // Complex subquery needed to check both columns and joined table
+            const guruPlaceholders = guruIds.map(() => '?').join(',');
+            
+            /* 
+               Logic Cek Guru:
+               Cari jadwal yang aktif, di hari yang sama, waktu overlap
+               DIMANA guru tersebut terlibat (guru_id di tabel jadwal ATAU di tabel jadwal_guru)
+            */
+            const guruQuery = `
+                SELECT j.id_jadwal, k.nama_kelas, g.nama as nama_guru
+                FROM jadwal j
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                LEFT JOIN guru g ON j.guru_id = g.id_guru
+                WHERE j.status = 'aktif'
+                AND j.hari = ?
+                ${sqlTime}
+                AND (
+                    j.guru_id IN (${guruPlaceholders})
+                    OR EXISTS (
+                        SELECT 1 FROM jadwal_guru jg 
+                        WHERE jg.jadwal_id = j.id_jadwal 
+                        AND jg.guru_id IN (${guruPlaceholders})
+                    )
+                )
+                ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+                LIMIT 1
+            `;
+
+            // Params: Hari, JamSelesai(new), JamMulai(new), ...GuruIds, ...GuruIds
+            const qParams = [hari, jam_selesai, jam_mulai, ...guruIds, ...guruIds];
+            
+            const [guruConflicts] = await db.execute(guruQuery, qParams);
+            
+            if (guruConflicts.length > 0) {
+                const conflict = guruConflicts[0];
+                return { 
+                    hasConflict: true, 
+                    error: `Guru ${conflict.nama_guru} bentrok dengan kelas ${conflict.nama_kelas}` 
+                };
+            }
+        }
+
+        // 3. Cek Konflik Ruang
+        if (ruang_id) {
+            const ruangQuery = `
+                SELECT k.nama_kelas, rk.nama_ruang
+                FROM jadwal j
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+                WHERE j.status = 'aktif'
+                AND j.hari = ?
+                ${sqlTime}
+                AND j.ruang_id = ?
+                ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+                LIMIT 1
+            `;
+            
+            const [ruangConflicts] = await db.execute(ruangQuery, [hari, jam_selesai, jam_mulai, ruang_id]);
+            
+            if (ruangConflicts.length > 0) {
+                return { 
+                    hasConflict: true, 
+                    error: `Ruang ${ruangConflicts[0].nama_ruang} sedang dipakai kelas ${ruangConflicts[0].nama_kelas}` 
+                };
+            }
+        }
+
+        // 4. Cek Konflik Kelas (Siswa tidak bisa ada di 2 mapel sekaligus)
+        // Kecuali jika memang intended (e.g. beda kelompok), tapi defaultnya warning/block.
+        // Asumsi sistem ini Block.
+        if (kelas_id) {
+            const kelasQuery = `
+                SELECT m.nama_mapel
+                FROM jadwal j
+                LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                WHERE j.status = 'aktif'
+                AND j.hari = ?
+                ${sqlTime}
+                AND j.kelas_id = ?
+                ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+                LIMIT 1
+            `;
+            
+            const [kelasConflicts] = await db.execute(kelasQuery, [hari, jam_selesai, jam_mulai, kelas_id]);
+            
+            if (kelasConflicts.length > 0) {
+                // Ignore conflict if it's just 'Istirahat' overlapping? Maybe.
+                // But generally safe to block.
+                 return { 
+                    hasConflict: true, 
+                    error: `Kelas ini sudah ada jadwal mapel ${kelasConflicts[0].nama_mapel || 'Lain'}` 
+                };
+            }
+        }
+
+        return { hasConflict: false };
+
+    } catch (e) {
+        logger.error('CheckScheduleConflicts Error', e);
+        // Fail safe: If error in checking, block to prevent corruption? 
+        // Or throw to rollback transaction.
+        throw e;
+    }
+};

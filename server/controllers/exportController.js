@@ -7,6 +7,7 @@
 import ExcelJS from 'exceljs';
 import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import ExportService from '../services/ExportService.js';
 
 
 const logger = createLogger('Export');
@@ -151,39 +152,7 @@ const SQL_GET_KELAS_NAME_BY_ID = 'SELECT nama_kelas FROM kelas WHERE id_kelas = 
 export const exportAbsensi = async (req, res) => {
     try {
         const { date_start, date_end } = req.query;
-        let query = `
-            SELECT ag.tanggal, ag.status, ag.keterangan, ag.waktu_catat,
-                   j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
-                   COALESCE(g.nama, 'Sistem') as nama_guru, g.nip,
-                   k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                   s.nama as nama_pencatat, s.nis
-            FROM absensi_guru ag
-            JOIN jadwal j ON ag.jadwal_id = j.id_jadwal
-            LEFT JOIN guru g ON ag.guru_id = g.id_guru
-            JOIN kelas k ON ag.kelas_id = k.id_kelas
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            JOIN siswa s ON ag.siswa_pencatat_id = s.id_siswa
-        `;
-
-        let params = [];
-        let whereConditions = [];
-
-        if (date_start) {
-            whereConditions.push('ag.tanggal >= ?');
-            params.push(date_start);
-        }
-        if (date_end) {
-            whereConditions.push('ag.tanggal <= ?');
-            params.push(date_end);
-        }
-
-        if (whereConditions.length > 0) {
-            query += ' WHERE ' + whereConditions.join(' AND ');
-        }
-
-        query += ' ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke';
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ExportService.getAbsensiGuru(date_start, date_end);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -248,14 +217,7 @@ export const exportTeacherList = async (req, res) => {
         const exportSystem = new AbsentaExportSystem();
 
         // Query data guru dari database
-        const [teachers] = await globalThis.dbPool.execute(`
-            SELECT 
-                nama,
-                nip
-            FROM guru 
-            WHERE status = 'aktif'
-            ORDER BY nama
-        `);
+        const teachers = await ExportService.getTeacherList();
 
         const workbook = await exportSystem.exportTeacherList(teachers, academicYear);
 
@@ -276,34 +238,7 @@ export const exportTeacherList = async (req, res) => {
 export const exportStudentSummary = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
-        let query = `
-            SELECT 
-                s.nama,
-                s.nis,
-                k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) as D,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(a.id), 0), 0) as presentase
-            FROM siswa s
-            LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND a.tanggal BETWEEN ? AND ?
-            WHERE s.status = 'aktif'
-        `;
-
-        const params = [startDate, endDate];
-
-        if (kelas_id && kelas_id !== 'all') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-
-        query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
-
-        const [students] = await globalThis.dbPool.execute(query, params);
+        const students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -356,22 +291,7 @@ export const exportStudentSummary = async (req, res) => {
 export const exportTeacherSummary = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        const [teachers] = await globalThis.dbPool.execute(`
-            SELECT 
-                g.nama,
-                g.nip,
-                COALESCE(SUM(CASE WHEN kg.status = 'hadir' THEN 1 ELSE 0 END), 0) as H,
-                COALESCE(SUM(CASE WHEN kg.status = 'izin' THEN 1 ELSE 0 END), 0) as I,
-                COALESCE(SUM(CASE WHEN kg.status = 'sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN kg.status = 'alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN kg.status = 'hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id), 0), 0) as presentase
-            FROM guru g
-            LEFT JOIN kehadiran_guru kg ON g.id_guru = kg.guru_id 
-                AND kg.tanggal BETWEEN ? AND ?
-            WHERE g.status = 'aktif'
-            GROUP BY g.id_guru, g.nama, g.nip
-            ORDER BY g.nama
-        `, [startDate, endDate]);
+        const teachers = await ExportService.getTeacherSummary(startDate, endDate);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -423,51 +343,7 @@ export const exportBandingAbsen = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, status } = req.query;
 
-        let query = `
-            SELECT 
-                pba.id_banding,
-                DATE_FORMAT(pba.tanggal_pengajuan, '%Y-%m-%d') as tanggal_pengajuan,
-                DATE_FORMAT(pba.tanggal_absen, '%Y-%m-%d') as tanggal_absen,
-                s.nama as nama_pengaju,
-                COALESCE(k.nama_kelas, '-') as nama_kelas,
-                COALESCE(m.nama_mapel, 'Umum') as nama_mapel,
-                COALESCE(g.nama, 'Belum Ditentukan') as nama_guru,
-                COALESCE(j.jam_mulai, '00:00') as jam_mulai,
-                COALESCE(j.jam_selesai, '00:00') as jam_selesai,
-                COALESCE(CONCAT(j.jam_mulai, ' - ', j.jam_selesai), '-') as jadwal,
-                pba.status_asli,
-                pba.status_diajukan,
-                pba.alasan_banding,
-                pba.status_banding,
-                COALESCE(pba.catatan_guru, '-') as catatan_guru,
-                COALESCE(DATE_FORMAT(pba.tanggal_keputusan, '%Y-%m-%d %H:%i'), '-') as tanggal_keputusan,
-                COALESCE(guru_proses.nama, 'Belum Diproses') as diproses_oleh,
-                pba.jenis_banding
-            FROM pengajuan_banding_absen pba
-            JOIN siswa s ON pba.siswa_id = s.id_siswa
-            LEFT JOIN kelas k ON s.kelas_id = k.id_kelas OR pba.kelas_id = k.id_kelas
-            LEFT JOIN jadwal j ON pba.jadwal_id = j.id_jadwal
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN guru guru_proses ON pba.diproses_oleh = guru_proses.id_guru
-            WHERE DATE(pba.tanggal_pengajuan) BETWEEN ? AND ?
-        `;
-
-        const params = [startDate, endDate];
-
-        if (kelas_id && kelas_id !== 'all') {
-            query += ' AND k.id_kelas = ?';
-            params.push(kelas_id);
-        }
-
-        if (status && status !== 'all') {
-            query += ' AND pba.status_banding = ?';
-            params.push(status);
-        }
-
-        query += ' ORDER BY pba.tanggal_pengajuan DESC';
-
-        const [bandingData] = await globalThis.dbPool.execute(query, params);
+        const bandingData = await ExportService.getBandingAbsen(startDate, endDate, kelas_id, status);
 
         // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
@@ -538,34 +414,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         const totalHariEfektif = Object.values(hariEfektifPerBulan).reduce((sum, h) => sum + h, 0);
 
         // Query data guru dengan ketidakhadiran per bulan
-        const query = `
-            SELECT 
-                g.id_guru as id,
-                g.nama,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jul,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as agt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as sep,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as okt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as nov,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as des,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jan,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as feb,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as mar,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as apr,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as mei,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jun
-            FROM guru g
-            LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
-                AND (
-                    (MONTH(a.tanggal) >= 7 AND YEAR(a.tanggal) = ?)
-                    OR (MONTH(a.tanggal) <= 6 AND YEAR(a.tanggal) = ? + 1)
-                )
-            WHERE g.status = 'aktif'
-            GROUP BY g.id_guru, g.nama
-            ORDER BY g.nama
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(query, [tahunAjaran, tahunAjaran]);
+        const rows = await ExportService.getRekapKetidakhadiranGuru(tahunAjaran);
 
         // Build Excel using ExcelJS directly
         const ExcelJS = (await import('exceljs')).default;
@@ -727,41 +576,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
             return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
-        let query = `
-            SELECT 
-                ba.id,
-                DATE_FORMAT(ba.tanggal_pengajuan, '%Y-%m-%d') as tanggal_pengajuan,
-                DATE_FORMAT(ba.tanggal_absen, '%Y-%m-%d') as tanggal_absen,
-                ba.status_absen,
-                ba.alasan_banding,
-                ba.status,
-                DATE_FORMAT(ba.tanggal_disetujui, '%Y-%m-%d') as tanggal_disetujui,
-                ba.catatan,
-                s.nama as nama_siswa,
-                s.nis,
-                k.nama_kelas
-            FROM pengajuan_banding_absen ba
-            JOIN siswa s ON ba.siswa_id = s.id_siswa
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE ba.tanggal_pengajuan BETWEEN ? AND ?
-                AND ba.guru_id = ?
-        `;
-
-        const params = [startDate, endDate, guruId];
-
-        if (kelas_id && kelas_id !== 'all') {
-            query += ` AND s.kelas_id = ?`;
-            params.push(kelas_id);
-        }
-
-        if (status && status !== 'all') {
-            query += ` AND ba.status = ?`;
-            params.push(status);
-        }
-
-        query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ExportService.getRiwayatBandingAbsen(startDate, endDate, guruId, kelas_id, status);
 
         // Get class name for title
         let className = 'Semua Kelas';
@@ -848,44 +663,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
             return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
-        let query = `
-            SELECT 
-                DATE_FORMAT(a.tanggal, '%Y-%m-%d') as tanggal,
-                j.hari,
-                j.jam_mulai,
-                j.jam_selesai,
-                COALESCE(m.nama_mapel, j.keterangan_khusus) as mata_pelajaran,
-                k.nama_kelas,
-                COALESCE(g.nama, 'Sistem') as nama_guru,
-                COUNT(DISTINCT s.id_siswa) as total_siswa,
-                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-                COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
-            FROM absensi_siswa a
-            JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN siswa s ON j.kelas_id = s.kelas_id AND s.status = 'aktif'
-            WHERE a.tanggal BETWEEN ? AND ?
-                AND j.guru_id = ?
-        `;
-
-        const params = [startDate, endDate, guruId];
-
-        if (kelas_id && kelas_id !== 'all') {
-            query += ` AND j.kelas_id = ?`;
-            params.push(kelas_id);
-        }
-
-        query += `
-            GROUP BY a.tanggal, j.hari, j.jam_mulai, j.jam_selesai, m.nama_mapel, k.nama_kelas, g.nama
-            ORDER BY a.tanggal DESC, j.jam_mulai
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, guruId, kelas_id);
 
         // Get class name for title
         let className = 'Semua Kelas';
@@ -986,64 +764,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
             return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
-        let query;
-        let params;
-
-        if (reportType === 'bulanan') {
-            query = `
-                SELECT 
-                    DATE_FORMAT(a.tanggal, '%Y-%m') as periode,
-                    k.nama_kelas,
-                    COUNT(DISTINCT s.id_siswa) as total_siswa,
-                    COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-                    COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
-                FROM absensi_siswa a
-                JOIN siswa s ON a.siswa_id = s.id_siswa
-                JOIN kelas k ON s.kelas_id = k.id_kelas
-                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-                WHERE a.tanggal BETWEEN ? AND ?
-                    AND j.guru_id = ?
-            `;
-            params = [startDate, endDate, guruId];
-
-            if (kelas_id && kelas_id !== 'all') {
-                query += ` AND s.kelas_id = ?`;
-                params.push(kelas_id);
-            }
-
-            query += ` GROUP BY DATE_FORMAT(a.tanggal, '%Y-%m'), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
-        } else {
-            query = `
-                SELECT 
-                    YEAR(a.tanggal) as periode,
-                    k.nama_kelas,
-                    COUNT(DISTINCT s.id_siswa) as total_siswa,
-                    COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-                    COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
-                FROM absensi_siswa a
-                JOIN siswa s ON a.siswa_id = s.id_siswa
-                JOIN kelas k ON s.kelas_id = k.id_kelas
-                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-                WHERE a.tanggal BETWEEN ? AND ?
-                    AND j.guru_id = ?
-            `;
-            params = [startDate, endDate, guruId];
-
-            if (kelas_id && kelas_id !== 'all') {
-                query += ` AND s.kelas_id = ?`;
-                params.push(kelas_id);
-            }
-
-            query += ` GROUP BY YEAR(a.tanggal), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
-        }
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ExportService.getRekapKetidakhadiran(startDate, endDate, guruId, kelas_id, reportType);
 
         // Get class name
         let className = 'Semua Kelas';
@@ -1130,31 +851,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
             return res.status(400).json({ error: ERROR_DATE_REQUIRED });
         }
 
-        let query = `
-            SELECT 
-                s.id_siswa as id, s.nis, s.nama, k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) as D,
-                COUNT(a.id) as total_absen
-            FROM siswa s
-            LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND a.tanggal BETWEEN ? AND ?
-                AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ?)
-            WHERE s.status = 'aktif'
-        `;
-
-        const params = [startDate, endDate, guruId];
-        if (kelas_id && kelas_id !== 'all') {
-            query += ` AND s.kelas_id = ?`;
-            params.push(kelas_id);
-        }
-        query += ` GROUP BY s.id_siswa, s.nis, s.nama, k.nama_kelas ORDER BY k.nama_kelas, s.nama`;
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ExportService.getRingkasanKehadiranSiswaSmkn13(startDate, endDate, guruId, kelas_id);
 
         // Calculate percentage
         const dataWithPercentage = rows.map(row => {
@@ -1256,7 +953,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [tahun]);
+        const rows = await ExportService.getRekapKetidakhadiranGuruSmkn13(tahun);
 
         // Calculate percentages
         const hariEfektifPerBulan = { 7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17, 1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20 };
@@ -1355,18 +1052,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         const monthNames = MONTH_NAMES;
 
         // Get attendance data with S/I/A breakdown per month
-        const [presensiData] = await globalThis.dbPool.execute(`
-            SELECT 
-                a.siswa_id, 
-                MONTH(a.tanggal) as bulan,
-                SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as S,
-                SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as I,
-                SUM(CASE WHEN a.status IN ('Alpa', 'Alpha', 'Tanpa Keterangan') THEN 1 ELSE 0 END) as A
-            FROM absensi_siswa a 
-            INNER JOIN siswa s ON a.siswa_id = s.id_siswa 
-            WHERE s.kelas_id = ? AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) IN (${months.join(',')})
-            GROUP BY a.siswa_id, MONTH(a.tanggal)
-        `, [kelas_id, tahun]);
+        const presensiData = await ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester);
 
         // Total hari efektif (configurable, default 95 for gasal)
         const TOTAL_HARI_EFEKTIF = semester === 'gasal' ? 95 : 142;
@@ -1620,12 +1306,7 @@ export const exportPresensiSiswa = async (req, res) => {
         );
 
         // Get presensi data for the month
-        const [presensiRows] = await globalThis.dbPool.execute(`
-            SELECT a.siswa_id, DATE_FORMAT(a.tanggal, '%Y-%m-%d') as tanggal, a.status, a.keterangan
-            FROM absensi_siswa a INNER JOIN siswa s ON a.siswa_id = s.id_siswa
-            WHERE s.kelas_id = ? AND YEAR(a.tanggal) = ? AND MONTH(a.tanggal) = ?
-            ORDER BY a.siswa_id, a.tanggal
-        `, [kelas_id, tahun, bulan]);
+        const presensiRows = await ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id);
 
         // Prepare export data
         const daysInMonth = new Date(Number.parseInt(tahun), Number.parseInt(bulan), 0).getDate();
@@ -1677,19 +1358,7 @@ export const exportPresensiSiswa = async (req, res) => {
  */
 export const exportAdminAttendance = async (req, res) => {
     try {
-        const query = `
-            SELECT 
-                DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal,
-                s.nama as nama_siswa, s.nis, k.nama_kelas, a.status,
-                COALESCE(a.keterangan, '-') as keterangan,
-                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen
-            FROM absensi_siswa a
-            JOIN siswa s ON a.siswa_id = s.id_siswa
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            ORDER BY a.tanggal DESC, k.nama_kelas, s.nama
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(query);
+        const rows = await ExportService.getAdminAttendance();
 
         let csvContent = '\uFEFF'; // UTF-8 BOM
         csvContent += 'Tanggal,Nama Siswa,NIS,Kelas,Status,Keterangan,Waktu Absen\n';
@@ -1728,23 +1397,7 @@ export const exportJadwalMatrix = async (req, res) => {
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
 
         // Updated query to include multi-guru data
-        let query = `
-            SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
-                k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                COALESCE(g.nama, 'Sistem') as nama_guru, rk.kode_ruang
-            FROM jadwal j
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-            WHERE j.status = 'aktif'
-        `;
-        const params = [];
-        if (kelas_id && kelas_id !== 'all') { query += ' AND j.kelas_id = ?'; params.push(kelas_id); }
-        if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
-        query += ` ORDER BY FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke, k.nama_kelas`;
-
-        const [schedules] = await globalThis.dbPool.execute(query, params);
+        const schedules = await ExportService.getJadwalMatrix(kelas_id, hari);
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Jadwal Pelajaran Matrix');
@@ -1902,27 +1555,11 @@ export const exportJadwalGrid = async (req, res) => {
         // Use getLetterhead from top-level import
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
 
-        let query = `
-            SELECT j.id_jadwal, j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai, j.jenis_aktivitas,
-                k.nama_kelas, k.id_kelas, 
-                COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                COALESCE(g.kode_guru, g.nama, 'Sistem') as nama_guru, 
-                rk.kode_ruang
-            FROM jadwal j
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-            WHERE j.status = 'aktif'
-        `;
-        const params = [];
-        if (kelas_id && kelas_id !== 'all') { query += ' AND j.kelas_id = ?'; params.push(kelas_id); }
-        if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
-        
-        // Order by Class, Day, Time
-        query += ` ORDER BY k.nama_kelas, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke`;
-
-        const [schedules] = await globalThis.dbPool.execute(query, params);
+        const schedules = await ExportService.getJadwalMatrix(kelas_id, hari);
+        // Ensure nama_guru prioritizes kode_guru if available
+        schedules.forEach(s => {
+            if (s.kode_guru) s.nama_guru = s.kode_guru;
+        });
 
         if (schedules.length === 0) {
             throw new Error('Tidak ada data jadwal untuk diexport');
@@ -2918,6 +2555,163 @@ export const listExportTemplates = async (req, res) => {
                 : `Found ${templates.length} template(s)`
         });
     } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+const getExcelStyles = () => ({
+    headerStyle: {
+        font: { bold: true, size: 10 },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCCCCC' } }
+    },
+    cellStyle: {
+        font: { size: 9 },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+    },
+    classStyle: {
+        font: { bold: true, size: 10 },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } }
+    },
+    specialStyle: {
+         fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA500' } },
+         font: { bold: true, size: 9, color: { argb: 'FFFFFFFF' } }
+    }
+});
+
+const fillScheduleData = (worksheet, cls, scheduleMap, dayNames, maxJam, currentRow, styles) => {
+    const { cellStyle, specialStyle } = styles;
+    
+    // Labels: MAPEL, RUANG, GURU
+    worksheet.getCell(`B${currentRow}`).value = 'MAPEL';
+    worksheet.getCell(`B${currentRow + 1}`).value = 'RUANG';
+    worksheet.getCell(`B${currentRow + 2}`).value = 'GURU';
+
+    [0, 1, 2].forEach(offset => {
+        worksheet.getCell(`B${currentRow + offset}`).style = { 
+            ...cellStyle, 
+            font: { bold: true }, 
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } } 
+        };
+    });
+
+    // Fill Data
+    let dayColOffset = 3;
+    dayNames.forEach(day => {
+        for (let j = 1; j <= maxJam; j++) {
+            const data = scheduleMap[cls.id_kelas]?.[day]?.[j];
+            const targetCol = dayColOffset + (j - 1);
+            const isSpecial = data && data.jenis_aktivitas !== 'pelajaran';
+            
+            if (isSpecial) {
+                 // Only process on the first row (MAPEL row) to merge downwards
+                 const cell = worksheet.getCell(currentRow, targetCol);
+                 worksheet.mergeCells(currentRow, targetCol, currentRow + 2, targetCol);
+                 cell.value = data.nama_mapel || data.keterangan_khusus || data.jenis_aktivitas.toUpperCase();
+                 cell.style = { ...cellStyle, ...specialStyle };
+            } else {
+                // MAPEL
+                const cellMapel = worksheet.getCell(currentRow, targetCol);
+                cellMapel.value = data ? (data.nama_mapel || '-') : '';
+                cellMapel.style = cellStyle;
+                
+                // RUANG
+                const cellRuang = worksheet.getCell(currentRow + 1, targetCol);
+                cellRuang.value = data ? (data.kode_ruang || data.nama_ruang || '-') : '';
+                cellRuang.style = cellStyle;
+
+                // GURU
+                const cellGuru = worksheet.getCell(currentRow + 2, targetCol);
+                cellGuru.value = data ? (data.nama_guru || '-') : '';
+                cellGuru.style = cellStyle;
+            }
+        }
+        dayColOffset += maxJam;
+    });
+};
+
+/**
+ * Export Schedule Matrix to Excel
+ * GET /api/export/checklist-jadwal
+ */
+export const exportScheduleExcel = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('ExportScheduleExcel', {});
+
+    try {
+        const { classes, scheduleMap } = await ExportService.getScheduleMatrixData();
+        
+        // Setup Workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('JADWAL PELAJARAN');
+        const styles = getExcelStyles();
+        const { headerStyle, classStyle } = styles;
+
+        // Define Days and Slots
+        const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+        const maxJam = 11;
+
+        // ROW 1: DAY HEADERS
+        worksheet.mergeCells(`A1:A2`);
+        worksheet.getCell('A1').value = 'KELAS';
+        worksheet.getCell('A1').style = headerStyle;
+
+        worksheet.mergeCells(`B1:B2`);
+        worksheet.getCell('B1').value = 'JAM KE';
+        worksheet.getCell('B1').style = headerStyle;
+
+        let colIdx = 3;
+        dayNames.forEach(day => {
+            const startCol = colIdx;
+            const endCol = colIdx + maxJam - 1;
+            worksheet.mergeCells(1, startCol, 1, endCol);
+            const cell = worksheet.getCell(1, startCol);
+            cell.value = day.toUpperCase();
+            cell.style = { ...headerStyle, fill: { ...headerStyle.fill, fgColor: { argb: 'FF4472C4' } }, font: { ...headerStyle.font, color: { argb: 'FFFFFFFF' } } }; // Blue header
+            
+            // Sub-headers for Jam Ke
+            for (let j = 1; j <= maxJam; j++) {
+                const subCell = worksheet.getCell(2, colIdx + j - 1);
+                subCell.value = j;
+                subCell.style = { ...headerStyle, fill: { ...headerStyle.fill, fgColor: { argb: 'FFD9D9D9' } } }; 
+            }
+            colIdx += maxJam;
+        });
+
+        // ROW 3+: DATA
+        let currentRow = 3;
+
+        for (const cls of classes) {
+            // Merge Class Name Cell (3 Rows)
+            worksheet.mergeCells(`A${currentRow}:A${currentRow + 2}`);
+            const classCell = worksheet.getCell(`A${currentRow}`);
+            classCell.value = cls.nama_kelas;
+            classCell.style = classStyle;
+
+            fillScheduleData(worksheet, cls, scheduleMap, dayNames, maxJam, currentRow, styles);
+            currentRow += 3;
+        }
+
+        // Auto Width
+        worksheet.getColumn('A').width = 15;
+        worksheet.getColumn('B').width = 10;
+        for(let c = 3; c < colIdx; c++) {
+            worksheet.getColumn(c).width = 12;
+        }
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="JADWAL_PELAJARAN_${new Date().getFullYear()}.xlsx"`);
+        
+        await workbook.xlsx.write(res);
+        res.end();
+        log.success('ExportScheduleExcel', { rows: classes.length });
+
+    } catch (error) {
+        log.error('ExportScheduleExcel Error', error);
         return sendDatabaseError(res, error);
     }
 };

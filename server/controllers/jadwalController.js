@@ -109,8 +109,144 @@ function buildJadwalQuery(role = 'admin', guruId = null) {
         GROUP BY j.id_jadwal
         ORDER BY 
             FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'),
+            j.jam_ke ASC
+    `;
 
-// 7. Helper: Basic data fetchers for matrix
+    return { query: baseQuery + whereClause + orderBy, params };
+}
+const checkGuruConflict = async (db, { guruIds, hari, sqlTime, qParams, excludeJadwalId }) => {
+    if (!guruIds || guruIds.length === 0) return null;
+    
+    const guruPlaceholders = guruIds.map(() => '?').join(',');
+    const guruQuery = `
+        SELECT j.id_jadwal, k.nama_kelas, g.nama as nama_guru
+        FROM jadwal j
+        JOIN kelas k ON j.kelas_id = k.id_kelas
+        LEFT JOIN guru g ON j.guru_id = g.id_guru
+        WHERE j.status = 'aktif'
+        AND j.hari = ?
+        ${sqlTime}
+        AND (
+            j.guru_id IN (${guruPlaceholders})
+            OR EXISTS (
+                SELECT 1 FROM jadwal_guru jg 
+                WHERE jg.jadwal_id = j.id_jadwal 
+                AND jg.guru_id IN (${guruPlaceholders})
+            )
+        )
+        ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+        LIMIT 1
+    `;
+
+    const [guruConflicts] = await db.execute(guruQuery, qParams);
+    
+    if (guruConflicts.length > 0) {
+        const conflict = guruConflicts[0];
+        return { 
+            hasConflict: true, 
+            error: `Guru ${conflict.nama_guru} bentrok dengan kelas ${conflict.nama_kelas}` 
+        };
+    }
+    return null;
+};
+
+const checkRoomConflict = async (db, { ruang_id, hari, sqlTime, timeParams, excludeJadwalId }) => {
+    if (!ruang_id) return null;
+
+    const ruangQuery = `
+        SELECT k.nama_kelas, rk.nama_ruang
+        FROM jadwal j
+        JOIN kelas k ON j.kelas_id = k.id_kelas
+        JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+        WHERE j.status = 'aktif'
+        AND j.hari = ?
+        ${sqlTime}
+        AND j.ruang_id = ?
+        ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+        LIMIT 1
+    `;
+    
+    const [ruangConflicts] = await db.execute(ruangQuery, [...timeParams, ruang_id]);
+    
+    if (ruangConflicts.length > 0) {
+        return { 
+            hasConflict: true, 
+            error: `Ruang ${ruangConflicts[0].nama_ruang} sedang dipakai kelas ${ruangConflicts[0].nama_kelas}` 
+        };
+    }
+    return null;
+};
+
+const checkClassConflict = async (db, { kelas_id, hari, sqlTime, timeParams, excludeJadwalId }) => {
+    if (!kelas_id) return null;
+
+    const kelasQuery = `
+        SELECT m.nama_mapel
+        FROM jadwal j
+        LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+        WHERE j.status = 'aktif'
+        AND j.hari = ?
+        ${sqlTime}
+        AND j.kelas_id = ?
+        ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+        LIMIT 1
+    `;
+    
+    const [kelasConflicts] = await db.execute(kelasQuery, [...timeParams, kelas_id]);
+    
+    if (kelasConflicts.length > 0) {
+            return { 
+            hasConflict: true, 
+            error: `Kelas ini sudah ada jadwal mapel ${kelasConflicts[0].nama_mapel || 'Lain'}` 
+        };
+    }
+    return null;
+};
+
+/**
+ * Validasi konflik jadwal (Guru, Ruang, Kelas)
+ * @param {Object} params - Parameter validasi
+ * @returns {Promise<{hasConflict: boolean, error: string | null}>}
+ */
+const checkAllScheduleConflicts = async ({
+    kelas_id,
+    hari,
+    jam_mulai,
+    jam_selesai,
+    ruang_id,
+    guruIds,
+    excludeJadwalId,
+    connection 
+}) => {
+    if (!hari || !jam_mulai || !jam_selesai) {
+        return { hasConflict: true, error: "Data waktu tidak lengkap" };
+    }
+
+    const db = connection || globalThis.dbPool;
+    // Overlap: (start1 < end2) AND (end1 > start2)
+    // SQL: j.jam_mulai < ? (newEnd) AND j.jam_selesai > ? (newStart)
+    const timeOverlapCondition = `(jam_mulai < ? AND jam_selesai > ?)`;
+    const sqlTime = `AND ${timeOverlapCondition}`; 
+    const timeParams = [hari, jam_selesai, jam_mulai]; 
+
+    // 1. Cek Konflik Guru
+    if (guruIds && guruIds.length > 0) {
+        const qParams = [hari, jam_selesai, jam_mulai, ...guruIds, ...guruIds];
+        const conflict = await checkGuruConflict(db, { guruIds, hari, sqlTime, qParams, excludeJadwalId });
+        if (conflict) return conflict;
+    }
+
+    // 2. Cek Konflik Ruang
+    const roomConflict = await checkRoomConflict(db, { ruang_id, hari, sqlTime, timeParams, excludeJadwalId });
+    if (roomConflict) return roomConflict;
+
+    // 3. Cek Konflik Kelas
+    const classConflict = await checkClassConflict(db, { kelas_id, hari, sqlTime, timeParams, excludeJadwalId });
+    if (classConflict) return classConflict;
+
+    return { hasConflict: false };
+};
+
 const fetchJamSlotsByDay = async () => {
     const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
     const [allJamSlots] = await globalThis.dbPool.execute(
@@ -325,6 +461,342 @@ const ensurePrimaryGuru = async (connection, jadwalId, guruId) => {
     );
 };
 
+const DEFAULT_TAHUN_AJARAN = '2025/2026';
+
+const normalizeId = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) {
+        return null;
+    }
+    return num;
+};
+
+const normalizeBoolean = (value, fallback) => {
+    if (value === undefined || value === null) {
+        return fallback;
+    }
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    if (typeof value === 'number') {
+        return value === 1;
+    }
+    if (typeof value === 'string') {
+        return value === 'true' || value === '1';
+    }
+    return fallback;
+};
+
+const normalizeGuruIds = (payload) => {
+    const rawIds = Array.isArray(payload.guru_ids) ? payload.guru_ids : [];
+    let primaryGuruId = normalizeId(payload.guru_id) || normalizeId(payload.current_guru_id);
+    const uniqueIds = [];
+
+    if (primaryGuruId) {
+        uniqueIds.push(primaryGuruId);
+    }
+
+    for (const id of rawIds) {
+        const normalized = normalizeId(id);
+        if (normalized && !uniqueIds.includes(normalized)) {
+            uniqueIds.push(normalized);
+        }
+    }
+
+    if (!primaryGuruId && uniqueIds.length > 0) {
+        primaryGuruId = uniqueIds[0];
+    }
+
+    return { primaryGuruId, guruIds: uniqueIds };
+};
+
+const validateKelasExists = async (kelasId, connection = globalThis.dbPool) => {
+    const [rows] = await connection.execute(
+        'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif"',
+        [kelasId]
+    );
+    return rows.length > 0;
+};
+
+const validateMapelExists = async (mapelId, connection = globalThis.dbPool) => {
+    const [rows] = await connection.execute(
+        'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
+        [mapelId]
+    );
+    return rows.length > 0;
+};
+
+const validateRuangExists = async (ruangId, connection = globalThis.dbPool) => {
+    const [rows] = await connection.execute(
+        'SELECT id_ruang FROM ruang_kelas WHERE id_ruang = ? AND status = "aktif"',
+        [ruangId]
+    );
+    return rows.length > 0;
+};
+
+const validateGuruIdsExist = async (guruIds, connection = globalThis.dbPool) => {
+    if (!guruIds || guruIds.length === 0) {
+        return { valid: true };
+    }
+
+    const placeholders = guruIds.map(() => '?').join(',');
+    const [rows] = await connection.execute(
+        `SELECT id_guru FROM guru WHERE id_guru IN (${placeholders})`,
+        guruIds
+    );
+
+    const foundIds = new Set(rows.map(row => row.id_guru));
+    const missingIds = guruIds.filter(id => !foundIds.has(id));
+
+    if (missingIds.length > 0) {
+        return { valid: false, error: `Guru tidak ditemukan: ${missingIds.join(', ')}` };
+    }
+
+    return { valid: true };
+};
+
+const checkAllScheduleConflicts = async ({
+    kelas_id,
+    hari,
+    jam_mulai,
+    jam_selesai,
+    ruang_id,
+    guruIds = [],
+    excludeJadwalId = null,
+    connection = null,
+    collectConflicts = false,
+    tahun_ajaran = DEFAULT_TAHUN_AJARAN
+}) => {
+    const executor = connection || globalThis.dbPool;
+    const conflicts = [];
+
+    const pushConflict = (type, message, extra = {}) => {
+        conflicts.push({ type, message, ...extra });
+    };
+
+    const classParams = [kelas_id, hari, jam_selesai, jam_mulai];
+    let classQuery = `
+        SELECT id_jadwal
+        FROM jadwal
+        WHERE status = 'aktif'
+          AND kelas_id = ?
+          AND hari = ?
+          AND jam_mulai < ?
+          AND jam_selesai > ?
+    `;
+    if (excludeJadwalId) {
+        classQuery += ' AND id_jadwal != ?';
+        classParams.push(excludeJadwalId);
+    }
+
+    const [classRows] = await executor.execute(classQuery, classParams);
+    if (classRows.length > 0) {
+        const message = 'Kelas sudah memiliki jadwal pada waktu tersebut';
+        if (!collectConflicts) {
+            return { hasConflict: true, error: message };
+        }
+        pushConflict('kelas', message);
+    }
+
+    if (ruang_id) {
+        const roomParams = [ruang_id, hari, jam_selesai, jam_mulai];
+        let roomQuery = `
+            SELECT id_jadwal
+            FROM jadwal
+            WHERE status = 'aktif'
+              AND ruang_id = ?
+              AND hari = ?
+              AND jam_mulai < ?
+              AND jam_selesai > ?
+        `;
+        if (excludeJadwalId) {
+            roomQuery += ' AND id_jadwal != ?';
+            roomParams.push(excludeJadwalId);
+        }
+
+        const [roomRows] = await executor.execute(roomQuery, roomParams);
+        if (roomRows.length > 0) {
+            const message = 'Ruang sudah digunakan pada waktu tersebut';
+            if (!collectConflicts) {
+                return { hasConflict: true, error: message };
+            }
+            pushConflict('ruang', message, { ruang_id });
+        }
+    }
+
+    for (const guruId of guruIds) {
+        const guruParams = [hari, guruId, guruId, jam_selesai, jam_mulai];
+        let guruQuery = `
+            SELECT j.id_jadwal
+            FROM jadwal j
+            LEFT JOIN jadwal_guru jg ON j.id_jadwal = jg.jadwal_id
+            WHERE j.status = 'aktif'
+              AND j.hari = ?
+              AND (j.guru_id = ? OR jg.guru_id = ?)
+              AND j.jam_mulai < ?
+              AND j.jam_selesai > ?
+        `;
+        if (excludeJadwalId) {
+            guruQuery += ' AND j.id_jadwal != ?';
+            guruParams.push(excludeJadwalId);
+        }
+
+        const [guruRows] = await executor.execute(guruQuery, guruParams);
+        if (guruRows.length > 0) {
+            const message = `Guru ${guruId} sudah mengajar pada waktu tersebut`;
+            if (!collectConflicts) {
+                return { hasConflict: true, error: message };
+            }
+            pushConflict('guru', message, { guru_id: guruId });
+        }
+    }
+
+    if (guruIds.length > 0) {
+        const placeholders = guruIds.map(() => '?').join(',');
+        const [availabilityRows] = await executor.execute(
+            `SELECT guru_id, keterangan
+             FROM guru_availability
+             WHERE guru_id IN (${placeholders})
+               AND hari = ?
+               AND tahun_ajaran = ?
+               AND is_available = 0`,
+            [...guruIds, hari, tahun_ajaran]
+        );
+
+        if (availabilityRows.length > 0) {
+            for (const row of availabilityRows) {
+                const message = row.keterangan
+                    ? `Guru ${row.guru_id} tidak tersedia: ${row.keterangan}`
+                    : `Guru ${row.guru_id} tidak tersedia pada hari tersebut`;
+                if (!collectConflicts) {
+                    return { hasConflict: true, error: message };
+                }
+                pushConflict('guru_unavailable', message, { guru_id: row.guru_id });
+            }
+        }
+    }
+
+    return {
+        hasConflict: conflicts.length > 0,
+        error: conflicts.length > 0 ? conflicts[0].message : null,
+        conflicts
+    };
+};
+
+const processJadwalData = async (payload, log, options = {}) => {
+    const {
+        kelas_id,
+        mapel_id,
+        ruang_id,
+        hari,
+        jam_ke,
+        jam_mulai,
+        jam_selesai,
+        jenis_aktivitas = 'pelajaran'
+    } = payload;
+
+    const kelasId = normalizeId(kelas_id);
+    const jamKe = Number(jam_ke);
+    const normalizedHari = hari ? String(hari).trim() : '';
+
+    if (!kelasId || !normalizedHari || !Number.isFinite(jamKe) || jam_mulai === undefined || jam_selesai === undefined) {
+        log.validationFail('jadwal', payload, 'Missing required fields');
+        return { success: false, error: 'Semua field wajib diisi' };
+    }
+
+    const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
+    if (!timeValidation.valid) {
+        log.validationFail('time', { jam_mulai, jam_selesai }, timeValidation.error);
+        return { success: false, error: timeValidation.error };
+    }
+
+    const { primaryGuruId, guruIds } = normalizeGuruIds(payload);
+    const finalMapelId = normalizeId(mapel_id);
+    const finalRuangId = normalizeId(ruang_id);
+    const isPelajaran = jenis_aktivitas === 'pelajaran';
+    const isAbsenable = normalizeBoolean(payload.is_absenable, isPelajaran);
+
+    if (isPelajaran && (!finalMapelId || guruIds.length === 0)) {
+        log.validationFail('pelajaran', payload, 'Mapel and guru required');
+        return { success: false, error: 'Mapel dan guru wajib diisi' };
+    }
+
+    const kelasExists = await validateKelasExists(kelasId);
+    if (!kelasExists) {
+        return { success: false, error: 'Kelas tidak ditemukan' };
+    }
+
+    if (finalMapelId) {
+        const mapelExists = await validateMapelExists(finalMapelId);
+        if (!mapelExists) {
+            return { success: false, error: 'Mata pelajaran tidak ditemukan' };
+        }
+    }
+
+    if (finalRuangId) {
+        const ruangExists = await validateRuangExists(finalRuangId);
+        if (!ruangExists) {
+            return { success: false, error: 'Ruang tidak ditemukan' };
+        }
+    }
+
+    const guruValidation = await validateGuruIdsExist(guruIds);
+    if (!guruValidation.valid) {
+        return { success: false, error: guruValidation.error };
+    }
+
+    const conflictCheck = await checkAllScheduleConflicts({
+        kelas_id: kelasId,
+        hari: normalizedHari,
+        jam_mulai,
+        jam_selesai,
+        ruang_id: finalRuangId,
+        guruIds,
+        excludeJadwalId: options.excludeId || null
+    });
+
+    if (conflictCheck.hasConflict) {
+        return { success: false, error: conflictCheck.error };
+    }
+
+    const primaryId = primaryGuruId || guruIds[0] || null;
+
+    return {
+        success: true,
+        finalGuruIds: guruIds,
+        finalMapelId,
+        primaryGuruId: primaryId,
+        isMultiGuru: guruIds.length > 1,
+        normalized: {
+            kelas_id: kelasId,
+            ruang_id: finalRuangId,
+            hari: normalizedHari,
+            jam_ke: jamKe,
+            jam_mulai: String(jam_mulai),
+            jam_selesai: String(jam_selesai),
+            jenis_aktivitas,
+            is_absenable: isAbsenable,
+            keterangan_khusus: payload.keterangan_khusus || null
+        }
+    };
+};
+
+const insertJadwalGuru = async (jadwalId, guruIds, connection = globalThis.dbPool) => {
+    const uniqueIds = Array.from(new Set(guruIds || []))
+        .map(id => normalizeId(id))
+        .filter(Boolean);
+    if (uniqueIds.length === 0) return;
+
+    let isPrimary = true;
+    for (const guruId of uniqueIds) {
+        await connection.execute(
+            'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, ?)',
+            [jadwalId, guruId, isPrimary ? 1 : 0]
+        );
+        isPrimary = false;
+    }
+};
+
 /**
  * Get schedule matrix data for Grid Editor
  * GET /api/admin/jadwal/matrix?hari=Senin&tingkat=XII
@@ -438,7 +910,7 @@ export const batchUpdateMatrix = async (req, res) => {
             if (action === 'delete') {
                 if (existing.length > 0) {
                     await connection.execute(
-                        'UPDATE jadwal SET status = "nonaktif" WHERE id_jadwal = ?',
+                        'UPDATE jadwal SET status = "tidak_aktif" WHERE id_jadwal = ?',
                         [existing[0].id_jadwal]
                     );
                     deleted++;
@@ -524,6 +996,486 @@ export const batchUpdateMatrix = async (req, res) => {
 };
 
 /**
+ * Check schedule conflicts for bulk operations
+ * POST /api/admin/jadwal/check-conflicts
+ */
+export const checkScheduleConflicts = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { kelas_ids, guru_ids, hari, jam_mulai, jam_selesai, ruang_id, tahun_ajaran } = req.body;
+
+    log.requestStart('CheckScheduleConflicts', { kelasCount: kelas_ids?.length, hari });
+
+    if (!hari || jam_mulai === undefined || jam_selesai === undefined) {
+        return sendValidationError(res, 'Hari dan waktu wajib diisi');
+    }
+    if (!Array.isArray(kelas_ids) || kelas_ids.length === 0) {
+        return sendValidationError(res, 'Minimal satu kelas harus dipilih');
+    }
+
+    const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
+    if (!timeValidation.valid) {
+        return sendValidationError(res, timeValidation.error);
+    }
+
+    const classIds = Array.from(new Set(kelas_ids.map(normalizeId).filter(Boolean)));
+    if (classIds.length === 0) {
+        return sendValidationError(res, 'Kelas tidak valid');
+    }
+
+    const placeholders = classIds.map(() => '?').join(',');
+    const [kelasRows] = await globalThis.dbPool.execute(
+        `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${placeholders})`,
+        classIds
+    );
+
+    const kelasMap = new Map(kelasRows.map(row => [row.id_kelas, row.nama_kelas]));
+    const missingIds = classIds.filter(id => !kelasMap.has(id));
+    if (missingIds.length > 0) {
+        return sendValidationError(res, 'Kelas tidak ditemukan', { missing: missingIds });
+    }
+
+    const { guruIds } = normalizeGuruIds({ guru_ids });
+    const finalRuangId = normalizeId(ruang_id);
+
+    const conflicts = [];
+    for (const kelasId of classIds) {
+        const conflictCheck = await checkAllScheduleConflicts({
+            kelas_id: kelasId,
+            hari: String(hari),
+            jam_mulai: String(jam_mulai),
+            jam_selesai: String(jam_selesai),
+            ruang_id: finalRuangId,
+            guruIds,
+            collectConflicts: true,
+            tahun_ajaran: tahun_ajaran || DEFAULT_TAHUN_AJARAN
+        });
+
+        if (conflictCheck.conflicts?.length) {
+            for (const conflict of conflictCheck.conflicts) {
+                conflicts.push({
+                    kelas_id: kelasId,
+                    kelas_name: kelasMap.get(kelasId) || String(kelasId),
+                    conflict_type: conflict.type,
+                    message: conflict.message
+                });
+            }
+        }
+    }
+
+    log.success('CheckScheduleConflicts', { conflictCount: conflicts.length });
+    return sendSuccessResponse(res, { conflicts }, 'Cek konflik selesai');
+};
+
+/**
+ * Bulk create schedules
+ * POST /api/admin/jadwal/bulk
+ */
+export const bulkCreateJadwal = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const {
+        kelas_ids,
+        mapel_id,
+        guru_ids,
+        ruang_id,
+        hari,
+        jam_ke,
+        jam_mulai,
+        jam_selesai,
+        jenis_aktivitas = 'pelajaran',
+        is_absenable,
+        keterangan_khusus = null
+    } = req.body;
+
+    log.requestStart('BulkCreateJadwal', { kelasCount: kelas_ids?.length, hari, jam_ke });
+
+    if (!Array.isArray(kelas_ids) || kelas_ids.length === 0) {
+        return sendValidationError(res, 'Minimal satu kelas harus dipilih');
+    }
+    if (!hari || jam_ke === undefined || jam_mulai === undefined || jam_selesai === undefined) {
+        return sendValidationError(res, 'Hari, jam ke, dan waktu wajib diisi');
+    }
+
+    const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
+    if (!timeValidation.valid) {
+        return sendValidationError(res, timeValidation.error);
+    }
+
+    const kelasIds = Array.from(new Set(kelas_ids.map(normalizeId).filter(Boolean)));
+    if (kelasIds.length === 0) {
+        return sendValidationError(res, 'Kelas tidak valid');
+    }
+
+    const jamKe = Number(jam_ke);
+    if (!Number.isFinite(jamKe)) {
+        return sendValidationError(res, 'Jam ke tidak valid');
+    }
+
+    const { primaryGuruId, guruIds } = normalizeGuruIds({ guru_ids });
+    const finalMapelId = normalizeId(mapel_id);
+    const finalRuangId = normalizeId(ruang_id);
+    const isPelajaran = jenis_aktivitas === 'pelajaran';
+    const isAbsenable = normalizeBoolean(is_absenable, isPelajaran);
+    const primaryId = primaryGuruId || guruIds[0] || null;
+
+    if (isPelajaran && (!finalMapelId || guruIds.length === 0)) {
+        return sendValidationError(res, 'Mapel dan guru wajib diisi');
+    }
+
+    if (finalMapelId) {
+        const mapelExists = await validateMapelExists(finalMapelId);
+        if (!mapelExists) {
+            return sendValidationError(res, 'Mata pelajaran tidak ditemukan');
+        }
+    }
+
+    if (finalRuangId) {
+        const ruangExists = await validateRuangExists(finalRuangId);
+        if (!ruangExists) {
+            return sendValidationError(res, 'Ruang tidak ditemukan');
+        }
+    }
+
+    const guruValidation = await validateGuruIdsExist(guruIds);
+    if (!guruValidation.valid) {
+        return sendValidationError(res, guruValidation.error);
+    }
+
+    const placeholders = kelasIds.map(() => '?').join(',');
+    const [kelasRows] = await globalThis.dbPool.execute(
+        `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${placeholders}) AND status = "aktif"`,
+        kelasIds
+    );
+
+    const kelasMap = new Map(kelasRows.map(row => [row.id_kelas, row.nama_kelas]));
+    const missingIds = kelasIds.filter(id => !kelasMap.has(id));
+    if (missingIds.length > 0) {
+        return sendValidationError(res, 'Kelas tidak ditemukan', { missing: missingIds });
+    }
+
+    const connection = await globalThis.dbPool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        let created = 0;
+        let skipped = 0;
+        const conflicts = [];
+
+        for (const kelasId of kelasIds) {
+            const conflictCheck = await checkAllScheduleConflicts({
+                kelas_id: kelasId,
+                hari: String(hari),
+                jam_mulai: String(jam_mulai),
+                jam_selesai: String(jam_selesai),
+                ruang_id: finalRuangId,
+                guruIds,
+                connection,
+                collectConflicts: true
+            });
+
+            if (conflictCheck.hasConflict) {
+                skipped++;
+                for (const conflict of conflictCheck.conflicts) {
+                    conflicts.push({
+                        kelas_id: kelasId,
+                        kelas_name: kelasMap.get(kelasId) || String(kelasId),
+                        conflict_type: conflict.type,
+                        message: conflict.message
+                    });
+                }
+                continue;
+            }
+
+            const [insertResult] = await connection.execute(
+                `INSERT INTO jadwal 
+                 (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
+                [kelasId, finalMapelId, primaryId, finalRuangId, hari, jamKe, jam_mulai, jam_selesai, jenis_aktivitas, isAbsenable ? 1 : 0, keterangan_khusus, guruIds.length > 1 ? 1 : 0]
+            );
+
+            if (jenis_aktivitas === 'pelajaran' && guruIds.length > 0) {
+                await insertJadwalGuru(insertResult.insertId, guruIds, connection);
+            }
+
+            created++;
+        }
+
+        await connection.commit();
+        log.success('BulkCreateJadwal', { created, skipped });
+        return sendSuccessResponse(res, { created, skipped, conflicts }, 'Bulk jadwal selesai');
+    } catch (error) {
+        await connection.rollback();
+        log.dbError('bulkCreateJadwal', error);
+        return sendDatabaseError(res, error, 'Gagal menambahkan jadwal massal');
+    } finally {
+        connection.release();
+    }
+};
+
+/**
+ * Clone schedules from one class to others
+ * POST /api/admin/jadwal/clone
+ */
+export const cloneJadwal = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { source_kelas_id, target_kelas_ids, include_guru = true, include_ruang = true } = req.body;
+
+    const sourceKelasId = normalizeId(source_kelas_id);
+    if (!sourceKelasId) {
+        return sendValidationError(res, 'Kelas sumber tidak valid');
+    }
+
+    if (!Array.isArray(target_kelas_ids) || target_kelas_ids.length === 0) {
+        return sendValidationError(res, 'Minimal satu kelas target harus dipilih');
+    }
+
+    const targetIds = Array.from(new Set(target_kelas_ids.map(normalizeId).filter(Boolean)))
+        .filter(id => id !== sourceKelasId);
+
+    if (targetIds.length === 0) {
+        return sendValidationError(res, 'Kelas target tidak valid');
+    }
+
+    const [sourceSchedules] = await globalThis.dbPool.execute(
+        `SELECT id_jadwal, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+                jenis_aktivitas, is_absenable, keterangan_khusus
+         FROM jadwal
+         WHERE kelas_id = ? AND status = 'aktif'
+         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`,
+        [sourceKelasId]
+    );
+
+    if (sourceSchedules.length === 0) {
+        return sendNotFoundError(res, 'Kelas sumber tidak memiliki jadwal');
+    }
+
+    const scheduleIds = sourceSchedules.map(row => row.id_jadwal);
+    const guruMap = new Map();
+    if (scheduleIds.length > 0) {
+        const placeholders = scheduleIds.map(() => '?').join(',');
+        const [guruRows] = await globalThis.dbPool.execute(
+            `SELECT jadwal_id, guru_id, is_primary
+             FROM jadwal_guru
+             WHERE jadwal_id IN (${placeholders})
+             ORDER BY is_primary DESC`,
+            scheduleIds
+        );
+
+        for (const row of guruRows) {
+            if (!guruMap.has(row.jadwal_id)) {
+                guruMap.set(row.jadwal_id, []);
+            }
+            guruMap.get(row.jadwal_id).push(row);
+        }
+    }
+
+    const targetPlaceholders = targetIds.map(() => '?').join(',');
+    const [targetRows] = await globalThis.dbPool.execute(
+        `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${targetPlaceholders}) AND status = "aktif"`,
+        targetIds
+    );
+
+    const targetMap = new Map(targetRows.map(row => [row.id_kelas, row.nama_kelas]));
+    const missingTargets = targetIds.filter(id => !targetMap.has(id));
+    if (missingTargets.length > 0) {
+        return sendValidationError(res, 'Kelas target tidak ditemukan', { missing: missingTargets });
+    }
+
+    const connection = await globalThis.dbPool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        let created = 0;
+        let skipped = 0;
+        const conflicts = [];
+
+        const buildGuruIds = (schedule) => {
+            if (!include_guru) return [];
+            const rows = guruMap.get(schedule.id_jadwal) || [];
+            if (rows.length === 0 && schedule.guru_id) {
+                return [schedule.guru_id];
+            }
+            const primary = rows.find(r => r.is_primary === 1);
+            const ordered = [];
+            if (primary) ordered.push(primary.guru_id);
+            for (const row of rows) {
+                if (!ordered.includes(row.guru_id)) {
+                    ordered.push(row.guru_id);
+                }
+            }
+            return ordered;
+        };
+
+        for (const targetId of targetIds) {
+            for (const schedule of sourceSchedules) {
+                const guruIds = buildGuruIds(schedule);
+                const primaryGuruId = include_guru ? (schedule.guru_id || guruIds[0] || null) : null;
+                const ruangId = include_ruang ? schedule.ruang_id : null;
+
+                const conflictCheck = await checkAllScheduleConflicts({
+                    kelas_id: targetId,
+                    hari: schedule.hari,
+                    jam_mulai: schedule.jam_mulai,
+                    jam_selesai: schedule.jam_selesai,
+                    ruang_id: ruangId,
+                    guruIds,
+                    connection,
+                    collectConflicts: true
+                });
+
+                if (conflictCheck.hasConflict) {
+                    skipped++;
+                    for (const conflict of conflictCheck.conflicts) {
+                        conflicts.push({
+                            kelas_id: targetId,
+                            kelas_name: targetMap.get(targetId) || String(targetId),
+                            conflict_type: conflict.type,
+                            message: conflict.message
+                        });
+                    }
+                    continue;
+                }
+
+                const [insertResult] = await connection.execute(
+                    `INSERT INTO jadwal 
+                     (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
+                    [
+                        targetId,
+                        schedule.mapel_id,
+                        primaryGuruId,
+                        ruangId,
+                        schedule.hari,
+                        schedule.jam_ke,
+                        schedule.jam_mulai,
+                        schedule.jam_selesai,
+                        schedule.jenis_aktivitas,
+                        schedule.is_absenable ? 1 : 0,
+                        schedule.keterangan_khusus,
+                        include_guru && guruIds.length > 1 ? 1 : 0
+                    ]
+                );
+
+                if (include_guru && guruIds.length > 0) {
+                    await insertJadwalGuru(insertResult.insertId, guruIds, connection);
+                }
+
+                created++;
+            }
+        }
+
+        await connection.commit();
+        log.success('CloneJadwal', { created, skipped });
+        return sendSuccessResponse(res, { created, skipped, conflicts }, 'Jadwal berhasil disalin');
+    } catch (error) {
+        await connection.rollback();
+        log.dbError('cloneJadwal', error);
+        return sendDatabaseError(res, error, 'Gagal menyalin jadwal');
+    } finally {
+        connection.release();
+    }
+};
+
+/**
+ * Get guru availability data
+ * GET /api/admin/jadwal/guru-availability
+ */
+export const getGuruAvailability = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { tahun_ajaran = DEFAULT_TAHUN_AJARAN } = req.query;
+
+    log.requestStart('GetGuruAvailability', { tahun_ajaran });
+
+    try {
+        const [rows] = await globalThis.dbPool.execute(
+            `SELECT guru_id as id_guru, hari, is_available, keterangan
+             FROM guru_availability
+             WHERE tahun_ajaran = ?`,
+            [tahun_ajaran]
+        );
+
+        log.success('GetGuruAvailability', { count: rows.length });
+        return sendSuccessResponse(res, rows);
+    } catch (error) {
+        log.dbError('getGuruAvailability', error);
+        return sendDatabaseError(res, error, 'Gagal memuat ketersediaan guru');
+    }
+};
+
+/**
+ * Bulk upsert guru availability data
+ * POST /api/admin/jadwal/guru-availability/bulk
+ */
+export const bulkUpsertGuruAvailability = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { updates } = req.body;
+
+    log.requestStart('BulkUpsertGuruAvailability', { count: updates?.length });
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+        return sendValidationError(res, 'Data updates wajib diisi');
+    }
+
+    const cleanedUpdates = [];
+    const errors = [];
+
+    for (const update of updates) {
+        const guruId = normalizeId(update.guru_id);
+        const hari = update.hari ? String(update.hari).trim() : '';
+        if (!guruId || !hari) {
+            errors.push({ guru_id: update.guru_id, hari: update.hari, error: 'guru_id dan hari wajib diisi' });
+            continue;
+        }
+
+        cleanedUpdates.push({
+            guru_id: guruId,
+            hari,
+            is_available: normalizeBoolean(update.is_available, true) ? 1 : 0,
+            keterangan: update.keterangan || null,
+            tahun_ajaran: update.tahun_ajaran || DEFAULT_TAHUN_AJARAN
+        });
+    }
+
+    if (errors.length > 0) {
+        return sendValidationError(res, 'Validasi gagal', { errors });
+    }
+
+    const guruIds = Array.from(new Set(cleanedUpdates.map(u => u.guru_id)));
+    const guruValidation = await validateGuruIdsExist(guruIds);
+    if (!guruValidation.valid) {
+        return sendValidationError(res, guruValidation.error);
+    }
+
+    const connection = await globalThis.dbPool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        let upserted = 0;
+        for (const update of cleanedUpdates) {
+            await connection.execute(
+                `INSERT INTO guru_availability (guru_id, hari, is_available, keterangan, tahun_ajaran)
+                 VALUES (?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    is_available = VALUES(is_available),
+                    keterangan = VALUES(keterangan),
+                    updated_at = CURRENT_TIMESTAMP`,
+                [update.guru_id, update.hari, update.is_available, update.keterangan, update.tahun_ajaran]
+            );
+            upserted++;
+        }
+
+        await connection.commit();
+        log.success('BulkUpsertGuruAvailability', { upserted });
+        return sendSuccessResponse(res, { upserted }, 'Ketersediaan guru berhasil disimpan');
+    } catch (error) {
+        await connection.rollback();
+        log.dbError('bulkUpsertGuruAvailability', error);
+        return sendDatabaseError(res, error, 'Gagal menyimpan ketersediaan guru');
+    } finally {
+        connection.release();
+    }
+};
+
+/**
  * Get jam pelajaran configuration
  * GET /api/admin/jadwal/jam-pelajaran
  */
@@ -596,7 +1548,7 @@ export const getJadwal = async (req, res) => {
 export const createJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const {
-        kelas_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+        kelas_id, mapel_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
         jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
     } = req.body;
 
@@ -608,12 +1560,23 @@ export const createJadwal = async (req, res) => {
             return sendValidationError(res, result.error);
         }
 
-        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru } = result;
+        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru, normalized } = result;
+        const {
+            kelas_id: kelasId,
+            ruang_id: ruangId,
+            hari: normalizedHari,
+            jam_ke: jamKe,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            jenis_aktivitas: jenisAktivitas,
+            is_absenable: isAbsenable,
+            keterangan_khusus: keteranganKhusus
+        } = normalized;
 
         const [insertResult] = await globalThis.dbPool.execute(
             `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
-            [kelas_id, finalMapelId, primaryGuruId, ruang_id || null, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable ? 1 : 0, keterangan_khusus, isMultiGuru ? 1 : 0]
+            [kelasId, finalMapelId, primaryGuruId, ruangId || null, normalizedHari, jamKe, jamMulai, jamSelesai, jenisAktivitas, isAbsenable ? 1 : 0, keteranganKhusus, isMultiGuru ? 1 : 0]
         );
 
         const jadwalId = insertResult.insertId;
@@ -641,7 +1604,7 @@ export const updateJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
     const {
-        kelas_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+        kelas_id, mapel_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
         jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
     } = req.body;
 
@@ -653,13 +1616,24 @@ export const updateJadwal = async (req, res) => {
             return sendValidationError(res, result.error);
         }
 
-        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru } = result;
+        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru, normalized } = result;
+        const {
+            kelas_id: kelasId,
+            ruang_id: ruangId,
+            hari: normalizedHari,
+            jam_ke: jamKe,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            jenis_aktivitas: jenisAktivitas,
+            is_absenable: isAbsenable,
+            keterangan_khusus: keteranganKhusus
+        } = normalized;
 
         const [updateResult] = await globalThis.dbPool.execute(
             `UPDATE jadwal 
              SET kelas_id = ?, mapel_id = ?, guru_id = ?, ruang_id = ?, hari = ?, jam_ke = ?, jam_mulai = ?, jam_selesai = ?, jenis_aktivitas = ?, is_absenable = ?, keterangan_khusus = ?, is_multi_guru = ?
              WHERE id_jadwal = ?`,
-            [kelas_id, finalMapelId, primaryGuruId, ruang_id || null, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable ? 1 : 0, keterangan_khusus, isMultiGuru ? 1 : 0, id]
+            [kelasId, finalMapelId, primaryGuruId, ruangId || null, normalizedHari, jamKe, jamMulai, jamSelesai, jenisAktivitas, isAbsenable ? 1 : 0, keteranganKhusus, isMultiGuru ? 1 : 0, id]
         );
 
         if (updateResult.affectedRows === 0) {

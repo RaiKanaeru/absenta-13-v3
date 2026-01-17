@@ -123,15 +123,21 @@ export function CloneScheduleView({
         include_ruang: options.include_ruang
       };
 
-      await apiCall('/api/admin/jadwal/clone', {
+      const response = await apiCall('/api/admin/jadwal/clone', {
         method: 'POST',
         body: JSON.stringify(payload),
         onLogout
-      });
+      }) as { data?: { created?: number; skipped?: number } };
+
+      const fallbackTotal = sourceSchedules.length * targetClassIds.length;
+      const created = response.data?.created ?? fallbackTotal;
+      const skipped = response.data?.skipped ?? 0;
 
       toast({
         title: "Berhasil",
-        description: `${sourceSchedules.length} jadwal berhasil disalin ke ${targetClassIds.length} kelas`
+        description: skipped > 0
+          ? `${created} jadwal disalin, ${skipped} jadwal dilewati karena konflik`
+          : `${created} jadwal berhasil disalin`
       });
 
       onSuccess();

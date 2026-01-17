@@ -192,6 +192,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
             <GraduationCap className="w-4 h-4" />
             Laporan Guru
           </TabsTrigger>
+          <TabsTrigger value="jadwal" className="flex items-center gap-2">
+            <FileSpreadsheet className="w-4 h-4" />
+            Laporan Jadwal
+          </TabsTrigger>
         </TabsList>
 
         {/* --- STUDENT REPORT TAB --- */}
@@ -316,6 +320,77 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* --- SCHEDULE REPORT TAB --- */}
+        <TabsContent value="jadwal" className="mt-6 space-y-6">
+          <Card className="border-l-4 border-l-indigo-500 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl text-indigo-700">
+                <FileSpreadsheet className="w-5 h-5" />
+                Export Matriks Jadwal Pelajaran
+              </CardTitle>
+              <CardDescription>
+                Export seluruh jadwal pelajaran dalam format matriks (3 baris per kelas: Mapel, Ruang, Guru). 
+                Format sesuai dengan display di papan informasi/Excel plotting.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Alert className="bg-indigo-50 border-indigo-200 mb-4">
+                <AlertTriangle className="h-4 w-4 text-indigo-600" />
+                <AlertTitle className="text-indigo-800">Auto-Generated</AlertTitle>
+                <AlertDescription className="text-indigo-700">
+                  File ini digenerate langsung dari sistem menggunakan data jadwal aktif. Tidak menggunakan template statis.
+                </AlertDescription>
+              </Alert>
+
+              <div className="pt-4 flex justify-end">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      setExporting(true);
+                      const response = await fetch(getApiUrl('/api/export/checklist-jadwal'), {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                      });
+                      
+                      if (!response.ok) throw new Error('Export failed');
+                      
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `JADWAL_MATRIKS_${new Date().getFullYear()}.xlsx`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      window.URL.revokeObjectURL(url);
+                      
+                      toast({ title: "Export Berhasil", description: "File sedang diunduh...", variant: "default" });
+                    } catch (err: any) {
+                      toast({ title: "Export Gagal", description: err.message, variant: "destructive" });
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
+                  disabled={exporting}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[200px]"
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating Matrix...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Matriks Excel
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
     </div>
   );

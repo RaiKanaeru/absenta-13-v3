@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { DndContext, DragEndEvent, useSensors, useSensor, PointerSensor, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, useSensors, useSensor, PointerSensor, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -108,15 +108,16 @@ function DraggableItem({ id, type, data, isDisabled }: {
   data: Teacher | Subject;
   isDisabled?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { type, item: data },
     disabled: isDisabled
   });
 
   const style = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    opacity: isDragging ? 0.5 : 1,
+    // Transform removed so the list item stays in place
+    // transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.3 : 1, // Dim the original item more
   };
 
   const isGuru = type === 'guru';
@@ -203,8 +204,6 @@ export function ScheduleGridTable({
   const [editMapelId, setEditMapelId] = useState<number | null>(null);
   const [editGuruId, setEditGuruId] = useState<number | null>(null);
   const [editRuangId, setEditRuangId] = useState<number | null>(null);
-
-  // Copy/Paste State
   const [copiedRow, setCopiedRow] = useState<{kelas_id: number; schedule: Record<string, Record<number, ScheduleCell | null>>} | null>(null);
   const [contextMenu, setContextMenu] = useState<{x: number; y: number; kelasId: number} | null>(null);
 
@@ -266,6 +265,19 @@ export function ScheduleGridTable({
       .slice(0, 30);
   }, [subjects, searchTerm]);
 
+  // Drag State
+  const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: 'guru' | 'mapel'; item: Teacher | Subject } | null>(null);
+
+  // Handle drag start
+  // Handle drag start
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const { type, item } = active.data.current as { type: 'guru' | 'mapel'; item: Teacher | Subject };
+    setActiveDragItem({ id: active.id as string, type, item });
+  };
+
+
+
   // Handle drag end
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -274,13 +286,46 @@ export function ScheduleGridTable({
 
     // Parse drop target: format is "kelas_id-hari-jam_ke-rowType"
     const [kelasIdStr, hari, jamKeStr, rowType] = (over.id as string).split('-');
-    const kelasId = parseInt(kelasIdStr);
-    const jamKe = parseInt(jamKeStr);
+    const kelasId = Number.parseInt(kelasIdStr);
+    const jamKe = Number.parseInt(jamKeStr);
 
     const dragType = active.data.current?.type as 'guru' | 'mapel';
     const dragItem = active.data.current?.item;
 
     if (!dragItem) return;
+
+    // CONFLICT DETECTION LOGIC (Client-Side)
+    if (dragType === 'guru') {
+      const guruId = dragItem.id || (dragItem as Teacher).id_guru;
+      
+      // Check ALL classes in matrix for this Day & Jam
+      let conflictFound = null;
+      
+      for (const cls of matrixData.classes) {
+        if (cls.kelas_id === kelasId) continue; // Skip current class (self)
+        
+        const cell = cls.schedule[hari]?.[jamKe];
+        // Check if primary guru matches
+        if (cell?.guru_detail?.some(g => g.guru_id === guruId)) {
+          conflictFound = {
+            kelas: cls.nama_kelas,
+            guru: (dragItem as Teacher).nama
+          };
+          break;
+        }
+      }
+
+      if (conflictFound) {
+        toast({
+          title: "⚠️ Potensi Bentrok Jadwal",
+          description: `Guru ${conflictFound.guru} sudah mengajar di ${conflictFound.kelas} pada jam ini!`,
+          variant: "destructive",
+          duration: 5000
+        });
+        // We still allow the drop, but user is warned. 
+        // If strict mode is needed, return; here.
+      }
+    }
 
     // Add to pending changes
     const change = {
@@ -288,14 +333,62 @@ export function ScheduleGridTable({
       hari,
       jam_ke: jamKe,
       rowType,
-      [dragType === 'guru' ? 'guru_id' : 'mapel_id']: dragItem.id || dragItem.id_guru || dragItem.id_mapel
+      [dragType === 'guru' ? 'guru_id' : 'mapel_id']: dragItem.id || (dragItem as Teacher).id_guru || (dragItem as Subject).id_mapel
     };
 
-    setPendingChanges(prev => [...prev, change]);
+    setPendingChanges(prev => {
+        // Remove existing change for same slot/type to avoid duplicates in pending
+        const filtered = prev.filter(p => !(p.kelas_id === kelasId && p.hari === hari && p.jam_ke === jamKe && p.rowType === rowType));
+        return [...filtered, change];
+    });
+    
+    // OPTIMISTIC UPDATE for Visual Feedback
+    setMatrixData(prev => {
+        if (!prev) return null;
+        const newClasses = prev.classes.map(cls => {
+            if (cls.kelas_id === kelasId) {
+                const newSchedule = { ...cls.schedule };
+                if (!newSchedule[hari]) newSchedule[hari] = {};
+                
+                const existingCell = newSchedule[hari][jamKe] || {
+                    id: null,
+                    mapel: '',
+                    mapel_id: 0,
+                    ruang: '',
+                    ruang_id: 0,
+                    guru: [],
+                    guru_detail: [],
+                    color: '#fff'
+                };
+
+                // Update specific field based on Drag Type
+                if (dragType === 'guru') {
+                    const g = dragItem as Teacher;
+                    existingCell.guru = [g.nama];
+                    existingCell.guru_detail = [{ 
+                        guru_id: g.id || g.id_guru, 
+                        nama_guru: g.nama, 
+                        kode_guru: g.nip || '' 
+                    }];
+                } else if (dragType === 'mapel') {
+                    const m = dragItem as Subject;
+                    existingCell.mapel = m.kode_mapel || m.nama_mapel;
+                    existingCell.mapel_id = m.id || m.id_mapel;
+                    existingCell.nama_mapel = m.nama_mapel;
+                    existingCell.color = getSubjectColor(m.kode_mapel); // Auto config color
+                }
+                
+                newSchedule[hari][jamKe] = existingCell;
+                return { ...cls, schedule: newSchedule };
+            }
+            return cls;
+        });
+        return { ...prev, classes: newClasses };
+    });
 
     toast({
-      title: "Perubahan ditambahkan",
-      description: `${dragItem.nama || dragItem.nama_mapel} → ${hari} Jam ${jamKe}`,
+      title: "Jadwal Diupdate (Draft)",
+      description: `${dragItem.nama || (dragItem as Subject).nama_mapel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
     });
   }, [matrixData]);
 
@@ -363,86 +456,6 @@ export function ScheduleGridTable({
     );
   };
 
-  const handleCellClick = (kelas_id: number, hari: string, jam_ke: number, currentData: ScheduleCell | null | undefined) => {
-    setEditingCell({ kelas_id, hari, jam_ke });
-    setEditMapelId(currentData?.mapel_id || null);
-    setEditGuruId(currentData?.guru_detail && currentData.guru_detail.length > 0 ? currentData.guru_detail[0].guru_id : null);
-    setEditRuangId(currentData?.ruang_id || null);
-  };
-
-  const handleCellSave = () => {
-    if (!editingCell || !editMapelId || !editGuruId) return;
-    const { kelas_id, hari, jam_ke } = editingCell;
-
-    const filtered = pendingChanges.filter(c => !(c.kelas_id === kelas_id && c.hari === hari && c.jam_ke === jam_ke));
-    
-    filtered.push({
-      kelas_id,
-      hari,
-      jam_ke,
-      mapel_id: editMapelId,
-      guru_id: editGuruId,
-      ruang_id: editRuangId
-    });
-    
-    setPendingChanges(filtered);
-
-    // Optimistic Update
-    if (matrixData) {
-        const newClasses = matrixData.classes.map(cls => {
-            if (cls.kelas_id === kelas_id) {
-                const selectedMapel = subjects.find(s => s.id === editMapelId);
-                const selectedGuru = teachers.find(t => t.id === editGuruId);
-                const selectedRoom = rooms.find(r => r.id === editRuangId);
-                
-                const newSchedule = { ...cls.schedule };
-                if (!newSchedule[hari]) newSchedule[hari] = {};
-                
-                newSchedule[hari][jam_ke] = {
-                    id: 0,
-                    mapel: selectedMapel?.kode_mapel || '',
-                    mapel_id: editMapelId,
-                    nama_mapel: selectedMapel?.nama_mapel || '',
-                    ruang: selectedRoom?.kode_ruang || '',
-                    ruang_id: editRuangId,
-                    guru: [selectedGuru?.nama || ''],
-                    guru_detail: [{ guru_id: editGuruId!, nama_guru: selectedGuru?.nama || '', kode_guru: '' }], 
-                    color: getSubjectColor(selectedMapel?.kode_mapel || ''),
-                    jenis: 'pelajaran'
-                };
-                return { ...cls, schedule: newSchedule };
-            }
-            return cls;
-        });
-        setMatrixData({ ...matrixData, classes: newClasses });
-    }
-    setEditingCell(null);
-  };
-
-  const handleCellDelete = () => {
-     if (!editingCell) return;
-     const { kelas_id, hari, jam_ke } = editingCell;
-     const filtered = pendingChanges.filter(c => !(c.kelas_id === kelas_id && c.hari === hari && c.jam_ke === jam_ke));
-     filtered.push({ kelas_id, hari, jam_ke, action: 'delete' });
-     setPendingChanges(filtered);
-
-     // Optimistic Update (Delete)
-     if (matrixData) {
-        const newClasses = matrixData.classes.map(cls => {
-             if (cls.kelas_id === kelas_id) {
-                 const newSchedule = { ...cls.schedule };
-                 if (newSchedule[hari]) {
-                     delete newSchedule[hari][jam_ke];
-                 }
-                 return { ...cls, schedule: newSchedule };
-             }
-             return cls;
-        });
-        setMatrixData({ ...matrixData, classes: newClasses });
-     }
-     setEditingCell(null);
-  };
-
   // Copy row handler
   const handleCopyRow = (kelasId: number) => {
     const cls = matrixData?.classes.find(c => c.kelas_id === kelasId);
@@ -465,19 +478,19 @@ export function ScheduleGridTable({
     
     // Create changes for each cell in copied row
     for (const [hari, slots] of Object.entries(copiedRow.schedule)) {
-        for (const [jamKeStr, cell] of Object.entries(slots)) {
-            if (cell) {
-                const jamKe = Number(jamKeStr);
-                newChanges.push({
-                    kelas_id: targetKelasId,
-                    hari,
-                    jam_ke: jamKe,
-                    mapel_id: cell.mapel_id,
-                    guru_id: cell.guru_detail?.[0]?.guru_id,
-                    ruang_id: cell.ruang_id
-                });
-            }
+      for (const [jamKeStr, cell] of Object.entries(slots)) {
+        if (cell) {
+          const jamKe = Number(jamKeStr);
+          newChanges.push({
+            kelas_id: targetKelasId,
+            hari,
+            jam_ke: jamKe,
+            mapel_id: cell.mapel_id,
+            guru_id: cell.guru_detail?.[0]?.guru_id,
+            ruang_id: cell.ruang_id
+          });
         }
+      }
     }
 
     setPendingChanges([...pendingChanges, ...newChanges]);
@@ -590,74 +603,6 @@ export function ScheduleGridTable({
      }
      setEditingCell(null);
   };
-
-  // Copy row handler
-  const handleCopyRow = (kelasId: number) => {
-    const cls = matrixData?.classes.find(c => c.kelas_id === kelasId);
-    if (cls) {
-      setCopiedRow({ kelas_id: kelasId, schedule: JSON.parse(JSON.stringify(cls.schedule)) });
-      toast({ title: "Copied", description: `Jadwal ${cls.nama_kelas} disalin` });
-    }
-    setContextMenu(null);
-  };
-
-  // Paste row handler
-  const handlePasteRow = (targetKelasId: number) => {
-    if (!copiedRow || !matrixData) {
-      toast({ title: "Info", description: "Tidak ada jadwal yang disalin" });
-      return;
-    }
-
-    const newChanges: any[] = [];
-    const sourceClass = matrixData.classes.find(c => c.kelas_id === copiedRow.kelas_id);
-    
-    // Create changes for each cell in copied row
-    for (const [hari, slots] of Object.entries(copiedRow.schedule)) {
-        for (const [jamKeStr, cell] of Object.entries(slots)) {
-            if (cell) {
-                const jamKe = Number(jamKeStr);
-                newChanges.push({
-                    kelas_id: targetKelasId,
-                    hari,
-                    jam_ke: jamKe,
-                    mapel_id: cell.mapel_id,
-                    guru_id: cell.guru_detail?.[0]?.guru_id,
-                    ruang_id: cell.ruang_id
-                });
-            }
-        }
-    }
-
-    setPendingChanges([...pendingChanges, ...newChanges]);
-
-    // Optimistic UI update
-    const newClasses = matrixData.classes.map(cls => {
-      if (cls.kelas_id === targetKelasId) {
-        return { ...cls, schedule: JSON.parse(JSON.stringify(copiedRow.schedule)) };
-      }
-      return cls;
-    });
-    setMatrixData({ ...matrixData, classes: newClasses });
-
-    toast({ 
-      title: "Pasted", 
-      description: `Jadwal dari ${sourceClass?.nama_kelas || 'kelas'} ditempel` 
-    });
-    setContextMenu(null);
-  };
-
-  // Context menu handler
-  const handleRowContextMenu = (e: React.MouseEvent, kelasId: number) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, kelasId });
-  };
-
-  // Close context menu when clicking elsewhere
-  useEffect(() => {
-    const handleClick = () => setContextMenu(null);
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, []);
 
   // Render loading state
   if (isLoading) {
@@ -689,7 +634,7 @@ export function ScheduleGridTable({
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-full">
         {/* Main Grid Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -787,8 +732,43 @@ export function ScheduleGridTable({
                           (matrixData.jamSlots[day] || []).map(slot => {
                             const cell = kelas.schedule[day]?.[slot.jam_ke];
                             const cellId = `${kelas.kelas_id}-${day}-${slot.jam_ke}-${rowType}`;
-                            const isSpecial = cell?.isSpecial || slot.jenis !== 'pelajaran';
+                            
+                            // Check if this slot is a special event (Upacara, Istirahat, etc.)
+                            // Special events come from the slot type OR explicit cell data
+                            const isSlotSpecial = slot.jenis !== 'pelajaran';
+                            const isCellSpecial = cell?.isSpecial;
+                            const isSpecial = isSlotSpecial || isCellSpecial;
 
+                            // LOGIC FOR ROW SPANNING (MATCHING EXCEL IMAGE)
+                            // If special event:
+                            // - Row 0 (MAPEL): Render cell with rowSpan=3
+                            // - Row 1 & 2 (RUANG, GURU): Render NOTHING (null)
+                            
+                            if (isSpecial) {
+                              if (rowIdx === 0) {
+                                return (
+                                  <td 
+                                    key={cellId}
+                                    rowSpan={3}
+                                    className="border p-0 h-full text-center align-middle font-bold text-xs"
+                                    style={{ 
+                                      backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : (isSlotSpecial ? '#FFA500' : 'white') 
+                                      // Default orange for breaks if no specific color
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-center h-full w-full p-2 writing-mode-vertical?">
+                                      {/* Show Label from Slot (e.g., ISTIRAHAT) or Cell */}
+                                      {slot.label?.toUpperCase() || cell?.mapel || slot.jenis.toUpperCase()}
+                                    </div>
+                                  </td>
+                                );
+                              } else {
+                                // Skip rendering for rows 1 and 2
+                                return null;
+                              }
+                            }
+
+                            // Normal Lesson Cell (Not Special)
                             return (
                               <td 
                                 key={cellId}
@@ -797,7 +777,7 @@ export function ScheduleGridTable({
                               >
                                 <DroppableCell 
                                   cellId={cellId} 
-                                  isDisabled={isSpecial}
+                                  isDisabled={false}
                                   onClick={() => handleCellClick(kelas.kelas_id, day, slot.jam_ke, cell)}
                                 >
                                   {renderCellContent(cell, rowType)}
@@ -805,6 +785,7 @@ export function ScheduleGridTable({
                               </td>
                             );
                           })
+
                         ))}
                       </tr>
                     ))}
@@ -970,6 +951,30 @@ export function ScheduleGridTable({
           </button>
         </div>
       )}
+      <DragOverlay>
+        {activeDragItem ? (
+          <div className="flex items-center gap-2 p-2 rounded-lg border bg-white shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-blue-500">
+            <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            {activeDragItem.type === 'guru' ? (
+              <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            ) : (
+              <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate">
+                {activeDragItem.type === 'guru' 
+                  ? (activeDragItem.item as Teacher).nama 
+                  : (activeDragItem.item as Subject).nama_mapel}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {activeDragItem.type === 'guru' 
+                  ? ((activeDragItem.item as Teacher).nip || '-') 
+                  : ((activeDragItem.item as Subject).kode_mapel || '-')}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
