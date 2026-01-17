@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { FileText, Download, Users, GraduationCap, ArrowLeft, Loader2, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { 
+  FileText, Download, Users, GraduationCap, ArrowLeft, Loader2, 
+  AlertTriangle, FileSpreadsheet, ClipboardList, MessageSquare, 
+  Activity, BarChart3, ChevronLeft 
+} from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
@@ -17,8 +20,10 @@ interface ReportsViewProps {
   onLogout: () => void;
 }
 
+type ReportViewType = 'menu' | 'student_export' | 'teacher_export' | 'schedule_export' | 'branding' | 'history' | 'analytics';
+
 export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('siswa');
+  const [currentView, setCurrentView] = useState<ReportViewType>('menu');
   const [classes, setClasses] = useState<Kelas[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -70,11 +75,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
         tahun: selectedYearStudent
       });
 
-      // Use the new TEMPLATE-based endpoint
       const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-kelas-template?${params}`), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
       if (!response.ok) {
@@ -86,7 +88,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      // Filename will be set by Content-Disposition header typically, or we fallback
       const className = classes.find(c => c.id.toString() === selectedClassId)?.nama_kelas || 'Kelas';
       a.download = `REKAP_KETIDAKHADIRAN_${className.replace(/ /g, '_')}_${selectedYearStudent}.xlsx`;
       document.body.appendChild(a);
@@ -94,19 +95,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast({
-        title: "Export Berhasil",
-        description: "File Excel sedang diunduh...",
-        variant: "default" // success
-      });
-
+      toast({ title: "Export Berhasil", description: "File Excel sedang diunduh...", variant: "default" });
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export Gagal",
-        description: error.message || "Terjadi kesalahan saat mengunduh file",
-        variant: "destructive"
-      });
+      toast({ title: "Export Gagal", description: error.message, variant: "destructive" });
     } finally {
       setExporting(false);
     }
@@ -114,25 +105,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
 
   const handleExportTeacherRecap = async () => {
     if (!selectedYearTeacher) {
-      toast({
-        title: "Data tidak lengkap",
-        description: "Pilih tahun ajaran terlebih dahulu",
-        variant: "destructive"
-      });
+      toast({ title: "Data tidak lengkap", description: "Pilih tahun ajaran terlebih dahulu", variant: "destructive" });
       return;
     }
-
     try {
       setExporting(true);
-      const params = new URLSearchParams({
-        tahun: selectedYearTeacher
-      });
-
-      // Use the new TEMPLATE-based endpoint
+      const params = new URLSearchParams({ tahun: selectedYearTeacher });
       const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-guru-template?${params}`), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
       if (!response.ok) {
@@ -150,256 +130,242 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast({
-        title: "Export Berhasil",
-        description: "File Excel Guru sedang diunduh...",
-        variant: "default"
-      });
-
+      toast({ title: "Export Berhasil", description: "File Excel Guru sedang diunduh...", variant: "default" });
     } catch (error: any) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export Gagal",
-        description: error.message || "Terjadi kesalahan saat mengunduh file",
-        variant: "destructive"
-      });
+      toast({ title: "Export Gagal", description: error.message, variant: "destructive" });
     } finally {
       setExporting(false);
     }
   };
 
+  // --- MENU CONFIGURATION ---
+  const menuItems = [
+    {
+      id: 'teacher_summary',
+      title: 'Ringkasan Kehadiran Guru',
+      desc: 'Tabel H/I/S/A/D dan persentase, filter kelas & tanggal',
+      icon: ClipboardList,
+      color: 'bg-indigo-600',
+      border: 'border-l-indigo-600',
+      action: () => toast({ title: "Fitur Segera Hadir", description: "Ringkasan Online Guru belum tersedia." })
+    },
+    {
+      id: 'student_summary',
+      title: 'Ringkasan Kehadiran Siswa',
+      desc: 'Tabel H/I/S/A/D dan persentase, filter kelas & tanggal',
+      icon: Users,
+      color: 'bg-emerald-600',
+      border: 'border-l-emerald-600',
+      action: () => toast({ title: "Fitur Segera Hadir", description: "Ringkasan Online Siswa belum tersedia." })
+    },
+    {
+      id: 'banding',
+      title: 'Riwayat Pengajuan Banding Absen',
+      desc: 'Laporan history pengajuan banding absensi',
+      icon: MessageSquare,
+      color: 'bg-red-600',
+      border: 'border-l-red-600',
+      action: () => setCurrentView('history')
+    },
+    {
+      id: 'student_presence',
+      title: 'Presensi Siswa',
+      desc: 'Format presensi siswa SMKN 13',
+      icon: FileText,
+      color: 'bg-slate-700',
+      border: 'border-l-slate-700',
+      action: () => toast({ title: "Fitur Segera Hadir", description: "Gunakan Rekap Ketidakhadiran untuk export Excel." })
+    },
+    {
+      id: 'student_export',
+      title: 'Rekap Ketidakhadiran',
+      desc: 'Rekap ketidakhadiran tahunan/bulanan',
+      icon: BarChart3,
+      color: 'bg-teal-600',
+      border: 'border-l-teal-600',
+      action: () => setCurrentView('student_export')
+    },
+    {
+      id: 'teacher_export',
+      title: 'Rekap Ketidakhadiran Guru',
+      desc: 'Format rekap ketidakhadiran guru SMKN 13',
+      icon: GraduationCap,
+      color: 'bg-orange-600',
+      border: 'border-l-orange-600',
+      action: () => setCurrentView('teacher_export')
+    },
+    {
+      id: 'monitor_student',
+      title: 'Pemantauan Siswa Langsung',
+      desc: 'Pantau absensi siswa secara realtime',
+      icon: Users,
+      color: 'bg-green-600',
+      border: 'border-l-green-600',
+      action: () => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'monitoring' }))
+    },
+    {
+      id: 'monitor_teacher',
+      title: 'Pemantauan Guru Langsung',
+      desc: 'Pantau absensi guru secara realtime',
+      icon: GraduationCap,
+      color: 'bg-purple-600',
+      border: 'border-l-purple-600',
+      action: () => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'monitoring' }))
+    },
+    {
+      id: 'analytics',
+      title: 'Dasbor Analitik',
+      desc: 'Analisis dan statistik kehadiran lengkap',
+      icon: Activity,
+      color: 'bg-orange-500', 
+      border: 'border-l-orange-500',
+      action: () => setCurrentView('analytics')
+    }
+  ];
+
+  // --- RENDER MENU VIEW ---
+  if (currentView === 'menu') {
+    return (
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-2">
+           <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'dashboard' }))}
+            className="h-10 w-10 text-muted-foreground hover:text-primary"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Menu Laporan</h1>
+            <p className="text-muted-foreground text-sm">Pilih jenis laporan yang ingin Anda lihat</p>
+          </div>
+        </div>
+
+        {/* Grid Menu */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {menuItems.map((item) => (
+            <Card 
+              key={item.id} 
+              className={`border-l-4 ${item.border} hover:shadow-md transition-shadow cursor-pointer group`}
+              onClick={item.action}
+            >
+              <CardContent className="p-6 flex items-start gap-4">
+                <div className={`${item.color} p-3 rounded-lg text-white shadow-sm group-hover:scale-105 transition-transform`}>
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1 leading-tight">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER SUB VIEWS ---
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Pusat Laporan & Export
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Unduh laporan absensi dalam format Excel resmi.
-          </p>
-        </div>
-        <Button 
-          variant="outline" 
-          onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'dashboard' }))}
-          className="gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Kembali ke Menu
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="outline" onClick={() => setCurrentView('menu')} className="gap-2">
+          <ChevronLeft className="w-4 h-4" />
+          Kembali ke Menu Laporan
         </Button>
       </div>
 
-      <Tabs defaultValue="siswa" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
-          <TabsTrigger value="siswa" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Laporan Siswa
-          </TabsTrigger>
-          <TabsTrigger value="guru" className="flex items-center gap-2">
-            <GraduationCap className="w-4 h-4" />
-            Laporan Guru
-          </TabsTrigger>
-          <TabsTrigger value="jadwal" className="flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4" />
-            Laporan Jadwal
-          </TabsTrigger>
-        </TabsList>
-
-        {/* --- STUDENT REPORT TAB --- */}
-        <TabsContent value="siswa" className="mt-6 space-y-6">
-          <Card className="border-l-4 border-l-blue-500 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-blue-700">
-                <FileSpreadsheet className="w-5 h-5" />
+      {currentView === 'student_export' && (
+        <Card className="border-l-4 border-l-teal-600 shadow-sm max-w-3xl mx-auto">
+          <CardContent className="p-6 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-semibold text-teal-700 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
                 Rekap Ketidakhadiran Semester (Official)
-              </CardTitle>
-              <CardDescription>
-                Export data kehadiran siswa ke format Excel resmi sekolah (Template Kuning/Hijau). 
-                Data akan diisikan otomatis ke kolom bulanan, dan total/persentase dihitung oleh rumus Excel.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Pilih Kelas</Label>
-                  <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="-- Pilih Kelas --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map(c => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
-                          {c.nama_kelas}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Tahun Pelajaran (Awal)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="2025" 
-                    value={selectedYearStudent}
-                    onChange={(e) => setSelectedYearStudent(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500">Contoh: Masukkan 2025 untuk TP 2025-2026</p>
-                </div>
+              </h2>
+              <p className="text-gray-500 text-sm mt-1">
+                Export data kehadiran siswa ke template Excel resmi sekolah.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Pilih Kelas</Label>
+                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                  <SelectTrigger><SelectValue placeholder="-- Pilih Kelas --" /></SelectTrigger>
+                  <SelectContent>
+                    {classes.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nama_kelas}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="pt-4 flex justify-end">
-                <Button 
-                  onClick={handleExportStudentRecap} 
-                  disabled={exporting || !selectedClassId || !selectedYearStudent}
-                  className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
-                >
-                  {exporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Memproses Excel...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Excel (Template)
-                    </>
-                  )}
-                </Button>
+              <div className="space-y-2">
+                <Label>Tahun Pelajaran (Awal)</Label>
+                <Input type="number" value={selectedYearStudent} onChange={(e) => setSelectedYearStudent(e.target.value)} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Alert className="bg-blue-50 border-blue-200">
-            <AlertTriangle className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800">Informasi Template</AlertTitle>
-            <AlertDescription className="text-blue-700">
-              Sistem akan otomatis memilih template berdasarkan tingkat kelas (X, XI, XII, XIII). 
-              Pastikan file template <code>REKAP KETIDAKHADIRAN KELAS [X/XI/XII] 2025-2026.xlsx</code> sudah tersedia di server.
-            </AlertDescription>
-          </Alert>
-        </TabsContent>
+             <Alert className="bg-teal-50 border-teal-200">
+              <AlertTriangle className="h-4 w-4 text-teal-600" />
+              <AlertDescription className="text-teal-700 text-xs">
+                Sistem otomatis memilih template berdasarkan tingkat kelas (X, XI, XII).
+              </AlertDescription>
+            </Alert>
 
-        {/* --- TEACHER REPORT TAB --- */}
-        <TabsContent value="guru" className="mt-6 space-y-6">
-          <Card className="border-l-4 border-l-amber-500 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-amber-700">
-                <FileSpreadsheet className="w-5 h-5" />
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleExportStudentRecap} disabled={exporting} className="bg-teal-600 hover:bg-teal-700 text-white min-w-[200px]">
+                {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentView === 'teacher_export' && (
+         <Card className="border-l-4 border-l-orange-600 shadow-sm max-w-3xl mx-auto">
+          <CardContent className="p-6 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-semibold text-orange-700 flex items-center gap-2">
+                 <GraduationCap className="w-5 h-5" />
                 Rekap Ketidakhadiran Guru (Tahunan)
-              </CardTitle>
-              <CardDescription>
-                Export rekap kehadiran guru 1 tahun penuh (Juli s/d Juni) menggunakan template resmi.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                  <Label>Tahun Pelajaran (Awal)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="2025" 
-                    value={selectedYearTeacher}
-                    onChange={(e) => setSelectedYearTeacher(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-500">Contoh: Masukkan 2025 untuk TP 2025-2026</p>
-                </div>
-              </div>
+              </h2>
+              <p className="text-gray-500 text-sm mt-1">Download rekap kehadiran guru 1 tahun penuh.</p>
+            </div>
 
-              <div className="pt-4 flex justify-end">
-                <Button 
-                  onClick={handleExportTeacherRecap} 
-                  disabled={exporting || !selectedYearTeacher}
-                  className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
-                >
-                  {exporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Memproses Excel...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Excel (Template)
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            <div className="space-y-2 max-w-xs">
+              <Label>Tahun Pelajaran (Awal)</Label>
+              <Input type="number" value={selectedYearTeacher} onChange={(e) => setSelectedYearTeacher(e.target.value)} />
+            </div>
 
-        {/* --- SCHEDULE REPORT TAB --- */}
-        <TabsContent value="jadwal" className="mt-6 space-y-6">
-          <Card className="border-l-4 border-l-indigo-500 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl text-indigo-700">
-                <FileSpreadsheet className="w-5 h-5" />
-                Export Matriks Jadwal Pelajaran
-              </CardTitle>
-              <CardDescription>
-                Export seluruh jadwal pelajaran dalam format matriks (3 baris per kelas: Mapel, Ruang, Guru). 
-                Format sesuai dengan display di papan informasi/Excel plotting.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <Alert className="bg-indigo-50 border-indigo-200 mb-4">
-                <AlertTriangle className="h-4 w-4 text-indigo-600" />
-                <AlertTitle className="text-indigo-800">Auto-Generated</AlertTitle>
-                <AlertDescription className="text-indigo-700">
-                  File ini digenerate langsung dari sistem menggunakan data jadwal aktif. Tidak menggunakan template statis.
-                </AlertDescription>
-              </Alert>
+            <div className="flex justify-end pt-4">
+              <Button onClick={handleExportTeacherRecap} disabled={exporting} className="bg-orange-600 hover:bg-orange-700 text-white min-w-[200px]">
+                {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
+              </Button>
+            </div>
+          </CardContent>
+         </Card>
+      )}
 
-              <div className="pt-4 flex justify-end">
-                <Button 
-                  onClick={async () => {
-                    try {
-                      setExporting(true);
-                      const response = await fetch(getApiUrl('/api/export/checklist-jadwal'), {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                      });
-                      
-                      if (!response.ok) throw new Error('Export failed');
-                      
-                      const blob = await response.blob();
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `JADWAL_MATRIKS_${new Date().getFullYear()}.xlsx`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      window.URL.revokeObjectURL(url);
-                      
-                      toast({ title: "Export Berhasil", description: "File sedang diunduh...", variant: "default" });
-                    } catch (err: any) {
-                      toast({ title: "Export Gagal", description: err.message, variant: "destructive" });
-                    } finally {
-                      setExporting(false);
-                    }
-                  }}
-                  disabled={exporting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[200px]"
-                >
-                  {exporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Generating Matrix...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Matriks Excel
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {currentView === 'history' && (
+        <Card className="max-w-3xl mx-auto text-center py-12">
+            <div className="flex flex-col items-center justify-center gap-4">
+              <MessageSquare className="w-16 h-16 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900">Riwayat Banding</h3>
+              <p className="text-gray-500 max-w-md">Fitur history pengajuan banding akan ditampilkan di sini.</p>
+            </div>
+        </Card>
+      )}
 
-      </Tabs>
+      {currentView === 'analytics' && (
+         <Card className="max-w-3xl mx-auto text-center py-12">
+            <div className="flex flex-col items-center justify-center gap-4">
+              <Activity className="w-16 h-16 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900">Dasbor Analitik</h3>
+              <p className="text-gray-500 max-w-md">Statistik mendalam kehadiran akan segera tersedia.</p>
+            </div>
+        </Card>
+      )}
     </div>
   );
 };
