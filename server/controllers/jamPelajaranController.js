@@ -474,3 +474,80 @@ export const getDefaultJamPelajaran = async (req, res) => {
     log.success('GetDefault', { count: defaultJam.length });
     return sendSuccessResponse(res, defaultJam, `Template default ${defaultJam.length} jam pelajaran`);
 };
+
+/**
+ * Seed global jam pelajaran data (Emergency/Init)
+ * POST /api/admin/jam-pelajaran/seed
+ */
+/**
+ * Helper to seed default data directly (internal use)
+ */
+export const seedDefaultJamPelajaranData = async () => {
+    const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+    
+    const JAM_SLOTS_NORMAL = [
+        { jam_ke: 0, mulai: '07:00', selesai: '07:15', jenis: 'upacara', label: 'LITERASI (Senin Upacara)', durasi: 15 },
+        { jam_ke: 1, mulai: '07:15', selesai: '08:00', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 2, mulai: '08:00', selesai: '08:45', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 3, mulai: '08:45', selesai: '09:30', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 4, mulai: '09:30', selesai: '10:15', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 5, mulai: '10:15', selesai: '10:30', jenis: 'istirahat', label: 'ISTIRAHAT 1', durasi: 15 },
+        { jam_ke: 6, mulai: '10:30', selesai: '11:15', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 7, mulai: '11:15', selesai: '12:00', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 8, mulai: '12:00', selesai: '12:30', jenis: 'istirahat', label: 'ISTIRAHAT 2 (SHOLAT)', durasi: 30 },
+        { jam_ke: 9, mulai: '12:30', selesai: '13:15', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 10, mulai: '13:15', selesai: '14:00', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 11, mulai: '14:00', selesai: '14:45', jenis: 'pelajaran', durasi: 45 },
+        { jam_ke: 12, mulai: '14:45', selesai: '15:30', jenis: 'pelajaran', durasi: 45 },
+    ];
+
+    const JAM_SLOTS_JUMAT = [
+        { jam_ke: 0, mulai: '07:00', selesai: '07:15', jenis: 'upacara', label: 'LITERASI/QURAN', durasi: 15 },
+        { jam_ke: 1, mulai: '07:15', selesai: '07:50', jenis: 'pelajaran', durasi: 35 },
+        { jam_ke: 2, mulai: '07:50', selesai: '08:25', jenis: 'pelajaran', durasi: 35 },
+        { jam_ke: 3, mulai: '08:25', selesai: '09:00', jenis: 'pelajaran', durasi: 35 },
+        { jam_ke: 4, mulai: '09:00', selesai: '09:35', jenis: 'pelajaran', durasi: 35 },
+        { jam_ke: 5, mulai: '09:35', selesai: '09:50', jenis: 'istirahat', label: 'ISTIRAHAT 1', durasi: 15 },
+        { jam_ke: 6, mulai: '09:50', selesai: '10:25', jenis: 'pelajaran', durasi: 35 },
+        { jam_ke: 7, mulai: '10:25', selesai: '11:00', jenis: 'pelajaran', durasi: 35 },
+        { jam_ke: 8, mulai: '11:00', selesai: '13:00', jenis: 'istirahat', label: 'SHOLAT JUMAT', durasi: 120 },
+        { jam_ke: 9, mulai: '13:00', selesai: '13:40', jenis: 'pelajaran', durasi: 40 },
+        { jam_ke: 10, mulai: '13:40', selesai: '14:20', jenis: 'pelajaran', durasi: 40 },
+    ];
+
+    let count = 0;
+    // Transactional could be better but generic logic here
+    await globalThis.dbPool.execute('TRUNCATE TABLE jam_pelajaran');
+    
+    for (const hari of DAYS) {
+        const slots = hari === 'Jumat' ? JAM_SLOTS_JUMAT : JAM_SLOTS_NORMAL;
+        for (const slot of slots) {
+            await globalThis.dbPool.execute(
+                `INSERT INTO jam_pelajaran 
+                (hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [hari, slot.jam_ke, slot.mulai, slot.selesai, slot.durasi, slot.jenis, slot.label || null]
+            );
+            count++;
+        }
+    }
+    return count;
+};
+
+/**
+ * Seed global jam pelajaran data (Emergency/Init)
+ * POST /api/admin/jam-pelajaran/seed
+ */
+export const seedGlobalJamPelajaran = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    log.requestStart('SeedGlobal');
+
+    try {
+        const count = await seedDefaultJamPelajaranData();
+        log.success('SeedGlobal', { count });
+        return sendSuccessResponse(res, { count }, `Berhasil seed ${count} data jam pelajaran`);
+    } catch (error) {
+        log.dbError('seed', error);
+        return sendDatabaseError(res, error, 'Gagal seed jam pelajaran');
+    }
+};

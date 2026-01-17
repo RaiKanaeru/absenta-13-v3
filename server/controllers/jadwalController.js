@@ -6,6 +6,7 @@
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getDayNameWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { seedDefaultJamPelajaranData } from './jamPelajaranController.js';
 
 const logger = createLogger('Jadwal');
 
@@ -683,13 +684,27 @@ export const getScheduleMatrix = async (req, res) => {
     log.requestStart('GetScheduleMatrix', { tingkat });
 
     try {
-        // 1. Fetch Basic Data
-        const { jamSlotsByDay, HARI_LIST, hasData } = await fetchJamSlotsByDay();
+        // 1. Fetch Basic Data (with Auto-Seed fallback)
+        let jamSlotsResult = await fetchJamSlotsByDay();
+
+        if (!jamSlotsResult.hasData) {
+            log.warn('No jam_pelajaran found, attempting auto-seed...');
+            try {
+                const seedCount = await seedDefaultJamPelajaranData();
+                log.info('Auto-seed completed', { seedCount });
+                // Retry fetch
+                jamSlotsResult = await fetchJamSlotsByDay();
+            } catch (seedError) {
+                log.error('Auto-seed failed', seedError);
+            }
+        }
+
+        const { jamSlotsByDay, HARI_LIST, hasData } = jamSlotsResult;
 
         if (!hasData) {
-            log.warn('No jam_pelajaran found');
+            log.warn('No jam_pelajaran found and auto-seed failed/empty');
             return sendSuccessResponse(res, {
-                days: HARI_LIST,
+                days: HARI_LIST || [],
                 jamSlots: {},
                 classes: [],
                 message: 'Silakan seed tabel jam_pelajaran terlebih dahulu'

@@ -11,7 +11,8 @@ import {
     upsertJamPelajaran,
     deleteJamPelajaranByKelas,
     copyJamPelajaran,
-    getDefaultJamPelajaran
+    getDefaultJamPelajaran,
+    seedGlobalJamPelajaran
 } from '../controllers/jamPelajaranController.js';
 
 const router = express.Router();
@@ -19,6 +20,9 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(authenticateToken);
 router.use(requireRole(['admin']));
+
+// Initialize default data (Emergency Seed)
+router.post('/seed', seedGlobalJamPelajaran);
 
 // Get default template
 router.get('/default', getDefaultJamPelajaran);
