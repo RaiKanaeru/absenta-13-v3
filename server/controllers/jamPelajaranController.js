@@ -44,15 +44,20 @@ const DEFAULT_JAM_PELAJARAN = [
 const SQL_GET_KELAS_NAME = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
 
 async function executeJamPelajaranUpsert(kelasId, jam) {
-    return await globalThis.dbPool.execute(`
-        INSERT INTO jam_pelajaran (kelas_id, jam_ke, jam_mulai, jam_selesai, keterangan)
-        VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            jam_mulai = VALUES(jam_mulai),
-            jam_selesai = VALUES(jam_selesai),
-            keterangan = VALUES(keterangan),
-            updated_at = CURRENT_TIMESTAMP
-    `, [kelasId, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || null]);
+    const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis']; // Default to Mon-Thu if generic
+    
+    // We execute insert for each day to ensure schedule exists for lookup
+    for (const hari of daysToInsert) {
+        await globalThis.dbPool.execute(`
+            INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                jam_mulai = VALUES(jam_mulai),
+                jam_selesai = VALUES(jam_selesai),
+                label = VALUES(label),
+                updated_at = CURRENT_TIMESTAMP
+        `, [kelasId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
+    }
 }
 
 /**
@@ -171,7 +176,14 @@ export const getJamPelajaranByKelas = async (req, res) => {
         `, [kelasId]);
         
         log.success('GetByKelas', { kelasId, count: rows.length });
-        return sendSuccessResponse(res, rows, `Berhasil mengambil ${rows.length} jam pelajaran`);
+        
+        // Map label to keterangan for FE compatibility
+        const mappedRows = rows.map(row => ({
+            ...row,
+            keterangan: row.label || row.keterangan
+        }));
+
+        return sendSuccessResponse(res, mappedRows, `Berhasil mengambil ${rows.length} jam pelajaran`);
         
     } catch (error) {
         log.dbError('query', error, { kelasId });
@@ -212,7 +224,8 @@ export const getAllJamPelajaran = async (req, res) => {
                 jam_ke: row.jam_ke,
                 jam_mulai: row.jam_mulai,
                 jam_selesai: row.jam_selesai,
-                keterangan: row.keterangan
+                keterangan: row.label || row.keterangan, // Map label to keterangan for FE compatibility
+                hari: row.hari
             });
             return acc;
         }, {});
