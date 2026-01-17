@@ -789,14 +789,20 @@ const restoreBackupFromFile = async (req, res) => {
 
         // Process the backup file
         let result;
+        logger.info('Processing backup file', { fileExtension, tempFilePath }); // Debug checkpoint 1
+
         if (fileExtension === '.sql') {
+            logger.info('Starting SQL restore...'); // Debug checkpoint 2
             result = await restoreDatabaseFromSqlFile(tempFilePath);
+            logger.info('SQL restore finished'); // Debug checkpoint 3
         } else if (fileExtension === '.zip') {
+            logger.info('Starting ZIP restore...'); 
             result = await restoreDatabaseFromZipArchive(tempFilePath);
         }
 
         // Clean up temporary file
         await fs.unlink(tempFilePath);
+        logger.info('Temp file cleaned up'); // Debug checkpoint 4
 
         res.json({
             success: true,
