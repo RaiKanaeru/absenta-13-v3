@@ -107,23 +107,24 @@ app.set('trust proxy', 2);
 // Time functions are now imported from server/utils/timeUtils.js
 
 // Parse allowed origins from environment
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+const rawAllowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
     : [
         // Production domains
         'https://absenta13.my.id',
+        'https://www.absenta13.my.id', // Added www
         'https://api.absenta13.my.id',
         // Development domains
         'http://localhost:8080',
         'http://localhost:8081',
         'http://localhost:5173',
         'http://localhost:3000',
-        // Allow network access - replace with your actual IP
+        // Network access
         'http://192.168.1.100:8080',
-        'http://192.168.1.100:8081',
-        'http://192.168.1.100:5173',
-        'http://192.168.1.100:3000'
+        'http://192.168.1.100:5173'
     ];
+
+const allowedOrigins = rawAllowedOrigins.map(o => o.trim().replace(/\/$/, '')); // Normalize: remove trailing slash
 
 console.log('🔐 CORS Allowed Origins:', allowedOrigins);
 
@@ -135,11 +136,16 @@ const corsOptions = {
         if (!origin) {
             return callback(null, true);
         }
-        if (allowedOrigins.includes(origin)) {
+        
+        // Normalize checking origin
+        const cleanOrigin = origin.replace(/\/$/, '');
+        
+        if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
             return callback(null, true);
         }
+        
         // Log blocked origin for debugging
-        console.log(`⚠️ CORS blocked origin: ${origin}`);
+        console.log(`⚠️ CORS blocked origin: ${origin} (Clean: ${cleanOrigin})`);
         return callback(new Error('Not allowed by CORS'), false);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -154,20 +160,40 @@ const corsOptions = {
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     
+    // Normalize checking origin
+    const cleanOrigin = origin ? origin.replace(/\/$/, '') : null;
+    
     // Check if origin is allowed
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow if:
+    // 1. No origin (server-to-server, mobile app)
+    // 2. Exact match in allowedOrigins
+    // 3. Clean version matches allowedOrigins
+    // 4. Wildcard '*' is in allowedOrigins
+    const isAllowed = !origin || 
+                      allowedOrigins.includes(origin) || 
+                      allowedOrigins.includes(cleanOrigin) ||
+                      allowedOrigins.includes('*');
+
+    if (isAllowed) {
         res.header('Access-Control-Allow-Origin', origin || '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
         res.header('Access-Control-Expose-Headers', 'Content-Disposition');
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
+    } else {
+        console.log(`⚠️ CORS Rejection in Middleware: ${origin} (Clean: ${cleanOrigin})`);
     }
     
     // Handle preflight OPTIONS request immediately
     if (req.method === 'OPTIONS') {
-        console.log(`✅ CORS preflight handled for origin: ${origin}`);
-        return res.status(200).end();
+        if (isAllowed) {
+            console.log(`✅ CORS preflight handled for origin: ${origin}`);
+            return res.status(200).end();
+        } else {
+             // If not allowed, we still return 200 but WITHOUT headers, which fails the browser check securely
+            return res.status(200).end();
+        }
     }
     
     next();
