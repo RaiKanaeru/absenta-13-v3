@@ -807,8 +807,10 @@ const restoreBackupFromFile = async (req, res) => {
     } catch (error) {
         logger.error('Error restoring backup', error);
         res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: 'Gagal memulihkan backup'
+            error: 'Restore Failed',
+            message: error.message || 'Gagal memulihkan backup',
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+            details: error.toString()
         });
     }
 };
