@@ -24,10 +24,10 @@ import { Teacher, TeacherData, StudentData, Subject, Kelas, Schedule, Room, Live
 // Lazy load to avoid circular dependencies
 // import { ManageStudentsView } from './admin/students/ManageStudentsView';
 const ManageStudentsView = React.lazy(() => import('./admin/students/ManageStudentsView').then(module => ({ default: module.ManageStudentsView })));
-const ManageStudentDataView = React.lazy(() => import('./admin/students/ManageStudentDataView').then(module => ({ default: module.ManageStudentDataView })));
+const ManageStudentDataView = React.lazy(() => import('./admin/students/ManageStudentDataView'));
 const StudentPromotionView = React.lazy(() => import('./admin/students/StudentPromotionView').then(module => ({ default: module.StudentPromotionView })));
-const ManageTeacherAccountsView = React.lazy(() => import('./admin/teachers/ManageTeacherAccountsView').then(module => ({ default: module.ManageTeacherAccountsView })));
-const ManageTeacherDataView = React.lazy(() => import('./admin/teachers/ManageTeacherDataView').then(module => ({ default: module.ManageTeacherDataView })));
+const ManageTeacherAccountsView = React.lazy(() => import('./admin/teachers/ManageTeacherAccountsView'));
+const ManageTeacherDataView = React.lazy(() => import('./admin/teachers/ManageTeacherDataView'));
 const PreviewJadwalView = React.lazy(() => import('./admin/schedules/PreviewJadwalView').then(module => ({ default: module.PreviewJadwalView })));
 const JamPelajaranConfig = React.lazy(() => import("./JamPelajaranConfig"));
 const SimpleRestoreView = React.lazy(() => import("./SimpleRestoreView"));
@@ -42,8 +42,10 @@ const EditProfile = React.lazy(() => import('./EditProfile').then(module => ({ d
 const ReportLetterheadSettings = React.lazy(() => import('./ReportLetterheadSettings'));
 const ScheduleGridTable = React.lazy(() => import('./admin/schedules/ScheduleGridTable').then(module => ({ default: module.ScheduleGridTable })));
 const AttendanceSettingsView = React.lazy(() => import('./admin/settings/AttendanceSettingsView').then(module => ({ default: module.AttendanceSettingsView })));
-const BandingAbsenManager = React.lazy(() => import('./admin/banding/BandingAbsenManager').then(module => ({ default: module.BandingAbsenManager })));
+
 const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
+const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView'));
+
 
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
@@ -280,8 +282,9 @@ const menuItems = [
   { id: 'disaster-recovery', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
   { id: 'letterhead-settings', title: 'Kop Laporan', icon: FileTextIcon, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
   { id: 'settings', title: 'Pengaturan Absensi', icon: Settings, description: 'Konfigurasi waktu dan aturan', gradient: 'from-gray-600 to-gray-800' },
-  { id: 'banding-manager', title: 'Manajemen Banding', icon: Gavel, description: 'Validasi pengajuan banding siswa', gradient: 'from-rose-500 to-rose-700' },
-  { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' }
+
+  { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
+  { id: 'database-manager', title: 'Database Manager', icon: Database, description: 'Kelola file database dan seeders', gradient: 'from-indigo-400 to-indigo-600' }
 ];
 
 
@@ -5352,12 +5355,13 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
       case 'settings':
         return <AttendanceSettingsView onLogout={onLogout} />;
-      case 'banding-manager':
-        return <BandingAbsenManager onLogout={onLogout} />;
+
       case 'reports':
         return <ErrorBoundary><ReportsView onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
       case 'jam-pelajaran':
         return <ErrorBoundary><JamPelajaranConfig /></ErrorBoundary>;
+      case 'database-manager':
+        return <ErrorBoundary><DatabaseManagerView /></ErrorBoundary>;
       default:
         return null;
     }

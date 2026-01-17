@@ -50,6 +50,7 @@ import jamPelajaranRoutes from './server/routes/jamPelajaranRoutes.js';
 import templateExportRoutes from './server/routes/templateExportRoutes.js';
 import attendanceSettingsRoutes from './server/routes/attendanceSettingsRoutes.js';
 import kalenderAkademikRoutes from './server/routes/kalenderAkademikRoutes.js';
+import databaseFileRoutes from './server/routes/databaseFileRoutes.js';
 import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './server/middleware/globalErrorMiddleware.js';
 import { 
     formatWIBTime, getWIBTimestamp 
@@ -598,6 +599,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin', backupRoutes); // Backup endpoints
 app.use('/api/admin', templateRoutes); // Template download endpoints
 app.use('/api/admin', importRoutes); // Import Excel endpoints
+app.use('/api/admin/database-files', databaseFileRoutes); // Database file manager
 app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
 app.use('/api/admin/export', templateExportRoutes); // Template-based Excel export
 

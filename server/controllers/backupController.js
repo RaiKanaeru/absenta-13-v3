@@ -82,7 +82,7 @@ function validateBackupId(backupId) {
  * Perform SQL transaction execution
  */
 async function executeSqlCommands(commands) {
-    const connection = await globalThis.dbPool.pool.getConnection();
+    const connection = await globalThis.dbPool.getConnection();
     try {
         await connection.beginTransaction();
         for (const command of commands) {

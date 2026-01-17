@@ -1,4 +1,4 @@
-# AGENTS.md ƒ?" Absenta 13 v3 (Project Instructions for Codex)
+# AGENTS.md — Absenta 13 v3 (Project Instructions for Codex)
 
 ## 0) Ringkasan Sistem
 Absenta-13-v3 adalah web app absensi sekolah:
@@ -55,7 +55,7 @@ Catatan:
 Sebelum coding:
 1) Identifikasi lokasi perubahan (frontend vs backend vs DB).
 2) Sebutkan file target yang akan diubah.
-3) Jelaskan rencana singkat (2ƒ?"5 langkah) dan risiko.
+3) Jelaskan rencana singkat (2–5 langkah) dan risiko.
 
 Saat implementasi:
 - Jaga perubahan tetap kecil dan fokus.
