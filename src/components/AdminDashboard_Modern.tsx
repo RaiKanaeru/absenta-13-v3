@@ -41,7 +41,7 @@ import { VIEW_TO_REPORT_KEY } from '../utils/reportKeys';
 const EditProfile = React.lazy(() => import('./EditProfile').then(module => ({ default: module.EditProfile })));
 const ReportLetterheadSettings = React.lazy(() => import('./ReportLetterheadSettings'));
 const ScheduleGridTable = React.lazy(() => import('./admin/schedules/ScheduleGridTable').then(module => ({ default: module.ScheduleGridTable })));
-const AttendanceSettingsView = React.lazy(() => import('./admin/settings/AttendanceSettingsView').then(module => ({ default: module.AttendanceSettingsView })));
+
 
 const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
 const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView').then(module => ({ default: module.DatabaseManagerView })));
@@ -281,7 +281,7 @@ const menuItems = [
   { id: 'monitoring', title: 'System Monitoring', icon: Monitor, description: 'Real-time monitoring & alerting', gradient: 'from-violet-500 to-violet-700' },
   { id: 'disaster-recovery', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
   { id: 'letterhead-settings', title: 'Kop Laporan', icon: FileTextIcon, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
-  { id: 'settings', title: 'Pengaturan Absensi', icon: Settings, description: 'Konfigurasi waktu dan aturan', gradient: 'from-gray-600 to-gray-800' },
+
 
   { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
   { id: 'database-manager', title: 'Database Manager', icon: Database, description: 'Kelola file database dan seeders', gradient: 'from-indigo-400 to-indigo-600' }
@@ -5353,8 +5353,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ErrorBoundary><SimpleRestoreView onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
       case 'letterhead-settings':
         return <ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
-      case 'settings':
-        return <AttendanceSettingsView onLogout={onLogout} />;
+
 
       case 'reports':
         return <ErrorBoundary><ReportsView onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;

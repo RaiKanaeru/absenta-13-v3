@@ -37,16 +37,16 @@ async function executeScheduleQuery(kelasId, dateStr, dayName) {
             j.is_multi_guru,
             GROUP_CONCAT(
                 CONCAT(
-                    g2.id_guru, ':', 
-                    COALESCE(g2.nama, ''), ':', 
-                    COALESCE(g2.nip, ''), ':', 
-                    COALESCE(ag2.status, 'belum_diambil'), ':', 
-                    COALESCE(ag2.keterangan, ''), ':',
-                    COALESCE(ag2.waktu_catat, ''), ':',
-                    COALESCE(jg2.is_primary, 0), ':',
-                    COALESCE(ag2.ada_tugas, 0)
+                    COALESCE(g2.id_guru, g.id_guru, 0), ':', 
+                    COALESCE(g2.nama, g.nama, ''), ':', 
+                    COALESCE(g2.nip, g.nip, ''), ':', 
+                    COALESCE(ag2.status, ag.status, 'belum_diambil'), ':', 
+                    COALESCE(ag2.keterangan, ag.keterangan, ''), ':',
+                    COALESCE(ag2.waktu_catat, ag.waktu_catat, ''), ':',
+                    COALESCE(jg2.is_primary, 1), ':',
+                    COALESCE(ag2.ada_tugas, ag.ada_tugas, 0)
                 ) 
-                ORDER BY jg2.is_primary DESC, g2.nama ASC 
+                ORDER BY COALESCE(jg2.is_primary, 1) DESC, COALESCE(g2.nama, g.nama) ASC 
                 SEPARATOR '||'
             ) as guru_list,
             ? as tanggal_target

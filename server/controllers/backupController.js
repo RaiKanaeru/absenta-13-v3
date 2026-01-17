@@ -815,7 +815,7 @@ const createTestArchiveData = async (req, res) => {
     try {
         logger.info('Creating test archive data');
 
-        if (!globalThis.dbPool || !globalThis.dbPool) {
+        if (!globalThis.dbPool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -902,7 +902,7 @@ const archiveOldData = async (req, res) => {
             });
         }
 
-        if (!globalThis.dbPool || !globalThis.dbPool) {
+        if (!globalThis.dbPool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -935,7 +935,7 @@ const getArchiveStats = async (req, res) => {
     try {
         logger.info('Getting archive statistics');
 
-        if (!globalThis.dbPool || !globalThis.dbPool) {
+        if (!globalThis.dbPool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',

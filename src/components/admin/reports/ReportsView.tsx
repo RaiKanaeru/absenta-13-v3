@@ -171,15 +171,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Kembali
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pusat Laporan & Export</h1>
-          <p className="text-gray-500">Unduh laporan absensi dalam format Excel resmi.</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pusat Laporan & Export</h1>
+        <p className="text-gray-500">Unduh laporan absensi dalam format Excel resmi.</p>
       </div>
 
       <Tabs defaultValue="siswa" value={activeTab} onValueChange={setActiveTab} className="w-full">

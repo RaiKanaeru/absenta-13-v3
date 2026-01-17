@@ -1598,15 +1598,16 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                   // 1) Jika jadwal.guru_list sudah array (hasil parsing), pakai itu
                   if (Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
                     acc[key].guru_list = jadwal.guru_list as GuruInSchedule[];
-                  } else if (jadwal.id_guru) {
-                    // 2) Jika ada id_guru di record ini, dorong satu guru
+                  } else if (jadwal.guru_id || jadwal.id_guru) {
+                    // 2) Jika ada guru_id di record ini, dorong satu guru
+                    const resolvedGuruId = jadwal.guru_id || jadwal.id_guru;
                     acc[key].guru_list!.push({
-                      id_guru: jadwal.id_guru,
+                      id_guru: resolvedGuruId || 0,
                       nama_guru: jadwal.nama_guru,
                       nip: jadwal.nip,
-                      is_primary: jadwal.is_primary ?? false,
+                      is_primary: true,
                       status_kehadiran: jadwal.status_kehadiran,
-                      keterangan_guru: jadwal.keterangan_guru ?? ''
+                      keterangan_guru: jadwal.keterangan ?? ''
                     } as GuruInSchedule);
                   } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
                     // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
