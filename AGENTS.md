@@ -72,3 +72,12 @@ Setelah implementasi:
 - Tidak boleh menambahkan secrets hardcoded.
 - Tidak boleh menjalankan perintah destruktif (rm -rf, drop DB, deploy) tanpa meminta approval.
 - Jika ada aksi menyentuh data nyata/produksi: STOP dan minta konfirmasi.
+
+## 6) UPGRADE: Precision Protocol (Smart Rules)
+Agent telah dilengkapi dengan "Precision Protocol" untuk meningkatkan akurasi.
+Silakan baca detailnya di: `.agent/skills/precision_protocol/SKILL.md`
+
+Aturan utama:
+1. **JANGAN UBAH UI** tanpa izin.
+2. **DEBUGGING GRANULAR** wajib saat error 500.
+3. **GLOBAL VAR CHECK** wajib untuk Node.js backend.
