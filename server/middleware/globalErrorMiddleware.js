@@ -128,6 +128,19 @@ export function globalErrorHandler(err, req, res, next) {
     }
     
     // Handle multer file upload errors
+    if (err.name === 'MulterError') {
+        logger.warn('Multer Error', { code: err.code, field: err.field, message: err.message });
+        return res.status(400).json({
+            success: false,
+            error: {
+                code: ERROR_CODES.VALIDATION_INVALID_FORMAT.code,
+                message: `Upload Error: ${err.message} (${err.code})`
+            },
+            requestId,
+            timestamp: new Date().toISOString()
+        });
+    }
+
     if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({
             success: false,
@@ -145,9 +158,8 @@ export function globalErrorHandler(err, req, res, next) {
         success: false,
         error: {
             code: ERROR_CODES.INTERNAL_ERROR.code,
-            message: isDevelopment 
-                ? err.message 
-                : 'Terjadi kesalahan sistem. Silakan coba lagi atau hubungi administrator.'
+            // FORCE SHOW ERROR MESSAGE FOR DEBUGGING - USER REQUESTED
+            message: err.message || 'Terjadi kesalahan sistem.'
         },
         requestId,
         timestamp: new Date().toISOString()
