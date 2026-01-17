@@ -11,32 +11,34 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'Arsitektur Terpisah',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Frontend React + Vite (5173), backend Node.js + Express (3001),
+        database MySQL (3306), dan Redis (6379). Komunikasi melalui REST API,
+        autentikasi JWT, serta caching dan queue untuk beban tinggi.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Alur Absensi Terstruktur',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Jadwal mengacu pada jadwal dan jam_pelajaran. Guru mengambil absensi
+        siswa, siswa perwakilan mengabsen guru, dan banding absen dikelola
+        dengan status serta riwayat per kelas.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Operasional dan Laporan',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Monitoring sistem, backup dan restore, export Excel berbasis template,
+        serta konfigurasi kop laporan untuk kebutuhan administrasi sekolah.
       </>
     ),
   },

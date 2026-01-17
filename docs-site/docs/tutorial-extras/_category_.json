@@ -1,7 +1,8 @@
 {
-  "label": "Tutorial - Extras",
+  "label": "Operasional",
   "position": 3,
   "link": {
-    "type": "generated-index"
+    "type": "generated-index",
+    "description": "Topik lanjutan untuk operasi, monitoring, dan laporan Absenta 13."
   }
 }

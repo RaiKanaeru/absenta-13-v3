@@ -2,46 +2,125 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Pengantar Absenta 13
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Absenta 13 adalah sistem absensi sekolah berbasis web yang memisahkan frontend dan backend
+untuk mendukung kinerja, skalabilitas, dan pemeliharaan jangka panjang. Dokumentasi ini
+menjelaskan arsitektur, alur utama, dan panduan teknis untuk pengembang serta operator.
 
-## Getting Started
+## Arsitektur Sistem
 
-Get started by **creating a new site**.
+Komponen utama:
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+- Frontend: React + TypeScript + Vite.
+- Backend: Node.js + Express.
+- Database: MySQL.
+- Cache dan queue: Redis.
 
-### What you'll need
+Port default:
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+- Frontend: 5173
+- Backend: 3001
+- MySQL: 3306
+- Redis: 6379
 
-## Generate a new site
+## Alur Login dan Role
 
-Generate a new Docusaurus site using the **classic template**.
+1. Pengguna login melalui endpoint `POST /api/login`.
+2. Backend mengirim token JWT dan session cookie.
+3. Frontend memverifikasi token dengan `GET /api/verify-token`.
+4. Role menentukan dashboard yang ditampilkan: admin, guru, atau siswa.
 
-The classic template will automatically be added to your project after you run the command:
+## Peran Pengguna
+
+- Admin: mengelola master data, jadwal, jam pelajaran, ruang, laporan, monitoring, dan backup.
+- Guru: melihat jadwal mengajar, input absensi siswa, memproses banding, dan membuat laporan.
+- Siswa perwakilan: mengisi absensi guru, melihat riwayat kelas, dan mengajukan banding.
+
+## Data Model Utama
+
+Tabel penting yang sering digunakan:
+
+- users, guru, siswa, kelas, mapel, ruang_kelas
+- jadwal, jadwal_guru, jam_pelajaran
+- absensi_siswa, absensi_guru, pengajuan_banding_absen
+- kop_laporan, app_settings, guru_availability
+
+## Alur Absensi
+
+1. Jadwal dibentuk dari `jadwal` dan detail jam dari `jam_pelajaran`.
+2. Guru mengisi absensi siswa pada jadwal yang aktif dan dapat diabsen.
+3. Siswa perwakilan mengisi status kehadiran guru jika diperlukan.
+4. Banding absen diajukan siswa dan diproses oleh guru.
+5. Rekap dan laporan dihasilkan dari data absensi yang sudah tervalidasi.
+
+## Laporan dan Export
+
+Laporan menggunakan template Excel dan mendukung kop laporan:
+
+- Template berada di `server/templates/excel/` dan schema ekspor di `backend/export/`.
+- Konfigurasi kop laporan tersimpan di `kop_laporan` dan diatur melalui menu admin.
+- Export dapat dipicu dari halaman laporan guru atau admin.
+
+## Operasional Sistem
+
+Fitur operasional utama:
+
+- Backup dan archive data melalui menu admin.
+- Monitoring metrik sistem, database, dan aplikasi.
+- Rate limit, audit logging, dan validasi input di backend.
+
+## Menjalankan Lokal
+
+Prasyarat:
+
+- Node.js v18+
+- MySQL v8+
+- Redis v6+
+
+Langkah singkat:
 
 ```bash
-npm init docusaurus@latest my-website classic
+npm install
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+Import database:
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+- Gunakan `database/absenta13.sql` melalui MySQL atau phpMyAdmin.
 
-## Start your site
-
-Run the development server:
+Jalankan Redis dan server:
 
 ```bash
-cd my-website
-npm run start
+redis\redis-server.exe
+node server_modern.js
+npm run dev
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+Atau jalankan bersamaan:
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+```bash
+npm run dev:full
+```
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+Akses:
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3001
+
+## Environment Variables
+
+Buat file `.env` di root proyek. Contoh konfigurasi minimum:
+
+```
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=absenta13
+DB_PORT=3306
+REDIS_HOST=localhost
+REDIS_PORT=6379
+PORT=3001
+JWT_SECRET=minimum_32_characters_secret
+```
+
+Jika menambah env baru, update `.env.example` agar konsisten.

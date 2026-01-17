@@ -1,43 +1,46 @@
 ---
-sidebar_position: 1
+sidebar_position: 3
 ---
 
-# Create a Page
+# Frontend: Halaman dan Komponen
 
-Add **Markdown or React** files to `src/pages` to create a **standalone page**:
+Frontend Absenta 13 dibangun dengan React + TypeScript. Alur utama ditentukan di
+`src/pages/Index_Modern.tsx` yang menangani login dan routing berdasarkan role.
 
-- `src/pages/index.js` → `localhost:3000/`
-- `src/pages/foo.md` → `localhost:3000/foo`
-- `src/pages/foo/bar.js` → `localhost:3000/foo/bar`
+## Entry Point dan Routing
 
-## Create your first React Page
+- `src/main.tsx` memanggil `App` dan provider global.
+- `src/App.tsx` mendefinisikan route utama:
+  - `/` memuat `Index_Modern`.
+  - Halaman error ada di `src/components/pages/`.
 
-Create a file at `src/pages/my-react-page.js`:
+## Dashboard Berdasarkan Role
 
-```jsx title="src/pages/my-react-page.js"
-import React from 'react';
-import Layout from '@theme/Layout';
+- Admin: `src/components/AdminDashboard_Modern.tsx`.
+- Guru: `src/components/TeacherDashboard_Modern.tsx`.
+- Siswa: `src/components/StudentDashboard_Modern.tsx`.
 
-export default function MyReactPage() {
-  return (
-    <Layout>
-      <h1>My React page</h1>
-      <p>This is a React page</p>
-    </Layout>
-  );
-}
-```
+Komponen modular berada di:
 
-A new page is now available at [http://localhost:3000/my-react-page](http://localhost:3000/my-react-page).
+- `src/components/admin/`
+- `src/components/teacher/`
+- `src/components/student/`
 
-## Create your first Markdown Page
+## Pola Akses API
 
-Create a file at `src/pages/my-markdown-page.md`:
+Gunakan helper `getApiUrl` atau `apiClient` agar base URL konsisten:
 
-```mdx title="src/pages/my-markdown-page.md"
-# My Markdown page
+- `src/config/api.ts` menentukan base URL otomatis.
+- `src/utils/apiClient.ts` menangani header dan error.
 
-This is a Markdown page
-```
+Jika menambah endpoint baru, pastikan:
 
-A new page is now available at [http://localhost:3000/my-markdown-page](http://localhost:3000/my-markdown-page).
+- Error handling menampilkan pesan yang jelas.
+- Status HTTP non-200 tidak dianggap sukses.
+- Data konsisten dengan bentuk response backend.
+
+## Praktik UI
+
+- Hindari hardcoded URL dan token.
+- Gunakan komponen UI di `src/components/ui/`.
+- Simpan state pada komponen terdekat dan hindari duplikasi.

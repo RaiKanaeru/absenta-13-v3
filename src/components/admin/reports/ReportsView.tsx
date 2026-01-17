@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { Kelas } from '@/types/dashboard';
+import BandingAbsenReportView from './BandingAbsenReportView';
 
 interface ReportsViewProps {
   onBack: () => void;
@@ -348,13 +349,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       )}
 
       {currentView === 'history' && (
-        <Card className="max-w-3xl mx-auto text-center py-12">
-            <div className="flex flex-col items-center justify-center gap-4">
-              <MessageSquare className="w-16 h-16 text-gray-300" />
-              <h3 className="text-lg font-medium text-gray-900">Riwayat Banding</h3>
-              <p className="text-gray-500 max-w-md">Fitur history pengajuan banding akan ditampilkan di sini.</p>
-            </div>
-        </Card>
+        <BandingAbsenReportView 
+          onBack={() => setCurrentView('menu')}
+          onLogout={onLogout}
+        />
       )}
 
       {currentView === 'analytics' && (

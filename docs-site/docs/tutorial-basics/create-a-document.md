@@ -2,56 +2,47 @@
 sidebar_position: 2
 ---
 
-# Create a Document
+# Struktur Repositori
 
-Documents are **groups of pages** connected through:
+Dokumen ini menjelaskan struktur utama repo Absenta 13 dan fungsi tiap folder.
 
-- a **sidebar**
-- **previous/next navigation**
-- **versioning**
+## Root
 
-## Create your first Doc
-
-Create a Markdown file at `docs/hello.md`:
-
-```md title="docs/hello.md"
-# Hello
-
-This is my **first Docusaurus document**!
+```
+absenta13/
+  src/            Frontend React
+  server/         Backend Express
+  backend/        Utilitas export dan letterhead
+  database/       Dump dan seeder SQL
+  migrations/     Migrasi SQL tingkat repo
+  docs/           Dokumentasi internal project
+  docs-site/      Dokumentasi Docusaurus
+  scripts/        Script setup dan utilitas
+  public/         Aset statis frontend
+  server_modern.js Entrypoint backend
 ```
 
-A new document is now available at [http://localhost:3000/docs/hello](http://localhost:3000/docs/hello).
+## Frontend (`src/`)
 
-## Configure the Sidebar
+- `src/main.tsx`: entrypoint React.
+- `src/App.tsx`: router dan boundary.
+- `src/pages/Index_Modern.tsx`: login dan switch dashboard.
+- `src/components/`: dashboard dan komponen UI.
+- `src/services/`: service API khusus (contoh jadwal).
+- `src/utils/`: utilitas client (api client, auth, format).
 
-Docusaurus automatically **creates a sidebar** from the `docs` folder.
+## Backend (`server/`)
 
-Add metadata to customize the sidebar label and position:
+- `server/routes/`: definisi route.
+- `server/controllers/`: handler API.
+- `server/services/`: business logic dan system services.
+- `server/middleware/`: auth dan error handler.
+- `server/utils/`: utilitas time, logging, dan helper.
 
-```md title="docs/hello.md" {1-4}
----
-sidebar_label: 'Hi!'
-sidebar_position: 3
----
+## Data dan Operasional
 
-# Hello
+- `database/`: dump dan seeder untuk data awal atau dummy.
+- `migrations/`: migrasi SQL terpisah dari seeder.
+- `backups/`, `archives/`, `reports/`: hasil backup, arsip, dan laporan.
 
-This is my **first Docusaurus document**!
-```
-
-It is also possible to create your sidebar explicitly in `sidebars.js`:
-
-```js title="sidebars.js"
-export default {
-  tutorialSidebar: [
-    'intro',
-    // highlight-next-line
-    'hello',
-    {
-      type: 'category',
-      label: 'Tutorial',
-      items: ['tutorial-basics/create-a-document'],
-    },
-  ],
-};
-```
+Gunakan struktur ini sebagai acuan saat menambah fitur atau memperbaiki bug.
