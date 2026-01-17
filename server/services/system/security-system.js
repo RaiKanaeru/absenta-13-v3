@@ -77,6 +77,7 @@ class SecuritySystem extends EventEmitter {
         this.rateLimitStore = new Map();
         this.securityEvents = [];
         this.blockedIPs = new Set();
+        this.blockedIPTimestamps = new Map();
         this.suspiciousActivities = new Map();
         
         // Ensure log directory exists
@@ -122,6 +123,11 @@ class SecuritySystem extends EventEmitter {
         setInterval(() => {
             this.cleanupSuspiciousActivities();
         }, 300000);
+
+        // Clean blocked IPs every 10 minutes
+        setInterval(() => {
+            this.cleanupBlockedIPs();
+        }, 600000);
         
         // Rotate log files every hour
         setInterval(() => {
@@ -618,6 +624,7 @@ class SecuritySystem extends EventEmitter {
         
         // Block IP
         this.blockedIPs.add(clientId);
+        this.blockedIPTimestamps.set(clientId, Date.now());
         
         // Log critical event WITHOUT triggering suspicious activity check
         this.logSecurityEventDirect('ip_blocked', {
@@ -703,9 +710,14 @@ class SecuritySystem extends EventEmitter {
      * Clean up blocked IPs (auto-unblock after 1 hour)
      */
     cleanupBlockedIPs() {
-        // For now, we'll keep blocked IPs indefinitely for security
-        // But we can add time-based unblocking here if needed
-        // This is a placeholder for future enhancement
+        const now = Date.now();
+        const maxAge = 60 * 60 * 1000; // 1 hour
+
+        for (const [ip, blockedAt] of this.blockedIPTimestamps.entries()) {
+            if (now - blockedAt >= maxAge) {
+                this.unblockIP(ip);
+            }
+        }
     }
     
     /**
@@ -774,6 +786,7 @@ class SecuritySystem extends EventEmitter {
      */
     unblockIP(ip) {
         this.blockedIPs.delete(ip);
+        this.blockedIPTimestamps.delete(ip);
         this.rateLimitStore.delete(ip);
         this.suspiciousActivities.delete(ip);
         
@@ -820,6 +833,7 @@ class SecuritySystem extends EventEmitter {
     cleanup() {
         this.rateLimitStore.clear();
         this.blockedIPs.clear();
+        this.blockedIPTimestamps.clear();
         this.suspiciousActivities.clear();
         this.securityEvents = [];
         

@@ -309,6 +309,8 @@ async function initializeDatabase() {
     try {
         // Initialize database optimization system
         await dbOptimization.initialize();
+        globalThis.dbOptimization = dbOptimization;
+        globalThis.dbPool = dbOptimization.pool;
         console.log('✅ Database optimization system initialized successfully');
 
         // Initialize query optimizer
@@ -319,6 +321,7 @@ async function initializeDatabase() {
         // Initialize backup system with shared database pool
         backupSystem = new BackupSystem();
         await backupSystem.initialize(dbOptimization.pool);
+        globalThis.backupSystem = backupSystem;
         console.log('✅ Backup system initialized successfully');
 
         // Initialize download queue system
@@ -346,6 +349,7 @@ async function initializeDatabase() {
             logFile: 'logs/monitoring.log'
         });
         systemMonitor.start();
+        globalThis.systemMonitor = systemMonitor;
         console.log('✅ System monitor initialized and started');
 
 
@@ -398,16 +402,9 @@ async function initializeDatabase() {
                     /<meta[^>]*>.*?<\/meta>/gi,
                     /<style[^>]*>.*?<\/style>/gi
                 ]
-            },
-            auditLogging: {
-                enabled: true,
-                logFile: 'logs/security-audit.log',
-                logLevel: 'info',
-                sensitiveFields: ['password', 'token', 'secret', 'key'],
-                maxLogSize: 10 * 1024 * 1024, // 10MB
-                maxLogFiles: 5
             }
         });
+        globalThis.securitySystem = securitySystem;
 
         // Initialize performance optimizer
         performanceOptimizer = new PerformanceOptimizer({

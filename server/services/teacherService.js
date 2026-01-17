@@ -52,7 +52,7 @@ export const createTeacher = async (data) => {
 
             const [userResult] = await connection.execute(
                 'INSERT INTO users (username, password, role, nama, status) VALUES (?, ?, ?, ?, ?)',
-                [dummyUsername, dummyPassword, 'guru', nama, 'aktif']
+                [dummyUsername, dummyPassword, 'guru', nama, 'ditangguhkan']
             );
 
             // Insert guru
