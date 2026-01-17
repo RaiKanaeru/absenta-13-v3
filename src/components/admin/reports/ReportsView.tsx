@@ -171,9 +171,23 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Pusat Laporan & Export</h1>
-        <p className="text-gray-500">Unduh laporan absensi dalam format Excel resmi.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Pusat Laporan & Export
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Unduh laporan absensi dalam format Excel resmi.
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'dashboard' }))}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali ke Menu
+        </Button>
       </div>
 
       <Tabs defaultValue="siswa" value={activeTab} onValueChange={setActiveTab} className="w-full">
