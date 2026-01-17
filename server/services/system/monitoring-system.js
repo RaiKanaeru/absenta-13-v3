@@ -184,12 +184,23 @@ class SystemMonitor extends EventEmitter {
      */
     async collectDiskMetrics() {
         try {
-            await fs.stat('.');
-            // This is a simplified disk usage calculation
-            // In production, you might want to use a library like 'diskusage'
-            this.metrics.system.disk.used = 0; // Placeholder
-            this.metrics.system.disk.total = 40 * 1024 * 1024 * 1024; // 40GB as per requirements
-            this.metrics.system.disk.percentage = 0; // Placeholder
+            if (typeof fs.statfs !== 'function') {
+                // Fallback for platforms without statfs support.
+                this.metrics.system.disk.used = 0;
+                this.metrics.system.disk.total = 40 * 1024 * 1024 * 1024; // 40GB fallback
+                this.metrics.system.disk.percentage = 0;
+                return;
+            }
+
+            const stats = await fs.statfs(process.cwd());
+            const total = stats.bsize * stats.blocks;
+            const free = stats.bsize * stats.bavail;
+            const used = total - free;
+            const percentage = total > 0 ? (used / total) * 100 : 0;
+
+            this.metrics.system.disk.used = used;
+            this.metrics.system.disk.total = total;
+            this.metrics.system.disk.percentage = Math.min(100, Math.max(0, percentage));
         } catch (error) {
             logger.error('Error collecting disk metrics', error);
         }
