@@ -37,9 +37,9 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
     const fetchReportData = async () => {
         setLoading(true);
         try {
-            const data = await apiCall(`/api/admin/reports/teacher-summary?periode=${periode}&bulan=${bulan}&tahun=${tahun}`, {
-                 onLogout: createSessionExpiredHandler(onLogout, toast)
-            });
+            const data = await apiCall(`/api/admin/teacher-summary?periode=${periode}&bulan=${bulan}&tahun=${tahun}`, {
+                 onLogout: createSessionExpiredHandler(onLogout, toast as any)
+            }) as unknown as ReportDataRow[];
             setReportData(data);
         } catch (error) {
             console.error("Error fetching teacher report data", error);

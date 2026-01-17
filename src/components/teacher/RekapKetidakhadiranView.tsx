@@ -13,16 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { getMonthRangeWIB } from "@/lib/time-utils";
-import { ClipboardList, Search, Download } from "lucide-react";
+import { ClipboardList, Search, Download, ArrowLeft } from "lucide-react";
 import { getApiUrl } from '@/config/api';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
 interface RekapKetidakhadiranViewProps {
   user: TeacherUserData;
+  onBack?: () => void;
 }
 
-export const RekapKetidakhadiranView = ({ user }: RekapKetidakhadiranViewProps) => {
+export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranViewProps) => {
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [selectedMonth, setSelectedMonth] = useState('');
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
@@ -114,6 +115,12 @@ export const RekapKetidakhadiranView = ({ user }: RekapKetidakhadiranViewProps) 
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-4">
+        <Button variant="outline" size="icon" onClick={() => onBack ? onBack() : globalThis.history.back()}>
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <h2 className="text-xl font-semibold">Rekap Ketidakhadiran</h2>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

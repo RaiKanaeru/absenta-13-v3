@@ -97,6 +97,16 @@ export interface Student {
   guru_pengabsen_id?: number;
   guru_pengabsen_nama?: string;
   other_teachers_attendance?: string;
+  rekap?: {
+    H: number;
+    I: number;
+    S: number;
+    A: number;
+    D: number;
+    total: number;
+    terlambat?: number;
+  };
+  riwayat_absensi?: HistoryStudentData[];
 }
 
 export interface HistoryStudentData {
@@ -105,6 +115,7 @@ export interface HistoryStudentData {
   status: AttendanceStatus;
   waktu_absen?: string;
   alasan?: string;
+  is_late?: boolean;
 }
 
 export interface HistoryClassData {

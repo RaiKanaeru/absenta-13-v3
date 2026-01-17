@@ -15,97 +15,50 @@ import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { Kelas } from '@/types/dashboard';
 import BandingAbsenReportView from './BandingAbsenReportView';
+import { TeacherAttendanceSummaryView } from './TeacherAttendanceSummaryView';
+import { LaporanKehadiranSiswaView } from '@/components/teacher/LaporanKehadiranSiswaView';
+import { PresensiSiswaSMKN13View } from '@/components/teacher/PresensiSiswaSMKN13View';
+import { RekapKetidakhadiranView } from '@/components/teacher/RekapKetidakhadiranView';
+import { LiveStudentAttendanceView } from './LiveStudentAttendanceView';
+import { LiveTeacherAttendanceView } from './LiveTeacherAttendanceView';
+import { AnalyticsDashboardView } from './AnalyticsDashboardView';
 
 interface ReportsViewProps {
   onBack: () => void;
   onLogout: () => void;
 }
 
-type ReportViewType = 'menu' | 'student_export' | 'teacher_export' | 'schedule_export' | 'branding' | 'history' | 'analytics';
+type ReportViewType = 
+  | 'menu' 
+  | 'student_export' // Maps to RekapKetidakhadiranView
+  | 'teacher_export' // Keep existing or map to something else if needed. Current mapping in menuItems is 'teacher_export'
+  | 'teacher_summary' 
+  | 'student_summary'
+  | 'student_presence'
+  | 'branding' 
+  | 'history' 
+  | 'monitor_student'
+  | 'monitor_teacher'
+  | 'analytics';
 
 export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) => {
   const [currentView, setCurrentView] = useState<ReportViewType>('menu');
+  // ... (keep existing state for inline defined views if any, though we are replacing most)
+  // We can remove the inline 'student_export' and 'teacher_export' handling logic if we replace them completely. 
+  // However, the original code had inline UI for 'student_export' and 'teacher_export'.
+  // The 'rekap ketidakhadiran' (student_export) is now RekapKetidakhadiranView.
+  
+  // Let's keep the existing logic for 'teacher_export' since we didn't find a component for it,
+  // BUT for 'student_export', we should switch to `RekapKetidakhadiranView` as planned.
+
   const [classes, setClasses] = useState<Kelas[]>([]);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  
-  // Student Report State
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [selectedYearStudent, setSelectedYearStudent] = useState<string>(new Date().getFullYear().toString());
-  
-  // Teacher Report State
   const [selectedYearTeacher, setSelectedYearTeacher] = useState<string>(new Date().getFullYear().toString());
 
-  // Fetch classes on mount
-  useEffect(() => {
-    const fetchClasses = async () => {
-      try {
-        setLoading(true);
-        const data = await apiCall('/api/kelas', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        setClasses(data);
-      } catch (error) {
-        console.error('Error fetching classes:', error);
-        toast({
-          title: "Gagal memuat data kelas",
-          description: "Periksa koneksi internet anda",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchClasses();
-  }, []);
 
-  const handleExportStudentRecap = async () => {
-    if (!selectedClassId || !selectedYearStudent) {
-      toast({
-        title: "Data tidak lengkap",
-        description: "Pilih kelas dan tahun ajaran terlebih dahulu",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setExporting(true);
-      const params = new URLSearchParams({
-        kelas_id: selectedClassId,
-        tahun: selectedYearStudent
-      });
-
-      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-kelas-template?${params}`), {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || errorData.error || 'Export failed');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const className = classes.find(c => c.id.toString() === selectedClassId)?.nama_kelas || 'Kelas';
-      a.download = `REKAP_KETIDAKHADIRAN_${className.replace(/ /g, '_')}_${selectedYearStudent}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast({ title: "Export Berhasil", description: "File Excel sedang diunduh...", variant: "default" });
-    } catch (error: any) {
-      toast({ title: "Export Gagal", description: error.message, variant: "destructive" });
-    } finally {
-      setExporting(false);
-    }
-  };
-
+  // Handler for teacher export (legacy inline)
   const handleExportTeacherRecap = async () => {
-    if (!selectedYearTeacher) {
+     if (!selectedYearTeacher) {
       toast({ title: "Data tidak lengkap", description: "Pilih tahun ajaran terlebih dahulu", variant: "destructive" });
       return;
     }
@@ -139,7 +92,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
     }
   };
 
-  // --- MENU CONFIGURATION ---
   const menuItems = [
     {
       id: 'teacher_summary',
@@ -148,7 +100,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       icon: ClipboardList,
       color: 'bg-indigo-600',
       border: 'border-l-indigo-600',
-      action: () => toast({ title: "Fitur Segera Hadir", description: "Ringkasan Online Guru belum tersedia." })
+      action: () => setCurrentView('teacher_summary')
     },
     {
       id: 'student_summary',
@@ -157,7 +109,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       icon: Users,
       color: 'bg-emerald-600',
       border: 'border-l-emerald-600',
-      action: () => toast({ title: "Fitur Segera Hadir", description: "Ringkasan Online Siswa belum tersedia." })
+      action: () => setCurrentView('student_summary')
     },
     {
       id: 'banding',
@@ -175,7 +127,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       icon: FileText,
       color: 'bg-slate-700',
       border: 'border-l-slate-700',
-      action: () => toast({ title: "Fitur Segera Hadir", description: "Gunakan Rekap Ketidakhadiran untuk export Excel." })
+      action: () => setCurrentView('student_presence')
     },
     {
       id: 'student_export',
@@ -202,7 +154,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       icon: Users,
       color: 'bg-green-600',
       border: 'border-l-green-600',
-      action: () => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'monitoring' }))
+      action: () => setCurrentView('monitor_student')
     },
     {
       id: 'monitor_teacher',
@@ -211,7 +163,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       icon: GraduationCap,
       color: 'bg-purple-600',
       border: 'border-l-purple-600',
-      action: () => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'monitoring' }))
+      action: () => setCurrentView('monitor_teacher')
     },
     {
       id: 'analytics',
@@ -233,7 +185,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
            <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE_TO', { detail: 'dashboard' }))}
+            onClick={onBack}
             className="h-10 w-10 text-muted-foreground hover:text-primary"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -271,81 +223,52 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
   // --- RENDER SUB VIEWS ---
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="outline" onClick={() => setCurrentView('menu')} className="gap-2">
-          <ChevronLeft className="w-4 h-4" />
-          Kembali ke Menu Laporan
-        </Button>
-      </div>
+      
+      {/* 
+        NOTE: For custom components (LaporanKehadiranSiswaView etc), we don't need the default header 
+        because they have their own or we'll wrap them. 
+        Most have their own header/back button now.
+        For inline views like 'teacher_export', we render them here.
+      */}
 
       {currentView === 'student_export' && (
-        <Card className="border-l-4 border-l-teal-600 shadow-sm max-w-3xl mx-auto">
-          <CardContent className="p-6 space-y-6">
-            <div className="border-b pb-4">
-              <h2 className="text-xl font-semibold text-teal-700 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Rekap Ketidakhadiran Semester (Official)
-              </h2>
-              <p className="text-gray-500 text-sm mt-1">
-                Export data kehadiran siswa ke template Excel resmi sekolah.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Pilih Kelas</Label>
-                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                  <SelectTrigger><SelectValue placeholder="-- Pilih Kelas --" /></SelectTrigger>
-                  <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nama_kelas}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tahun Pelajaran (Awal)</Label>
-                <Input type="number" value={selectedYearStudent} onChange={(e) => setSelectedYearStudent(e.target.value)} />
-              </div>
-            </div>
-
-             <Alert className="bg-teal-50 border-teal-200">
-              <AlertTriangle className="h-4 w-4 text-teal-600" />
-              <AlertDescription className="text-teal-700 text-xs">
-                Sistem otomatis memilih template berdasarkan tingkat kelas (X, XI, XII).
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex justify-end pt-4">
-              <Button onClick={handleExportStudentRecap} disabled={exporting} className="bg-teal-600 hover:bg-teal-700 text-white min-w-[200px]">
-                {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <RekapKetidakhadiranView 
+            user={{ id: 0, nama: 'Admin', nip: 'Admin', role: 'admin', username: 'admin' }} // Mock user data for admin
+            onBack={() => setCurrentView('menu')}
+        />
       )}
 
       {currentView === 'teacher_export' && (
-         <Card className="border-l-4 border-l-orange-600 shadow-sm max-w-3xl mx-auto">
-          <CardContent className="p-6 space-y-6">
-            <div className="border-b pb-4">
-              <h2 className="text-xl font-semibold text-orange-700 flex items-center gap-2">
-                 <GraduationCap className="w-5 h-5" />
-                Rekap Ketidakhadiran Guru (Tahunan)
-              </h2>
-              <p className="text-gray-500 text-sm mt-1">Download rekap kehadiran guru 1 tahun penuh.</p>
+         <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+                <Button variant="outline" onClick={() => setCurrentView('menu')} className="gap-2">
+                <ChevronLeft className="w-4 h-4" />
+                Kembali ke Menu Laporan
+                </Button>
             </div>
+            <Card className="border-l-4 border-l-orange-600 shadow-sm max-w-3xl mx-auto">
+            <CardContent className="p-6 space-y-6">
+                <div className="border-b pb-4">
+                <h2 className="text-xl font-semibold text-orange-700 flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5" />
+                    Rekap Ketidakhadiran Guru (Tahunan)
+                </h2>
+                <p className="text-gray-500 text-sm mt-1">Download rekap kehadiran guru 1 tahun penuh.</p>
+                </div>
 
-            <div className="space-y-2 max-w-xs">
-              <Label>Tahun Pelajaran (Awal)</Label>
-              <Input type="number" value={selectedYearTeacher} onChange={(e) => setSelectedYearTeacher(e.target.value)} />
-            </div>
+                <div className="space-y-2 max-w-xs">
+                <Label>Tahun Pelajaran (Awal)</Label>
+                <Input type="number" value={selectedYearTeacher} onChange={(e) => setSelectedYearTeacher(e.target.value)} />
+                </div>
 
-            <div className="flex justify-end pt-4">
-              <Button onClick={handleExportTeacherRecap} disabled={exporting} className="bg-orange-600 hover:bg-orange-700 text-white min-w-[200px]">
-                {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
-              </Button>
-            </div>
-          </CardContent>
-         </Card>
+                <div className="flex justify-end pt-4">
+                <Button onClick={handleExportTeacherRecap} disabled={exporting} className="bg-orange-600 hover:bg-orange-700 text-white min-w-[200px]">
+                    {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
+                </Button>
+                </div>
+            </CardContent>
+            </Card>
+        </div>
       )}
 
       {currentView === 'history' && (
@@ -354,15 +277,47 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
           onLogout={onLogout}
         />
       )}
+      
+      {currentView === 'teacher_summary' && (
+        <TeacherAttendanceSummaryView
+            onBack={() => setCurrentView('menu')}
+            onLogout={onLogout}
+        />
+      )}
+
+      {currentView === 'student_summary' && (
+        <LaporanKehadiranSiswaView
+            user={{ id: 0, nama: 'Admin', nip: 'Admin', role: 'admin', username: 'admin' }}
+            onBack={() => setCurrentView('menu')}
+        />
+      )}
+
+      {currentView === 'student_presence' && (
+        <PresensiSiswaSMKN13View 
+             user={{ id: 0, nama: 'Admin', nip: 'Admin', role: 'admin', username: 'admin' }}
+             onBack={() => setCurrentView('menu')}
+        />
+      )}
+
+      {currentView === 'monitor_student' && (
+          <LiveStudentAttendanceView 
+             onBack={() => setCurrentView('menu')}
+             onLogout={onLogout}
+          />
+      )}
+
+      {currentView === 'monitor_teacher' && (
+          <LiveTeacherAttendanceView
+             onBack={() => setCurrentView('menu')}
+             onLogout={onLogout}
+          />
+      )}
 
       {currentView === 'analytics' && (
-         <Card className="max-w-3xl mx-auto text-center py-12">
-            <div className="flex flex-col items-center justify-center gap-4">
-              <Activity className="w-16 h-16 text-gray-300" />
-              <h3 className="text-lg font-medium text-gray-900">Dasbor Analitik</h3>
-              <p className="text-gray-500 max-w-md">Statistik mendalam kehadiran akan segera tersedia.</p>
-            </div>
-        </Card>
+         <AnalyticsDashboardView
+             onBack={() => setCurrentView('menu')}
+             onLogout={onLogout}
+         />
       )}
     </div>
   );

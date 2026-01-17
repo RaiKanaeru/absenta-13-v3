@@ -45,7 +45,8 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
         COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
         COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
         COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-        COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
+        COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen,
+        SUM(CASE WHEN a.terlambat = 1 THEN 1 ELSE 0 END) as terlambat_count
       FROM absensi_siswa a
       JOIN jadwal j ON a.jadwal_id = j.id_jadwal
       JOIN kelas k ON j.kelas_id = k.id_kelas
@@ -308,7 +309,11 @@ export const getJadwalPertemuan = async (req, res) => {
                     }))
                 });
             }
+
             currentDate.setDate(currentDate.getDate() + 1);
+            
+            // Safety break for infinite loop
+            if (currentDate.getTime() > endTime + (1000 * 60 * 60 * 24 * 7)) break; // Buffer 1 week
         }
 
         log.success('GetJadwalPertemuan', { totalPertemuan: pertemuanDates.length, guruId });
@@ -360,7 +365,7 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
         );
 
         const [absensiData] = await globalThis.dbPool.execute(`
-            SELECT a.siswa_id, a.status, DATE(a.waktu_absen) as tanggal, j.jam_ke
+            SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
             FROM absensi_siswa a
             JOIN jadwal j ON a.jadwal_id = j.id_jadwal
             WHERE j.guru_id = ? AND j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?
@@ -382,9 +387,13 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
                     S: riwayat.filter(r => r.status === 'Sakit').length,
                     A: riwayat.filter(r => r.status === 'Alpa').length,
                     D: riwayat.filter(r => r.status === 'Dispen').length,
-                    total: riwayat.length
+                    total: riwayat.length,
+                    terlambat: riwayat.filter(r => r.terlambat === 1).length
                 },
-                riwayat_absensi: riwayat
+                riwayat_absensi: riwayat.map(r => ({
+                    ...r,
+                    is_late: r.terlambat === 1
+                }))
             };
         });
 

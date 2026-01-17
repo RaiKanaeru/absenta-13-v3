@@ -13,16 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB } from "@/lib/time-utils";
-import { FileText, Search, Download } from "lucide-react";
+import { FileText, Search, Download, ArrowLeft } from "lucide-react";
 import { getApiUrl } from '@/config/api';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
 interface PresensiSiswaSMKN13ViewProps {
   user: TeacherUserData;
+  onBack?: () => void;
 }
 
-export const PresensiSiswaSMKN13View = ({ user }: PresensiSiswaSMKN13ViewProps) => {
+export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13ViewProps) => {
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
@@ -100,6 +101,12 @@ export const PresensiSiswaSMKN13View = ({ user }: PresensiSiswaSMKN13ViewProps) 
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => onBack ? onBack() : globalThis.history.back()}>
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <h2 className="text-xl font-semibold">Presensi Siswa (Format SMKN 13)</h2>
+      </div>
       {/* Filter Section */}
       <Card>
         <CardHeader>
@@ -189,6 +196,7 @@ export const PresensiSiswaSMKN13View = ({ user }: PresensiSiswaSMKN13ViewProps) 
                       <TableHead>Sakit</TableHead>
                       <TableHead>Alpa</TableHead>
                       <TableHead>Dispen</TableHead>
+                      <TableHead>Terlambat</TableHead>
                       <TableHead>Presentase</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -224,6 +232,9 @@ export const PresensiSiswaSMKN13View = ({ user }: PresensiSiswaSMKN13ViewProps) 
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary" className="bg-purple-500">{item.dispen || 0}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-orange-400 text-white border-orange-500">{item.terlambat_count || 0}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-blue-100">

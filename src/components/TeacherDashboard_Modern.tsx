@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { EditProfile } from './EditProfile';
 import { getApiUrl } from '@/config/api';
-import { ScheduleListView, AttendanceView, LaporanKehadiranSiswaView, BandingAbsenView, HistoryView } from './teacher';
+import { ScheduleListView, AttendanceView, LaporanKehadiranSiswaView, BandingAbsenView, HistoryView, RiwayatBandingAbsenView } from './teacher';
 
 interface TeacherDashboardProps {
   userData: {
@@ -183,7 +183,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
 // Main TeacherDashboard Component
 export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) => {
-  const [activeView, setActiveView] = useState<'schedule' | 'history' | 'banding-absen' | 'reports'>('schedule');
+  const [activeView, setActiveView] = useState<'schedule' | 'history' | 'banding-absen' | 'history-banding' | 'reports'>('schedule');
   const [activeReportView, setActiveReportView] = useState<string | null>(null);
   const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -337,6 +337,14 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Banding Absen</span>}
           </Button>
           <Button
+            variant={activeView === 'history-banding' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
+            onClick={() => {setActiveView('history-banding'); setSidebarOpen(false);}}
+          >
+            <History className="h-4 w-4" />
+            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat Banding</span>}
+          </Button>
+          <Button
             variant={activeView === 'history' ? "default" : "ghost"}
             className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'ml-2'}`}
             onClick={() => {setActiveView('history'); setSidebarOpen(false);}}
@@ -447,6 +455,8 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
             <BandingAbsenView user={user} />
           ) : activeView === 'reports' ? (
             <LaporanKehadiranSiswaView user={user} />
+          ) : activeView === 'history-banding' ? (
+            <RiwayatBandingAbsenView user={user} />
           ) : (
             <HistoryView user={user} />
           )}

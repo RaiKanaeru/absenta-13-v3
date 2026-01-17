@@ -20,9 +20,10 @@ import { apiCall } from "./apiUtils";
 
 interface LaporanKehadiranSiswaViewProps {
   user: TeacherUserData;
+  onBack?: () => void;
 }
 
-export const LaporanKehadiranSiswaView = ({ user }: LaporanKehadiranSiswaViewProps) => {
+export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSiswaViewProps) => {
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
@@ -147,7 +148,7 @@ export const LaporanKehadiranSiswaView = ({ user }: LaporanKehadiranSiswaViewPro
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <Button variant="outline" size="icon" onClick={() => globalThis.history.back()} className="shrink-0">
+        <Button variant="outline" size="icon" onClick={() => onBack ? onBack() : globalThis.history.back()} className="shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1 min-w-0">

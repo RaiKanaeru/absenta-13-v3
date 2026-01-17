@@ -9,6 +9,7 @@ import {
     getPresensiSiswaSmkn13, getRekapKetidakhadiran,
     getGuruClasses, getAttendanceSummary, getJadwalPertemuan, getLaporanKehadiranSiswa
 } from '../controllers/guruReportsController.js';
+import { getBandingAbsenReport } from '../controllers/bandingAbsenController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -35,15 +36,18 @@ router.get('/presensi-siswa-smkn13', authenticateToken, requireRole(['guru', 'ad
 router.get('/rekap-ketidakhadiran', authenticateToken, requireRole(['guru', 'admin']), getRekapKetidakhadiran);
 
 // Additional Guru Reports - Migrated from server_modern.js Batch 17B
-router.get('/classes', authenticateToken, requireRole(['guru']), getGuruClasses);
+router.get('/classes', authenticateToken, requireRole(['guru', 'admin']), getGuruClasses);
 router.get('/attendance-summary', authenticateToken, requireRole(['guru']), getAttendanceSummary);
 router.get('/jadwal-pertemuan', authenticateToken, requireRole(['guru']), getJadwalPertemuan);
-router.get('/laporan-kehadiran-siswa', authenticateToken, requireRole(['guru']), getLaporanKehadiranSiswa);
+router.get('/laporan-kehadiran-siswa', authenticateToken, requireRole(['guru', 'admin']), getLaporanKehadiranSiswa);
 
 // Excel Download Queue Endpoints - Migrated from server_modern.js Batch 17F
+// Banding Absen History - Added in Audit
+router.get('/banding-absen-history', authenticateToken, requireRole(['guru', 'admin']), getBandingAbsenReport);
+
 import { requestExcelDownload, getDownloadStatus, exportLaporanKehadiranSiswa } from '../controllers/exportController.js';
 router.post('/request-excel-download', authenticateToken, requireRole(['guru', 'admin']), requestExcelDownload);
 router.get('/download-status/:jobId', authenticateToken, requireRole(['guru', 'admin']), getDownloadStatus);
-router.get('/download-laporan-kehadiran-siswa', authenticateToken, requireRole(['guru']), exportLaporanKehadiranSiswa);
+router.get('/download-laporan-kehadiran-siswa', authenticateToken, requireRole(['guru', 'admin']), exportLaporanKehadiranSiswa);
 
 export default router;

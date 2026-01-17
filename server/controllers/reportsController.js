@@ -143,6 +143,51 @@ function buildTeacherReportBaseQuery(startDate, endDate, kelas_id) {
     return { query, params };
 }
 
+/**
+ * Calculate total effective days based on HARI_EFEKTIF_MAP
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @returns {number} Total effective days
+ */
+function calculateEffectiveDays(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let totalDays = 0;
+    
+    // Iterate through months
+    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    
+    while (current <= end) {
+        // If range covers full month or substantial part, use map
+        // For simplicity in this logic fix, we sum up map values for months touched
+        // A more precise day-by-day calc would be better but "TimeUtils" 
+        // implies we should respect "HARI_EFEKTIF_MAP" as source of truth for "School Days"
+        const monthIndex = current.getMonth() + 1; // 1-12
+        totalDays += HARI_EFEKTIF_MAP[monthIndex] || 20; // Default 20
+        
+        current.setMonth(current.getMonth() + 1);
+    }
+    
+    // Adjustment: if range is small (e.g. 1 week), the monthly map (20 days) is too big.
+    // If range < 20 days, use business days calculation (Mon-Fri)
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    if (diffDays < 15) {
+        // Calculate exact business days for short ranges
+        let businessDays = 0;
+        let d = new Date(start);
+        while (d <= end) {
+            const day = d.getDay();
+            if (day !== 0 && day !== 6) businessDays++; // Exclude Sun (0) and Sat (6) - assuming 5 day school for calculation safety
+            d.setDate(d.getDate() + 1);
+        }
+        return businessDays || 1; // Prevent zero division
+    }
+    
+    return totalDays;
+}
+
 function buildStudentReportBaseQuery(startDate, endDate, kelas_id) {
     let query = `
         FROM absensi_siswa a
@@ -392,6 +437,7 @@ export const getLiveTeacherAttendance = async (req, res) => {
                 ag.keterangan,
                 ag.waktu_catat as waktu_absen_full,
                 CASE 
+                    WHEN ag.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
                     WHEN ag.waktu_catat IS NOT NULL THEN
                         CASE 
                             WHEN TIME(ag.waktu_catat) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
@@ -452,6 +498,7 @@ export const getLiveStudentAttendance = async (req, res) => {
                 a.keterangan,
                 a.waktu_absen as waktu_absen_full,
                 CASE 
+                    WHEN a.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
                     WHEN a.waktu_absen IS NOT NULL THEN
                         CASE 
                             WHEN TIME(a.waktu_absen) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
@@ -564,7 +611,7 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
                 j.jam_mulai,
                 j.jam_selesai,
                 CONCAT(j.jam_mulai, ' - ', j.jam_selesai) as jadwal,
-                COALESCE(ag.status, '${REPORT_STATUS.TIDAK_ADA_DATA}') as status,
+                CONCAT(COALESCE(ag.status, '${REPORT_STATUS.TIDAK_ADA_DATA}'), CASE WHEN ag.terlambat = 1 THEN ' (Terlambat)' ELSE '' END) as status,
                 COALESCE(ag.keterangan, '-') as keterangan
             ${baseQuery}
             ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke
@@ -653,7 +700,7 @@ export const downloadStudentAttendanceReport = async (req, res) => {
                 '07:00' as jam_mulai,
                 '17:00' as jam_selesai,
                 '07:00 - 17:00' as jadwal,
-                COALESCE(a.status, '${REPORT_STATUS.TIDAK_HADIR}') as status,
+                CONCAT(COALESCE(a.status, '${REPORT_STATUS.TIDAK_HADIR}'), CASE WHEN a.terlambat = 1 THEN ' (Terlambat)' ELSE '' END) as status,
                 COALESCE(a.keterangan, '-') as keterangan
             ${baseQuery}
             ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama
@@ -674,6 +721,7 @@ export const downloadStudentAttendanceReport = async (req, res) => {
 };
 
 // Get student attendance summary
+// Get student attendance summary
 export const getStudentAttendanceSummary = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id } = req.query;
@@ -689,8 +737,29 @@ export const getStudentAttendanceSummary = async (req, res) => {
         const { query, params } = buildStudentSummaryQuery(startDate, endDate, kelas_id);
 
         const [rows] = await globalThis.dbPool.execute(query, params);
-        log.success('GetStudentSummary', { count: rows.length });
-        res.json(rows);
+        
+        // Calculate effective days for percentage
+        const effectiveDays = calculateEffectiveDays(startDate, endDate);
+        
+        // Post-process rows to add percentage
+        const processedRows = rows.map(row => {
+            const hadir = Number(row.H) || 0;
+            const dispen = Number(row.D) || 0;
+            // Percentage = (Hadir + Dispen) / EffectiveDays * 100
+            // Cap at 100% just in case attendance count > estimated effective days
+            let percentage = ((hadir + dispen) / effectiveDays) * 100;
+            if (percentage > 100) percentage = 100;
+            
+            return {
+                ...row,
+                total: effectiveDays, // Show effective days as total expectation
+                actual_total: row.total, // Keep separate record count
+                presentase: percentage.toFixed(2)
+            };
+        });
+
+        log.success('GetStudentSummary', { count: processedRows.length, effectiveDays });
+        res.json(processedRows);
     } catch (error) {
         log.dbError('studentSummary', error);
         return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_STUDENT_SUMMARY);
@@ -734,11 +803,8 @@ function buildStudentSummaryQuery(startDate, endDate, kelas_id) {
             COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
             COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.ALPA}' THEN 1 ELSE 0 END), 0) AS A,
             COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
-            COALESCE(COUNT(a.id), 0) AS total,
-            CASE 
-                WHEN COUNT(a.id) = 0 THEN 0
-                ELSE ROUND((SUM(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(a.id)), 2)
-            END AS presentase
+            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
+            COALESCE(COUNT(a.id), 0) AS total
         FROM siswa s
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
         JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -778,18 +844,28 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
         log.debug('Building Excel export', { studentCount: rows.length });
 
         // Build schema-aligned rows
-        const exportRows = rows.map((r, idx) => ({
-            no: idx + 1,
-            nama: r.nama || '',
-            nis: r.nis || '',
-            kelas: r.nama_kelas || '',
-            hadir: Number(r.H) || 0,
-            izin: Number(r.I) || 0,
-            sakit: Number(r.S) || 0,
-            alpa: Number(r.A) || 0,
-            dispen: Number(r.D) || 0,
-            presentase: Number(r.presentase) / 100 || 0 // Convert to decimal for percentage format
-        }));
+        // Build schema-aligned rows
+        const effectiveDays = calculateEffectiveDays(startDate, endDate);
+        
+        const exportRows = rows.map((r, idx) => {
+            const hadir = Number(r.H) || 0;
+            const dispen = Number(r.D) || 0;
+            let percentage = ((hadir + dispen) / effectiveDays); // Decimal for Excel
+            if (percentage > 1) percentage = 1;
+
+            return {
+                no: idx + 1,
+                nama: r.nama || '',
+                nis: r.nis || '',
+                kelas: r.nama_kelas || '',
+                hadir: hadir,
+                izin: Number(r.I) || 0,
+                sakit: Number(r.S) || 0,
+                alpa: Number(r.A) || 0,
+                dispen: dispen,
+                presentase: percentage
+            };
+        });
 
         // Dynamic imports for backend utilities
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
