@@ -43,7 +43,7 @@ const ReportLetterheadSettings = React.lazy(() => import('./ReportLetterheadSett
 const ScheduleGridTable = React.lazy(() => import('./admin/schedules/ScheduleGridTable').then(module => ({ default: module.ScheduleGridTable })));
 const AttendanceSettingsView = React.lazy(() => import('./admin/settings/AttendanceSettingsView').then(module => ({ default: module.AttendanceSettingsView })));
 const BandingAbsenManager = React.lazy(() => import('./admin/banding/BandingAbsenManager').then(module => ({ default: module.BandingAbsenManager })));
-const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.default })));
+const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
 
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
