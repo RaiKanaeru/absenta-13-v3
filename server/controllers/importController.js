@@ -296,10 +296,11 @@ async function processJadwalRow(rowData, rowNum, isBasicFormat) {
  */
 async function persistJadwalBatch(conn, validItems) {
     for (const v of validItems) {
+        const isMultiGuru = Array.isArray(v.guru_ids) && v.guru_ids.length > 1 ? 1 : 0;
         const [result] = await conn.execute(
-            `INSERT INTO jadwal_pelajaran (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable, keterangan_khusus, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus, v.status]
+            `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, jenis_aktivitas, is_absenable, keterangan_khusus, status, is_multi_guru)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [v.kelas_id, v.mapel_id, v.guru_id, v.ruang_id, v.hari, v.jam_ke, v.jam_mulai, v.jam_selesai, v.jenis_aktivitas, v.is_absenable, v.keterangan_khusus, v.status, isMultiGuru]
         );
         
         const jadwalId = result.insertId;

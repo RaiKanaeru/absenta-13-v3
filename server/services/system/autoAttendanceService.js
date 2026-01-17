@@ -51,11 +51,12 @@ export async function processMissingAttendance() {
         const [schedules] = await connection.execute(`
             SELECT j.id_jadwal, j.kelas_id, j.mapel_id, j.guru_id, 
                    k.nama_kelas, m.nama_mapel
-            FROM jadwal_pelajaran j
+            FROM jadwal j
             JOIN kelas k ON j.kelas_id = k.id_kelas
-            JOIN mapel m ON j.mapel_id = m.id_mapel
+            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
             WHERE j.hari = ? 
             AND j.status = 'aktif'
+            AND j.is_absenable = 1
         `, [todayName]);
 
         if (schedules.length === 0) {
@@ -87,18 +88,10 @@ export async function processMissingAttendance() {
                 if (students.length > 0) {
                     // Prepare bulk insert
                     // Values: (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas)
-                    // Status: 'Tanpa Keterangan' (mapped to 'A' usually, or explicit string if supported)
-                    // Note: 'Tanpa Keterangan' is the text description, stored as 'Alpha' or 'A'? 
-                    // Let's verify DB enum. Based on exportController, 'Alpa', 'Alpha', 'Tanpa Keterangan' are grouped as A.
-                    // absensiController accepts 'Alpa' or 'Alpha'. Let's use 'Tanpa Keterangan' if allowed, or 'Alpha' with note.
-                    
-                    // We'll use 'Alpha' as the status code (as per typical ENUM), and note 'Auto Generated'.
-                    // Or matches the user request literal "Tanpa Keterangan" if column allows varchar.
-                    // Usually status column is ENUM or Varchar.
-                    // Safest is 'Alpha' and keterangan 'Tanpa Keterangan (Auto)'.
-                    
-                    const statusVal = 'Alpha'; // Standard status
+                    // Use enum value 'Alpa' and keep reason in keterangan.
+                    const statusVal = 'Alpa';
                     const keteranganVal = 'Tanpa Keterangan (Tidak ada presensi)';
+                    const guruId = jadwal.guru_id || null;
                     
                     // Bulk insert logic
                     const values = students.map(s => [
@@ -108,8 +101,8 @@ export async function processMissingAttendance() {
                         statusVal,
                         keteranganVal,
                         currentTime,
-                        jadwal.guru_id || 0, // Original teacher
-                        0, // guru_pengabsen_id = 0 (System)
+                        guruId,
+                        guruId,
                         0, // terlambat
                         0  // ada_tugas
                     ]);

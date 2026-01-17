@@ -8,6 +8,14 @@ const logger = createLogger('ImportMaster');
 
 // Configuration for headers (could be dynamic, but hardcoded based on analysis)
 const DAY_HEADERS = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+const DAY_NAME_MAP = {
+    SENIN: 'Senin',
+    SELASA: 'Selasa',
+    RABU: 'Rabu',
+    KAMIS: 'Kamis',
+    JUMAT: 'Jumat',
+    SABTU: 'Sabtu'
+};
 
 // Helper to sanitize cell value
 const getVal = (row, colIdx) => {
@@ -16,6 +24,61 @@ const getVal = (row, colIdx) => {
 };
 
 const MATCH_THRESHOLD = 0.6; // Simple fuzzy threshold (concept only)
+
+const normalizeDayName = (value) => {
+    if (!value) return value;
+    const key = value.toString().toUpperCase();
+    return DAY_NAME_MAP[key] || value;
+};
+
+const parseSettingValue = (value) => {
+    if (value === null || value === undefined) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'string') return parsed;
+    } catch (error) {
+        // Ignore JSON parse errors, fall back to raw value.
+    }
+    return raw.replace(/^"|"$/g, '');
+};
+
+const getActiveAcademicYear = async (conn) => {
+    const [rows] = await conn.execute(
+        `SELECT setting_key, setting_value
+         FROM app_settings
+         WHERE setting_key IN ('TAHUN_AJARAN_AKTIF', 'active_academic_year')`
+    );
+    const preferred = rows.find(row => row.setting_key === 'TAHUN_AJARAN_AKTIF')
+        || rows.find(row => row.setting_key === 'active_academic_year');
+    return preferred ? parseSettingValue(preferred.setting_value) : null;
+};
+
+const loadJamPelajaranMap = async (conn, tahunAjaran) => {
+    let rows = [];
+    if (tahunAjaran) {
+        const [tahunRows] = await conn.execute(
+            'SELECT hari, jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran WHERE tahun_ajaran = ?',
+            [tahunAjaran]
+        );
+        rows = tahunRows;
+    }
+    if (rows.length === 0) {
+        const [fallbackRows] = await conn.execute(
+            'SELECT hari, jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran'
+        );
+        rows = fallbackRows;
+    }
+    const map = new Map();
+    for (const row of rows) {
+        map.set(`${row.hari}:${row.jam_ke}`, {
+            jam_mulai: row.jam_mulai,
+            jam_selesai: row.jam_selesai
+        });
+    }
+    return map;
+};
 
 /**
  * Handle Master Schedule Import (CSV/XLSX)
@@ -137,7 +200,7 @@ export const importMasterSchedule = async (req, res) => {
 
                         scheduleData.push({
                             className,
-                            day: day.name,
+                            day: normalizeDayName(day.name),
                             jamKe,
                             rawMapel,
                             rawRuang,
@@ -166,9 +229,20 @@ export const importMasterSchedule = async (req, res) => {
         // 3. Resolve & Persist
         const conn = await globalThis.dbPool.getConnection();
         const results = { success: 0, failed: 0, errors: [] };
+        let transactionStarted = false;
 
         try {
+            const activeYear = await getActiveAcademicYear(conn);
+            const jamSlotMap = await loadJamPelajaranMap(conn, activeYear);
+            if (jamSlotMap.size === 0) {
+                return sendValidationError(
+                    res,
+                    'Jam pelajaran belum dikonfigurasi. Jalankan seeder jam_pelajaran sebelum import jadwal.'
+                );
+            }
+
             await conn.beginTransaction();
+            transactionStarted = true;
             
             // Cache Maps to reduce DB calls
             const classMap = new Map();
@@ -206,6 +280,7 @@ export const importMasterSchedule = async (req, res) => {
                         const gid = guruMap.get(cacheKey);
                         if (gid) guruIds.push(gid);
                     }
+                    const uniqueGuruIds = Array.from(new Set(guruIds));
                     
                     // Resolve Ruang
                     if (item.rawRuang && !ruangMap.has(item.rawRuang)) {
@@ -213,26 +288,24 @@ export const importMasterSchedule = async (req, res) => {
                         ruangMap.set(item.rawRuang, id);
                     }
                     const ruangId = ruangMap.get(item.rawRuang) || null;
-
-                    // Construct Insert
-                    // Note: We need Jam Mulai/Selesai. 
-                    // Ideally we fetch from 'jam_pelajaran_master' table based on 'jamKe' and 'hari'
-                    // For now, allow NULL or default? The DB schema requires them?
-                    // Let's fetch default times or placeholders.
+                    const jamSlot = jamSlotMap.get(`${item.day}:${item.jamKe}`);
+                    if (!jamSlot) {
+                        throw new Error(`Jam pelajaran tidak ditemukan untuk ${item.day} jam ke-${item.jamKe}`);
+                    }
                     
                     // Insert Jadwal
                      const [res] = await conn.execute(
-                        `INSERT INTO jadwal_pelajaran 
-                        (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, '00:00:00', '00:00:00', NOW())`,
-                        [kelasId, mapelId || null, guruIds[0] || null, ruangId, item.day, item.jamKe]
+                        `INSERT INTO jadwal 
+                        (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', 'pelajaran', 1, NULL, ?, NOW())`,
+                        [kelasId, mapelId || null, uniqueGuruIds[0] || null, ruangId, item.day, item.jamKe, jamSlot.jam_mulai, jamSlot.jam_selesai, uniqueGuruIds.length > 1 ? 1 : 0]
                     );
                     
                     const jadwalId = res.insertId;
 
                     // Insert Multi Guru
-                    if (guruIds.length > 1) {
-                         for (const gid of guruIds) {
+                    if (uniqueGuruIds.length > 1) {
+                         for (const gid of uniqueGuruIds) {
                             await conn.execute(
                                 `INSERT INTO jadwal_guru (jadwal_id, guru_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE guru_id=guru_id`,
                                 [jadwalId, gid]
@@ -257,7 +330,9 @@ export const importMasterSchedule = async (req, res) => {
             });
 
         } catch (dbErr) {
-            await conn.rollback();
+            if (transactionStarted) {
+                await conn.rollback();
+            }
             throw dbErr;
         } finally {
             conn.release();

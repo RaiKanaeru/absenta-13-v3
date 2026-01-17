@@ -302,7 +302,7 @@ async function performManualDatabaseBackup(filepath, filename) {
         for (const table of tables) {
             try {
                 // Get table structure
-                const [createResult] = await globalThis.dbPool.pool.execute(`SHOW CREATE TABLE ${table}`);
+                const [createResult] = await globalThis.dbPool.execute(`SHOW CREATE TABLE ${table}`);
                 if (createResult.length > 0) {
                     backupContent += `\n-- Table: ${table}\n`;
                     backupContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
@@ -310,7 +310,7 @@ async function performManualDatabaseBackup(filepath, filename) {
                 }
 
                 // Get table data
-                const [rows] = await globalThis.dbPool.pool.execute(`SELECT * FROM ${table}`);
+                const [rows] = await globalThis.dbPool.execute(`SELECT * FROM ${table}`);
                 if (rows.length > 0) {
                     for (const row of rows) {
                         const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
@@ -815,7 +815,7 @@ const createTestArchiveData = async (req, res) => {
     try {
         logger.info('Creating test archive data');
 
-        if (!globalThis.dbPool || !globalThis.dbPool.pool) {
+        if (!globalThis.dbPool || !globalThis.dbPool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -833,20 +833,20 @@ const createTestArchiveData = async (req, res) => {
         logger.debug('Creating test data with date', { oldDateStr, monthsOld: 25 });
 
         // Clean up existing test data
-        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
-        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_guru WHERE keterangan = 'Test data for archive'`);
-        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_siswa_archive WHERE keterangan = 'Test data for archive'`);
-        await globalThis.dbPool.pool.execute(`DELETE FROM absensi_guru_archive WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.execute(`DELETE FROM absensi_guru WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.execute(`DELETE FROM absensi_siswa_archive WHERE keterangan = 'Test data for archive'`);
+        await globalThis.dbPool.execute(`DELETE FROM absensi_guru_archive WHERE keterangan = 'Test data for archive'`);
 
         // Get valid jadwal_id and guru_id
-        const [jadwalRows] = await globalThis.dbPool.pool.execute(`SELECT id_jadwal FROM jadwal LIMIT 1`);
-        const [guruRows] = await globalThis.dbPool.pool.execute(`SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1`);
+        const [jadwalRows] = await globalThis.dbPool.execute(`SELECT id_jadwal FROM jadwal LIMIT 1`);
+        const [guruRows] = await globalThis.dbPool.execute(`SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1`);
 
         const validJadwalId = jadwalRows.length > 0 ? jadwalRows[0].id_jadwal : null;
         const validGuruId = guruRows.length > 0 ? guruRows[0].id_guru : null;
 
         // Insert test student attendance records
-        const [studentResult] = await globalThis.dbPool.pool.execute(`
+        const [studentResult] = await globalThis.dbPool.execute(`
             INSERT INTO absensi_siswa (siswa_id, jadwal_id, tanggal, status, keterangan, guru_id)
             SELECT 
                 s.id_siswa as siswa_id,
@@ -902,7 +902,7 @@ const archiveOldData = async (req, res) => {
             });
         }
 
-        if (!globalThis.dbPool || !globalThis.dbPool.pool) {
+        if (!globalThis.dbPool || !globalThis.dbPool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -935,7 +935,7 @@ const getArchiveStats = async (req, res) => {
     try {
         logger.info('Getting archive statistics');
 
-        if (!globalThis.dbPool || !globalThis.dbPool.pool) {
+        if (!globalThis.dbPool || !globalThis.dbPool) {
             logger.error('Database pool not initialized');
             return res.status(503).json({
                 error: 'Database not ready',
@@ -946,7 +946,7 @@ const getArchiveStats = async (req, res) => {
         // Get student archive count
         let studentArchiveCount = 0;
         try {
-            const [studentArchive] = await globalThis.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
+            const [studentArchive] = await globalThis.dbPool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
             studentArchiveCount = studentArchive[0]?.count || 0;
         } catch (error) {
             logger.warn('Student archive table not found, using 0', { error: error.message });
@@ -955,7 +955,7 @@ const getArchiveStats = async (req, res) => {
         // Get teacher archive count
         let teacherArchiveCount = 0;
         try {
-            const [teacherArchive] = await globalThis.dbPool.pool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
+            const [teacherArchive] = await globalThis.dbPool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
             teacherArchiveCount = teacherArchive[0]?.count || 0;
         } catch (error) {
             logger.warn('Teacher archive table not found, using 0', { error: error.message });
@@ -967,12 +967,12 @@ const getArchiveStats = async (req, res) => {
         // Get last archive date
         let lastArchive = null;
         try {
-            const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
+            const [lastArchiveResult] = await globalThis.dbPool.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
             lastArchive = lastArchiveResult[0]?.last_archive || null;
         } catch (error) {
             logger.debug('Primary archive check failed, trying fallback', { error: error.message });
             try {
-                const [lastArchiveResult] = await globalThis.dbPool.pool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
+                const [lastArchiveResult] = await globalThis.dbPool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
                 lastArchive = lastArchiveResult[0]?.last_archive || null;
             } catch (err) {
                 // Table doesn't exist, ignore

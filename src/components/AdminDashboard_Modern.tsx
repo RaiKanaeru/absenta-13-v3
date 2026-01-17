@@ -44,7 +44,7 @@ const ScheduleGridTable = React.lazy(() => import('./admin/schedules/ScheduleGri
 const AttendanceSettingsView = React.lazy(() => import('./admin/settings/AttendanceSettingsView').then(module => ({ default: module.AttendanceSettingsView })));
 
 const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
-const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView'));
+const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView').then(module => ({ default: module.DatabaseManagerView })));
 
 
 import { apiCall } from '@/utils/apiClient';
