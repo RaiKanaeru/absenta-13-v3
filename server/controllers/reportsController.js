@@ -119,6 +119,50 @@ function extractKelasId(kelasId) {
     return kelasId;
 }
 
+/**
+ * Calculate date range from legacy parameters (periode, bulan, tahun)
+ * Used for backward compatibility with old frontend bundles
+ * @param {string} periode - 'bulanan' | 'semester' | 'tahunan'
+ * @param {string|number} bulan - Month number (1-12)
+ * @param {string|number} tahun - Year
+ * @returns {{startDate: string, endDate: string}}
+ */
+function calculateDateRangeFromLegacyParams(periode, bulan, tahun) {
+    const yearInt = Number.parseInt(tahun) || new Date().getFullYear();
+    const monthInt = Number.parseInt(bulan) || new Date().getMonth() + 1;
+    
+    if (periode === 'bulanan' || (!periode && bulan)) {
+        // Monthly: start of month to end of month
+        const monthEnd = new Date(yearInt, monthInt, 0); // Last day of month
+        return {
+            startDate: `${yearInt}-${String(monthInt).padStart(2, '0')}-01`,
+            endDate: `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`
+        };
+    }
+    
+    if (periode === 'semester') {
+        // Semester 1: July - December, Semester 2: January - June
+        const isSemester1 = monthInt >= 7;
+        if (isSemester1) {
+            return { startDate: `${yearInt}-07-01`, endDate: `${yearInt}-12-31` };
+        }
+        return { startDate: `${yearInt}-01-01`, endDate: `${yearInt}-06-30` };
+    }
+    
+    if (periode === 'tahunan') {
+        // Full year
+        return { startDate: `${yearInt}-01-01`, endDate: `${yearInt}-12-31` };
+    }
+    
+    // Default fallback: current month
+    const monthEnd = new Date(yearInt, monthInt, 0);
+    return {
+        startDate: `${yearInt}-${String(monthInt).padStart(2, '0')}-01`,
+        endDate: `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`
+    };
+}
+
+
 // ================================================
 // REPORTS & ANALYTICS HELPER EXTENSIONS
 // ================================================
@@ -909,11 +953,22 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
 // Teacher attendance summary
 export const getTeacherAttendanceSummary = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { startDate, endDate } = req.query;
+    let { startDate, endDate, periode, bulan, tahun } = req.query;
     
-    log.requestStart('GetTeacherSummary', { startDate, endDate });
+    log.requestStart('GetTeacherSummary', { startDate, endDate, periode, bulan, tahun });
 
     try {
+        // Backward compatibility: calculate startDate/endDate from periode/bulan/tahun if provided
+        if (!startDate || !endDate) {
+            if (periode || bulan || tahun) {
+                const calculated = calculateDateRangeFromLegacyParams(periode, bulan, tahun);
+                startDate = calculated.startDate;
+                endDate = calculated.endDate;
+                log.debug('Calculated dates from legacy params', { startDate, endDate, periode, bulan, tahun });
+            }
+        }
+
+
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
@@ -949,6 +1004,7 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_TEACHER_SUMMARY);
     }
 };
+
 // Helper to build guru attendance query
 function buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate) {
     if (isAnnual) {

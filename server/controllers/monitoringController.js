@@ -564,19 +564,26 @@ export const resolveAlert = async (req, res) => {
     log.requestStart('ResolveAlert', { alertId });
 
     try {
-        if (globalThis.systemMonitor) {
-            globalThis.systemMonitor.resolveAlert(alertId);
+        if (!globalThis.systemMonitor) {
+            log.warn('ResolveAlert - system monitor not available');
+            return res.status(503).json({ success: false, message: 'System monitor not available' });
+        }
+        
+        const resolved = globalThis.systemMonitor.resolveAlert(alertId);
+        
+        if (resolved) {
             log.success('ResolveAlert', { alertId });
             return sendSuccessResponse(res, null, `Alert ${alertId} resolved`);
         } else {
-            log.warn('ResolveAlert - system monitor not available');
-            return res.json({ success: false, message: 'System monitor not available' });
+            log.warn('ResolveAlert - alert not found', { alertId });
+            return res.status(404).json({ success: false, message: `Alert ${alertId} not found or already resolved` });
         }
     } catch (error) {
         log.error('ResolveAlert failed', { error: error.message, alertId });
-        return sendDatabaseError(res, error);
+        return res.status(500).json({ success: false, message: error.message || 'Failed to resolve alert' });
     }
 };
+
 
 /**
  * Test alert
