@@ -37,9 +37,35 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
     const fetchReportData = async () => {
         setLoading(true);
         try {
-            const data = await apiCall(`/api/admin/teacher-summary?periode=${periode}&bulan=${bulan}&tahun=${tahun}`, {
-                 onLogout: createSessionExpiredHandler(onLogout, toast as any)
-            }) as unknown as ReportDataRow[];
+            // Calculate startDate and endDate from periode/bulan/tahun
+            let startDate: string;
+            let endDate: string;
+            
+            if (periode === 'bulanan') {
+                // Start of month to end of month
+                const start = new Date(tahun, bulan - 1, 1);
+                const end = new Date(tahun, bulan, 0); // Last day of month
+                startDate = start.toISOString().split('T')[0];
+                endDate = end.toISOString().split('T')[0];
+            } else if (periode === 'semester') {
+                // Semester 1: Juli - Desember, Semester 2: Januari - Juni
+                const isSemester1 = bulan >= 7; // If bulan >= 7, it's semester 1
+                if (isSemester1) {
+                    startDate = `${tahun}-07-01`;
+                    endDate = `${tahun}-12-31`;
+                } else {
+                    startDate = `${tahun}-01-01`;
+                    endDate = `${tahun}-06-30`;
+                }
+            } else {
+                // Tahunan: full year
+                startDate = `${tahun}-01-01`;
+                endDate = `${tahun}-12-31`;
+            }
+            
+            const data = await apiCall<ReportDataRow[]>(`/api/admin/teacher-summary?startDate=${startDate}&endDate=${endDate}`, {
+                 onLogout: createSessionExpiredHandler(onLogout, toast as unknown as (opts: unknown) => void)
+            });
             setReportData(data);
         } catch (error) {
             console.error("Error fetching teacher report data", error);
