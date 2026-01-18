@@ -258,12 +258,7 @@ const BackupManagementView: React.FC = () => {
     const loadBackups = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, backups: true }));
-            const token = localStorage.getItem('token');
-            const data = await apiCall<{ backups: BackupInfo[] }>('/api/admin/backups', {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
+            const data = await apiCall<{ backups: BackupInfo[] }>('/api/admin/backups');
             
             setBackups(data.backups || []);
             toast({
@@ -285,12 +280,7 @@ const BackupManagementView: React.FC = () => {
     const loadArchiveStats = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, archive: true }));
-            const token = localStorage.getItem('token');
-            const data = await apiCall<{ stats: ArchiveStats }>('/api/admin/archive-stats', {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
+            const data = await apiCall<{ stats: ArchiveStats }>('/api/admin/archive-stats');
             
             setArchiveStats(data.stats || {
                 studentRecords: 0,
@@ -313,12 +303,7 @@ const BackupManagementView: React.FC = () => {
     const loadBackupSettings = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, settings: true }));
-            const token = localStorage.getItem('token');
-            const data = await apiCall<{ settings: BackupSettings }>('/api/admin/backup-settings', {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
+            const data = await apiCall<{ settings: BackupSettings }>('/api/admin/backup-settings');
             
             setBackupSettings(data.settings || backupSettings);
         } catch (error) {
@@ -336,12 +321,7 @@ const BackupManagementView: React.FC = () => {
     const loadCustomSchedules = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, schedules: true }));
-            const token = localStorage.getItem('token');
-            const data = await apiCall<{ schedules: CustomSchedule[] }>('/api/admin/custom-schedules', {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
+            const data = await apiCall<{ schedules: CustomSchedule[] }>('/api/admin/custom-schedules');
             
             setCustomSchedules(data.schedules || []);
         } catch (error) {
@@ -367,13 +347,8 @@ const BackupManagementView: React.FC = () => {
         }
 
         try {
-            const token = localStorage.getItem('token');
             await apiCall('/api/admin/custom-schedules', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
                 body: JSON.stringify(newSchedule)
             });
 
@@ -428,9 +403,6 @@ const BackupManagementView: React.FC = () => {
         try {
             await apiCall(`/api/admin/custom-schedules/${scheduleId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({ enabled })
             });
 
@@ -618,13 +590,8 @@ const BackupManagementView: React.FC = () => {
     const archiveOldData = async () => {
         try {
             setArchiveLoading(true);
-            const token = localStorage.getItem('token');
             await apiCall('/api/admin/archive-old-data', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
                 body: JSON.stringify({
                     monthsOld: backupSettings.archiveAge
                 })
@@ -650,13 +617,8 @@ const BackupManagementView: React.FC = () => {
     const createTestArchiveData = async () => {
         try {
             setArchiveLoading(true);
-            const token = localStorage.getItem('token');
             const data = await apiCall<{ data: { studentRecordsCreated: number, teacherRecordsCreated: number } }>('/api/admin/create-test-archive-data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
+                method: 'POST'
             });
 
             loadArchiveStats();
@@ -679,13 +641,8 @@ const BackupManagementView: React.FC = () => {
     const saveBackupSettings = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, settings: true }));
-            const token = localStorage.getItem('token');
             await apiCall('/api/admin/backup-settings', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
                 body: JSON.stringify(backupSettings)
             });
 

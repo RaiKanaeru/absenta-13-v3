@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createLogger } from '../utils/logger.js';
+import { splitSqlStatements } from '../utils/sqlParser.js';
 
 const logger = createLogger('DatabaseFile');
 
@@ -116,14 +117,10 @@ export const executeDatabaseFile = async (req, res) => {
         let queryCount = 0;
         
         try {
-             // Split by semicolon, but handle simple cases only. 
-             // Ideally we should use a proper parser or the mysql2 multipleStatements=true feature if enabled.
-             // Assuming multipleStatements IS enabled for the pool (common for these apps), we can send it directly?
-             // Actually, huge dumps often fail with single query call if too big. 
-             // But for standard imports, client splitting is safer.
-             
-             // Strategy: Use the same logic as backupController's executeSqlCommands
-             const commands = cleanSql.split(';').filter(cmd => cmd.trim());
+             const commands = splitSqlStatements(cleanSql);
+             if (commands.length === 0) {
+                 return res.status(400).json({ success: false, message: 'Tidak ada perintah SQL yang dapat dieksekusi' });
+             }
              
              await connection.beginTransaction();
              for (const cmd of commands) {

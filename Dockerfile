@@ -59,6 +59,9 @@ COPY server ./server
 # Copy scripts folder
 COPY scripts ./scripts
 
+# Copy database dumps and seeders (for Database Manager)
+COPY database ./database
+
 # Copy src folder (untuk utils, hooks, dll yang diimport server)
 COPY --from=builder /app/src ./src
 

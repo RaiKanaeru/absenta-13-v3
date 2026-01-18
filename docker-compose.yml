@@ -48,6 +48,7 @@ services:
       - ./public/uploads:/app/public/uploads
       - ./logs:/app/logs
       - ./backups:/app/backups
+      - ./database:/app/database:ro
     depends_on:
       mysql:
         condition: service_healthy

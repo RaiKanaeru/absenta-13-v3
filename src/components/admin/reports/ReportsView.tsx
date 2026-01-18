@@ -13,6 +13,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { apiCall } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
+import { getCleanToken } from '@/utils/authUtils';
 import { Kelas } from '@/types/dashboard';
 import BandingAbsenReportView from './BandingAbsenReportView';
 import { TeacherAttendanceSummaryView } from './TeacherAttendanceSummaryView';
@@ -65,8 +66,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
     try {
       setExporting(true);
       const params = new URLSearchParams({ tahun: selectedYearTeacher });
+      const token = getCleanToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-guru-template?${params}`), {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers,
+        credentials: 'include'
       });
 
       if (!response.ok) {

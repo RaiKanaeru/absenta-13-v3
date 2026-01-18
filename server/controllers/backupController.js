@@ -10,6 +10,7 @@ import AdmZip from 'adm-zip';
 import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
+import { splitSqlStatements } from '../utils/sqlParser.js';
 
 const logger = createLogger('Backup');
 
@@ -134,19 +135,20 @@ async function writeCustomSchedules(schedules) {
 async function restoreDatabaseFromSqlFile(filePath) {
     try {
         const sqlContent = await fs.readFile(filePath, 'utf8');
+        const normalizedSql = sqlContent.replace(/^\uFEFF/, '').toLowerCase();
 
         // Validate SQL content
-        if (!sqlContent.includes('CREATE TABLE') && !sqlContent.includes('INSERT INTO')) {
+        if (!normalizedSql.includes('create table') && !normalizedSql.includes('insert into')) {
             throw new Error('File SQL tidak valid');
         }
 
-        const commands = sqlContent.split(';').filter(cmd => cmd.trim());
+        const commands = splitSqlStatements(sqlContent);
         const executedCount = await executeSqlCommands(commands);
 
         return {
             type: 'sql',
             message: 'Database berhasil dipulihkan dari file SQL',
-            tablesRestored: sqlContent.match(/CREATE TABLE/g)?.length || 0,
+            tablesRestored: normalizedSql.match(/create\s+table/g)?.length || 0,
             commandsExecuted: executedCount
         };
     } catch (error) {
@@ -175,7 +177,13 @@ async function restoreDatabaseFromZipArchive(filePath) {
         }
 
         const sqlContent = zip.readFile(sqlFile).toString('utf8');
-        const commands = sqlContent.split(';').filter(cmd => cmd.trim());
+        const normalizedSql = sqlContent.replace(/^\uFEFF/, '').toLowerCase();
+
+        if (!normalizedSql.includes('create table') && !normalizedSql.includes('insert into')) {
+            throw new Error('File SQL tidak valid');
+        }
+
+        const commands = splitSqlStatements(sqlContent);
         const executedCount = await executeSqlCommands(commands);
 
         return {

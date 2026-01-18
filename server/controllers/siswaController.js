@@ -355,21 +355,21 @@ export const createSiswa = async (req, res) => {
 // Update Siswa
 export const updateSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { id } = req.params;
+    const { nis: paramNis } = req.params;
     const { nis, nama, username } = req.body;
 
-    log.requestStart('Update', { id, nis, nama, username });
+    log.requestStart('Update', { nis: paramNis, nama, username });
 
     const connection = await globalThis.dbPool.getConnection();
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
-            'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = ?',
-            [id]
+            'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
+            [paramNis]
         );
 
         if (existingSiswa.length === 0) {
-            log.warn('Update failed - not found', { id });
+            log.warn('Update failed - not found', { nis: paramNis });
             return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
@@ -435,7 +435,7 @@ export const updateSiswa = async (req, res) => {
             // Update siswa record
             const siswaUpdate = buildSiswaUpdateFields(req.body);
             if (siswaUpdate.fields.length > 0) {
-                siswaUpdate.values.push(id);
+                siswaUpdate.values.push(siswa.id);
                 await connection.execute(
                     `UPDATE siswa SET ${siswaUpdate.fields.join(', ')} WHERE id = ?`,
                     siswaUpdate.values
@@ -453,7 +453,7 @@ export const updateSiswa = async (req, res) => {
             }
 
             await connection.commit();
-            log.success('Update', { id, nama: nama || siswa.nama });
+            log.success('Update', { nis: paramNis, nama: nama || siswa.nama });
             return sendSuccessResponse(res, null, 'Data siswa berhasil diperbarui');
 
         } catch (error) {
@@ -462,7 +462,7 @@ export const updateSiswa = async (req, res) => {
         }
 
     } catch (error) {
-        log.dbError('update', error, { id, nis, nama });
+        log.dbError('update', error, { nis: paramNis, nama });
         
         if (error.code === 'ER_DUP_ENTRY') {
             return sendDuplicateError(res, 'NIS, Username, atau Nomor Telepon sudah digunakan');
@@ -476,20 +476,20 @@ export const updateSiswa = async (req, res) => {
 // Delete Siswa
 export const deleteSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { id } = req.params;
+    const { nis: paramNis } = req.params;
 
-    log.requestStart('Delete', { id });
+    log.requestStart('Delete', { nis: paramNis });
 
     const connection = await globalThis.dbPool.getConnection();
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
-            'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = ?',
-            [id]
+            'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
+            [paramNis]
         );
 
         if (existingSiswa.length === 0) {
-            log.warn('Delete failed - not found', { id });
+            log.warn('Delete failed - not found', { nis: paramNis });
             return sendNotFoundError(res, 'Siswa tidak ditemukan');
         }
 
@@ -500,7 +500,7 @@ export const deleteSiswa = async (req, res) => {
 
         try {
             // Delete siswa record
-            await connection.execute('DELETE FROM siswa WHERE id = ?', [id]);
+            await connection.execute('DELETE FROM siswa WHERE id = ?', [siswa.id]);
 
             // Delete user record if exists
             if (siswa.user_id) {
@@ -508,7 +508,7 @@ export const deleteSiswa = async (req, res) => {
             }
 
             await connection.commit();
-            log.success('Delete', { id, nama: siswa.nama });
+            log.success('Delete', { nis: paramNis, nama: siswa.nama });
             return sendSuccessResponse(res, null, 'Siswa berhasil dihapus');
 
         } catch (error) {
@@ -517,7 +517,7 @@ export const deleteSiswa = async (req, res) => {
         }
 
     } catch (error) {
-        log.dbError('delete', error, { id });
+        log.dbError('delete', error, { nis: paramNis });
 
         if (error.code === 'ER_ROW_IS_REFERENCED_2') {
             return sendValidationError(res, 'Tidak dapat menghapus siswa karena memiliki data terkait (absensi/jurnal)', { reason: 'has_references' });

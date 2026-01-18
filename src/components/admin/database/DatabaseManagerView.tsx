@@ -28,10 +28,7 @@ export const DatabaseManagerView: React.FC = () => {
     const loadFiles = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const data = await apiCall<{ files: DatabaseFile[] }>('/api/admin/database-files', {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-            });
+            const data = await apiCall<{ files: DatabaseFile[] }>('/api/admin/database-files');
             setFiles(data.files || []);
         } catch (error) {
             console.error('Error loading database files:', error);
@@ -59,13 +56,8 @@ export const DatabaseManagerView: React.FC = () => {
 
         try {
             setExecuting(true);
-            const token = localStorage.getItem('token');
             const data = await apiCall<{ queries: number, message: string }>('/api/admin/database-files/execute', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : '' 
-                },
                 body: JSON.stringify({ filename: file.name, pathType: file.path })
             });
 
