@@ -214,12 +214,51 @@ function buildSystemMetrics({ memoryUsage, uptime, cpuUsageData, cpus, loadAvg, 
 }
 
 /**
+ * Helper to calculate health status from metrics
+ */
+function calculateHealthFromMetrics(memoryPercent, heapPercent, cpuUsage, diskMetrics) {
+    const issues = [];
+    let status = 'healthy';
+    
+    const checkThreshold = (value, highThreshold, warnThreshold, label) => {
+        if (value > highThreshold) {
+            if (status !== 'critical') status = 'critical';
+            issues.push(`${label} usage critical: ${value.toFixed(1)}%`);
+        } else if (value > warnThreshold) {
+            if (status === 'healthy') status = 'warning';
+            issues.push(`${label} usage high: ${value.toFixed(1)}%`);
+        }
+    };
+    
+    checkThreshold(memoryPercent, 90, 75, 'System memory');
+    checkThreshold(heapPercent, 90, 75, 'Heap memory');
+    checkThreshold(cpuUsage, 90, 75, 'CPU');
+    
+    if (diskMetrics) {
+        checkThreshold(diskMetrics.percentage, 90, 80, 'Disk');
+    }
+    
+    return { status, issues, timestamp: new Date().toISOString() };
+}
+
+
+/**
  * Helper to build dashboard response object
  */
 function buildDashboardResponse(systemData, appData, dbData, otherData) {
-    const { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus } = systemData;
+    const { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus, diskMetrics, heapInfo } = systemData;
     const { systemMonitorMetrics, dbConnectionStats } = dbData;
     const { loadBalancerStats, alerts, healthStatus } = otherData;
+
+    // Calculate percentages
+    const memoryPercent = (usedMemory / totalMemory) * 100;
+    const heapPercent = heapInfo ? (heapInfo.used / heapInfo.total) * 100 : 0;
+    
+    // Use existing healthStatus or calculate from metrics
+    const calculatedHealth = (healthStatus && healthStatus.status !== 'unknown') 
+        ? healthStatus 
+        : calculateHealthFromMetrics(memoryPercent, heapPercent, cpuUsage, diskMetrics);
+
 
     return {
         metrics: {
@@ -227,13 +266,18 @@ function buildDashboardResponse(systemData, appData, dbData, otherData) {
                 memory: {
                     used: usedMemory,
                     total: totalMemory,
-                    percentage: (usedMemory / totalMemory) * 100
+                    percentage: memoryPercent
                 },
+                heap: heapInfo ? {
+                    used: heapInfo.used,
+                    total: heapInfo.total,
+                    percentage: heapPercent
+                } : null,
                 cpu: {
                     usage: cpuUsage,
                     loadAverage: loadAverage
                 },
-                disk: {
+                disk: diskMetrics || {
                     used: 0,
                     total: 40 * 1024 * 1024 * 1024,
                     percentage: 0
@@ -242,18 +286,18 @@ function buildDashboardResponse(systemData, appData, dbData, otherData) {
             },
             application: {
                 requests: {
-                    total: systemMonitorMetrics?.application?.requests?.total || 0,
-                    active: systemMonitorMetrics?.application?.requests?.active || 0,
-                    completed: systemMonitorMetrics?.application?.requests?.completed || 0,
-                    failed: systemMonitorMetrics?.application?.requests?.failed || 0
+                    total: systemMonitorMetrics?.application?.requests?.total || loadBalancerStats?.totalRequests || 0,
+                    active: systemMonitorMetrics?.application?.requests?.active || loadBalancerStats?.activeRequests || 0,
+                    completed: systemMonitorMetrics?.application?.requests?.completed || loadBalancerStats?.completedRequests || 0,
+                    failed: systemMonitorMetrics?.application?.requests?.failed || loadBalancerStats?.failedRequests || 0
                 },
                 responseTime: {
-                    average: systemMonitorMetrics?.application?.responseTime?.average || 0,
+                    average: systemMonitorMetrics?.application?.responseTime?.average || loadBalancerStats?.averageResponseTime || 0,
                     min: systemMonitorMetrics?.application?.responseTime?.min || 0,
                     max: systemMonitorMetrics?.application?.responseTime?.max || 0
                 },
                 errors: {
-                    count: systemMonitorMetrics?.application?.requests?.failed || 0,
+                    count: systemMonitorMetrics?.application?.requests?.failed || loadBalancerStats?.failedRequests || 0,
                     lastError: systemMonitorMetrics?.application?.errors?.lastError || null
                 }
             },
@@ -277,18 +321,22 @@ function buildDashboardResponse(systemData, appData, dbData, otherData) {
                 used: usedMemory,
                 total: totalMemory,
                 free: freeMemory,
-                percentage: (usedMemory / totalMemory) * 100
+                percentage: memoryPercent
             },
+            heap: heapInfo,
             cpu: {
                 usage: cpuUsage,
                 cores: cpus.length,
                 model: cpus[0]?.model || 'Unknown',
                 loadAvg: loadAverage
             },
+            disk: diskMetrics,
             platform: os.platform(),
-            hostname: os.hostname()
+            hostname: os.hostname(),
+            nodeVersion: process.version,
+            pid: process.pid
         },
-        health: healthStatus,
+        health: calculatedHealth,
         loadBalancer: loadBalancerStats,
         alerts: alerts.slice(0, 10),
         alertStats: {
@@ -304,6 +352,7 @@ function buildDashboardResponse(systemData, appData, dbData, otherData) {
         }
     };
 }
+
 
 
 /**
@@ -704,11 +753,21 @@ export const getMonitoringDashboard = async (req, res) => {
     log.requestStart('GetMonitoringDashboard', {});
 
     try {
-        // os is imported at top level
+        // System memory (os level)
         const totalMemory = os.totalmem();
         const freeMemory = os.freemem();
         const usedMemory = totalMemory - freeMemory;
         
+        // Node.js heap memory
+        const memUsage = process.memoryUsage();
+        const heapInfo = {
+            used: memUsage.heapUsed,
+            total: memUsage.heapTotal,
+            external: memUsage.external,
+            rss: memUsage.rss
+        };
+        
+        // CPU usage
         const cpuUsageData = process.cpuUsage();
         const cpus = os.cpus();
         const loadAverage = os.loadavg();
@@ -717,9 +776,36 @@ export const getMonitoringDashboard = async (req, res) => {
         globalThis.lastCpuUsage = cpuUsageData;
         globalThis.lastCpuTime = Date.now();
         
-        // Fallback to load average for CPU usage
+        // Fallback to load average for CPU usage (relevant for Unix systems)
         if (cpuUsage === 0 && loadAverage[0] > 0) {
-            cpuUsage = Math.min(Math.max(loadAverage[0] * 100, 0), 100);
+            // Scale by number of cores for percentage
+            cpuUsage = Math.min(Math.max((loadAverage[0] / cpus.length) * 100, 0), 100);
+        }
+
+        // Disk metrics - try to get actual usage
+        let diskMetrics = { used: 0, total: 0, percentage: 0 };
+        try {
+            // For Windows, use a rough estimate based on current drive
+            const platform = os.platform();
+            if (platform === 'win32') {
+                // Approximate disk usage - server's process memory as reference
+                diskMetrics = {
+                    used: 0,
+                    total: 100 * 1024 * 1024 * 1024, // Assume 100GB default
+                    percentage: 0,
+                    note: 'Disk metrics not available on Windows in Node.js'
+                };
+            } else {
+                // Unix-like systems - get from systemMonitor if available
+                if (globalThis.systemMonitor) {
+                    const monitorMetrics = globalThis.systemMonitor.getMetrics();
+                    if (monitorMetrics?.system?.disk) {
+                        diskMetrics = monitorMetrics.system.disk;
+                    }
+                }
+            }
+        } catch {
+            // Fallback to defaults
         }
 
         // Get load balancer stats
@@ -734,6 +820,16 @@ export const getMonitoringDashboard = async (req, res) => {
                 idle: pool._freeConnections?.length || 0,
                 total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
             };
+        } else if (globalThis.dbPool) {
+            // Alternative: use main dbPool
+            const pool = globalThis.dbPool.pool;
+            if (pool) {
+                dbConnectionStats = {
+                    active: pool._allConnections?.length || 0,
+                    idle: pool._freeConnections?.length || 0,
+                    total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
+                };
+            }
         }
 
         // Get system monitor data
@@ -743,19 +839,25 @@ export const getMonitoringDashboard = async (req, res) => {
 
         // Structure response to match frontend expectations
         const responseData = buildDashboardResponse(
-            { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus },
+            { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus, diskMetrics, heapInfo },
             {}, // appData is handled inside helper via systemMonitorMetrics
             { systemMonitorMetrics, dbConnectionStats },
             { loadBalancerStats, alerts, healthStatus }
         );
 
-        log.success('GetMonitoringDashboard', { alertCount: alerts.length, uptime: process.uptime() });
+        log.success('GetMonitoringDashboard', { 
+            alertCount: alerts.length, 
+            uptime: process.uptime(),
+            memoryPercent: ((usedMemory / totalMemory) * 100).toFixed(1),
+            heapPercent: ((heapInfo.used / heapInfo.total) * 100).toFixed(1)
+        });
         return sendSuccessResponse(res, responseData);
     } catch (error) {
         log.error('GetMonitoringDashboard failed', { error: error.message });
         return sendDatabaseError(res, error, 'Gagal memuat dashboard monitoring');
     }
 };
+
 
 /**
  * Get system logs

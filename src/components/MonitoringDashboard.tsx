@@ -31,8 +31,9 @@ import {
 interface SystemMetrics {
     system: {
         memory: { used: number; total: number; percentage: number };
+        heap?: { used: number; total: number; percentage: number } | null;
         cpu: { usage: number; loadAverage: number[] };
-        disk: { used: number; total: number; percentage: number };
+        disk: { used: number; total: number; percentage: number; note?: string };
         uptime: number;
     };
     application: {
@@ -46,6 +47,7 @@ interface SystemMetrics {
         responseTime: { average: number; min: number; max: number };
     };
 }
+
 
 interface SystemHealth {
     status: 'healthy' | 'warning' | 'critical';
@@ -268,7 +270,7 @@ const MonitoringDashboard: React.FC = () => {
 
     // Safe destructuring with properly typed fallback values
     const defaultMetrics: SystemMetrics = {
-        system: { memory: { used: 0, total: 0, percentage: 0 }, cpu: { usage: 0, loadAverage: [] }, disk: { used: 0, total: 0, percentage: 0 }, uptime: 0 },
+        system: { memory: { used: 0, total: 0, percentage: 0 }, heap: null, cpu: { usage: 0, loadAverage: [] }, disk: { used: 0, total: 0, percentage: 0 }, uptime: 0 },
         application: { requests: { total: 0, active: 0, completed: 0, failed: 0 }, responseTime: { average: 0, min: 0, max: 0 }, errors: { count: 0, lastError: null } },
         database: { connections: { active: 0, idle: 0, total: 0 }, queries: { total: 0, slow: 0, failed: 0 }, responseTime: { average: 0, min: 0, max: 0 } }
     };
@@ -277,16 +279,20 @@ const MonitoringDashboard: React.FC = () => {
     const alerts = data?.alerts || [];
     const alertStats: AlertStatistics = data?.alertStats || { active: 0, total: 0, resolved: 0, last24h: 0, bySeverity: { warning: 0, critical: 0, emergency: 0 }, byType: {} };
     const loadBalancer = data?.loadBalancer || { totalRequests: 0, activeRequests: 0, completedRequests: 0, failedRequests: 0 };
-    const system = data?.system || { uptime: 0 };
+    const system = data?.system || { uptime: 0, nodeVersion: '', pid: 0 };
 
     // Safe access to nested properties with fallbacks
     const memoryUsed = metrics?.system?.memory?.used || 0;
     const memoryTotal = metrics?.system?.memory?.total || 0;
     const memoryPercentage = metrics?.system?.memory?.percentage || 0;
+    const heapUsed = metrics?.system?.heap?.used || 0;
+    const heapTotal = metrics?.system?.heap?.total || 0;
+    const heapPercentage = metrics?.system?.heap?.percentage || 0;
     const cpuUsage = metrics?.system?.cpu?.usage || 0;
     const diskUsed = metrics?.system?.disk?.used || 0;
     const diskTotal = metrics?.system?.disk?.total || 0;
     const diskPercentage = metrics?.system?.disk?.percentage || 0;
+
 
     return (
         <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
@@ -362,18 +368,23 @@ const MonitoringDashboard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
+                        <CardTitle className="text-sm font-medium">System Memory</CardTitle>
                         <Server className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatBytes(memoryUsed)}</div>
                         <Progress 
                             value={Math.min(Math.max(memoryPercentage, 0), 100)} 
-                            className="mt-2"
+                            className={`mt-2 ${memoryPercentage > 80 ? '[&>div]:bg-red-500' : memoryPercentage > 60 ? '[&>div]:bg-yellow-500' : ''}`}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                             {memoryPercentage.toFixed(1)}% of {formatBytes(memoryTotal)}
                         </p>
+                        {heapUsed > 0 && (
+                            <div className="mt-2 pt-2 border-t border-dashed">
+                                <p className="text-xs text-muted-foreground">Heap: {formatBytes(heapUsed)} / {formatBytes(heapTotal)} ({heapPercentage.toFixed(1)}%)</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -386,8 +397,11 @@ const MonitoringDashboard: React.FC = () => {
                         <div className="text-2xl font-bold">{cpuUsage.toFixed(1)}%</div>
                         <Progress 
                             value={Math.min(Math.max(cpuUsage, 0), 100)} 
-                            className="mt-2"
+                            className={`mt-2 ${cpuUsage > 80 ? '[&>div]:bg-red-500' : cpuUsage > 60 ? '[&>div]:bg-yellow-500' : ''}`}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Load Average: {(metrics?.system?.cpu?.loadAverage || [0, 0, 0]).map((l: number) => l?.toFixed(2) || '0').join(' | ')}
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -399,21 +413,50 @@ const MonitoringDashboard: React.FC = () => {
                     <CardContent>
                         <div className="text-2xl font-bold">{(metrics?.application?.requests?.total || 0).toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground">
-                            {metrics?.application?.requests?.completed || 0} completed, {metrics?.application?.requests?.failed || 0} failed
+                            <span className="text-green-600">{metrics?.application?.requests?.completed || 0}</span> completed, 
+                            <span className="text-red-600 ml-1">{metrics?.application?.requests?.failed || 0}</span> failed
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Active: {metrics?.application?.requests?.active || 0}
                         </p>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+                        <CardTitle className="text-sm font-medium">Avg Response</CardTitle>
                         <Zap className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{(metrics?.application?.responseTime?.average || 0).toFixed(2)}ms</div>
+                        <div className={`text-2xl font-bold ${(metrics?.application?.responseTime?.average || 0) > 1000 ? 'text-red-600' : (metrics?.application?.responseTime?.average || 0) > 500 ? 'text-yellow-600' : 'text-green-600'}`}>
+                            {(metrics?.application?.responseTime?.average || 0).toFixed(0)}ms
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Min: {(metrics?.application?.responseTime?.min || 0).toFixed(0)}ms | Max: {(metrics?.application?.responseTime?.max || 0).toFixed(0)}ms
+                        </p>
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Additional System Info Bar */}
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                <span>Node.js: <span className="font-medium text-foreground">{(system as any)?.nodeVersion || 'N/A'}</span></span>
+                <span className="hidden sm:inline">•</span>
+                <span>PID: <span className="font-medium text-foreground">{(system as any)?.pid || 'N/A'}</span></span>
+                <span className="hidden sm:inline">•</span>
+                <span>Platform: <span className="font-medium text-foreground">{(system as any)?.platform || 'N/A'}</span></span>
+                <span className="hidden sm:inline">•</span>
+                <span>Host: <span className="font-medium text-foreground">{(system as any)?.hostname || 'N/A'}</span></span>
+                {diskPercentage > 0 && (
+                    <>
+                        <span className="hidden sm:inline">•</span>
+                        <span>Disk: <span className={`font-medium ${diskPercentage > 80 ? 'text-red-600' : diskPercentage > 60 ? 'text-yellow-600' : 'text-foreground'}`}>
+                            {diskPercentage.toFixed(1)}% used ({formatBytes(diskUsed)} / {formatBytes(diskTotal)})
+                        </span></span>
+                    </>
+                )}
+            </div>
+
 
             {/* Main Content Tabs */}
             <Tabs defaultValue="overview" className="space-y-4">
