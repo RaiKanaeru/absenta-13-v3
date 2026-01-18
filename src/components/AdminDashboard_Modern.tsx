@@ -8,7 +8,14 @@ import { TimeInput } from "@/components/ui/time-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle,  
+  DialogFooter
+} from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
@@ -47,14 +54,36 @@ const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(
 const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView').then(module => ({ default: module.DatabaseManagerView })));
 
 
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { 
-  UserPlus, BookOpen, Calendar, BarChart3, LogOut, ArrowLeft, ArrowRight, Users, GraduationCap, 
-  Eye, EyeOff, Download, FileText, Edit, Trash2, Plus, Search, Filter, Settings, Menu, X,
-  TrendingUp, Home, Clock, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, Activity,
-  Database, Monitor, Shield, RefreshCw, ArrowUpCircle, User, FileText as FileTextIcon,
-  Maximize2, Minimize2, AlertTriangle, ChevronLeft, LayoutGrid, Gavel
+  Users,
+  GraduationCap,
+  Calendar,
+  School,
+  Settings,
+  Menu,
+  X,
+  ChevronRight,
+  LogOut,
+  Bell,
+  Search,
+  Filter,
+  Plus,
+  Trash2,
+  Edit,
+  Save,
+  Download,
+  Upload,
+  Database,
+  FileText,
+  Clock,
+  Shield,
+  Activity,
+  Layers,
+  BookOpen,
+  UserPlus,
+  TrendingUp, Home, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, AlertTriangle, ChevronLeft, LayoutGrid, Gavel, Maximize2, Minimize2
 } from "lucide-react";
 
 /**
@@ -66,7 +95,7 @@ const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
     {guruList.split('||').map((guru) => {
       const [guruId, guruName] = guru.split(':');
       return (
-        <div key={`guru-${guruId}`} className="text-xs text-green-700 truncate">• {guruName}</div>
+        <div key={`guru-${guruId}`} className="text-xs text-green-700 truncate">- {guruName}</div>
       );
     })}
   </div>
@@ -136,25 +165,25 @@ const createSessionExpiredHandler = (
     description: "Sesi Anda telah berakhir. Silakan login ulang.",
     variant: "destructive"
   });
-  setTimeout(() => onLogout(), 2000);
+  onLogout();
 };
 
 /**
- * Activity type emoji labels for schedule display (S3776 - extracted to reduce CC)
+ * Activity type labels for schedule display (S3776 - extracted to reduce CC)
  */
 const ACTIVITY_EMOJI_MAP: Record<string, string> = {
-  upacara: '🏳️ Upacara',
-  istirahat: '☕ Istirahat',
-  kegiatan_khusus: '🎯 Kegiatan Khusus',
-  libur: '🏖️ Libur',
-  ujian: '📝 Ujian',
-  pelajaran: '📚 Pelajaran',
-  lainnya: '📋 Lainnya'
+  upacara: 'Upacara',
+  istirahat: 'Istirahat',
+  kegiatan_khusus: 'Kegiatan Khusus',
+  libur: 'Libur',
+  ujian: 'Ujian',
+  pelajaran: 'Pelajaran',
+  lainnya: 'Lainnya'
 };
 
-/** Get activity label with emoji */
+/** Get activity label */
 const getActivityEmojiLabel = (jenisAktivitas: string): string => {
-  return ACTIVITY_EMOJI_MAP[jenisAktivitas] || `📋 ${jenisAktivitas}`;
+  return ACTIVITY_EMOJI_MAP[jenisAktivitas] || jenisAktivitas;
 };
 
 /**
@@ -178,7 +207,6 @@ const generatePageNumbers = (
   }
   
   if (currentPage <= 3) {
-    for (let i = 1; i <= 4; i++) pages.push(i);
     for (let i = 1; i <= 4; i++) pages.push(i);
     pages.push('...', totalPages);
     return pages;
@@ -246,15 +274,17 @@ const getPeriodColor = (period: string | undefined): string => {
  * Activity type display mapping for schedules
  */
 const ACTIVITY_DISPLAY_MAP: Record<string, string> = {
-  'upacara': '🏳️ Upacara',
-  'istirahat': '☕ Istirahat',
-  'kegiatan_khusus': '🎯 Kegiatan Khusus',
-  'libur': '🏖️ Libur',
-  'ujian': '📝 Ujian',
+  upacara: 'Upacara',
+  istirahat: 'Istirahat',
+  kegiatan_khusus: 'Kegiatan Khusus',
+  libur: 'Libur',
+  ujian: 'Ujian',
+  pelajaran: 'Pelajaran',
+  lainnya: 'Lainnya'
 };
 
 const getActivityDisplay = (activity: string): string => {
-  return ACTIVITY_DISPLAY_MAP[activity] || '📋 ' + activity;
+  return ACTIVITY_DISPLAY_MAP[activity] || activity;
 };
 
 // Types
@@ -280,7 +310,7 @@ const menuItems = [
   { id: 'backup-management', title: 'Backup & Archive', icon: Database, description: 'Kelola backup dan arsip data', gradient: 'from-cyan-500 to-cyan-700' },
   { id: 'monitoring', title: 'System Monitoring', icon: Monitor, description: 'Real-time monitoring & alerting', gradient: 'from-violet-500 to-violet-700' },
   { id: 'disaster-recovery', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
-  { id: 'letterhead-settings', title: 'Kop Laporan', icon: FileTextIcon, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
+  { id: 'letterhead-settings', title: 'Kop Laporan', icon: FileText, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
 
 
   { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
@@ -307,8 +337,8 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
       const data = await apiCall('/api/admin/mapel', { onLogout });
       setSubjects(data);
     } catch (error) {
-      console.error('Error fetching subjects:', error);
-      toast({ title: "Error memuat mata pelajaran", description: error.message, variant: "destructive" });
+      console.error('Error fetching subjects:', error instanceof Error ? error.message : String(error));
+      toast({ title: "Error memuat mata pelajaran", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -355,8 +385,8 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
       setEditingId(null);
       fetchSubjects();
     } catch (error) {
-      console.error('Error submitting subject:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      console.error('Error submitting subject:', error instanceof Error ? error.message : String(error));
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -665,7 +695,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                                   className="bg-red-600 hover:bg-red-700"
                                 >
                                   Hapus
-                                </AlertDialogAction>
+                                  </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
@@ -690,7 +720,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                       
                       {subject.deskripsi && (
                         <div>
-                          <span className="text-gray-500 text-xs">Deskripsi:</span>
+                          <span className="text-gray-500">Deskripsi:</span>
                           <p className="text-xs mt-1">{subject.deskripsi}</p>
                         </div>
                       )}
@@ -721,8 +751,8 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
       const data = await apiCall('/api/admin/kelas', { onLogout });
       setClasses(data);
     } catch (error) {
-      console.error('Error fetching classes:', error);
-      toast({ title: "Error memuat kelas", description: error.message, variant: "destructive" });
+      console.error('Error fetching classes:', error instanceof Error ? error.message : String(error));
+      toast({ title: "Error memuat kelas", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -1145,7 +1175,7 @@ const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
                         {kelas.nama_mapel || kelas.mapel}
                       </h4>
                       <p className="text-sm text-gray-600">
-                        👨‍🏫 {kelas.nama_guru || kelas.guru}
+                        Guru: {kelas.nama_guru || kelas.guru}
                       </p>
                       {kelas.absensi_diambil !== undefined && (
                         <div className="flex items-center gap-2">
@@ -1156,7 +1186,7 @@ const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
                             </Badge>
                           ) : (
                             <Badge className="bg-yellow-100 text-yellow-700">
-                              <AlertCircle className="w-3 h-3 mr-1" />
+                              <AlertTriangle className="w-3 h-3 mr-1" />
                               Menunggu Absensi
                             </Badge>
                           )}
@@ -1257,25 +1287,25 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         // Load all data in parallel for better performance
         const [schedulesData, teachersData, subjectsData, classesData, roomsData] = await Promise.all([
           apiCall('/api/admin/jadwal', { onLogout }).catch(err => {
-            console.error('❌ Error fetching schedules:', err);
+            console.error('Error fetching schedules:', getErrorMessage(err));
             return [];
           }),
           apiCall('/api/admin/guru', { onLogout }).then(response => {
             return response;
           }).catch(err => {
-            console.error('❌ Error fetching teachers:', err);
+            console.error('Error fetching teachers:', getErrorMessage(err));
             return [];
           }),
           apiCall('/api/admin/mapel', { onLogout }).catch(err => {
-            console.error('❌ Error fetching subjects:', err);
+            console.error('Error fetching subjects:', getErrorMessage(err));
             return [];
           }),
           apiCall('/api/admin/classes', { onLogout }).catch(err => {
-            console.error('❌ Error fetching classes:', err);
+            console.error('Error fetching classes:', getErrorMessage(err));
             return [];
           }),
           apiCall('/api/admin/ruang', { onLogout }).catch(err => {
-            console.error('❌ Error fetching rooms:', err);
+            console.error('Error fetching rooms:', getErrorMessage(err));
             return [];
           })
         ]);
@@ -1288,7 +1318,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         setRooms(Array.isArray(roomsData) ? roomsData : []);
         
       } catch (error) {
-        console.error('❌ Error loading data:', error);
+        console.error('Error loading data:', getErrorMessage(error));
         toast({
           title: "Error",
           description: "Gagal memuat data. Silakan refresh halaman.",
@@ -1309,13 +1339,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
       const data = await JadwalService.getJadwal('admin');
       setSchedules(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('❌ Error refreshing schedules:', error);
+      console.error('Error refreshing schedules:', getErrorMessage(error));
       // Fallback ke apiCall jika JadwalService gagal
       try {
         const data = await apiCall('/api/admin/jadwal', { onLogout });
         setSchedules(Array.isArray(data) ? data : []);
       } catch (fallbackError) {
-        console.error('❌ Fallback error:', fallbackError);
+        console.error('Fallback error:', getErrorMessage(fallbackError));
       }
     }
   };
@@ -1691,8 +1721,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
               {formData.jenis_aktivitas === 'pelajaran' && (
                 <div>
                   <Label className="text-sm font-medium">Mata Pelajaran</Label>
-                  <Select 
-                    value={formData.mapel_id} 
+                  <Select                        value={formData.mapel_id} 
                     onValueChange={(value) => setFormData({...formData, mapel_id: value})}
                   >
                     <SelectTrigger className="mt-1">
@@ -2059,19 +2088,19 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <TableCell>
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
                           <Badge variant="default" className="text-xs">
-                            📚 Pelajaran
+                            Pelajaran
                           </Badge>
                         ) : (() => {
                           const activityMap: Record<string, string> = {
-                            upacara: '🏳️ Upacara',
-                            istirahat: '☕ Istirahat',
-                            kegiatan_khusus: '🎯 Kegiatan Khusus',
-                            libur: '🏖️ Libur',
-                            ujian: '📝 Ujian'
+                            upacara: 'Upacara',
+                            istirahat: 'Istirahat',
+                            kegiatan_khusus: 'Kegiatan Khusus',
+                            libur: 'Libur',
+                            ujian: 'Ujian'
                           };
                           return (
                             <Badge variant="secondary" className="text-xs">
-                              {activityMap[schedule.jenis_aktivitas] || '📋 ' + schedule.jenis_aktivitas}
+                              {activityMap[schedule.jenis_aktivitas] || schedule.jenis_aktivitas}
                             </Badge>
                           );
                         })()}
@@ -2137,11 +2166,11 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <TableCell>
                         {schedule.is_absenable ? (
                           <Badge variant="default" className="text-xs">
-                            ✅ Absen
+                            Absen
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
-                            ❌ Tidak Absen
+                            Tidak Absen
                           </Badge>
                         )}
                       </TableCell>
@@ -2171,7 +2200,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{schedule.nama_kelas}</h3>
-                        <p className="text-xs text-gray-500">{schedule.hari} • {schedule.jam_mulai} - {schedule.jam_selesai}</p>
+                        <p className="text-xs text-gray-500">{schedule.hari} - {schedule.jam_mulai} - {schedule.jam_selesai}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(schedule)} className="h-7 w-7 p-0">
@@ -2247,8 +2276,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             </div>
             </>
           )}
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -2791,9 +2820,9 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         setAttendanceData(data);
 
       } catch (error: unknown) {
-        console.error('❌ Error fetching live student attendance:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        setError('Gagal memuat data absensi siswa: ' + message);
+        const message = getErrorMessage(error);
+        console.error('Error fetching live student attendance:', message);
+        setError(`Gagal memuat data absensi siswa: ${message}`);
       } finally {
         setLoading(false);
       }
@@ -3076,9 +3105,9 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       link.download = `pemantauan_siswa_live_${getCurrentDateWIB()}.csv`;
       link.click();
     } catch (error: unknown) {
-      console.error('❌ Error exporting live student attendance:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      alert('Gagal mengekspor data: ' + message);
+      const message = getErrorMessage(error);
+      console.error('Error exporting live student attendance:', message);
+      alert(`Gagal mengekspor data: ${message}`);
     }
   };
 
@@ -3571,7 +3600,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
         {error && (
           <Card className="p-4 border-red-200 bg-red-50">
             <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="w-5 h-5" />
+              <AlertTriangle className="w-5 h-5" />
               <p className="font-medium">{error}</p>
             </div>
           </Card>
@@ -3797,9 +3826,10 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
             onLogout: createSessionExpiredHandler(onLogout, toast)
           });
           setAttendanceData(data);
-        } catch (error) {
-          console.error('❌ Error fetching live teacher attendance:', error);
-          setError('Gagal memuat data absensi guru: ' + error.message);
+        } catch (error: unknown) {
+          const message = getErrorMessage(error);
+          console.error('Error fetching live teacher attendance:', message);
+          setError(`Gagal memuat data absensi guru: ${message}`);
         } finally {
           setLoading(false);
         }
@@ -4061,11 +4091,12 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           title: "Berhasil",
           description: "Data guru berhasil diekspor ke CSV"
         });
-      } catch (error) {
-        console.error('❌ Error exporting live teacher attendance:', error);
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        console.error('Error exporting live teacher attendance:', message);
         toast({
           title: "Error",
-          description: "Gagal mengekspor data: " + error.message,
+          description: `Gagal mengekspor data: ${message}`,
           variant: "destructive"
         });
       }
@@ -4332,9 +4363,10 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
             onLogout: createSessionExpiredHandler(onLogout, toast)
           });
           setAnalyticsData(data);
-        } catch (error) {
-          console.error('❌ Error fetching analytics data:', error);
-          setError('Gagal memuat data analitik: ' + error.message);
+        } catch (error: unknown) {
+          const message = getErrorMessage(error);
+          console.error('Error fetching analytics data:', message);
+          setError(`Gagal memuat data analitik: ${message}`);
         } finally {
           setLoading(false);
         }
@@ -5553,4 +5585,11 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     </div>
   );
 };
+
+
+
+
+
+
+
 

@@ -397,7 +397,7 @@ const Index = () => {
         
       case 'guru':
         if (!userData.guru_id) {
-          console.error('❌ Guru user missing guru_id');
+          console.error('Guru user missing guru_id');
           handleLogout();
           return null;
         }
@@ -412,7 +412,7 @@ const Index = () => {
         
       case 'siswa':
         if (!userData.siswa_id) {
-          console.error('❌ Siswa user missing siswa_id');
+          console.error('Siswa user missing siswa_id');
           handleLogout();
           return null;
         }
@@ -426,7 +426,7 @@ const Index = () => {
         );
         
       default:
-        console.error('❌ Unknown user role:', userData.role);
+        console.error('Unknown user role:', userData.role);
         setError('Role pengguna tidak dikenali');
         handleLogout();
         return null;

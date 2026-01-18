@@ -49,29 +49,19 @@ export class ApiError extends Error {
         this.isValidationError = code >= 2001 && code <= 2004;
     }
 
-    /**
-     * Get user-friendly message in Bahasa Indonesia
-     */
-    getUserMessage(): string {
-        return this.message;
-    }
+    getUserMessage(): string { return this.message; }
 
-    /**
-     * Get detailed error string for display
-     */
     getDetailedMessage(): string {
         if (this.details) {
-            if (Array.isArray(this.details)) {
-                return `${this.message}: ${this.details.join(', ')}`;
-            }
-            return `${this.message}: ${this.details}`;
+            const detailStr = Array.isArray(this.details) ? this.details.join(', ') : this.details;
+            return `${this.message}: ${detailStr}`;
         }
         return this.message;
     }
 }
 
 // ================================================
-// ERROR MESSAGE MAPPING
+// CONSTANTS & HELPERS
 // ================================================
 
 const HTTP_STATUS_MESSAGES: Record<number, string> = {
@@ -88,68 +78,59 @@ const HTTP_STATUS_MESSAGES: Record<number, string> = {
     504: 'Request timeout. Silakan coba lagi',
 };
 
-// ================================================
-// API CALL OPTIONS
-// ================================================
-
 interface ApiCallOptions extends RequestInit {
     onLogout?: () => void;
     retries?: number;
     retryDelay?: number;
     showErrorToast?: boolean;
+    responseType?: 'json' | 'blob' | 'text';
 }
 
-// ================================================
-// HELPER FUNCTIONS FOR API CALL
-// ================================================
-
 /**
- * Parse response based on content type
+ * Parse response based on requested type or content type
  */
-async function parseResponseData(response: Response): Promise<unknown> {
+async function parseResponseData(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<unknown> {
+    if (responseType === 'blob') return response.blob();
+    if (responseType === 'text') return response.text();
+    
     const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-        return response.json();
-    }
+    if (contentType?.includes('application/json')) return response.json();
     return response.text();
 }
 
 /**
  * Create ApiError from response data
  */
-function createApiErrorFromResponse(
-    response: Response, 
-    responseData: unknown
-): ApiError {
-    const errorInfo = typeof responseData === 'object' && responseData !== null 
-        ? responseData as Record<string, unknown>
+function createApiErrorFromResponse(response: Response, responseData: unknown): ApiError {
+    const errorInfo = (typeof responseData === 'object' && responseData !== null)
+        ? responseData as Record<string, any>
         : { error: responseData };
     
-    const errorObj = errorInfo.error as Record<string, unknown> | undefined;
-    const errorMessage = errorObj?.message as string
-        || errorInfo.message as string
-        || errorInfo.error as string
-        || HTTP_STATUS_MESSAGES[response.status]
-        || `Error: ${response.status}`;
+    const errorObj = errorInfo.error as Record<string, any> | undefined;
+    const errorMessage = errorObj?.message || errorInfo.message || errorInfo.error || HTTP_STATUS_MESSAGES[response.status] || `Error: ${response.status}`;
     
     return new ApiError(
         errorMessage,
-        (errorObj?.code as number) || response.status,
+        errorObj?.code || response.status,
         response.status,
-        (errorObj?.details || errorInfo.details) as string | string[] | undefined,
-        errorInfo.requestId as string | undefined
+        errorObj?.details || errorInfo.details,
+        errorInfo.requestId
     );
 }
 
 /**
- * Create network error after all retries exhausted
+ * Prepare request headers
  */
-function createNetworkError(): ApiError {
-    return new ApiError(
-        'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
-        5001,
-        0
-    );
+function prepareHeaders(options: ApiCallOptions): Headers {
+    const headers = new Headers(options.headers || {});
+    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+        headers.set('Content-Type', 'application/json');
+    }
+    if (!headers.has('Authorization')) {
+        const token = getCleanToken();
+        if (token) headers.set('Authorization', `Bearer ${token}`);
+    }
+    return headers;
 }
 
 // ================================================
@@ -158,112 +139,59 @@ function createNetworkError(): ApiError {
 
 /**
  * Centralized API call utility with enhanced error handling
- * 
- * Features:
- * - Automatic retry for network errors
- * - Structured error responses
- * - Request ID tracking
- * - User-friendly error messages
  */
-export const apiCall = async <T = unknown>(
-    endpoint: string, 
-    options: ApiCallOptions = {}
-): Promise<T> => {
-    const { 
-        onLogout, 
-        retries = 2, 
-        retryDelay = 1000,
-        ...fetchOptions 
-    } = options;
+export const apiCall = async <T = unknown>(endpoint: string, options: ApiCallOptions = {}): Promise<T> => {
+    const { onLogout, retries = 2, retryDelay = 1000, ...fetchOptions } = options;
+    let lastError: unknown;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
             const response = await fetch(getApiUrl(endpoint), {
                 credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getCleanToken()}`,
-                    ...options.headers,
-                },
+                headers: prepareHeaders(options),
                 ...fetchOptions,
             });
 
-            const responseData = await parseResponseData(response);
-
             if (response.ok) {
-                return responseData as T;
+                return await parseResponseData(response, options.responseType) as T;
             }
 
+            // Handle Error Response
+            const responseData = await parseResponseData(response);
             const apiError = createApiErrorFromResponse(response, responseData);
 
-            // Handle 401 - Unauthorized
             if (response.status === 401 && onLogout) {
-                console.warn('🔐 Session expired, triggering logout...');
+                console.warn('Session expired, triggering logout...');
                 setTimeout(() => onLogout(), 1500);
             }
 
-            console.error('❌ API Error:', {
-                endpoint,
-                status: response.status,
-                code: apiError.code,
-                message: apiError.message,
-                requestId: apiError.requestId
-            });
-
+            console.error('API Error:', { endpoint, status: response.status, message: apiError.message });
             throw apiError;
 
         } catch (error) {
-            // Don't retry for API errors
-            if (error instanceof ApiError) {
-                throw error;
-            }
-
-            // Network error - retry if attempts remaining
+            lastError = error;
+            if (error instanceof ApiError) throw error;
+            
             if (attempt < retries) {
-                console.warn(`⚠️ Network error, retrying (${attempt + 1}/${retries})...`);
+                console.warn(`Retry ${attempt + 1}/${retries} for ${endpoint} after ${retryDelay}ms`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
-
-            throw createNetworkError();
         }
     }
 
-    throw createNetworkError();
+    throw lastError instanceof ApiError ? lastError : new ApiError('Tidak dapat terhubung ke server.', 5001, 0);
 };
 
-// ================================================
-// HELPER FUNCTIONS
-// ================================================
+export function isApiError(error: unknown): error is ApiError { return error instanceof ApiError; }
 
-/**
- * Check if error is an API error
- */
-export function isApiError(error: unknown): error is ApiError {
-    return error instanceof ApiError;
-}
-
-/**
- * Get user-friendly error message from any error
- */
 export function getErrorMessage(error: unknown): string {
-    if (isApiError(error)) {
-        return error.getUserMessage();
-    }
-    if (error instanceof Error) {
-        return error.message;
-    }
-    return 'Terjadi kesalahan yang tidak diketahui';
+    if (isApiError(error)) return error.getUserMessage();
+    return error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui';
 }
 
-/**
- * Get error code from any error
- */
 export function getErrorCode(error: unknown): number | null {
-    if (isApiError(error)) {
-        return error.code;
-    }
-    return null;
+    return isApiError(error) ? error.code : null;
 }
 
 export default apiCall;

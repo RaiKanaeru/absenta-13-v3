@@ -141,7 +141,7 @@ function determineAttendanceStatus() {
  * Generate subject data (mapel)
  */
 async function generateMapel(connection) {
-    console.log('📚 Generating Subjects (mapel)...');
+    console.log('Generating Subjects (mapel)...');
     const mapelIds = [];
     const allSubjects = [...MAPEL_UMUM, ...Object.values(MAPEL_KEJURUAN).flat()];
 
@@ -170,7 +170,7 @@ async function generateMapel(connection) {
  * Generate class data (kelas)
  */
 async function generateClasses(connection) {
-    console.log('🏫 Generating Classes (kelas)...');
+    console.log('Generating Classes (kelas)...');
     const classIds = [];
 
     for (const tingkat of TINGKAT) {
@@ -252,7 +252,7 @@ async function createTeacher(connection, passwordHash, mapelIds) {
  * Generate teacher data (guru)
  */
 async function generateTeachers(connection, mapelIds, count = 15) {
-    console.log('👨‍🏫 Generating Teachers (guru)...');
+    console.log('Generating Teachers (guru)...');
     const teacherIds = [];
     const passwordHash = await bcrypt.hash(GLOBAL_PASSWORD, saltRounds);
 
@@ -334,7 +334,7 @@ async function generateStudentsForClass(connection, cls, passwordHash, target = 
  * Generate all students (siswa)
  */
 async function generateStudents(connection, classIds, passwordHash) {
-    console.log('🎓 Generating Students (siswa)...');
+    console.log('Generating Students (siswa)...');
     
     for (const cls of classIds) {
         await generateStudentsForClass(connection, cls, passwordHash);
@@ -380,7 +380,7 @@ async function generateScheduleForDay(connection, cls, day, mapelIds, teacherIds
  * Generate schedules for all classes (jadwal)
  */
 async function generateSchedules(connection, classIds, mapelIds, teacherIds) {
-    console.log('📅 Generating Schedules (jadwal)...');
+    console.log('Generating Schedules (jadwal)...');
 
     for (const cls of classIds) {
         const [schedCount] = await connection.execute(
@@ -453,7 +453,7 @@ async function generateAttendanceForClassDate(connection, cls, date) {
  * Generate attendance history (absensi_siswa)
  */
 async function generateAttendance(connection, classIds) {
-    console.log('📝 Generating Attendance History (absensi_siswa)...');
+    console.log('Generating Attendance History (absensi_siswa)...');
     
     const dates = getWeekdaysLast30Days();
     const targetClasses = classIds.slice(0, 5); // Limit to 5 classes for speed
@@ -472,13 +472,13 @@ async function generateAttendance(connection, classIds) {
 // MAIN ORCHESTRATOR
 // ============================================
 
-console.log('🚀 Starting Dummy Data Generation...');
-console.log(`📡 Connecting to DB: ${config.user}@${config.host}:${config.port}/${config.database}`);
+console.log('Starting Dummy Data Generation...');
+console.log(`Connecting to DB: ${config.user}@${config.host}:${config.port}/${config.database}`);
 
 let connection;
 try {
     connection = await mysql.createConnection(config);
-    console.log('✅ Connected to database');
+    console.log('Connected to database');
 
     // Step 1: Generate Mapel
     const mapelIds = await generateMapel(connection);
@@ -498,10 +498,10 @@ try {
     // Step 6: Generate Attendance
     await generateAttendance(connection, classIds);
 
-    console.log('✅ DONE! Dummy data generation finished.');
+    console.log('DONE! Dummy data generation finished.');
 
 } catch (err) {
-    console.error('❌ Error:', err);
+    console.error('Error:', err);
 } finally {
     if (connection) await connection.end();
 }

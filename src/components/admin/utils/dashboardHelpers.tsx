@@ -10,7 +10,7 @@ export const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
     {guruList.split('||').map((guru) => {
       const [guruId, guruName] = guru.split(':');
       return (
-        <div key={`guru-${guruId}`} className="text-xs text-green-700 truncate">• {guruName}</div>
+        <div key={`guru-${guruId}`} className="text-xs text-green-700 truncate">- {guruName}</div>
       );
     })}
   </div>
@@ -78,23 +78,23 @@ export const createSessionExpiredHandler = (
 };
 
 /**
- * Activity type emoji labels for schedule display (S3776 - extracted to reduce CC)
+ * Activity type labels for schedule display (S3776 - extracted to reduce CC)
  */
 export const ACTIVITY_EMOJI_MAP: Record<string, string> = {
-  upacara: '🏳️ Upacara',
-  istirahat: '☕ Istirahat',
-  kegiatan_khusus: '🎯 Kegiatan Khusus',
-  libur: '🏖️ Libur',
-  ujian: '📝 Ujian',
-  pelajaran: '📚 Pelajaran',
-  lainnya: '📋 Lainnya'
+  upacara: "Upacara",
+  istirahat: "Istirahat",
+  kegiatan_khusus: "Kegiatan Khusus",
+  libur: "Libur",
+  ujian: "Ujian",
+  pelajaran: "Pelajaran",
+  lainnya: "Lainnya"
 };
 
 /**
- * Get activity label with emoji
+ * Get activity label
  */
 export const getActivityEmojiLabel = (jenisAktivitas: string): string => {
-  return ACTIVITY_EMOJI_MAP[jenisAktivitas] || '📋 ' + jenisAktivitas;
+  return ACTIVITY_EMOJI_MAP[jenisAktivitas] || jenisAktivitas;
 };
 
 /**
@@ -185,16 +185,16 @@ export const getPeriodColor = (period: string | undefined): string => {
  * Activity type display mapping for schedules
  */
 export const ACTIVITY_DISPLAY_MAP: Record<string, string> = {
-  'upacara': '🏳️ Upacara',
-  'istirahat': '☕ Istirahat',
-  'kegiatan_khusus': '🎯 Kegiatan Khusus',
-  'libur': '🏖️ Libur',
-  'ujian': '📝 Ujian',
+  upacara: "Upacara",
+  istirahat: "Istirahat",
+  kegiatan_khusus: "Kegiatan Khusus",
+  libur: "Libur",
+  ujian: "Ujian",
 };
 
 
 export const getActivityDisplay = (activity: string): string => {
-  return ACTIVITY_DISPLAY_MAP[activity] || '📋 ' + activity;
+  return ACTIVITY_DISPLAY_MAP[activity] || activity;
 };
 
 /**
@@ -211,3 +211,5 @@ export const getSubmitButtonLabel = (
   if (editingId) return updateText;
   return addText;
 };
+
+

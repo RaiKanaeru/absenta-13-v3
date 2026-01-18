@@ -2,14 +2,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log('🚀 ABSENTA Modern Server Starting...');
-console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`🌐 API Base URL: ${process.env.API_BASE_URL || 'http://localhost:3001'}`);
+console.log('ABSENTA Modern Server Starting...');
+console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`API Base URL: ${process.env.API_BASE_URL || 'http://localhost:3001'}`);
 
 import express from 'express';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
 import DatabaseOptimization from './server/services/system/database-optimization.js';
@@ -65,13 +64,16 @@ const uploadDir = process.env.UPLOAD_DIR || 'public/uploads';
 // Validate critical environment variables in production
 if (process.env.NODE_ENV === 'production') {
     if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'absenta-super-secret-key-2025') {
-        console.error('❌ CRITICAL: JWT_SECRET must be set in production!');
+        console.error('CRITICAL: JWT_SECRET must be set in production!');
         process.exit(1);
     }
     if (!process.env.DB_PASSWORD) {
-        console.warn('⚠️  WARNING: DB_PASSWORD is empty in production!');
+        console.warn('WARNING: DB_PASSWORD is empty in production!');
     }
 }
+
+// Ensure upload directory exists
+mkdir(`${uploadDir}/letterheads`, { recursive: true }).catch(console.error);
 
 // Multer configuration for logo upload
 const uploadLogo = multer({
@@ -96,9 +98,6 @@ const uploadLogo = multer({
     }
 });
 
-// Ensure upload directory exists
-mkdir(`${uploadDir}/letterheads`, { recursive: true }).catch(console.error);
-
 const app = express();
 app.set('trust proxy', 2);
 
@@ -113,7 +112,7 @@ const rawAllowedOrigins = process.env.ALLOWED_ORIGINS
     : [
         // Production domains
         'https://absenta13.my.id',
-        'https://www.absenta13.my.id', // Added www
+        'https://www.absenta13.my.id',
         'https://api.absenta13.my.id',
         // Development domains
         'http://localhost:8080',
@@ -127,31 +126,22 @@ const rawAllowedOrigins = process.env.ALLOWED_ORIGINS
 
 const allowedOrigins = rawAllowedOrigins.map(o => o.trim().replace(/\/$/, '')); // Normalize: remove trailing slash
 
-console.log('🔐 CORS Allowed Origins:', allowedOrigins);
+console.log('CORS Allowed Origins:', allowedOrigins);
 
 // CORS configuration with proper preflight handling
 const corsOptions = {
     credentials: true,
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, Postman)
-        if (!origin) {
-            return callback(null, true);
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Check if the origin is allowed
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
         }
-        
-        // Normalize checking origin
-        const cleanOrigin = origin.replace(/\/$/, '');
-        
-        if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
-            return callback(null, true);
-        }
-        
-        // Log blocked origin for debugging
-        console.log(`⚠️ CORS blocked origin: ${origin} (Clean: ${cleanOrigin})`);
-        return callback(new Error('Not allowed by CORS'), false);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-    optionsSuccessStatus: 200 // For legacy browser support
+    }
 };
 
 // Middleware setup
@@ -183,13 +173,13 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
     } else {
-        console.log(`⚠️ CORS Rejection in Middleware: ${origin} (Clean: ${cleanOrigin})`);
+        console.log(`CORS Rejection in Middleware: ${origin} (Clean: ${cleanOrigin})`);
     }
     
     // Handle preflight OPTIONS request immediately
     if (req.method === 'OPTIONS') {
         if (isAllowed) {
-            console.log(`✅ CORS preflight handled for origin: ${origin}`);
+            console.log(`CORS preflight handled for origin: ${origin}`);
             return res.status(200).end();
         } else {
              // If not allowed, we still return 200 but WITHOUT headers, which fails the browser check securely
@@ -239,8 +229,8 @@ app.use((req, res, next) => {
     next();
 });
 
-// Standard CORS middleware (backup)
-app.use(cors(corsOptions));
+// Standard CORS middleware (backup) - COMMENTED OUT TO AVOID DUPLICATE HEADERS with manual middleware above
+// app.use(cors(corsOptions));
 
 // Handle preflight requests implies by above middleware or explicit options if needed
 // app.options('*', cors(corsOptions)); // Removing this to prevent path-to-regexp error
@@ -305,34 +295,34 @@ let performanceOptimizer = null;
 
 
 async function initializeDatabase() {
-    console.log('🔄 Initializing optimized database connection...');
+    console.log('Initializing optimized database connection...');
     try {
         // Initialize database optimization system
         await dbOptimization.initialize();
         globalThis.dbOptimization = dbOptimization;
         globalThis.dbPool = dbOptimization.pool;
-        console.log('✅ Database optimization system initialized successfully');
+        console.log('Database optimization system initialized successfully');
 
         // Initialize query optimizer
         queryOptimizer = new QueryOptimizer(dbOptimization.pool);
         await queryOptimizer.initialize();
-        console.log('✅ Query optimizer initialized successfully');
+        console.log('Query optimizer initialized successfully');
 
         // Initialize backup system with shared database pool
         backupSystem = new BackupSystem();
         await backupSystem.initialize(dbOptimization.pool);
         globalThis.backupSystem = backupSystem;
-        console.log('✅ Backup system initialized successfully');
+        console.log('Backup system initialized successfully');
 
         // Initialize download queue system
         downloadQueue = new DownloadQueue();
         await downloadQueue.initialize();
-        console.log('✅ Download queue system initialized successfully');
+        console.log('Download queue system initialized successfully');
 
         // Initialize cache system
         cacheSystem = new CacheSystem();
         await cacheSystem.initialize();
-        console.log('✅ Cache system initialized successfully');
+        console.log('Cache system initialized successfully');
 
 
         // Initialize system monitor
@@ -350,7 +340,7 @@ async function initializeDatabase() {
         });
         systemMonitor.start();
         globalThis.systemMonitor = systemMonitor;
-        console.log('✅ System monitor initialized and started');
+        console.log('System monitor initialized and started');
 
 
         // Initialize security system
@@ -422,7 +412,7 @@ async function initializeDatabase() {
             }
         });
         await performanceOptimizer.initialize();
-        console.log('✅ Performance optimizer initialized successfully');
+        console.log('Performance optimizer initialized successfully');
 
         // Get connection pool for use in endpoints
         globalThis.dbPool = dbOptimization.pool;  // Use the actual pool, not the class instance
@@ -454,7 +444,7 @@ async function initializeDatabase() {
                     throw err;
                  }
             };
-            console.log('✅ Database pool wrapped for monitoring');
+            console.log('Database pool wrapped for monitoring');
         }
         globalThis.dbOptimization = dbOptimization;  // Keep reference to full class for methods like getPoolStats()
         globalThis.queryOptimizer = queryOptimizer;
@@ -470,11 +460,11 @@ async function initializeDatabase() {
         // Set database pool reference for monitoring
         systemMonitor.setDatabasePool(dbOptimization);
         
-        console.log('✅ All systems initialized and ready');
+        console.log('All systems initialized and ready');
 
     } catch (error) {
-        console.error('❌ Failed to initialize database optimization:', error.message);
-        console.log('🔄 Retrying initialization in 5 seconds...');
+        console.error('Failed to initialize database optimization:', error.message);
+        console.log('Retrying initialization in 5 seconds...');
         
         // Correctly chain the promise for retry so server doesn't start prematurely
         return new Promise((resolve, reject) => {
@@ -680,22 +670,22 @@ initializeDatabase().then(() => {
 
     // Graceful Shutdown
     const shutdown = async (signal) => {
-        console.log(`\n🛑 ${signal} received. Closing resources...`);
+        console.log(`\n${signal} received. Closing resources...`);
         try {
             if (globalThis.dbOptimization) {
                 await globalThis.dbOptimization.close();
-                console.log('✅ Database connection pool closed.');
+                console.log('Database connection pool closed.');
             }
             if (globalThis.systemMonitor) {
                 // Save any pending metrics if needed
-                console.log('✅ System monitor stopped.');
+                console.log('System monitor stopped.');
             }
             server.close(() => {
-                console.log('✅ HTTP server closed.');
+                console.log('HTTP server closed.');
                 process.exit(0);
             });
         } catch (err) {
-            console.error('❌ Error during shutdown:', err);
+            console.error('Error during shutdown:', err);
             process.exit(1);
         }
     };
@@ -703,7 +693,22 @@ initializeDatabase().then(() => {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
 
+    // Global Error Handlers for Uncaught Exceptions/Rejections
+    process.on('unhandledRejection', (err) => {
+        console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+        console.error(err.name, err.message);
+        console.error(err.stack);
+        shutdown('UNHANDLED_REJECTION');
+    });
+
+    process.on('uncaughtException', (err) => {
+        console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+        console.error(err.name, err.message);
+        console.error(err.stack);
+        shutdown('UNCAUGHT_EXCEPTION');
+    });
+
 }).catch(error => {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
 });

@@ -12,19 +12,19 @@ export function initAutoAttendanceScheduler() {
     // Run every day at 23:30 (11:30 PM)
     // 30 23 * * *
     schedule.schedule('30 23 * * *', async () => {
-        logger.info('⏰ Starting automatic attendance check...');
+        logger.info('Starting automatic attendance check...');
         try {
             await processMissingAttendance();
-            logger.info('✅ Automatic attendance check completed');
+            logger.info('Automatic attendance check completed');
         } catch (error) {
-            logger.error('❌ Automatic attendance check failed', error);
+            logger.error('Automatic attendance check failed', error);
         }
     }, {
         scheduled: true,
         timezone: "Asia/Jakarta"
     });
 
-    logger.info('✅ Auto Attendance Scheduler initialized (Daily at 23:30 WIB)');
+    logger.info('Auto Attendance Scheduler initialized (Daily at 23:30 WIB)');
 }
 
 /**

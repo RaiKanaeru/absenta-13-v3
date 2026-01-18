@@ -11,7 +11,7 @@ export const getAuthToken = (): string | null => {
   try {
     return localStorage.getItem('token') || sessionStorage.getItem('token');
   } catch (error) {
-    console.error('❌ Error accessing storage:', error);
+    console.error('Error accessing storage:', error);
     return null;
   }
 };
@@ -58,11 +58,11 @@ export const setAuthToken = (token: string): void => {
   try {
     localStorage.setItem('token', token);
   } catch (error) {
-    console.error('❌ localStorage failed, trying sessionStorage:', error);
+    console.error('localStorage failed, trying sessionStorage:', error);
     try {
       sessionStorage.setItem('token', token);
     } catch (sessionError) {
-      console.error('❌ Both localStorage and sessionStorage failed:', sessionError);
+      console.error('Both localStorage and sessionStorage failed:', sessionError);
     }
   }
 };
@@ -77,7 +77,7 @@ export const clearAuthToken = (): void => {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('authToken');
   } catch (error) {
-    console.error('❌ Error clearing tokens:', error);
+    console.error('Error clearing tokens:', error);
   }
 };
 

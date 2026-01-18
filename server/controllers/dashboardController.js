@@ -220,19 +220,17 @@ export const getLiveSummary = async (req, res) => {
                 k.nama_kelas,
                 m.nama_mapel,
                 g.nama as nama_guru,
-                COALESCE(
-                    (SELECT COUNT(*) FROM absensi_guru ag 
-                     WHERE ag.jadwal_id = j.id_jadwal 
-                     AND ag.tanggal = ?), 0
-                ) as absensi_diambil
+                COUNT(ag.id) as absensi_diambil
             FROM jadwal j
             JOIN kelas k ON j.kelas_id = k.id_kelas
             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
             LEFT JOIN guru g ON j.guru_id = g.id_guru
+            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id AND ag.tanggal = ?
             WHERE j.hari = ?
             AND j.status = 'aktif'
             AND j.jam_mulai <= ?
             AND j.jam_selesai > ?
+            GROUP BY j.id_jadwal, j.jam_ke, j.jam_mulai, j.jam_selesai, k.id_kelas, k.nama_kelas, m.nama_mapel, g.nama
             ORDER BY k.nama_kelas, j.jam_ke
         `, [todayWIB, currentDayWIB, currentTimeWIB, currentTimeWIB]);
 

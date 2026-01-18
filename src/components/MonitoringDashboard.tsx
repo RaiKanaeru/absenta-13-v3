@@ -88,7 +88,14 @@ interface MonitoringData {
     loadBalancer: Record<string, unknown> | null;
     queryOptimizer: Record<string, unknown> | null;
     redis: Record<string, unknown> | null;
-    system: Record<string, unknown>;
+    system: {
+        uptime: number;
+        nodeVersion: string;
+        pid: number;
+        platform: string;
+        hostname: string;
+        [key: string]: unknown;
+    };
 }
 
 const MonitoringDashboard: React.FC = () => {
@@ -170,7 +177,7 @@ const MonitoringDashboard: React.FC = () => {
                 await fetchMonitoringData();
             } else {
                 const errorData = await response.json();
-                console.error('❌ Failed to send test alert:', errorData);
+                console.error('Failed to send test alert:', errorData);
                 
                 toast({
                     title: "Error",
@@ -179,7 +186,7 @@ const MonitoringDashboard: React.FC = () => {
                 });
             }
         } catch (err) {
-            console.error('❌ Error sending test alert:', err);
+            console.error('Error sending test alert:', err);
             toast({
                 title: "Error",
                 description: "Network error while sending test alert",
@@ -292,6 +299,8 @@ const MonitoringDashboard: React.FC = () => {
     const diskUsed = metrics?.system?.disk?.used || 0;
     const diskTotal = metrics?.system?.disk?.total || 0;
     const diskPercentage = metrics?.system?.disk?.percentage || 0;
+
+    const highUsageDisks = diskPercentage > 80 ? [{ fs: metrics?.system?.disk?.note || 'System Disk', usage: diskPercentage }] : [];
 
 
     return (
@@ -440,16 +449,16 @@ const MonitoringDashboard: React.FC = () => {
 
             {/* Additional System Info Bar */}
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
-                <span>Node.js: <span className="font-medium text-foreground">{(system as any)?.nodeVersion || 'N/A'}</span></span>
+                <span>Node.js: <span className="font-medium text-foreground">{system.nodeVersion || 'N/A'}</span></span>
                 <span className="hidden sm:inline">•</span>
-                <span>PID: <span className="font-medium text-foreground">{(system as any)?.pid || 'N/A'}</span></span>
+                <span>PID: <span className="font-medium text-foreground">{system.pid || 'N/A'}</span></span>
                 <span className="hidden sm:inline">•</span>
-                <span>Platform: <span className="font-medium text-foreground">{(system as any)?.platform || 'N/A'}</span></span>
+                <span>Platform: <span className="font-medium text-foreground">{system.platform || 'N/A'}</span></span>
                 <span className="hidden sm:inline">•</span>
-                <span>Host: <span className="font-medium text-foreground">{(system as any)?.hostname || 'N/A'}</span></span>
+                <span>Host: <span className="font-medium text-foreground">{system.hostname || 'N/A'}</span></span>
                 {diskPercentage > 0 && (
                     <>
-                        <span className="hidden sm:inline">•</span>
+                        High usage detected on <span>{highUsageDisks.map(d => d.fs).join(', ')}</span>
                         <span>Disk: <span className={`font-medium ${diskPercentage > 80 ? 'text-red-600' : diskPercentage > 60 ? 'text-yellow-600' : 'text-foreground'}`}>
                             {diskPercentage.toFixed(1)}% used ({formatBytes(diskUsed)} / {formatBytes(diskTotal)})
                         </span></span>

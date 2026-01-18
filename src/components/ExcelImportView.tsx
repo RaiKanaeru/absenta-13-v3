@@ -250,14 +250,14 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         title: "Template Jadwal Pelajaran",
         description: `Format: Kelas (wajib), Mata Pelajaran (wajib untuk pelajaran), Guru (wajib untuk pelajaran), Guru Tambahan (opsional), Kode Ruang (opsional), Hari (wajib), Jam Ke (wajib), Jam Mulai (wajib), Jam Selesai (wajib), Jenis Aktivitas (opsional), Keterangan Khusus (opsional).
 
-📝 CATATAN PENTING:
-• Untuk Jenis Aktivitas "pelajaran": Mata Pelajaran dan Guru WAJIB diisi
-• Untuk Jenis Aktivitas selain "pelajaran" (upacara, istirahat, dll): 
+CATATAN PENTING:
+- Untuk Jenis Aktivitas "pelajaran": Mata Pelajaran dan Guru WAJIB diisi
+- Untuk Jenis Aktivitas selain "pelajaran" (upacara, istirahat, dll):
   - Mata Pelajaran boleh KOSONG
-  - Guru boleh KOSONG  
+  - Guru boleh KOSONG
   - Keterangan Khusus WAJIB diisi
-• Multi-guru: Gunakan kolom 'Guru Tambahan' dengan format: 'Nama Guru 1,Nama Guru 2'
-• Format waktu: HH:MM:SS (contoh: 07:00:00)`,
+- Multi-guru: Gunakan kolom 'Guru Tambahan' dengan format: 'Nama Guru 1,Nama Guru 2'
+- Format waktu: HH:MM:SS (contoh: 07:00:00)`,
         example: "X IPA 1, Matematika, Budi Santoso, Siti Aminah|Ahmad Rizki, LAB-01, Senin, 1, 07:00:00, 07:45:00, pelajaran, Team Teaching"
       },
       ruang: {
@@ -705,4 +705,5 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
 };
 
 export default ExcelImportView;
+
 

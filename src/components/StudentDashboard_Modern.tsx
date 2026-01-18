@@ -13,8 +13,8 @@ import { EditProfile } from './EditProfile';
 import { GuruAttendanceCard } from './student';
 import { EmptyScheduleCard, StudentStatusBadge, BandingList, BandingAbsen, Pagination } from './student/StudentDashboardComponents';
 
-import { getApiUrl } from '@/config/api';
-import { getCleanToken } from '@/utils/authUtils';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { hasAuthToken } from '@/utils/authUtils';
 import { GuruInSchedule } from '@/types/dashboard';
 import {
   LogOut, Clock, User, BookOpen, CheckCircle2, XCircle, Calendar, Save,
@@ -79,20 +79,34 @@ const parseJadwalKey = (key: string | number): { jadwalId: number | null; guruId
 };
 
 /**
- * HTTP error message lookup to reduce cognitive complexity
+ * Normalize error messages for consistent UX
  */
-const HTTP_ERROR_MESSAGES: Record<number, string> = {
-  401: 'Sesi login Anda telah berakhir. Silakan login kembali.',
-  403: 'Akses ditolak. Anda tidak memiliki izin untuk mengakses halaman ini.',
-  404: 'Data siswa perwakilan tidak ditemukan. Silakan hubungi administrator.'
+const resolveErrorMessage = (error: unknown, fallback: string): string => {
+  const message = getErrorMessage(error);
+  return message === 'Terjadi kesalahan yang tidak diketahui' ? fallback : message;
 };
 
 /**
- * Get appropriate error message based on HTTP status code
+ * Check API success flag for non-standard responses
  */
-const getHttpErrorMessage = (status: number, defaultMessage: string): string => {
-  if (status >= 500) return 'Server sedang mengalami gangguan. Silakan coba lagi nanti.';
-  return HTTP_ERROR_MESSAGES[status] || defaultMessage;
+const isFailureResponse = (payload: unknown): payload is { success: false; error?: unknown; message?: unknown } => {
+  return Boolean(payload && typeof payload === 'object' && 'success' in payload && (payload as { success?: boolean }).success === false);
+};
+
+/**
+ * Extract error text from API payloads
+ */
+const getResponseErrorText = (payload: unknown, fallback: string): string => {
+  if (!payload || typeof payload !== 'object') {
+    return fallback;
+  }
+  const data = payload as { error?: unknown; message?: unknown };
+  if (typeof data.error === 'string') return data.error;
+  if (data.error && typeof data.error === 'object' && 'message' in data.error) {
+    return String((data.error as { message?: unknown }).message || fallback);
+  }
+  if (typeof data.message === 'string') return data.message;
+  return fallback;
 };
 
 /**
@@ -366,6 +380,22 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleSessionExpired = useCallback(() => {
+    toast({
+      title: "Sesi Berakhir",
+      description: "Sesi login Anda telah berakhir. Silakan login kembali.",
+      variant: "destructive"
+    });
+    onLogout();
+  }, [onLogout]);
+
+  const apiRequest = useCallback(
+    async <T,>(endpoint: string, options: Parameters<typeof apiCall>[1] = {}) => {
+      return apiCall<T>(endpoint, { onLogout: handleSessionExpired, ...options });
+    },
+    [handleSessionExpired]
+  );
   
   // Lock body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -393,18 +423,6 @@ export const StudentDashboard = ({ userData, onLogout }: StudentDashboardProps) 
     const sevenDaysAgo = new Date(wibNow.getTime() - 7 * 24 * 60 * 60 * 1000);
     return formatDateWIB(sevenDaysAgo);
   });
-  
-  const [showFormBanding, setShowFormBanding] = useState(false);
-  
-  // State untuk pagination
-  const [bandingAbsenPage, setBandingAbsenPage] = useState(1);
-  const [riwayatPage, setRiwayatPage] = useState(1);
-  const [itemsPerPage] = useState(5);
-  const [riwayatItemsPerPage] = useState(7);
-  
-  // State untuk expandable rows
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  
 type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
 
   // State untuk form banding absen kelas
@@ -433,7 +451,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
   // State untuk menyimpan siswa yang dipilih (berbasis id)
   const [selectedSiswaId, setSelectedSiswaId] = useState<number | null>(null);
   
-  // State untuk menyimpan data status kehadiran siswa (getter unused, only setter used)
+  // State untuk menyimpan data status kehadiran siswa (only setter used)
   const [, setSiswaStatusData] = useState<{[key: string]: string}>({});
   
   const [loadingJadwal, setLoadingJadwal] = useState(false);
@@ -496,94 +514,70 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       try {
         setInitialLoading(true);
         setError(null);
-        
-        // Get clean token using centralized utility
-        const cleanToken = getCleanToken();
-        
-        if (!cleanToken) {
-          console.error('❌ Token tidak ditemukan');
+
+        if (!hasAuthToken()) {
           setError('Token tidak ditemukan. Silakan login kembali.');
-          setInitialLoading(false);
           return;
         }
-        
-      
-        
-        const response = await fetch(getApiUrl('/api/siswa-perwakilan/info'), {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${cleanToken}`
-          },
-          credentials: 'include'
+
+        const data = await apiRequest<Record<string, unknown>>('/api/siswa-perwakilan/info', {
+          method: 'GET'
         });
-        
-      
-      
-        
-        if (response.ok) {
-          const data = await response.json();
-        
-          
-          if (data.success) {
-            setSiswaId(data.id_siswa);
-            setKelasInfo(data.nama_kelas);
-            // Update currentUserData with latest data from server
-            setCurrentUserData(prevData => ({
-              ...prevData,
-              id: data.id,
-              username: data.username,
-              nama: data.nama,
-              role: data.role,
-              email: data.email,
-              alamat: data.alamat,
-              telepon_orangtua: data.telepon_orangtua,
-              nomor_telepon_siswa: data.nomor_telepon_siswa,
-              jenis_kelamin: data.jenis_kelamin,
-              nis: data.nis,
-              kelas: data.nama_kelas
-            }));
-          
-          } else {
-            setError(data.error || 'Data siswa tidak valid');
-          }
-        } else {
-          let errorMessage = 'Gagal memuat informasi siswa';
-          
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } catch (parseError) {
-            console.debug('Error parsing error response:', parseError);
-          }
-          
-          // Use helper for status-specific messages
-          errorMessage = getHttpErrorMessage(response.status, errorMessage);
-          
-          // Handle 401 redirect separately
-          if (response.status === 401) {
-            setTimeout(() => onLogout(), 2000);
-          }
-          
-          setError(errorMessage);
-          console.error('StudentDashboard: API error:', response.status, errorMessage);
+
+        if (isFailureResponse(data)) {
+          setError(getResponseErrorText(data, 'Data siswa tidak valid'));
+          return;
         }
 
-      } catch (error) {
-        console.error('StudentDashboard: Network error getting siswa info:', error);
-        
-        let errorMessage = 'Koneksi bermasalah. ';
-        
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          errorMessage += 'Tidak dapat terhubung ke server. Pastikan server backend sedang berjalan.';
-        } else {
-          errorMessage += 'Silakan periksa koneksi internet Anda dan coba lagi.';
+        if (!data || typeof data !== 'object') {
+          setError('Data siswa tidak valid');
+          return;
         }
-        
-        setError(errorMessage);
+
+        const payload = data as {
+          id?: number;
+          username?: string;
+          nama?: string;
+          role?: string;
+          email?: string;
+          alamat?: string;
+          telepon_orangtua?: string;
+          nomor_telepon_siswa?: string;
+          jenis_kelamin?: string;
+          nis?: string;
+          kelas?: string;
+          id_siswa?: number | null;
+          nama_kelas?: string | null;
+        };
+
+        if (!payload.id_siswa) {
+          setError('Data siswa belum terhubung dengan akun ini. Silakan hubungi admin.');
+          return;
+        }
+
+        setSiswaId(payload.id_siswa);
+        setKelasInfo(payload.nama_kelas || '');
+        // Update currentUserData with latest data from server
+        setCurrentUserData(prevData => ({
+          ...prevData,
+          id: payload.id ?? prevData.id,
+          username: payload.username ?? prevData.username,
+          nama: payload.nama ?? prevData.nama,
+          role: payload.role ?? prevData.role,
+          email: payload.email,
+          alamat: payload.alamat,
+          telepon_orangtua: payload.telepon_orangtua,
+          nomor_telepon_siswa: payload.nomor_telepon_siswa,
+          jenis_kelamin: payload.jenis_kelamin,
+          nis: payload.nis,
+          kelas: payload.nama_kelas || prevData.kelas
+        }));
+      } catch (error) {
+        const message = resolveErrorMessage(error, 'Gagal memuat informasi siswa.');
+        console.error('StudentDashboard: Gagal memuat info siswa:', message);
+        setError(message);
       } finally {
         setInitialLoading(false);
-      
       }
     };
 
@@ -596,111 +590,97 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
 
     setLoading(true);
     try {
-      // Get clean token using centralized utility
-      const cleanToken = getCleanToken();
-      
-      if (!cleanToken) {
-        console.error('❌ Token tidak ditemukan');
-        setLoading(false);
+      const data = await apiRequest<JadwalHariIni[]>(`/api/siswa/${siswaId}/jadwal-hari-ini`);
+
+      if (!Array.isArray(data)) {
+        toast({
+          title: "Error memuat jadwal",
+          description: "Format data jadwal tidak valid.",
+          variant: "destructive"
+        });
+        setJadwalHariIni([]);
         return;
       }
 
-      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-hari-ini`), {
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
+      // Proses guru_list dari string ke array
+      const processedData = data.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
+        ...jadwal,
+        guru_list: jadwal.is_multi_guru && jadwal.guru_list
+          ? parseGuruList(jadwal.guru_list)
+          : []
+      }));
 
-      if (response.ok) {
-        const data = await response.json();
-      
-        
-        // Proses guru_list dari string ke array
-        const processedData = data.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
-          ...jadwal,
-          guru_list: jadwal.is_multi_guru && jadwal.guru_list 
-            ? parseGuruList(jadwal.guru_list) 
-            : []
-        }));
-        
-        setJadwalHariIni(processedData);
-        
-        // Initialize kehadiran data only for absenable schedules
-        const initialKehadiran: KehadiranData = {};
-        processedData.forEach((jadwal: JadwalHariIni) => {
-          // Only initialize kehadiran data for schedules that can be attended
-          if (jadwal.is_absenable) {
-            if (jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) {
-              // Handle multi-guru schedules
-              jadwal.guru_list.forEach((guru) => {
-                const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
-                if (guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil') {
-                  initialKehadiran[guruKey] = {
-                    status: guru.status_kehadiran,
-                    keterangan: guru.keterangan_guru || '',
-                    guru_id: guru.id_guru
-                  };
-                } else {
-                  // Default to 'Hadir' for new entries
-                  initialKehadiran[guruKey] = {
-                    status: 'Hadir',
-                    keterangan: '',
-                    guru_id: guru.id_guru
-                  };
-                }
-              });
-            } else {
-              // Handle single-guru schedules
-              const guruId = jadwal.guru_id || jadwal.id_guru;
-              if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
-                initialKehadiran[jadwal.id_jadwal] = {
-                  status: jadwal.status_kehadiran,
-                  keterangan: jadwal.keterangan || '',
-                  guru_id: guruId
+      setJadwalHariIni(processedData);
+
+      // Initialize kehadiran data only for absenable schedules
+      const initialKehadiran: KehadiranData = {};
+      processedData.forEach((jadwal: JadwalHariIni) => {
+        // Only initialize kehadiran data for schedules that can be attended
+        if (jadwal.is_absenable) {
+          if (jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) {
+            // Handle multi-guru schedules
+            jadwal.guru_list.forEach((guru) => {
+              const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+              if (guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil') {
+                initialKehadiran[guruKey] = {
+                  status: guru.status_kehadiran,
+                  keterangan: guru.keterangan_guru || '',
+                  guru_id: guru.id_guru
                 };
               } else {
-                // Default to 'Hadir' for new entries, but allow user to change
-                initialKehadiran[jadwal.id_jadwal] = {
+                // Default to 'Hadir' for new entries
+                initialKehadiran[guruKey] = {
                   status: 'Hadir',
                   keterangan: '',
-                  guru_id: guruId
+                  guru_id: guru.id_guru
                 };
               }
+            });
+          } else {
+            // Handle single-guru schedules
+            const guruId = jadwal.guru_id || jadwal.id_guru;
+            if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
+              initialKehadiran[jadwal.id_jadwal] = {
+                status: jadwal.status_kehadiran,
+                keterangan: jadwal.keterangan || '',
+                guru_id: guruId
+              };
+            } else {
+              // Default to 'Hadir' for new entries, but allow user to change
+              initialKehadiran[jadwal.id_jadwal] = {
+                status: 'Hadir',
+                keterangan: '',
+                guru_id: guruId
+              };
             }
           }
-        });
-        setKehadiranData(initialKehadiran);
-        
-        // Initialize ada_tugas data from loaded jadwal
-        const initialAdaTugas: {[key: number]: boolean} = {};
-        processedData.forEach((jadwal: JadwalHariIni) => {
-          if (jadwal.is_absenable) {
-            // For single guru, use jadwal.ada_tugas
-            // For multi-guru, we'd need per-guru ada_tugas (future enhancement)
-            initialAdaTugas[jadwal.id_jadwal] = Boolean((jadwal as JadwalHariIni & {ada_tugas?: number}).ada_tugas);
-          }
-        });
-        setAdaTugasData(initialAdaTugas);
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: "Error memuat jadwal",
-          description: (typeof errorData.error === 'string' ? errorData.error : errorData.error?.message) || 'Failed to load schedule',
-          variant: "destructive"
-        });
-      }
+        }
+      });
+      setKehadiranData(initialKehadiran);
+
+      // Initialize ada_tugas data from loaded jadwal
+      const initialAdaTugas: {[key: number]: boolean} = {};
+      processedData.forEach((jadwal: JadwalHariIni) => {
+        if (jadwal.is_absenable) {
+          // For single guru, use jadwal.ada_tugas
+          // For multi-guru, we'd need per-guru ada_tugas (future enhancement)
+          initialAdaTugas[jadwal.id_jadwal] = Boolean((jadwal as JadwalHariIni & {ada_tugas?: number}).ada_tugas);
+        }
+      });
+      setAdaTugasData(initialAdaTugas);
     } catch (error) {
-      console.error('Error loading jadwal hari ini:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat jadwal hari ini.');
+      console.error('Error loading jadwal hari ini:', message);
       toast({
-        title: "Error",
-        description: "Network error while loading schedule",
+        title: "Error memuat jadwal",
+        description: message,
         variant: "destructive"
       });
+      setJadwalHariIni([]);
     } finally {
       setLoading(false);
     }
-  }, [siswaId]);
+  }, [siswaId, apiRequest]);
 
 
   // Load jadwal untuk banding absen berdasarkan tanggal yang dipilih
@@ -709,117 +689,109 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
 
     setLoadingJadwal(true);
     try {
-      const cleanToken = getCleanToken();
-      
-      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-rentang?tanggal=${tanggal}`), {
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
+      const result = await apiRequest<{ success?: boolean; data?: JadwalHariIni[]; error?: unknown; message?: unknown }>(
+        `/api/siswa/${siswaId}/jadwal-rentang?tanggal=${tanggal}`
+      );
 
-      if (response.ok) {
-        const result = await response.json();
-      
-        
-        if (result.success && result.data) {
-          // Proses guru_list dari string ke array
-          const processedData = result.data.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
-            ...jadwal,
-            guru_list: jadwal.is_multi_guru && jadwal.guru_list 
-              ? parseGuruList(jadwal.guru_list) 
-              : []
-          }));
-          
-          setJadwalBerdasarkanTanggal(processedData);
-          
-          // Initialize kehadiranData for banding mode
-          const initialKehadiran: KehadiranData = {};
-          processedData.forEach((jadwal: JadwalHariIni) => {
-            if (jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) {
-              // Handle multi-guru schedules
-              jadwal.guru_list.forEach((guru) => {
-                const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
-                if (guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil') {
-                  initialKehadiran[guruKey] = {
-                    status: guru.status_kehadiran,
-                    keterangan: guru.keterangan_guru || '',
-                    guru_id: guru.id_guru
-                  };
-                } else {
-                  // Default to 'Hadir' for new entries
-                  initialKehadiran[guruKey] = {
-                    status: 'Hadir',
-                    keterangan: '',
-                    guru_id: guru.id_guru
-                  };
-                }
-              });
-            } else {
-              // Handle single-guru schedules
-              const guruId = jadwal.guru_id || jadwal.id_guru;
-              if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
-                initialKehadiran[jadwal.id_jadwal] = {
-                  status: jadwal.status_kehadiran,
-                  keterangan: jadwal.keterangan || '',
-                  guru_id: guruId
-                };
-              } else {
-                // Default to 'Hadir' for new entries
-                initialKehadiran[jadwal.id_jadwal] = {
-                  status: 'Hadir',
-                  keterangan: '',
-                  guru_id: guruId
-                };
-              }
-            }
-          });
-          setKehadiranData(initialKehadiran);
-          
-          // Initialize ada_tugas data from loaded jadwal (edit mode)
-          const initialAdaTugas: {[key: number]: boolean} = {};
-          processedData.forEach((jadwal: JadwalHariIni) => {
-            if (jadwal.is_absenable) {
-              initialAdaTugas[jadwal.id_jadwal] = Boolean((jadwal as JadwalHariIni & {ada_tugas?: number}).ada_tugas);
-            }
-          });
-          setAdaTugasData(initialAdaTugas);
-        } else {
-          setJadwalBerdasarkanTanggal([]);
-          setKehadiranData({});
-          setAdaTugasData({});
-        }
-      } else {
-        // Check if response is JSON before trying to parse
-        const contentType = response.headers.get('content-type');
-        if (contentType?.includes('application/json')) {
-          const errorData = await response.json();
-          toast({
-            title: "Error memuat jadwal",
-            description: (typeof errorData.error === 'string' ? errorData.error : errorData.error?.message) || 'Failed to load schedule',
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Error memuat jadwal",
-            description: `HTTP ${response.status}: ${response.statusText}`,
-            variant: "destructive"
-          });
-        }
+      if (isFailureResponse(result)) {
+        toast({
+          title: "Error memuat jadwal",
+          description: getResponseErrorText(result, "Data jadwal tidak ditemukan"),
+          variant: "destructive"
+        });
         setJadwalBerdasarkanTanggal([]);
+        setKehadiranData({});
+        setAdaTugasData({});
+        return;
       }
+
+      const rawData = (result as { data?: unknown }).data;
+      if (!Array.isArray(rawData)) {
+        toast({
+          title: "Error memuat jadwal",
+          description: "Format data jadwal tidak valid.",
+          variant: "destructive"
+        });
+        setJadwalBerdasarkanTanggal([]);
+        setKehadiranData({});
+        setAdaTugasData({});
+        return;
+      }
+
+      // Proses guru_list dari string ke array
+      const processedData = rawData.map((jadwal: JadwalHariIni & { guru_list?: string }) => ({
+        ...jadwal,
+        guru_list: jadwal.is_multi_guru && jadwal.guru_list
+          ? parseGuruList(jadwal.guru_list)
+          : []
+      }));
+
+      setJadwalBerdasarkanTanggal(processedData);
+
+      // Initialize kehadiranData for banding mode
+      const initialKehadiran: KehadiranData = {};
+      processedData.forEach((jadwal: JadwalHariIni) => {
+        if (jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) {
+          // Handle multi-guru schedules
+          jadwal.guru_list.forEach((guru) => {
+            const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+            if (guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil') {
+              initialKehadiran[guruKey] = {
+                status: guru.status_kehadiran,
+                keterangan: guru.keterangan_guru || '',
+                guru_id: guru.id_guru
+              };
+            } else {
+              // Default to 'Hadir' for new entries
+              initialKehadiran[guruKey] = {
+                status: 'Hadir',
+                keterangan: '',
+                guru_id: guru.id_guru
+              };
+            }
+          });
+        } else {
+          // Handle single-guru schedules
+          const guruId = jadwal.guru_id || jadwal.id_guru;
+          if (jadwal.status_kehadiran && jadwal.status_kehadiran !== 'belum_diambil') {
+            initialKehadiran[jadwal.id_jadwal] = {
+              status: jadwal.status_kehadiran,
+              keterangan: jadwal.keterangan || '',
+              guru_id: guruId
+            };
+          } else {
+            // Default to 'Hadir' for new entries
+            initialKehadiran[jadwal.id_jadwal] = {
+              status: 'Hadir',
+              keterangan: '',
+              guru_id: guruId
+            };
+          }
+        }
+      });
+      setKehadiranData(initialKehadiran);
+
+      // Initialize ada_tugas data from loaded jadwal (edit mode)
+      const initialAdaTugas: {[key: number]: boolean} = {};
+      processedData.forEach((jadwal: JadwalHariIni) => {
+        if (jadwal.is_absenable) {
+          initialAdaTugas[jadwal.id_jadwal] = Boolean((jadwal as JadwalHariIni & {ada_tugas?: number}).ada_tugas);
+        }
+      });
+      setAdaTugasData(initialAdaTugas);
     } catch (error) {
-      console.error('Error loading jadwal banding by date:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat jadwal berdasarkan tanggal.');
+      console.error('Error loading jadwal banding by date:', message);
       toast({
-        title: "Error",
-        description: "Network error while loading schedule",
+        title: "Error memuat jadwal",
+        description: message,
         variant: "destructive"
       });
       setJadwalBerdasarkanTanggal([]);
     } finally {
       setLoadingJadwal(false);
     }
-  }, [siswaId]);
+  }, [siswaId, apiRequest]);
 
 
   // Load riwayat data
@@ -827,33 +799,28 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     if (!siswaId) return;
 
     try {
-      // Get clean token using centralized utility
-      const cleanToken = getCleanToken();
-      
-      if (!cleanToken) {
-        console.error('❌ Token tidak ditemukan');
+      const data = await apiRequest<RiwayatData[]>(`/api/siswa/${siswaId}/riwayat-kehadiran`);
+      if (!Array.isArray(data)) {
+        toast({
+          title: "Error memuat riwayat",
+          description: "Format data riwayat tidak valid.",
+          variant: "destructive"
+        });
+        setRiwayatData([]);
         return;
       }
-
-      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/riwayat-kehadiran`), {
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-      
-        setRiwayatData(data);
-      } else {
-        const errorData = await response.json();
-        console.error('Error loading riwayat:', errorData);
-      }
+      setRiwayatData(data);
     } catch (error) {
-      console.error('Error loading riwayat:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat riwayat kehadiran.');
+      console.error('Error loading riwayat:', message);
+      toast({
+        title: "Error memuat riwayat",
+        description: message,
+        variant: "destructive"
+      });
+      setRiwayatData([]);
     }
-  }, [siswaId]);
+  }, [siswaId, apiRequest]);
 
 
 
@@ -875,63 +842,60 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     if (!siswaId) return;
     
     try {
-      // Get and clean token with mobile fallback
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      if (!cleanToken) {
-        console.error('❌ Token tidak ditemukan');
+      const data = await apiRequest<BandingAbsen[]>(`/api/siswa/${siswaId}/banding-absen`, {
+        method: 'GET'
+      });
+      if (!Array.isArray(data)) {
+        toast({
+          title: "Error memuat banding",
+          description: "Format data banding tidak valid.",
+          variant: "destructive"
+        });
+        setBandingAbsen([]);
         return;
       }
-      
-      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/banding-absen`), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBandingAbsen(Array.isArray(data) ? data : []);
-      }
+      setBandingAbsen(data);
     } catch (error) {
-      console.error('Error loading banding absen:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat data banding absen.');
+      console.error('Error loading banding absen:', message);
+      toast({
+        title: "Error memuat banding",
+        description: message,
+        variant: "destructive"
+      });
+      setBandingAbsen([]);
     }
-  }, [siswaId]);
+  }, [siswaId, apiRequest]);
 
   // Load daftar siswa untuk banding absen
   const loadDaftarSiswa = useCallback(async () => {
     if (!siswaId) return;
     
     try {
-      const rawToken = localStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      if (!cleanToken) {
-        console.error('❌ Token tidak ditemukan');
+      const data = await apiRequest(`/api/siswa/${siswaId}/daftar-siswa`, {
+        method: 'GET'
+      });
+      if (!Array.isArray(data)) {
+        toast({
+          title: "Error memuat data siswa",
+          description: "Format data siswa tidak valid.",
+          variant: "destructive"
+        });
+        setDaftarSiswa([]);
         return;
       }
-      
-      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/daftar-siswa`), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setDaftarSiswa(Array.isArray(data) ? data : []);
-      }
+      setDaftarSiswa(data);
     } catch (error) {
-      console.error('Error loading daftar siswa:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat data siswa.');
+      console.error('Error loading daftar siswa:', message);
+      toast({
+        title: "Error memuat data siswa",
+        description: message,
+        variant: "destructive"
+      });
+      setDaftarSiswa([]);
     }
-  }, [siswaId]);
+  }, [siswaId, apiRequest]);
 
   // Note: loadSiswaStatus removed - was unused (replaced by loadSiswaStatusById)
 
@@ -940,48 +904,40 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     if (!siswaId || !idSiswa || !tanggal || !jadwalId) return;
 
     try {
-      const rawToken = localStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
+      const data = await apiRequest<{ status?: string }>(
+        `/api/siswa/${idSiswa}/status-kehadiran?tanggal=${tanggal}&jadwal_id=${jadwalId}`
+      );
 
-      if (!cleanToken) {
-        console.error('❌ Token tidak ditemukan');
-        return;
-      }
+      const statusValue = typeof data?.status === 'string' ? data.status : 'alpa';
 
-      const response = await fetch(getApiUrl(`/api/siswa/${idSiswa}/status-kehadiran?tanggal=${tanggal}&jadwal_id=${jadwalId}`), {
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include'
-      });
+      const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === idSiswa);
+      const siswaNama = chosen?.nama || '';
 
-      if (response.ok) {
-        const data = await response.json();
-      
+      // Update status data
+      const statusKey = `${idSiswa}_${tanggal}_${jadwalId}`;
+      setSiswaStatusData(prev => ({
+        ...prev,
+        [statusKey]: statusValue
+      }));
 
-        const chosen = daftarSiswa.find(s => (s.id ?? s.id_siswa) === idSiswa);
-        const siswaNama = chosen?.nama || '';
-
-        // Update status data
-        const statusKey = `${idSiswa}_${tanggal}_${jadwalId}`;
-        setSiswaStatusData(prev => ({
-          ...prev,
-          [statusKey]: data.status || 'alpa'
-        }));
-
-        // Update form dengan status yang ditemukan
-        const newSiswaBanding = [{
-          nama: siswaNama,
-          status_asli: data.status || 'alpa',
-          status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
-          alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
-        }];
-        setFormBanding(prev => ({ ...prev, siswa_banding: newSiswaBanding }));
-      }
+      // Update form dengan status yang ditemukan
+      const newSiswaBanding = [{
+        nama: siswaNama,
+        status_asli: statusValue,
+        status_diajukan: formBanding.siswa_banding[0]?.status_diajukan || 'hadir',
+        alasan_banding: formBanding.siswa_banding[0]?.alasan_banding || ''
+      }];
+      setFormBanding(prev => ({ ...prev, siswa_banding: newSiswaBanding }));
     } catch (error) {
-      console.error('Error loading siswa status by id:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat status kehadiran siswa.');
+      console.error('Error loading siswa status by id:', message);
+      toast({
+        title: "Error memuat status",
+        description: message,
+        variant: "destructive"
+      });
     }
-  }, [siswaId, daftarSiswa, formBanding]);
+  }, [siswaId, daftarSiswa, formBanding, apiRequest]);
 
 
   useEffect(() => {
@@ -1062,52 +1018,36 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     
     
       
-      // Get and clean token with mobile fallback
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      if (!cleanToken) {
+      const result = await apiRequest<{ success?: boolean; message?: string; error?: unknown }>(
+        '/api/siswa/submit-kehadiran-guru',
+        {
+          method: 'POST',
+          body: JSON.stringify(requestData)
+        }
+      );
+
+      if (isFailureResponse(result)) {
         toast({
-          title: "Error",
-          description: "Token tidak ditemukan. Silakan login ulang.",
+          title: "Gagal menyimpan",
+          description: getResponseErrorText(result, "Gagal menyimpan kehadiran guru."),
           variant: "destructive"
         });
         return;
       }
 
-      const response = await fetch(getApiUrl('/api/siswa/submit-kehadiran-guru'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include',
-        body: JSON.stringify(requestData)
+      toast({
+        title: "Berhasil",
+        description: result?.message || "Data kehadiran guru berhasil disimpan"
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        toast({
-          title: "Berhasil!",
-          description: result.message || "Data kehadiran guru berhasil disimpan"
-        });
-        
-        // Reload jadwal to get updated status
-        loadJadwalHariIni();
-      } else {
-        const errorData = await response.json();
-        console.error('❌ Error submitting kehadiran:', errorData);
-        toast({
-          title: "Error",
-          description: errorData.error || 'Failed to submit attendance',
-          variant: "destructive"
-        });
-      }
+      // Reload jadwal to get updated status
+      loadJadwalHariIni();
     } catch (error) {
-      console.error('Error submitting kehadiran:', error);
+      const message = resolveErrorMessage(error, 'Gagal menyimpan kehadiran guru.');
+      console.error('Error submitting kehadiran:', message);
       toast({
-        title: "Error",
-        description: "Network error while submitting attendance",
+        title: "Gagal menyimpan",
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -1125,20 +1065,26 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     setShowAbsenKelasModal(true);
     
     try {
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/daftar-siswa-absen?jadwal_id=${jadwalId}`), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`,
-          'Content-Type': 'application/json'
-        }
+      const data = await apiRequest<{
+        success?: boolean;
+        data?: Array<{ id_siswa: number; attendance_status?: string; keterangan?: string }>;
+        message?: string;
+        error?: unknown;
+      }>(`/api/siswa/${siswaId}/daftar-siswa-absen?jadwal_id=${jadwalId}`, {
+        method: 'GET'
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
+
+      if (isFailureResponse(data)) {
+        toast({
+          title: "Error",
+          description: getResponseErrorText(data, "Gagal memuat daftar siswa"),
+          variant: "destructive"
+        });
+        setShowAbsenKelasModal(false);
+        return;
+      }
+
+      if (data?.success) {
         setDaftarSiswaKelas(data.data || []);
         // Initialize default status for all students
         const initialData: {[key: number]: {status: string; keterangan: string}} = {};
@@ -1152,16 +1098,17 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       } else {
         toast({
           title: "Error",
-          description: data.message || "Gagal memuat daftar siswa",
+          description: data?.message || "Gagal memuat daftar siswa",
           variant: "destructive"
         });
         setShowAbsenKelasModal(false);
       }
     } catch (error) {
-      console.error('Error loading students for piket attendance:', error);
+      const message = resolveErrorMessage(error, 'Gagal memuat daftar siswa.');
+      console.error('Error loading students for piket attendance:', message);
       toast({
         title: "Error",
-        description: "Gagal memuat daftar siswa",
+        description: message,
         variant: "destructive"
       });
       setShowAbsenKelasModal(false);
@@ -1177,45 +1124,43 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     setLoadingAbsenKelas(true);
     
     try {
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      const response = await fetch(getApiUrl('/api/siswa/submit-absensi-siswa'), {
+      const data = await apiRequest<{
+        success?: boolean;
+        message?: string;
+        processed?: number;
+        error?: unknown;
+      }>('/api/siswa/submit-absensi-siswa', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${cleanToken}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           siswa_pencatat_id: siswaId,
           jadwal_id: absenKelasJadwalId,
           attendance_data: absenSiswaData
         })
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Berhasil!",
-          description: `Absensi ${data.processed || Object.keys(absenSiswaData).length} siswa berhasil disimpan`,
-        });
-        setShowAbsenKelasModal(false);
-        setAbsenKelasJadwalId(null);
-        setDaftarSiswaKelas([]);
-        setAbsenSiswaData({});
-      } else {
+
+      if (isFailureResponse(data) || !data?.success) {
         toast({
           title: "Gagal",
-          description: data.message || "Gagal menyimpan absensi siswa",
+          description: getResponseErrorText(data, "Gagal menyimpan absensi siswa"),
           variant: "destructive"
         });
+        return;
       }
+
+      toast({
+        title: "Berhasil",
+        description: `Absensi ${data.processed || Object.keys(absenSiswaData).length} siswa berhasil disimpan`,
+      });
+      setShowAbsenKelasModal(false);
+      setAbsenKelasJadwalId(null);
+      setDaftarSiswaKelas([]);
+      setAbsenSiswaData({});
     } catch (error) {
-      console.error('Error submitting piket attendance:', error);
+      const message = resolveErrorMessage(error, 'Gagal menyimpan absensi siswa.');
+      console.error('Error submitting piket attendance:', message);
       toast({
         title: "Error",
-        description: "Gagal menyimpan absensi siswa",
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -1251,12 +1196,6 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     }));
 
     try {
-      const rawToken = localStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      if (!cleanToken) {
-        throw new Error('Token tidak ditemukan');
-      }
-
       // Tentukan jadwal_id dan guru_id dari key menggunakan helper
       const parsedKey = parseJadwalKey(key);
       const { jadwalId } = parsedKey;
@@ -1289,14 +1228,8 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       const tanggalTarget = isEditMode ? selectedDate : getCurrentDateWIB();
       
     
-
-      const resp = await fetch(getApiUrl('/api/siswa/update-status-guru'), {
+      await apiRequest('/api/siswa/update-status-guru', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include',
         body: JSON.stringify({
           jadwal_id: jadwalId,
           guru_id: guruId,
@@ -1306,13 +1239,6 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
           ada_tugas: adaTugasData[key] || false
         })
       });
-
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Gagal menyimpan status');
-      }
-
-      await resp.json(); // Parse response but result unused
 
       // Tampilkan notifikasi sukses
       toast({
@@ -1334,8 +1260,8 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       }
 
     } catch (error) {
-      const err = error as Error;
-      console.error('❌ Error updating status:', err);
+      const message = resolveErrorMessage(error, 'Gagal menyimpan status kehadiran.');
+      console.error('Error updating status:', message);
       
       // Rollback ke state sebelumnya
       setKehadiranData(prev => ({
@@ -1349,7 +1275,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       // Tampilkan error notification
       toast({
         title: "Gagal Menyimpan",
-        description: error.message || "Terjadi kesalahan saat menyimpan status. Silakan coba lagi.",
+        description: message,
         variant: "destructive",
         duration: 4000
       });
@@ -1676,7 +1602,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                         </Badge>
                         {jadwal.waktu_catat && (
                           <Badge variant="secondary" className="text-xs">
-                            ✓ {formatDateTime24(jadwal.waktu_catat, true)}
+                            Waktu: {formatDateTime24(jadwal.waktu_catat, true)}
                           </Badge>
                         )}
                       </div>
@@ -2682,19 +2608,6 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     }
 
     try {
-      // Get and clean token with mobile fallback
-      const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const cleanToken = rawToken ? rawToken.trim() : '';
-      
-      if (!cleanToken) {
-        toast({
-          title: "Error",
-          description: "Token tidak ditemukan. Silakan login ulang.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
       const requestData = {
         jadwal_id: formBanding.jadwal_id ? Number.parseInt(formBanding.jadwal_id) : null,
         tanggal_absen: formBanding.tanggal_absen,
@@ -2706,50 +2619,48 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
   
   
       
-      const response = await fetch(getApiUrl(`/api/siswa/${selectedSiswaId}/banding-absen`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
-        },
-        credentials: 'include',
-        body: JSON.stringify(requestData)
-      });
+      const result = await apiRequest<{ success?: boolean; message?: string; error?: unknown }>(
+        `/api/siswa/${selectedSiswaId}/banding-absen`,
+        {
+          method: 'POST',
+          body: JSON.stringify(requestData)
+        }
+      );
 
-      if (response.ok) {
+      if (isFailureResponse(result) || !result?.success) {
         toast({
-          title: "Berhasil",
-          description: "Pengajuan banding absen berhasil dikirim"
-        });
-        
-        // Reset form dan reload data
-        setFormBanding({
-          jadwal_id: '',
-          tanggal_absen: '',
-          siswa_banding: [{
-            nama: '',
-            status_asli: 'alpa',
-            status_diajukan: 'hadir',
-            alasan_banding: ''
-          }]
-        });
-        setSelectedSiswaId(null);
-        setShowFormBanding(false);
-        loadBandingAbsen();
-      } else {
-        const errorData = await response.json();
-        console.error('❌ Error submitting banding absen:', errorData);
-        toast({
-          title: "Error",
-          description: errorData.error || "Gagal mengirim pengajuan banding absen",
+          title: "Gagal mengirim",
+          description: getResponseErrorText(result, "Gagal mengirim pengajuan banding absen"),
           variant: "destructive"
         });
+        return;
       }
-    } catch (error) {
-      console.error('Error submitting banding absen:', error);
+
       toast({
-        title: "Error",
-        description: "Terjadi kesalahan jaringan",
+        title: "Berhasil",
+        description: "Pengajuan banding absen berhasil dikirim"
+      });
+      
+      // Reset form dan reload data
+      setFormBanding({
+        jadwal_id: '',
+        tanggal_absen: '',
+        siswa_banding: [{
+          nama: '',
+          status_asli: 'alpa',
+          status_diajukan: 'hadir',
+          alasan_banding: ''
+        }]
+      });
+      setSelectedSiswaId(null);
+      setShowFormBanding(false);
+      loadBandingAbsen();
+    } catch (error) {
+      const message = resolveErrorMessage(error, 'Gagal mengirim pengajuan banding absen.');
+      console.error('Error submitting banding absen:', message);
+      toast({
+        title: "Gagal mengirim",
+        description: message,
         variant: "destructive"
       });
     }
@@ -2800,7 +2711,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                 variant="outline" 
                 className="w-full"
               >
-                🚪 Kembali ke Login
+                Kembali ke Login
               </Button>
               
               {error.includes('server backend') && (

@@ -150,7 +150,7 @@ class AbsentaExportSystem {
   // ================================================================
   async exportTeacherList(data, academicYear = '2025-2026') {
     try {
-      console.log('🎯 Generating Teacher List Export...');
+      console.log('Generating Teacher List Export...');
       
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Daftar Guru');
@@ -191,7 +191,7 @@ class AbsentaExportSystem {
       return workbook;
       
     } catch (error) {
-      console.error('❌ Error exporting teacher list:', error);
+      console.error('Error exporting teacher list:', error);
       throw error;
     }
   }
@@ -201,7 +201,7 @@ class AbsentaExportSystem {
   // ================================================================
   async exportStudentSummary(data, dateRange) {
     try {
-      console.log('📊 Generating Student Summary Export...');
+      console.log('Generating Student Summary Export...');
       
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Ringkasan Kehadiran Siswa');
@@ -250,7 +250,7 @@ class AbsentaExportSystem {
       return workbook;
       
     } catch (error) {
-      console.error('❌ Error exporting student summary:', error);
+      console.error('Error exporting student summary:', error);
       throw error;
     }
   }
@@ -260,7 +260,7 @@ class AbsentaExportSystem {
   // ================================================================
   async exportTeacherSummary(data, dateRange) {
     try {
-      console.log('👨‍🏫 Generating Teacher Summary Export...');
+      console.log('Generating Teacher Summary Export...');
       
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Ringkasan Kehadiran Guru');
@@ -307,7 +307,7 @@ class AbsentaExportSystem {
       return workbook;
       
     } catch (error) {
-      console.error('❌ Error exporting teacher summary:', error);
+      console.error('Error exporting teacher summary:', error);
       throw error;
     }
   }
@@ -317,7 +317,7 @@ class AbsentaExportSystem {
   // ================================================================
   async exportBandingAbsen(data, dateRange) {
     try {
-      console.log('📋 Generating Banding Absen Export...');
+      console.log('Generating Banding Absen Export...');
       
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Banding Absen');
@@ -367,7 +367,7 @@ class AbsentaExportSystem {
       return workbook;
       
     } catch (error) {
-      console.error('❌ Error exporting banding absen:', error);
+      console.error('Error exporting banding absen:', error);
       throw error;
     }
   }

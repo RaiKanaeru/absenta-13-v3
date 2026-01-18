@@ -156,16 +156,174 @@ export function ScheduleGridEditor({
 
   const fetchMatrix = useCallback(async () => {
     setIsLoading(true);
+/**
+ * ScheduleGridEditor - Interactive Matrix Grid untuk edit jadwal
+ * 
+ * Features:
+ * - Visual grid seperti spreadsheet (Kelas × Jam)
+ * - Click cell untuk add/edit jadwal
+ * - Drag & Drop dari palette
+ * - Filter by hari, tingkat, jurusan
+ * - Batch save dengan tombol "Simpan"
+ */
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, useDroppable, DragStartEvent } from '@dnd-kit/core';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, Save, RefreshCw, Calendar, Filter, PanelRightOpen, PanelRightClose, GripVertical, User, BookOpen } from "lucide-react";
+import { apiCall } from '@/utils/apiClient';
+import { Teacher, Subject, Room } from '@/types/dashboard';
+import { DragPalette } from './DragPalette';
+
+// Types
+interface JamSlot {
+  jam_ke: number;
+  jenis: 'pelajaran' | 'istirahat' | 'pembiasaan';
+  label?: string;
+  jam_mulai: string;
+  jam_selesai: string;
+}
+
+interface CellData {
+  id: number;
+  mapel_id: number | null;
+  guru_id: number | null;
+  ruang_id: number | null;
+  kode_mapel: string;
+  nama_mapel: string;
+  kode_guru: string;
+  nama_guru: string;
+  kode_ruang: string;
+  jenis_aktivitas: string;
+}
+
+interface GridRow {
+  kelas_id: number;
+  nama_kelas: string;
+  tingkat: string;
+  cells: Record<number, CellData>;
+}
+
+interface MatrixData {
+  hari: string;
+  jam_slots: JamSlot[];
+  rows: GridRow[];
+}
+
+interface Change {
+  kelas_id: number;
+  jam_ke: number;
+  mapel_id?: number | null;
+  guru_id?: number | null;
+  ruang_id?: number | null;
+  action?: 'delete';
+}
+
+interface ScheduleGridEditorProps {
+  onBack: () => void;
+  onLogout: () => void;
+  teachers: Teacher[];
+  subjects: Subject[];
+  rooms: Room[];
+}
+
+// Droppable Cell Component
+function DroppableCell({ 
+  kelasId, 
+  jamKe, 
+  children, 
+  isDisabled 
+}: { 
+  kelasId: number; 
+  jamKe: number; 
+  children: React.ReactNode;
+  isDisabled: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `cell-${kelasId}-${jamKe}`,
+    data: { kelasId, jamKe },
+    disabled: isDisabled
+  });
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={`h-full ${isOver && !isDisabled ? 'ring-2 ring-blue-500 bg-blue-100' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+const TINGKAT_LIST = ['X', 'XI', 'XII', 'XIII'];
+
+export function ScheduleGridEditor({ 
+  onBack, 
+  onLogout,
+  teachers,
+  subjects,
+  rooms
+}: Readonly<ScheduleGridEditorProps>) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedHari, setSelectedHari] = useState('Senin');
+  const [selectedTingkat, setSelectedTingkat] = useState<string>('all');
+  const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<Change[]>([]);
+  const [editingCell, setEditingCell] = useState<{kelas_id: number; jam_ke: number} | null>(null);
+  const [showPalette, setShowPalette] = useState(true);
+  
+  // Copy-paste state
+  const [copiedRow, setCopiedRow] = useState<{kelas_id: number; cells: Record<number, CellData>} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{x: number; y: number; kelasId: number} | null>(null);
+  
+  // Edit modal state
+  const [editMapelId, setEditMapelId] = useState<number | null>(null);
+  const [editGuruId, setEditGuruId] = useState<number | null>(null);
+  const [editRuangId, setEditRuangId] = useState<number | null>(null);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }
+    })
+  );
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Build conflict map for palette (which guru is busy at which jam)
+  const conflictMap = useMemo(() => {
+    const map: Record<number, number[]> = {};
+    if (!matrixData) return map;
+
+    for (const row of matrixData.rows) {
+      for (const [jamKeStr, cell] of Object.entries(row.cells)) {
+        if (cell.guru_id) {
+          if (!map[cell.guru_id]) map[cell.guru_id] = [];
+          map[cell.guru_id].push(Number(jamKeStr));
+        }
+      }
+    }
+    return map;
+  }, [matrixData]);
+
+  const fetchMatrix = useCallback(async () => {
+    setIsLoading(true);
     try {
       const params = new URLSearchParams({ hari: selectedHari });
       if (selectedTingkat !== 'all') {
         params.append('tingkat', selectedTingkat);
       }
 
-      const response = await apiCall(`/api/admin/jadwal/matrix?${params}`, {
+      const response = await apiCall<{ data?: MatrixData }>(`/api/admin/jadwal/matrix?${params}`, {
         method: 'GET',
         onLogout
-      }) as { data?: MatrixData };
+      });
 
       setMatrixData(response.data || null);
       setPendingChanges([]);
@@ -519,30 +677,32 @@ export function ScheduleGridEditor({
                         >
                           {row.nama_kelas}
                           {copiedRow?.kelas_id === row.kelas_id && (
-                            <span className="ml-1 text-blue-500">📋</span>
+                            <span className="ml-1 text-blue-500">Copy</span>
                           )}
                         </td>
                         {matrixData.jam_slots.map(slot => {
                           const cell = row.cells[slot.jam_ke];
-                          const isEditing = editingCell?.kelas_id === row.kelas_id && editingCell?.jam_ke === slot.jam_ke;
-                          const isIstirahat = slot.jenis === 'istirahat';
-
                           return (
                             <td 
                               key={slot.jam_ke}
-                              className={`border p-0 cursor-pointer transition-colors ${getCellBgColor(cell, slot)} ${isEditing ? 'ring-2 ring-blue-500' : ''}`}
-                              onClick={() => !isIstirahat && handleCellClick(row.kelas_id, slot.jam_ke, cell)}
+                              className={`border p-0 relative min-w-16 h-16 transition-colors ${getCellBgColor(cell, slot)}`}
+                              onClick={() => handleCellClick(row.kelas_id, slot.jam_ke, cell)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleCellClick(row.kelas_id, slot.jam_ke, cell);
+                                }
+                              }}
                             >
-                              <DroppableCell kelasId={row.kelas_id} jamKe={slot.jam_ke} isDisabled={isIstirahat}>
-                                {isIstirahat ? (
-                                  <div className="text-center text-gray-400 p-1">-</div>
-                                ) : cell ? (
-                                  <div className="text-center p-1">
-                                    <div className="font-bold text-blue-700 text-xs">{cell.kode_mapel}</div>
-                                    <div className="text-gray-600 text-xs">{cell.kode_guru}</div>
+                              <DroppableCell kelasId={row.kelas_id} jamKe={slot.jam_ke} isDisabled={slot.jenis !== 'pelajaran'}>
+                                {cell && cell.jenis_aktivitas === 'pelajaran' && (
+                                  <div className="p-1 text-[10px] leading-tight space-y-1">
+                                    <div className="font-bold truncate text-blue-700">{cell.nama_mapel}</div>
+                                    <div className="text-gray-600 truncate">{cell.nama_guru}</div>
+                                    {cell.kode_ruang && <div className="text-gray-400">{cell.kode_ruang}</div>}
                                   </div>
-                                ) : (
-                                  <div className="text-center text-gray-300 h-8 flex items-center justify-center">+</div>
                                 )}
                               </DroppableCell>
                             </td>
@@ -647,14 +807,14 @@ export function ScheduleGridEditor({
             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
             onClick={() => handleCopyRow(contextMenu.kelasId)}
           >
-            📋 Copy Jadwal
+            Copy Jadwal
           </button>
           <button
             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
             onClick={() => handlePasteRow(contextMenu.kelasId)}
             disabled={!copiedRow}
           >
-            📥 Paste Jadwal
+            Paste Jadwal
           </button>
         </div>
       )}

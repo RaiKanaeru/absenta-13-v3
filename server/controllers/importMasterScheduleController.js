@@ -86,6 +86,7 @@ const loadJamPelajaranMap = async (conn, tahunAjaran) => {
  *   Rows: Blocks of 3 (Mapel, Ruang, Guru) per Class
  *   Cols: Time Slots across Days
  */
+
 export const importMasterSchedule = async (req, res) => {
     const log = logger.withRequest(req, res);
     try {
@@ -187,7 +188,10 @@ export const importMasterSchedule = async (req, res) => {
                             const jamRow = sheet.getRow(4); // Row 4 has Jam numbers
                             const val = jamRow.getCell(col).value;
                             jamKe = parseInt(val) || 0;
-                        } catch (e) {}
+                        } catch (e) {
+                            // Ignore parsing errors for individual cells, jamKe remains 0
+                            log.debug(`Error parsing jamKe for column ${col}: ${e.message}`);
+                        }
 
                         // If jamKe is 0, maybe it's break or special column
                         if (jamKe === 0) continue;
@@ -305,23 +309,27 @@ export const importMasterSchedule = async (req, res) => {
 
                     // Insert Multi Guru
                     if (uniqueGuruIds.length > 1) {
-                         for (const gid of uniqueGuruIds) {
+                        for (const gid of uniqueGuruIds) {
                             await conn.execute(
                                 `INSERT INTO jadwal_guru (jadwal_id, guru_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE guru_id=guru_id`,
                                 [jadwalId, gid]
                             );
                         }
                     }
-
-                    results.success++;
-
-                } catch (err) {
-                    results.failed++;
-                    results.errors.push({ item, error: err.message });
+                } catch (dataErr) {
+                   // Correctly handle individual row errors if we want partial success?
+                   // Current logic seems to prefer throwing to rollback everything.
+                   // Or we can collect errors. Let's throw for now to support the transaction.
+                   results.failed++;
+                   results.errors.push(`Row error: ${dataErr.message}`);
+                   throw dataErr;
                 }
-            }
+                
+                results.success++;
+            } // End main loop
 
             await conn.commit();
+            
             res.json({
                 success: true,
                 imported: results.success,

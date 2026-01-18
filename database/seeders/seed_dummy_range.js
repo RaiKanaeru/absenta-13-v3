@@ -181,7 +181,7 @@ const getRunTag = () => {
   const now = new Date();
   const stamp = now
     .toISOString()
-    .replace(/[-:TZ]/g, '')
+    .replaceAll(/[-:TZ]/g, '')
     .slice(0, 12);
   return stamp;
 };

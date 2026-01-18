@@ -148,7 +148,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                   alt="Logo Kiri" 
                   className="h-12 sm:h-16 lg:h-20 w-auto object-contain flex-shrink-0"
                   onError={(e) => {
-                    console.warn('⚠️ Logo kiri gagal dimuat:', letterhead.logoLeftUrl);
+                    console.warn('Logo kiri gagal dimuat:', letterhead.logoLeftUrl);
                     e.currentTarget.style.display = 'none';
                   }}
                 />
@@ -164,7 +164,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                   alt="Logo Kanan" 
                   className="h-12 sm:h-16 lg:h-20 w-auto object-contain flex-shrink-0"
                   onError={(e) => {
-                    console.warn('⚠️ Logo kanan gagal dimuat:', letterhead.logoRightUrl);
+                    console.warn('Logo kanan gagal dimuat:', letterhead.logoRightUrl);
                     e.currentTarget.style.display = 'none';
                   }}
                 />

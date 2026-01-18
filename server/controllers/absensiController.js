@@ -411,13 +411,20 @@ export async function submitStudentAttendance(req, res) {
     const { scheduleId, attendance, notes = {}, guruId, tanggal_absen } = req.body;
     log.requestStart('SubmitStudentAttendance', { scheduleId, guruId, studentCount: Object.keys(attendance || {}).length });
 
+    if (!globalThis.dbPool) {
+        log.error('Database not available', null);
+        return res.status(503).json({ error: 'Database connection not available' });
+    }
+
+    const connection = await globalThis.dbPool.getConnection();
+
     try {
         if (!scheduleId || !attendance || !guruId) {
             log.validationFail('required_fields', null, 'Missing scheduleId, attendance, or guruId');
             return sendValidationError(res, 'Data absensi tidak lengkap');
         }
 
-        const [scheduleData] = await globalThis.dbPool.execute(
+        const [scheduleData] = await connection.execute(
             'SELECT kelas_id, mapel_id, is_multi_guru FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
             [scheduleId]
         );
@@ -440,64 +447,84 @@ export async function submitStudentAttendance(req, res) {
         const currentTime = formatWIBTimeWithSeconds();
         const processedStudents = [];
 
-        for (const [studentId, attendanceData] of attendanceEntries) {
-            const parsed = parseAttendanceData(attendanceData);
-            if (!parsed) {
-                log.validationFail('attendance_data', studentId, 'Invalid format');
-                return sendValidationError(res, `Format data absensi tidak valid untuk siswa ${studentId}`);
-            }
+        await connection.beginTransaction();
 
-            const { status, terlambat, ada_tugas } = parsed;
+        try {
+            for (const [studentId, attendanceData] of attendanceEntries) {
+                const parsed = parseAttendanceData(attendanceData);
+                if (!parsed) {
+                    log.validationFail('attendance_data', studentId, 'Invalid format');
+                    throw new Error(`Format data absensi tidak valid untuk siswa ${studentId}`);
+                }
 
-            if (!VALID_STUDENT_STATUSES.includes(status)) {
-                log.validationFail('status', status, 'Invalid status');
-                return sendValidationError(res, `Status tidak valid: ${status}. Status yang diperbolehkan: ${VALID_STUDENT_STATUSES.join(', ')}`);
-            }
+                const { status, terlambat, ada_tugas } = parsed;
 
-            const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
-            const note = status === 'Hadir' ? '' : (notes[studentId] || '');
+                if (!VALID_STUDENT_STATUSES.includes(status)) {
+                    log.validationFail('status', status, 'Invalid status');
+                    throw new Error(`Status tidak valid: ${status}. Status yang diperbolehkan: ${VALID_STUDENT_STATUSES.join(', ')}`);
+                }
 
-            const [existingAttendance] = await globalThis.dbPool.execute(
-                SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
-                [studentId, scheduleId, guruId, targetDate]
-            );
+                const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
+                const note = status === 'Hadir' ? '' : (notes[studentId] || '');
 
-            const waktuAbsen = `${targetDate} ${currentTime}`;
-
-            if (existingAttendance.length > 0) {
-                await globalThis.dbPool.execute(
-                    `UPDATE absensi_siswa 
-                     SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
-                     WHERE id = ?`,
-                    [finalStatus, note, waktuAbsen, guruId, isLate, hasTask, existingAttendance[0].id]
+                const [existingAttendance] = await connection.execute(
+                    SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
+                    [studentId, scheduleId, guruId, targetDate]
                 );
-            } else {
-                await globalThis.dbPool.execute(
-                    `INSERT INTO absensi_siswa 
-                     (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, guruId, guruId, isLate, hasTask]
-                );
+
+                const waktuAbsen = `${targetDate} ${currentTime}`;
+
+                if (existingAttendance.length > 0) {
+                    await connection.execute(
+                        `UPDATE absensi_siswa 
+                         SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
+                         WHERE id = ?`,
+                        [finalStatus, note, waktuAbsen, guruId, isLate, hasTask, existingAttendance[0].id]
+                    );
+                } else {
+                    await connection.execute(
+                        `INSERT INTO absensi_siswa 
+                         (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, guruId, guruId, isLate, hasTask]
+                    );
+                }
+
+                processedStudents.push({ studentId, status: finalStatus });
             }
 
-            processedStudents.push({ studentId, status: finalStatus });
-        }
+            if (isMultiGuru) {
+                // Pass connection to syncMultiGuruAttendance to ensure same transaction
+                // NOTE: syncMultiGuruAttendance currently uses globalThis.dbPool directly. 
+                // Ideally, we should refactor it to accept a connection, but for now, 
+                // since it mostly does INSERTS for OTHER teachers, keeping it outside this transaction 
+                // might be acceptable if refactoring is too risky, BUT best practice is to include it.
+                // Let's refactor syncMultiGuruAttendance as well to be safe.
+                await syncMultiGuruAttendance(connection, scheduleId, guruId, attendance, notes, targetDate, currentTime);
+            }
 
-        if (isMultiGuru) {
-            await syncMultiGuruAttendance(scheduleId, guruId, attendance, notes, targetDate, currentTime);
-        }
+            await connection.commit();
 
-        log.success('SubmitStudentAttendance', { scheduleId, processed: processedStudents.length, date: targetDate });
-        res.json({
-            message: 'Absensi berhasil disimpan',
-            processed: processedStudents.length,
-            date: targetDate,
-            scheduleId,
-            isMultiGuru
-        });
+            log.success('SubmitStudentAttendance', { scheduleId, processed: processedStudents.length, date: targetDate });
+            res.json({
+                message: 'Absensi berhasil disimpan',
+                processed: processedStudents.length,
+                date: targetDate,
+                scheduleId,
+                isMultiGuru
+            });
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        }
     } catch (error) {
         log.dbError('submitStudentAttendance', error, { scheduleId });
+        if (error.message.startsWith('Status tidak valid') || error.message.startsWith('Format data')) {
+             return sendValidationError(res, error.message);
+        }
         return sendDatabaseError(res, error, 'Gagal menyimpan absensi');
+    } finally {
+        connection.release();
     }
 }
 
@@ -505,10 +532,10 @@ export async function submitStudentAttendance(req, res) {
  * Syncs attendance data to other teachers in multi-guru schedules
  * @private
  */
-async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, notes, targetDate, currentTime) {
+async function syncMultiGuruAttendance(connection, scheduleId, primaryGuruId, attendance, notes, targetDate, currentTime) {
     logger.debug('Multi-guru sync started', { scheduleId, primaryGuruId });
 
-    const [allTeachers] = await globalThis.dbPool.execute(
+    const [allTeachers] = await connection.execute(
         'SELECT guru_id FROM jadwal_guru WHERE jadwal_id = ? AND guru_id != ?',
         [scheduleId, primaryGuruId]
     );
@@ -529,20 +556,20 @@ async function syncMultiGuruAttendance(scheduleId, primaryGuruId, attendance, no
             const note = status === 'Hadir' ? '' : (notes[studentId] || '');
             const waktuAbsen = `${targetDate} ${currentTime}`;
 
-            const [existing] = await globalThis.dbPool.execute(
+            const [existing] = await connection.execute(
                 SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
                 [studentId, scheduleId, otherGuruId, targetDate]
             );
 
             if (existing.length > 0) {
-                await globalThis.dbPool.execute(
+                await connection.execute(
                     `UPDATE absensi_siswa 
                      SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
                      WHERE id = ?`,
                     [finalStatus, note, waktuAbsen, otherGuruId, isLate, hasTask, existing[0].id]
                 );
             } else {
-                await globalThis.dbPool.execute(
+                await connection.execute(
                     `INSERT INTO absensi_siswa 
                      (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

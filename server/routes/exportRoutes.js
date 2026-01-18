@@ -4,8 +4,8 @@
  * Refactored from server_modern.js
  * 
  * MIGRATION STATUS:
- * ✅ MIGRATED (7 endpoints) - routed to exportController
- * ⏳ PENDING (10 endpoints) - still in server_modern.js
+ * MIGRATED (7 endpoints) - routed to exportController
+ * PENDING (10 endpoints) - still in server_modern.js
  */
 
 import { Router } from 'express';
@@ -69,7 +69,7 @@ router.get('/rekap-jadwal-guru', authenticateToken, requireRole(['admin']), expo
 
 // ================================================
 // TEMPLATE-BASED EXPORTS (per guidelines)
-// Load .xlsx template → Fill data → Preserve formulas
+// Load .xlsx template -> Fill data -> Preserve formulas
 // ================================================
 router.get('/templates', authenticateToken, requireRole(['admin']), exportController.listExportTemplates);
 router.get('/rekap-ketidakhadiran-guru-template', authenticateToken, requireRole(['admin']), exportController.exportRekapKetidakhadiranGuruTemplate);
@@ -77,7 +77,7 @@ router.get('/rekap-ketidakhadiran-kelas-template', authenticateToken, requireRol
 router.get('/checklist-jadwal', authenticateToken, requireRole(['admin']), exportController.exportScheduleExcel);
 
 // ================================================
-// ALL EXPORTS MIGRATED! 🎉
+// ALL EXPORTS MIGRATED
 // ================================================
 
 export default router;

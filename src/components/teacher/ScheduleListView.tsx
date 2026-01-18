@@ -121,7 +121,7 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
             {schedule.is_multi_guru && schedule.other_teachers && (
               <div className="mt-2">
                 <Badge variant="secondary" className="text-xs mb-1">
-                  🧑‍🏫 Team Teaching
+                  Team Teaching
                 </Badge>
                 <p className="text-xs text-gray-500 truncate">
                   {schedule.other_teachers.split('||').map(teacher => teacher.split(':')[1]).join(', ')}

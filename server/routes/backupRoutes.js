@@ -36,6 +36,9 @@ router.get('/backups', authenticateToken, requireRole(['admin']), backupControll
 // Delete backup
 router.delete('/delete-backup/:backupId', authenticateToken, requireRole(['admin']), backupController.deleteBackup);
 
+// Delete multiple backups
+router.delete('/delete-backups/batch', authenticateToken, requireRole(['admin']), backupController.deleteBackupBatch);
+
 // Download backup
 router.get('/download-backup/:backupId', authenticateToken, requireRole(['admin']), backupController.downloadBackup);
 

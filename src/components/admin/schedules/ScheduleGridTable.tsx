@@ -70,6 +70,18 @@ interface ScheduleGridTableProps {
   rooms: Room[];
 }
 
+interface PendingChange {
+  kelas_id: number;
+  hari: string;
+  jam_ke: number;
+  mapel_id?: number | null;
+  guru_id?: number | null;
+  ruang_id?: number | null;
+  rowType?: string;
+  action?: 'delete';
+  [key: string]: string | number | null | undefined;
+}
+
 // Color palette for subjects
 const SUBJECT_COLORS: Record<string, string> = {
   'DPK': '#FFD700',
@@ -115,13 +127,13 @@ function DraggableItem({ id, type, data, isDisabled }: {
   });
 
   const style = {
-    // Transform removed so the list item stays in place
-    // transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    opacity: isDragging ? 0.3 : 1, // Dim the original item more
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const isGuru = type === 'guru';
-  const itemData = data as (Teacher & Subject);
+  // Use generic constraint or any casting if complex union is hard to discriminate
+  // For safety we'll cast to Any temporarily or specific union type checks
+  const itemData = data as any; 
 
   return (
     <div
@@ -195,7 +207,7 @@ export function ScheduleGridTable({
   const [isSaving, setIsSaving] = useState(false);
   const [selectedTingkat, setSelectedTingkat] = useState<string>('all');
   const [matrixData, setMatrixData] = useState<MatrixResponse | null>(null);
-  const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('guru');
 
@@ -222,10 +234,10 @@ export function ScheduleGridTable({
         params.append('tingkat', selectedTingkat);
       }
 
-      const response = await apiCall(`/api/admin/jadwal/matrix?${params}`, {
+      const response = await apiCall<{ data?: MatrixResponse }>(`/api/admin/jadwal/matrix?${params}`, {
         method: 'GET',
         onLogout
-      }) as { data?: MatrixResponse };
+      });
 
       setMatrixData(response.data || null);
       setPendingChanges([]);
@@ -269,7 +281,6 @@ export function ScheduleGridTable({
   const [activeDragItem, setActiveDragItem] = useState<{ id: string; type: 'guru' | 'mapel'; item: Teacher | Subject } | null>(null);
 
   // Handle drag start
-  // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const { type, item } = active.data.current as { type: 'guru' | 'mapel'; item: Teacher | Subject };
@@ -296,7 +307,8 @@ export function ScheduleGridTable({
 
     // CONFLICT DETECTION LOGIC (Client-Side)
     if (dragType === 'guru') {
-      const guruId = dragItem.id || (dragItem as Teacher).id_guru;
+      const currentTeacher = dragItem as Teacher;
+      const guruId = currentTeacher.id || currentTeacher.id_guru;
       
       // Check ALL classes in matrix for this Day & Jam
       let conflictFound = null;
@@ -309,7 +321,7 @@ export function ScheduleGridTable({
         if (cell?.guru_detail?.some(g => g.guru_id === guruId)) {
           conflictFound = {
             kelas: cls.nama_kelas,
-            guru: (dragItem as Teacher).nama
+            guru: currentTeacher.nama
           };
           break;
         }
@@ -317,23 +329,21 @@ export function ScheduleGridTable({
 
       if (conflictFound) {
         toast({
-          title: "⚠️ Potensi Bentrok Jadwal",
+          title: "Potensi Bentrok Jadwal",
           description: `Guru ${conflictFound.guru} sudah mengajar di ${conflictFound.kelas} pada jam ini!`,
           variant: "destructive",
           duration: 5000
         });
-        // We still allow the drop, but user is warned. 
-        // If strict mode is needed, return; here.
       }
     }
 
     // Add to pending changes
-    const change = {
+    const change: PendingChange = {
       kelas_id: kelasId,
       hari,
       jam_ke: jamKe,
       rowType,
-      [dragType === 'guru' ? 'guru_id' : 'mapel_id']: dragItem.id || (dragItem as Teacher).id_guru || (dragItem as Subject).id_mapel
+      [dragType === 'guru' ? 'guru_id' : 'mapel_id']: (dragItem as any).id || (dragItem as any).id_guru || (dragItem as any).id_mapel
     };
 
     setPendingChanges(prev => {
@@ -358,7 +368,8 @@ export function ScheduleGridTable({
                     ruang_id: 0,
                     guru: [],
                     guru_detail: [],
-                    color: '#fff'
+                    color: '#fff',
+                    jenis: 'pelajaran'
                 };
 
                 // Update specific field based on Drag Type
@@ -366,7 +377,7 @@ export function ScheduleGridTable({
                     const g = dragItem as Teacher;
                     existingCell.guru = [g.nama];
                     existingCell.guru_detail = [{ 
-                        guru_id: g.id || g.id_guru, 
+                        guru_id: g.id || g.id_guru || 0, 
                         nama_guru: g.nama, 
                         kode_guru: g.nip || '' 
                     }];
@@ -388,7 +399,7 @@ export function ScheduleGridTable({
 
     toast({
       title: "Jadwal Diupdate (Draft)",
-      description: `${dragItem.nama || (dragItem as Subject).nama_mapel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
+      description: `${(dragItem as any).nama || (dragItem as any).nama_mapel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
     });
   }, [matrixData]);
 
@@ -460,7 +471,8 @@ export function ScheduleGridTable({
   const handleCopyRow = (kelasId: number) => {
     const cls = matrixData?.classes.find(c => c.kelas_id === kelasId);
     if (cls) {
-      setCopiedRow({ kelas_id: kelasId, schedule: JSON.parse(JSON.stringify(cls.schedule)) });
+      // Use structuredClone for deep copy instead of JSON parse/stringify
+      setCopiedRow({ kelas_id: kelasId, schedule: structuredClone(cls.schedule) });
       toast({ title: "Copied", description: `Jadwal ${cls.nama_kelas} disalin` });
     }
     setContextMenu(null);
@@ -473,7 +485,7 @@ export function ScheduleGridTable({
       return;
     }
 
-    const newChanges: any[] = [];
+    const newChanges: PendingChange[] = [];
     const sourceClass = matrixData.classes.find(c => c.kelas_id === copiedRow.kelas_id);
     
     // Create changes for each cell in copied row
@@ -498,7 +510,7 @@ export function ScheduleGridTable({
     // Optimistic UI update
     const newClasses = matrixData.classes.map(cls => {
       if (cls.kelas_id === targetKelasId) {
-        return { ...cls, schedule: JSON.parse(JSON.stringify(copiedRow.schedule)) };
+        return { ...cls, schedule: structuredClone(copiedRow.schedule) };
       }
       return cls;
     });
@@ -774,6 +786,14 @@ export function ScheduleGridTable({
                                 key={cellId}
                                 className="border p-0 h-6"
                                 style={{ backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : 'white' }}
+                                role="gridcell"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleCellClick(kelas.kelas_id, day, slot.jam_ke, cell);
+                                  }
+                                }}
                               >
                                 <DroppableCell 
                                   cellId={cellId} 
@@ -940,14 +960,14 @@ export function ScheduleGridTable({
             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
             onClick={() => handleCopyRow(contextMenu.kelasId)}
           >
-            📋 Copy Jadwal
+            Copy Jadwal
           </button>
           <button
             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
             onClick={() => handlePasteRow(contextMenu.kelasId)}
             disabled={!copiedRow}
           >
-            📥 Paste Jadwal
+            Paste Jadwal
           </button>
         </div>
       )}

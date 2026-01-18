@@ -14,7 +14,7 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
-import { execSync } from 'child_process';
+import { } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -328,7 +328,7 @@ async function seed() {
             // Let's assume `id` is primary key auto inc, `id_guru` is data field.
             // Based on prev `absenta13.sql`, `id` is PK, `id_guru` is separate. Let's make `id_guru` = `id`.
             
-            const [guruRes] = await connection.execute(
+            await connection.execute(
                 'INSERT INTO guru (id_guru, user_id, nip, nama, mapel_id, status, jenis_kelamin) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [userId + 1000, userId, nip, name, mapelObj.id, 'aktif', i % 2 === 0 ? 'L' : 'P']
             );

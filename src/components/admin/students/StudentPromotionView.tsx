@@ -180,7 +180,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       setStudents(filteredStudents);
       setSelectedStudents(new Set()); // Reset selection
     } catch (error) {
-      console.error('❌ Error fetching students:', error);
+      console.error('Error fetching students:', error);
       toast({ title: "Error memuat data siswa", description: error instanceof Error ? error.message : "Gagal memuat siswa", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -200,7 +200,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
     }
   }, [fromClassId, fetchStudents]);
 
-  // 🧠 SMART CLASS PARSER - Simplified using extracted helpers
+  // SMART CLASS PARSER - Simplified using extracted helpers
   const parseClassName = useCallback((className: string): ParsedClass | null => {
     const cleanName = className.trim().toUpperCase();
     
@@ -212,7 +212,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
     return tryFallbackMatch(cleanName, className);
   }, []);
 
-  // 🎯 AUTO-DETECT TARGET CLASS - Otomatis cari kelas tujuan berdasarkan kelas asal
+  // AUTO-DETECT TARGET CLASS - Otomatis cari kelas tujuan berdasarkan kelas asal
   const findTargetClass = useCallback((fromClassId: string) => {
 
     
@@ -260,19 +260,19 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       const targetLevel = getNextLevel(sourceParsed.level);
       if (!targetLevel) {
         setToClassIdFn('');
-        toast({ title: "❌ Tidak Dapat Dipromosikan", description: "Siswa kelas XII sudah lulus", variant: "destructive" });
+        toast({ title: "Tidak Dapat Dipromosikan", description: "Siswa kelas XII sudah lulus", variant: "destructive" });
         return;
       }
 
       const fallbackClass = findFallbackByLevelAndMajor(classes, targetLevel, sourceParsed.major);
       if (fallbackClass) {
         setToClassIdFn(fallbackClass.id?.toString() || '');
-        toast({ title: "⚠ Kelas Tujuan Ditemukan (Parsial)", description: `Mohon periksa: ${fallbackClass.nama_kelas}` });
+        toast({ title: "Kelas Tujuan Ditemukan (Parsial)", description: `Mohon periksa: ${fallbackClass.nama_kelas}` });
         return;
       }
 
       setToClassIdFn('');
-      toast({ title: "❌ Kelas Tujuan Tidak Ditemukan", description: `Kelas ${targetLevel} ${sourceParsed.major} belum dibuat`, variant: "destructive" });
+      toast({ title: "Kelas Tujuan Tidak Ditemukan", description: `Kelas ${targetLevel} ${sourceParsed.major} belum dibuat`, variant: "destructive" });
       return;
     }
 
@@ -283,14 +283,14 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
         const simpleFallback = findClassByLevel(classes, simpleLevel);
         if (simpleFallback) {
           setToClassIdFn(simpleFallback.id?.toString() || '');
-          toast({ title: "⚠ Kelas Tujuan Ditemukan (Sederhana)", description: `Ditemukan: ${simpleFallback.nama_kelas}` });
+          toast({ title: "Kelas Tujuan Ditemukan (Sederhana)", description: `Ditemukan: ${simpleFallback.nama_kelas}` });
           return;
         }
       }
     }
 
     setToClassIdFn('');
-    toast({ title: "⚠ Kelas Tujuan Tidak Ditemukan", description: "Silakan buat kelas yang sesuai terlebih dahulu.", variant: "destructive" });
+    toast({ title: "Kelas Tujuan Tidak Ditemukan", description: "Silakan buat kelas yang sesuai terlebih dahulu.", variant: "destructive" });
   }, [classes, parseClassName]);
 
   // Auto-detect dan set kelas tujuan saat kelas asal dipilih (Simplified)
@@ -311,7 +311,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       const targetParsed = parseClassName(targetClass.nama_kelas || '');
       if (sourceParsed && targetParsed) {
         toast({
-          title: "✓ Kelas Tujuan Terdeteksi",
+          title: "Kelas Tujuan Terdeteksi",
           description: `${sourceParsed.level} ${sourceParsed.major} ${sourceParsed.number} → ${targetParsed.level} ${targetParsed.major} ${targetParsed.number}`,
         });
       }
@@ -414,7 +414,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       await fetchStudents(fromClassId);
       
     } catch (error) {
-      console.error('❌ Error promoting students:', error);
+      console.error('Error promoting students:', error);
       
       // Error handling yang lebih spesifik
       let errorMessage = 'Terjadi kesalahan saat memproses promosi siswa';

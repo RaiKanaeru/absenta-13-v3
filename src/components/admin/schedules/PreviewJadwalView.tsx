@@ -386,7 +386,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                     alt="Logo Kiri" 
                     className="h-12 lg:h-16 object-contain"
                     onError={(e) => {
-                      console.warn('⚠️ Logo kiri gagal dimuat:', letterhead.logoLeftUrl);
+                      console.warn('Logo kiri gagal dimuat:', letterhead.logoLeftUrl);
                       e.currentTarget.style.display = 'none';
                     }}
                   />
@@ -398,7 +398,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                     alt="Logo Kanan" 
                     className="h-12 lg:h-16 object-contain"
                     onError={(e) => {
-                      console.warn('⚠️ Logo kanan gagal dimuat:', letterhead.logoRightUrl);
+                      console.warn('Logo kanan gagal dimuat:', letterhead.logoRightUrl);
                       e.currentTarget.style.display = 'none';
                     }}
                   />
@@ -537,7 +537,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                       {schedule.nama_mapel || schedule.keterangan_khusus}
                     </p>
                     <p className="text-sm text-gray-600 mb-1">
-                      👨‍🏫 {schedule.nama_guru || 'Sistem'}
+                      Guru: {schedule.nama_guru || 'Sistem'}
                     </p>
                     {schedule.guru_list && schedule.guru_list.includes('||') && (
                       <div className="text-xs text-green-600 mb-1">
@@ -550,7 +550,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                       </div>
                     )}
                     <p className="text-xs text-gray-500">
-                      📍 {schedule.kode_ruang || schedule.nama_ruang || 'Ruang TBD'}
+                      Ruang: {schedule.kode_ruang || schedule.nama_ruang || 'Ruang TBD'}
                     </p>
                   </div>
                   <div className="flex flex-row lg:flex-col lg:text-right gap-3 lg:gap-0 lg:ml-4">

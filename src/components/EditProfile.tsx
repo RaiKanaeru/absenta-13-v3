@@ -303,7 +303,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ Profile update error:', errorData);
+        console.error('Profile update error:', errorData);
         throw new Error(errorData.error || 'Gagal memperbarui profil');
       }
 

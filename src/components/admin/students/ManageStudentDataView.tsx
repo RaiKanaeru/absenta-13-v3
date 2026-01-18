@@ -14,17 +14,20 @@ import { ArrowLeft, Download, Search, Users, Edit, Trash2 } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { StudentData, Kelas } from "@/types/dashboard";
 
+type Gender = 'L' | 'P';
+type StudentStatus = 'aktif' | 'nonaktif';
+
 // ManageStudentDataView Component
-const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
+const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => void; onLogout: () => void }>) => {
   const [formData, setFormData] = useState({ 
     nis: '', 
     nama: '', 
     kelas_id: '',
-    jenis_kelamin: '' as 'L' | 'P' | '',
+    jenis_kelamin: '' as Gender | '',
     alamat: '',
     telepon_orangtua: '',
     nomor_telepon_siswa: '',
-    status: 'aktif' as 'aktif' | 'nonaktif',
+    status: 'aktif' as StudentStatus,
     username: '',
     password: '',
     email: '',
@@ -120,11 +123,11 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
         nis: '', 
         nama: '', 
         kelas_id: '',
-        jenis_kelamin: '' as 'L' | 'P' | '',
+        jenis_kelamin: '' as Gender | '',
         alamat: '',
         telepon_orangtua: '',
         nomor_telepon_siswa: '',
-        status: 'aktif' as 'aktif' | 'nonaktif',
+        status: 'aktif' as StudentStatus,
         username: '',
         password: '',
         email: '',
@@ -266,7 +269,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
               </div>
               <div>
                 <Label htmlFor="student-gender" className="text-sm font-medium">Jenis Kelamin *</Label>
-                <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({...formData, jenis_kelamin: value as 'L' | 'P'})}>
+                <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({...formData, jenis_kelamin: value as Gender})}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Pilih jenis kelamin" />
                   </SelectTrigger>
@@ -318,7 +321,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="student-status" className="text-sm font-medium">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as 'aktif' | 'nonaktif'})}>
+                <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as StudentStatus})}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
@@ -340,11 +343,11 @@ const ManageStudentDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                         nis: '', 
                         nama: '', 
                         kelas_id: '',
-                        jenis_kelamin: '' as 'L' | 'P' | '',
+                        jenis_kelamin: '' as Gender | '',
                         alamat: '',
                         telepon_orangtua: '',
                         nomor_telepon_siswa: '',
-                        status: 'aktif' as 'aktif' | 'nonaktif',
+                        status: 'aktif' as StudentStatus,
                         username: '',
                         password: '',
                         email: '',

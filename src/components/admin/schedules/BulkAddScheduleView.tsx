@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,7 @@ export function BulkAddScheduleView({
   classes, 
   rooms,
   onSuccess 
-}: BulkAddScheduleViewProps) {
+}: Readonly<BulkAddScheduleViewProps>) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState<number[]>([]);
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
@@ -138,7 +138,7 @@ export function BulkAddScheduleView({
     setIsLoading(true);
     try {
       // Check for conflicts via API
-      const response = await apiCall('/api/admin/jadwal/check-conflicts', {
+      const response = await apiCall<{ data?: { conflicts?: ConflictInfo[] }; conflicts?: ConflictInfo[] }>('/api/admin/jadwal/check-conflicts', {
         method: 'POST',
         body: JSON.stringify({
           kelas_ids: selectedClasses,
@@ -149,7 +149,7 @@ export function BulkAddScheduleView({
           ruang_id: formData.ruang_id === 'none' ? null : Number.parseInt(formData.ruang_id)
         }),
         onLogout
-      }) as { data?: { conflicts?: ConflictInfo[] }; conflicts?: ConflictInfo[] };
+      });
 
       const conflictList = response.data?.conflicts ?? response.conflicts ?? [];
       setConflicts(conflictList);
@@ -180,11 +180,11 @@ export function BulkAddScheduleView({
         keterangan_khusus: formData.keterangan_khusus
       };
 
-      const response = await apiCall('/api/admin/jadwal/bulk', {
+      const response = await apiCall<{ data?: { created?: number; skipped?: number } }>('/api/admin/jadwal/bulk', {
         method: 'POST',
         body: JSON.stringify(payload),
         onLogout
-      }) as { data?: { created?: number; skipped?: number } };
+      });
 
       const created = response.data?.created ?? selectedClasses.length;
       const skipped = response.data?.skipped ?? 0;

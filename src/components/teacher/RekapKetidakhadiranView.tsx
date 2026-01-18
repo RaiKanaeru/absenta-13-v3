@@ -14,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { getMonthRangeWIB } from "@/lib/time-utils";
 import { ClipboardList, Search, Download, ArrowLeft } from "lucide-react";
-import { getApiUrl } from '@/config/api';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
@@ -85,19 +84,10 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       
-      const url = getApiUrl(`/api/export/rekap-ketidakhadiran?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran?${params.toString()}`, {
+        responseType: 'blob'
       });
       
-      if (!response.ok) {
-        throw new Error('Gagal mengunduh file Excel');
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `rekap-ketidakhadiran-${reportType}-${dateRange.startDate}-${dateRange.endDate}.xlsx`;

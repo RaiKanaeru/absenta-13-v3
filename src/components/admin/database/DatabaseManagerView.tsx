@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Database, Play, FileText, FolderOpen, AlertTriangle, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
+import { Database, Play, FileText, FolderOpen, RefreshCw, Loader2 } from 'lucide-react';
 import { apiCall } from '@/utils/apiClient';
 import { formatDateTime24 } from '@/lib/time-utils';
 import { useToast } from '@/hooks/use-toast';
@@ -82,7 +82,7 @@ export const DatabaseManagerView: React.FC = () => {
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
     const rootFiles = files.filter(f => f.path === 'root');

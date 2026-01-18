@@ -24,7 +24,8 @@ import {
     CONTENT_DISPOSITION,
     EXPORT_TITLES,
     MONTH_NAMES_SHORT,
-    EXPORT_HEADERS
+    EXPORT_HEADERS,
+    HARI_EFEKTIF
 } from '../config/exportConfig.js';
 
 
@@ -399,25 +400,18 @@ export const exportBandingAbsen = async (req, res) => {
  * Export rekap ketidakhadiran guru - Format SMK13
  * GET /api/export/rekap-ketidakhadiran-guru
  * Template: REKAP KETIDAKHADIRAN GURU with BULAN/JUMLAH HARI EFEKTIF KERJA header
- */
+
+
 export const exportRekapKetidakhadiranGuru = async (req, res) => {
     try {
         const { tahun } = req.query;
         const tahunAjaran = tahun || getWIBTime().getFullYear();
-        // Hari efektif per bulan (configurable)
-        const hariEfektifPerBulan = {
-            7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,  // Jul-Des
-            1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20     // Jan-Jun
-        };
-
-        // Calculate total hari efektif
-        const totalHariEfektif = Object.values(hariEfektifPerBulan).reduce((sum, h) => sum + h, 0);
+        // Calculate total hari efektif from config
+        const totalHariEfektif = Object.values(HARI_EFEKTIF.BULANAN).reduce((sum, h) => sum + h, 0);
 
         // Query data guru dengan ketidakhadiran per bulan
         const rows = await ExportService.getRekapKetidakhadiranGuru(tahunAjaran);
 
-        // Build Excel using ExcelJS directly
-        const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN GURU');
 
@@ -495,485 +489,9 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         Object.assign(worksheet.getCell(`A${headerRow1}`), { ...headerStyle, fill: yellowFill });
         Object.assign(worksheet.getCell(`B${headerRow1}`), { ...headerStyle, fill: yellowFill });
 
-        const hariPerMonth = [14, 21, 22, 23, 20, 17, 15, 20, 22, 22, 21, 20]; // Jul-Jun
-        monthCols.forEach((col, idx) => {
-            worksheet.getCell(headerRow3, col).value = hariPerMonth[idx];
-            Object.assign(worksheet.getCell(headerRow3, col), { ...headerStyle, fill: cyanFill });
-        });
-
-        // Merge summary column headers across 3 rows
-        ['O', 'P', 'Q'].forEach(c => {
-            worksheet.mergeCells(`${c}${headerRow1}:${c}${headerRow3}`);
-        });
-
-        // Data rows starting at row 8
-        let dataRow = 8;
-        rows.forEach((guru, index) => {
-            const monthlyData = [guru.jul, guru.agt, guru.sep, guru.okt, guru.nov, guru.des, guru.jan, guru.feb, guru.mar, guru.apr, guru.mei, guru.jun];
-            const totalKetidakhadiran = monthlyData.reduce((sum, val) => sum + (Number.parseInt(val) || 0), 0);
-            const persenKetidakhadiran = totalHariEfektif > 0 ? ((totalKetidakhadiran / totalHariEfektif) * 100).toFixed(2) : '0.00';
-            const persenKehadiran = (100 - Number.parseFloat(persenKetidakhadiran)).toFixed(2);
-
-            worksheet.getCell(`A${dataRow}`).value = index + 1;
-            worksheet.getCell(`B${dataRow}`).value = guru.nama;
-            Object.assign(worksheet.getCell(`A${dataRow}`), dataStyle);
-            Object.assign(worksheet.getCell(`B${dataRow}`), { ...dataStyle, alignment: { horizontal: 'left', vertical: 'middle' } });
-
-            monthCols.forEach((col, idx) => {
-                worksheet.getCell(dataRow, col).value = Number.parseInt(monthlyData[idx]) || 0;
-                Object.assign(worksheet.getCell(dataRow, col), { ...dataStyle, fill: idx < 6 ? lightGreenFill : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0FFFF' } } });
-            });
-
-            worksheet.getCell(`O${dataRow}`).value = totalKetidakhadiran;
-            worksheet.getCell(`P${dataRow}`).value = Number.parseFloat(persenKetidakhadiran);
-            worksheet.getCell(`Q${dataRow}`).value = Number.parseFloat(persenKehadiran);
-            ['O', 'P', 'Q'].forEach(c => Object.assign(worksheet.getCell(`${c}${dataRow}`), dataStyle));
-
-            dataRow++;
-        });
-
-        // Set column widths
-        worksheet.getColumn(1).width = 5;   // NO
-        worksheet.getColumn(2).width = 35;  // NAMA GURU
-        for (let i = 3; i <= 14; i++) worksheet.getColumn(i).width = 5; // Months
-        worksheet.getColumn(15).width = 10; // JUMLAH
-        worksheet.getColumn(16).width = 10; // % KETIDAKHADIRAN
-        worksheet.getColumn(17).width = 10; // % KEHADIRAN
-
-        // Set row heights
-        worksheet.getRow(headerRow1).height = 25;
-        worksheet.getRow(headerRow2).height = 20;
-        worksheet.getRow(headerRow3).height = 20;
-
-        const filename = `Rekap_Ketidakhadiran_Guru_${tahunAjaran}-${Number.parseInt(tahunAjaran) + 1}`;
-        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
-        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="${filename}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        logger.error('Error exporting rekap ketidakhadiran guru', { error: error.message });
-        return sendDatabaseError(res, error);
-    }
-};
-
-// ================================================
-// GURU & ADMIN EXPORTS - Using excelLetterhead utility
-// ================================================
-
-import { addLetterheadToWorksheet, addReportTitle, addHeaders } from '../utils/excelLetterhead.js';
-import { excelStyles, applyStyle, borders, parseGuruList } from '../utils/excelStyles.js';
-
-/**
- * Export riwayat banding absen
- * GET /api/export/riwayat-banding-absen
- */
-export const exportRiwayatBandingAbsen = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id, status } = req.query;
-        const guruId = req.user.guru_id;
-        if (!startDate || !endDate) {
-            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
-        }
-
-        const rows = await ExportService.getRiwayatBandingAbsen(startDate, endDate, guruId, kelas_id, status);
-
-        // Get class name for title
-        let className = 'Semua Kelas';
-        if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await globalThis.dbPool.execute(
-                SQL_GET_KELAS_NAME_BY_ID,
-                [kelas_id]
-            );
-            if (kelasRows.length > 0) {
-                className = kelasRows[0].nama_kelas;
-            }
-        }
-
-        // Load letterhead
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
-
-        // Create Excel
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('RIWAYAT BANDING ABSEN');
-
-        // Add letterhead
-        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, 11);
-
-        // Add title
-        currentRow = addReportTitle(
-            worksheet, 
-            'RIWAYAT PENGAJUAN BANDING ABSEN',
-            `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`,
-            currentRow,
-            11
-        );
-
-        // Headers
-        const headers = ['NO', 'TANGGAL', 'NAMA SISWA', 'NIS', 'KELAS', 'TANGGAL ABSEN', 'STATUS ABSEN', 'ALASAN BANDING', 'STATUS', 'TGL DISETUJUI', 'CATATAN'];
-        addHeaders(worksheet, headers, currentRow);
-        currentRow++;
-
-        // Data rows
-        rows.forEach((item, index) => {
-            const row = currentRow + index;
-            worksheet.getCell(row, 1).value = index + 1;
-            worksheet.getCell(row, 2).value = item.tanggal_pengajuan;
-            worksheet.getCell(row, 3).value = item.nama_siswa;
-            worksheet.getCell(row, 4).value = item.nis;
-            worksheet.getCell(row, 5).value = item.nama_kelas;
-            worksheet.getCell(row, 6).value = item.tanggal_absen;
-            worksheet.getCell(row, 7).value = item.status_absen;
-            worksheet.getCell(row, 8).value = item.alasan_banding;
-            let statusText = 'Pending';
-            if (item.status === 'approved') statusText = 'Disetujui';
-            else if (item.status === 'rejected') statusText = 'Ditolak';
-            
-            worksheet.getCell(row, 9).value = statusText;
-            worksheet.getCell(row, 10).value = item.tanggal_disetujui || '-';
-            worksheet.getCell(row, 11).value = item.catatan || '-';
-        });
-
-        // Response
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="riwayat-banding-absen-${startDate}-${endDate}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        return sendDatabaseError(res, error);
-    }
-};
-
-// ================================================
-// MORE GURU & ADMIN EXPORTS
-// ================================================
-
-/**
- * Export presensi siswa SMKN13 format
- * GET /api/export/presensi-siswa-smkn13
- */
-export const exportPresensiSiswaSmkn13 = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.guru_id;
-        if (!startDate || !endDate) {
-            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
-        }
-
-        const rows = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, guruId, kelas_id);
-
-        // Get class name for title
-        let className = 'Semua Kelas';
-        if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await globalThis.dbPool.execute(
-                SQL_GET_KELAS_NAME_BY_ID,
-                [kelas_id]
-            );
-            if (kelasRows.length > 0) {
-                className = kelasRows[0].nama_kelas;
-            }
-        }
-
-        // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        // Load letterhead configuration
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
-
-        // Prepare data for Excel
-        const reportData = rows.map((item, index) => {
-            const total = item.total_siswa || 0;
-            const hadir = item.hadir || 0;
-            const presentase = total > 0 ? ((hadir / total) * 100).toFixed(1) : '0.0';
-
-            return {
-                no: index + 1,
-                tanggal: item.tanggal,
-                hari: item.hari,
-                jam: `${item.jam_mulai} - ${item.jam_selesai}`,
-                mata_pelajaran: item.mata_pelajaran,
-                kelas: item.nama_kelas,
-                guru: item.nama_guru,
-                total_siswa: total,
-                hadir: hadir,
-                izin: item.izin || 0,
-                sakit: item.sakit || 0,
-                alpa: item.alpa || 0,
-                dispen: item.dispen || 0,
-                persentase: `${presentase}%`
-            };
-        });
-
-        // Define columns
-        const columns = [
-            { key: 'no', label: 'NO', width: 5, align: 'center' },
-            { key: 'tanggal', label: 'TANGGAL', width: 12, align: 'center' },
-            { key: 'hari', label: 'HARI', width: 10, align: 'center' },
-            { key: 'jam', label: 'JAM', width: 15, align: 'center' },
-            { key: 'mata_pelajaran', label: 'MATA PELAJARAN', width: 20, align: 'left' },
-            { key: 'kelas', label: 'KELAS', width: 12, align: 'center' },
-            { key: 'guru', label: 'GURU', width: 20, align: 'left' },
-            { key: 'total_siswa', label: 'TOTAL SISWA', width: 12, align: 'center' },
-            { key: 'hadir', label: 'HADIR', width: 8, align: 'center' },
-            { key: 'izin', label: 'IZIN', width: 8, align: 'center' },
-            { key: 'sakit', label: 'SAKIT', width: 8, align: 'center' },
-            { key: 'alpa', label: 'ALPA', width: 8, align: 'center' },
-            { key: 'dispen', label: 'DISPEN', width: 8, align: 'center' },
-            { key: 'persentase', label: 'PERSENTASE (%)', width: 12, align: 'center' }
-        ];
-
-        const reportPeriod = `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`;
-
-        // Generate Excel workbook
-        const workbook = await buildExcel({
-            title: 'PRESENSI SISWA',
-            subtitle: 'Laporan Presensi Siswa SMKN 13',
-            reportPeriod: reportPeriod,
-            showLetterhead: letterhead.enabled,
-            letterhead: letterhead,
-            columns: columns,
-            rows: reportData
-        });
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="presensi-siswa-smkn13-${startDate}-${endDate}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        return sendDatabaseError(res, error);
-    }
-};
-
-// ================================================
-// MORE EXPORTS - Using excelLetterhead utility
-// ================================================
-
-/**
- * Export rekap ketidakhadiran
- * GET /api/export/rekap-ketidakhadiran
- */
-export const exportRekapKetidakhadiran = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id, reportType } = req.query;
-        const guruId = req.user.guru_id;
-        if (!startDate || !endDate) {
-            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
-        }
-
-        const rows = await ExportService.getRekapKetidakhadiran(startDate, endDate, guruId, kelas_id, reportType);
-
-        // Get class name
-        let className = 'Semua Kelas';
-        if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await globalThis.dbPool.execute(
-                SQL_GET_KELAS_NAME_BY_ID,
-                [kelas_id]
-            );
-            if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
-        }
-
-        // Load letterhead
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
-
-        // Create Excel
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN');
-
-        // Add letterhead
-        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, 12);
-
-        // Add title
-        currentRow = addReportTitle(
-            worksheet,
-            `REKAP KETIDAKHADIRAN ${reportType === 'bulanan' ? 'BULANAN' : 'TAHUNAN'}`,
-            `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`,
-            currentRow,
-            12
-        );
-
-        // Headers
-        const headers = ['NO', 'PERIODE', 'KELAS', 'TOTAL SISWA', 'HADIR', 'IZIN', 'SAKIT', 'ALPA', 'DISPEN', 'TOTAL ABSEN', '% HADIR', '% ABSEN'];
-        addHeaders(worksheet, headers, currentRow);
-        currentRow++;
-
-        // Data rows
-        rows.forEach((item, index) => {
-            const row = currentRow + index;
-            const totalSiswa = item.total_siswa || 0;
-            const hadir = item.hadir || 0;
-            const totalAbsen = (item.izin || 0) + (item.sakit || 0) + (item.alpa || 0) + (item.dispen || 0);
-            const presentaseHadir = totalSiswa > 0 ? ((hadir / totalSiswa) * 100).toFixed(1) : '0.0';
-            const presentaseAbsen = totalSiswa > 0 ? ((totalAbsen / totalSiswa) * 100).toFixed(1) : '0.0';
-
-            worksheet.getCell(row, 1).value = index + 1;
-            worksheet.getCell(row, 2).value = item.periode;
-            worksheet.getCell(row, 3).value = item.nama_kelas;
-            worksheet.getCell(row, 4).value = totalSiswa;
-            worksheet.getCell(row, 5).value = hadir;
-            worksheet.getCell(row, 6).value = item.izin || 0;
-            worksheet.getCell(row, 7).value = item.sakit || 0;
-            worksheet.getCell(row, 8).value = item.alpa || 0;
-            worksheet.getCell(row, 9).value = item.dispen || 0;
-            worksheet.getCell(row, 10).value = totalAbsen;
-            worksheet.getCell(row, 11).value = `${presentaseHadir}%`;
-            worksheet.getCell(row, 12).value = `${presentaseAbsen}%`;
-        });
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="rekap-ketidakhadiran-${reportType}-${startDate}-${endDate}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        return sendDatabaseError(res, error);
-    }
-};
-
-// ================================================
-// MORE EXPORTS
-// ================================================
-
-/**
- * Export ringkasan kehadiran siswa SMKN13
- * GET /api/export/ringkasan-kehadiran-siswa-smkn13
- */
-export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
-    try {
-        const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.guru_id;
-        if (!startDate || !endDate) {
-            return res.status(400).json({ error: ERROR_DATE_REQUIRED });
-        }
-
-        const rows = await ExportService.getRingkasanKehadiranSiswaSmkn13(startDate, endDate, guruId, kelas_id);
-
-        // Calculate percentage
-        const dataWithPercentage = rows.map(row => {
-            const total = row.H + row.I + row.S + row.A + row.D;
-            const presentase = total > 0 ? ((row.H / total) * 100).toFixed(2) : '0.00';
-            return { ...row, presentase: Number.parseFloat(presentase) };
-        });
-
-        // Get class name
-        let className = 'Semua Kelas';
-        if (kelas_id && kelas_id !== 'all') {
-            const [kelasRows] = await globalThis.dbPool.execute(SQL_GET_KELAS_NAME_BY_ID, [kelas_id]);
-            if (kelasRows.length > 0) className = kelasRows[0].nama_kelas;
-        }
-
-        // Load letterhead
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN });
-
-        // Create Excel
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('RINGKASAN KEHADIRAN SISWA');
-
-        // Add letterhead
-        let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, 11);
-
-        // Add title
-        currentRow = addReportTitle(worksheet, 'RINGKASAN KEHADIRAN SISWA', `Periode: ${startDate} s/d ${endDate} - Kelas: ${className}`, currentRow, 11);
-
-        // Headers
-        const headers = ['NO', 'NAMA SISWA', 'NIS', 'KELAS', 'HADIR', 'IZIN', 'SAKIT', 'ALPA', 'DISPEN', 'TOTAL', '%'];
-        addHeaders(worksheet, headers, currentRow);
-        currentRow++;
-
-        // Data rows
-        dataWithPercentage.forEach((siswa, index) => {
-            const row = currentRow + index;
-            const total = siswa.H + siswa.I + siswa.S + siswa.A + siswa.D;
-            worksheet.getCell(row, 1).value = index + 1;
-            worksheet.getCell(row, 2).value = siswa.nama;
-            worksheet.getCell(row, 3).value = siswa.nis;
-            worksheet.getCell(row, 4).value = siswa.nama_kelas;
-            worksheet.getCell(row, 5).value = siswa.H || 0;
-            worksheet.getCell(row, 6).value = siswa.I || 0;
-            worksheet.getCell(row, 7).value = siswa.S || 0;
-            worksheet.getCell(row, 8).value = siswa.A || 0;
-            worksheet.getCell(row, 9).value = siswa.D || 0;
-            worksheet.getCell(row, 10).value = total;
-            worksheet.getCell(row, 11).value = `$.parseFloat(siswa.presentase || 0).toFixed(2)}%`;
-        });
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="ringkasan-kehadiran-siswa-smkn13-${startDate}-${endDate}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        return sendDatabaseError(res, error);
-    }
-};
-
-// ================================================
-// MORE EXPORTS
-// ================================================
-
-/**
- * Export rekap ketidakhadiran guru SMKN13
- * GET /api/export/rekap-ketidakhadiran-guru-smkn13
- */
-export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
-    try {
-        const { tahun } = req.query;
-        if (!tahun) {
-            return res.status(400).json({ error: ERROR_YEAR_REQUIRED });
-        }
-
-        const query = `
-            SELECT 
-                g.id_guru as id, g.nama, g.nip,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
-                COALESCE(SUM(CASE WHEN a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as total_ketidakhadiran
-            FROM guru g
-            LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
-                AND YEAR(a.tanggal) = ? 
-                AND a.status = 'Tidak Hadir'
-            GROUP BY g.id_guru, g.nama, g.nip
-            ORDER BY g.nama
-        `;
-
-        const rows = await ExportService.getRekapKetidakhadiranGuruSmkn13(tahun);
-
-        // Calculate percentages
-        const hariEfektifPerBulan = { 7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17, 1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20 };
-        const dataWithPercentage = rows.map(row => {
-            const totalKetidakhadiran = row.total_ketidakhadiran;
-            let totalHariEfektif = 0;
-            const bulanData = [row.jul, row.agt, row.sep, row.okt, row.nov, row.des, row.jan, row.feb, row.mar, row.apr, row.mei, row.jun];
-            const bulanKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
-
-            bulanKeys.forEach((bulan, index) => {
-                if (bulanData[index] > 0) totalHariEfektif += hariEfektifPerBulan[bulan];
-            });
-
-            if (totalHariEfektif === 0) {
-                totalHariEfektif = Object.values(hariEfektifPerBulan).reduce((sum, hari) => sum + hari, 0);
-            }
-            const persentaseKetidakhadiran = totalHariEfektif > 0 ? (totalKetidakhadiran / totalHariEfektif) * 100 : 0;
-            const persentaseKehadiran = 100 - persentaseKetidakhadiran;
-
-            return {
+        const hariPerMonth = [
+            HARI_EFEKTIF.BULANAN[7], HARI_EFEKTIF.BULANAN[8], HARI_EFEKTIF.BULANAN[9], HARI_EFEKTIF.BULANAN[10], HARI_EFEKTIF.BULANAN[11], HARI_EFEKTIF.BULANAN[12],
+            HARI_EFEKTIF.BULANAN[1], HARI_EFEKTIF.BULANAN[2], HARI_EFEKTIF.BULANAN[3], HARI_EFEKTIF.BULANAN[4], HARI_EFEKTIF.BULANAN[5], HARI_EFEKTIF.BULANAN[6]
                 ...row,
                 persentase_ketidakhadiran: Number.parseFloat(persentaseKetidakhadiran.toFixed(2)),
                 persentase_kehadiran: Number.parseFloat(persentaseKehadiran.toFixed(2))
@@ -1833,7 +1351,7 @@ export const exportJadwalPrint = async (req, res) => {
 };
 
 // ================================================
-// ALL EXPORTS MIGRATED - 17/17 COMPLETE! 🎉
+// ALL EXPORTS MIGRATED - 17/17 COMPLETE
 // ================================================
 
 
@@ -2712,6 +2230,78 @@ export const exportScheduleExcel = async (req, res) => {
 
     } catch (error) {
         log.error('ExportScheduleExcel Error', error);
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export rekap ketidakhadiran guru SMKN13
+ * GET /api/export/rekap-ketidakhadiran-guru-smkn13
+ */
+export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
+    try {
+        const { tahun } = req.query;
+        if (!tahun) {
+            return res.status(400).json({ error: ERROR_YEAR_REQUIRED });
+        }
+
+        const rows = await ExportService.getRekapKetidakhadiranGuruSmkn13(tahun);
+
+        // Calculate percentages using centralized HARI_EFEKTIF configuration
+        const dataWithPercentage = rows.map(row => {
+            const totalKetidakhadiran = row.total_ketidakhadiran;
+            let totalHariEfektif = 0;
+            const bulanData = [row.jul, row.agt, row.sep, row.okt, row.nov, row.des, row.jan, row.feb, row.mar, row.apr, row.mei, row.jun];
+            const bulanKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+
+            bulanKeys.forEach((bulan, index) => {
+                if (bulanData[index] > 0) totalHariEfektif += HARI_EFEKTIF.BULANAN[bulan];
+            });
+
+            if (totalHariEfektif === 0) {
+                totalHariEfektif = Object.values(HARI_EFEKTIF.BULANAN).reduce((sum, hari) => sum + hari, 0);
+            }
+            const persentaseKetidakhadiran = totalHariEfektif > 0 ? (totalKetidakhadiran / totalHariEfektif) * 100 : 0;
+            const persentaseKehadiran = 100 - persentaseKetidakhadiran;
+
+            return {
+                ...row,
+                persentase_ketidakhadiran: Number.parseFloat(persentaseKetidakhadiran.toFixed(2)),
+                persentase_kehadiran: Number.parseFloat(persentaseKehadiran.toFixed(2))
+            };
+        });
+
+        // Import required modules
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
+        const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
+
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
+
+        const reportData = dataWithPercentage.map((row, index) => ({
+            no: index + 1, nama: row.nama, nip: row.nip,
+            jul: row.jul, agt: row.agt, sep: row.sep, okt: row.okt, nov: row.nov, des: row.des,
+            jan: row.jan, feb: row.feb, mar: row.mar, apr: row.apr, mei: row.mei, jun: row.jun,
+            total_ketidakhadiran: row.total_ketidakhadiran,
+            persentase_ketidakhadiran: row.persentase_ketidakhadiran / 100,
+            persentase_kehadiran: row.persentase_kehadiran / 100
+        }));
+
+        const workbook = await buildExcel({
+            title: rekapGuruSchema.default.title,
+            subtitle: rekapGuruSchema.default.subtitle,
+            reportPeriod: `Tahun ${tahun}`,
+            letterhead: letterhead,
+            columns: rekapGuruSchema.default.columns,
+            rows: reportData
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
         return sendDatabaseError(res, error);
     }
 };

@@ -316,18 +316,42 @@ export const upsertJamPelajaran = async (req, res) => {
         // === DATABASE UPSERT ===
         log.debug('Starting upsert operation', { count: jam_pelajaran.length });
         
-        let upsertedCount = 0;
-        for (const jam of jam_pelajaran) {
-            await executeJamPelajaranUpsert(kelasId, jam);
-            upsertedCount++;
-        }
+        const connection = await globalThis.dbPool.getConnection();
+        await connection.beginTransaction();
         
-        log.timed('Upsert', startTime, { kelasId, kelasName, upsertedCount });
-        return sendSuccessResponse(res, { 
-            upsertedCount, 
-            kelasId: Number.parseInt(kelasId),
-            kelasName 
-        }, `Berhasil menyimpan ${upsertedCount} jam pelajaran untuk kelas ${kelasName}`);
+        try {
+            let upsertedCount = 0;
+            for (const jam of jam_pelajaran) {
+                const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'];
+                
+                for (const hari of daysToInsert) {
+                    await connection.execute(`
+                        INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            jam_mulai = VALUES(jam_mulai),
+                            jam_selesai = VALUES(jam_selesai),
+                            label = VALUES(label),
+                            updated_at = CURRENT_TIMESTAMP
+                    `, [kelasId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
+                }
+                upsertedCount++;
+            }
+            
+            await connection.commit();
+            log.timed('Upsert', startTime, { kelasId, kelasName, upsertedCount });
+            return sendSuccessResponse(res, { 
+                upsertedCount, 
+                kelasId: Number.parseInt(kelasId),
+                kelasName 
+            }, `Berhasil menyimpan ${upsertedCount} jam pelajaran untuk kelas ${kelasName}`);
+            
+        } catch (dbError) {
+            await connection.rollback();
+            throw dbError;
+        } finally {
+            connection.release();
+        }
         
     } catch (error) {
         log.dbError('upsert', error, { kelasId });
@@ -382,6 +406,43 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
  * POST /api/admin/jam-pelajaran/copy
  * Body: { sourceKelasId, targetKelasIds: [] }
  */
+/**
+ * Helper to copy schedule to a single target class within a transaction
+ */
+async function copyScheduleToClass(connection, targetId, sourceJam, log) {
+    // Get target kelas name
+    const [targetKelas] = await connection.execute(
+        SQL_GET_KELAS_NAME,
+        [targetId]
+    );
+    
+    if (targetKelas.length === 0) {
+        log.warn('Target kelas not found, skipping', { targetId });
+        return null;
+    }
+    
+    for (const jam of sourceJam) {
+        const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'];
+        for (const hari of daysToInsert) {
+            await connection.execute(`
+                INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    jam_mulai = VALUES(jam_mulai),
+                    jam_selesai = VALUES(jam_selesai),
+                    label = VALUES(label),
+                    updated_at = CURRENT_TIMESTAMP
+            `, [targetId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
+        }
+    }
+    return targetKelas[0].nama_kelas;
+}
+
+/**
+ * Copy jam pelajaran from one kelas to another
+ * POST /api/admin/jam-pelajaran/copy
+ * Body: { sourceKelasId, targetKelasIds: [] }
+ */
 export const copyJamPelajaran = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { sourceKelasId, targetKelasIds } = req.body;
@@ -391,28 +452,8 @@ export const copyJamPelajaran = async (req, res) => {
     
     try {
         // === VALIDATION ===
-        
-        if (!sourceKelasId) {
-            log.validationFail('sourceKelasId', null, 'Missing source kelas ID');
-            return sendValidationError(res, 'ID kelas sumber wajib diisi', { field: 'sourceKelasId' });
-        }
-        
-        if (!targetKelasIds) {
-            log.validationFail('targetKelasIds', null, 'Missing target kelas IDs');
-            return sendValidationError(res, 'ID kelas tujuan wajib diisi', { field: 'targetKelasIds' });
-        }
-        
-        if (!Array.isArray(targetKelasIds)) {
-            log.validationFail('targetKelasIds', typeof targetKelasIds, 'Not an array');
-            return sendValidationError(res, 'ID kelas tujuan harus berupa array', { 
-                field: 'targetKelasIds', 
-                received: typeof targetKelasIds 
-            });
-        }
-        
-        if (targetKelasIds.length === 0) {
-            log.validationFail('targetKelasIds', 0, 'Empty array');
-            return sendValidationError(res, 'Minimal pilih satu kelas tujuan', { field: 'targetKelasIds' });
+        if (!sourceKelasId || !targetKelasIds || !Array.isArray(targetKelasIds) || targetKelasIds.length === 0) {
+            return sendValidationError(res, 'ID kelas sumber dan tujuan (array) wajib diisi');
         }
         
         // Check if source kelas has jam pelajaran
@@ -427,45 +468,42 @@ export const copyJamPelajaran = async (req, res) => {
         }
         
         // Get source kelas name
-        const [sourceKelas] = await globalThis.dbPool.execute(
-            SQL_GET_KELAS_NAME,
-            [sourceKelasId]
-        );
+        const [sourceKelas] = await globalThis.dbPool.execute(SQL_GET_KELAS_NAME, [sourceKelasId]);
         const sourceKelasName = sourceKelas.length > 0 ? sourceKelas[0].nama_kelas : `ID ${sourceKelasId}`;
         
         // === COPY OPERATION ===
         log.debug('Starting copy operation', { source: sourceKelasName, jamCount: sourceJam.length, targetCount: targetKelasIds.length });
         
-        let copiedCount = 0;
-        const copiedTo = [];
+        const connection = await globalThis.dbPool.getConnection();
+        await connection.beginTransaction();
         
-        for (const targetId of targetKelasIds) {
-            // Get target kelas name
-            const [targetKelas] = await globalThis.dbPool.execute(
-                SQL_GET_KELAS_NAME,
-                [targetId]
-            );
+        try {
+            let copiedCount = 0;
+            const copiedTo = [];
             
-            if (targetKelas.length === 0) {
-                log.warn('Target kelas not found, skipping', { targetId });
-                continue;
+            for (const targetId of targetKelasIds) {
+                const targetName = await copyScheduleToClass(connection, targetId, sourceJam, log);
+                if (targetName) {
+                    copiedTo.push(targetName);
+                    copiedCount++;
+                }
             }
             
-            for (const jam of sourceJam) {
-                await executeJamPelajaranUpsert(targetId, jam);
-            }
+            await connection.commit();
+            log.timed('Copy', startTime, { sourceKelas: sourceKelasName, copiedToCount: copiedCount, jamCount: sourceJam.length });
+            return sendSuccessResponse(res, { 
+                copiedToCount: copiedCount,
+                jamCount: sourceJam.length,
+                sourceKelas: sourceKelasName,
+                targetKelas: copiedTo
+            }, `Berhasil menyalin ${sourceJam.length} jam pelajaran dari ${sourceKelasName} ke ${copiedCount} kelas`);
             
-            copiedTo.push(targetKelas[0].nama_kelas);
-            copiedCount++;
+        } catch (dbError) {
+            await connection.rollback();
+            throw dbError;
+        } finally {
+            connection.release();
         }
-        
-        log.timed('Copy', startTime, { sourceKelas: sourceKelasName, copiedToCount: copiedCount, jamCount: sourceJam.length });
-        return sendSuccessResponse(res, { 
-            copiedToCount: copiedCount,
-            jamCount: sourceJam.length,
-            sourceKelas: sourceKelasName,
-            targetKelas: copiedTo
-        }, `Berhasil menyalin ${sourceJam.length} jam pelajaran dari ${sourceKelasName} ke ${copiedCount} kelas`);
         
     } catch (error) {
         log.dbError('copy', error, { sourceKelasId, targetKelasIds });
@@ -529,22 +567,44 @@ export const seedDefaultJamPelajaranData = async () => {
     ];
 
     let count = 0;
-    // Transactional could be better but generic logic here
-    await globalThis.dbPool.execute('TRUNCATE TABLE jam_pelajaran');
+    const connection = await globalThis.dbPool.getConnection();
+    await connection.beginTransaction();
     
-    for (const hari of DAYS) {
-        const slots = hari === 'Jumat' ? JAM_SLOTS_JUMAT : JAM_SLOTS_NORMAL;
-        for (const slot of slots) {
-            await globalThis.dbPool.execute(
-                `INSERT INTO jam_pelajaran 
-                (hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [hari, slot.jam_ke, slot.mulai, slot.selesai, slot.durasi, slot.jenis, slot.label || null]
-            );
-            count++;
+    try {
+        // We seed global templates (where kelas_id is null/0 if possible, but schema says NOT NULL)
+        // Given the schema shown in migration for jam_pelajaran, it REQUIRES kelas_id.
+        // However, the seed function here seems to be seeding a 'template' table or similar.
+        // Let's check if there's a different table for global templates.
+        
+        // Searching for usage of jam_pelajaran without kelas_id
+        for (const hari of DAYS) {
+            const slots = hari === 'Jumat' ? JAM_SLOTS_JUMAT : JAM_SLOTS_NORMAL;
+            for (const slot of slots) {
+                // If there's no kelas_id filter, it's global or for a 'template' class (e.g. ID 0 or 1)
+                // Let's assume we want to seed these as DEFAULT for a specific set of classes or a template class.
+                // For now, let's just make it INSERT IGNORE or ON DUPLICATE KEY UPDATE without TRUNCATE.
+                
+                await connection.execute(
+                    `INSERT INTO jam_pelajaran 
+                    (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label) 
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        jam_mulai = VALUES(jam_mulai),
+                        jam_selesai = VALUES(jam_selesai),
+                        label = VALUES(label)`,
+                    [0, hari, slot.jam_ke, slot.mulai, slot.selesai, slot.label || null]
+                );
+                count++;
+            }
         }
+        await connection.commit();
+        return count;
+    } catch (dbError) {
+        await connection.rollback();
+        throw dbError;
+    } finally {
+        connection.release();
     }
-    return count;
 };
 
 /**

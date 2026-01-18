@@ -30,7 +30,7 @@ const LogoImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => (
     alt={alt} 
     className="h-16 object-contain"
     onError={(e) => {
-      console.warn(`⚠️ ${alt} gagal dimuat:`, src);
+      console.warn(`${alt} gagal dimuat:`, src);
       e.currentTarget.style.display = 'none';
     }}
   />

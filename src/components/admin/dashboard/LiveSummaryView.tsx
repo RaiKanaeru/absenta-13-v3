@@ -115,7 +115,7 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
                         {kelas.nama_mapel || kelas.mapel}
                       </h4>
                       <p className="text-sm text-gray-600">
-                        👨‍🏫 {kelas.nama_guru || kelas.guru}
+                        Guru: {kelas.nama_guru || kelas.guru}
                       </p>
                       {kelas.absensi_diambil !== undefined && (
                         <div className="flex items-center gap-2">
@@ -145,3 +145,4 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
 };
 
 export default LiveSummaryView;
+

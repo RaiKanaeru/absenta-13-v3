@@ -152,7 +152,7 @@ export function sendErrorResponse(res, error, userMessage = null, statusCode = n
     const requestId = res.locals?.requestId || generateRequestId();
     
     // Log error
-    console.error(`❌ [${requestId}] Error:`, {
+    console.error(`[${requestId}] Error:`, {
         message: error.message,
         code: error.code,
         stack: isDevelopment ? error.stack : undefined

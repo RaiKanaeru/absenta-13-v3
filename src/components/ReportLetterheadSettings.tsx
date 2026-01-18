@@ -113,7 +113,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('❌ Failed to load letterhead config:', response.status, errorData);
+        console.error('Failed to load letterhead config:', response.status, errorData);
         toast({
           title: "Error",
           description: errorData.error || `Gagal memuat konfigurasi kop laporan (${response.status})`,
@@ -325,10 +325,10 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       if (response.ok) {
         // File deleted successfully
       } else {
-        console.warn('⚠️ Could not delete old file');
+        console.warn('Could not delete old file');
       }
     } catch (error) {
-      console.warn('⚠️ Error deleting old file:', error);
+      console.warn('Error deleting old file:', error);
     }
   };
 

@@ -63,7 +63,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       setAttendance(initialAttendance);
       setNotes(initialNotes);
     } catch (error) {
-      console.error('❌ Error fetching students by date:', error);
+      console.error('Error fetching students by date:', error);
       toast({ 
         title: "Error", 
         description: "Gagal memuat data siswa untuk tanggal tersebut", 
@@ -92,7 +92,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         setAttendance(initialAttendance);
         setNotes(initialNotes);
       } catch (error) {
-        console.error('❌ Error fetching students:', error);
+        console.error('Error fetching students:', error);
         let errorMessage = "Gagal memuat daftar siswa";
         
         if (error instanceof Error) {
@@ -208,7 +208,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       
       globalThis.location.reload();
     } catch (error) {
-      console.error('❌ Error submitting attendance:', error);
+      console.error('Error submitting attendance:', error);
       toast({ 
         title: "Error", 
         description: (error as Error).message, 
@@ -371,7 +371,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                     {student.waktu_absen && (
                       <div className="mb-2">
                         <Badge variant="secondary" className="text-xs">
-                          ✓ Sudah diabsen sebelumnya
+                          Sudah diabsen sebelumnya
                         </Badge>
                       </div>
                     )}
@@ -465,7 +465,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
 
                     {schedule.is_multi_guru && student.other_teachers_attendance && student.other_teachers_attendance !== '' && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 className="text-sm font-medium text-blue-800 mb-2">📋 Catatan dari Guru Lain:</h4>
+                        <h4 className="text-sm font-medium text-blue-800 mb-2">Catatan dari Guru Lain:</h4>
                         <div className="space-y-1">
                           {student.other_teachers_attendance.split('||').map((teacherData, idx) => {
                             const [guruNama, status, keterangan, waktu] = teacherData.split(':');

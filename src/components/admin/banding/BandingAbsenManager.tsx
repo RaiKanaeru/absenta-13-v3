@@ -207,7 +207,7 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-red-600 line-through">{req.status_asli}</span>
-                        <span className="text-gray-400">➔</span>
+                        <span className="text-gray-400">-></span>
                         <span className="text-green-600 font-bold uppercase">{req.status_diajukan}</span>
                       </div>
                     </TableCell>
@@ -293,3 +293,4 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
     </div>
   );
 };
+

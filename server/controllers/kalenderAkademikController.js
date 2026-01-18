@@ -273,28 +273,41 @@ export const seedKalenderAkademik = async (req, res) => {
 
 
         
-        let seeded = 0;
+        const connection = await globalThis.dbPool.getConnection();
+        await connection.beginTransaction();
         
-        for (const [monthKey, config] of Object.entries(ACADEMIC_CALENDAR_CONFIG)) {
-            const bulan = Number(monthKey);
-            const tahun = bulan >= 7 ? startYear : endYear;
+        try {
+            let seeded = 0;
             
-            await executeUpsertKalender({
-                tahun_pelajaran,
-                bulan,
-                tahun,
-                hari_efektif: config.days,
-                is_libur_semester: config.isLibur,
-                keterangan: config.desc
+            for (const [monthKey, config] of Object.entries(ACADEMIC_CALENDAR_CONFIG)) {
+                const bulan = Number(monthKey);
+                const tahun = bulan >= 7 ? startYear : endYear;
+                
+                await connection.execute(`
+                    INSERT INTO kalender_akademik (tahun_pelajaran, bulan, tahun, hari_efektif, is_libur_semester, keterangan)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        hari_efektif = VALUES(hari_efektif),
+                        is_libur_semester = VALUES(is_libur_semester),
+                        keterangan = VALUES(keterangan),
+                        tahun = VALUES(tahun),
+                        updated_at = CURRENT_TIMESTAMP
+                `, [tahun_pelajaran, bulan, tahun, config.days, config.isLibur ? 1 : 0, config.desc || null]);
+                seeded++;
+            }
+            
+            await connection.commit();
+            log.success('SeedKalenderAkademik', { tahun_pelajaran, seeded });
+            res.json({ 
+                message: `Kalender akademik ${tahun_pelajaran} berhasil di-seed`,
+                seeded 
             });
-            seeded++;
+        } catch (dbError) {
+            await connection.rollback();
+            throw dbError;
+        } finally {
+            connection.release();
         }
-
-        log.success('SeedKalenderAkademik', { tahun_pelajaran, seeded });
-        res.json({ 
-            message: `Kalender akademik ${tahun_pelajaran} berhasil di-seed`,
-            seeded 
-        });
     } catch (error) {
         log.dbError('seed', error);
         return sendDatabaseError(res, error, 'Gagal seed kalender akademik');

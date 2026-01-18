@@ -83,7 +83,7 @@ function recordFailedAttempt(ip) {
     // Lock if exceeded max attempts
     if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
         attempts.lockedUntil = Date.now() + LOCKOUT_DURATION;
-        logger.warn(`🔒 IP ${ip} locked for ${LOCKOUT_DURATION / 60000} minutes after ${attempts.count} failed attempts`);
+        logger.warn(`IP ${ip} locked for ${LOCKOUT_DURATION / 60000} minutes after ${attempts.count} failed attempts`);
     }
     
     loginAttempts.set(ip, attempts);

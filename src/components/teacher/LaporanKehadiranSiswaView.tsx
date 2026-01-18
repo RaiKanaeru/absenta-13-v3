@@ -14,7 +14,6 @@ import { formatDateOnly, formatDateWIB, getWIBTime, getMonthRangeWIB } from "@/l
 import { ArrowLeft, XCircle, Filter, Search, FileText } from "lucide-react";
 import ExcelPreview from '../ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
-import { getApiUrl } from '@/config/api';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
@@ -94,7 +93,13 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
     try {
       setLoading(true);
       setError('');
-      const res = await apiCall(`/api/guru/laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`);
+      const res = await apiCall<{
+        data: Record<string, string | number>[];
+        mapel_info: { nama_mapel: string; nama_guru: string };
+        pertemuan_dates: string[];
+        periode: { startDate: string; endDate: string; total_days: number };
+      }>(`/api/guru/laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`);
+      
       setReportData(Array.isArray(res.data) ? res.data : []);
       setMapelInfo(res.mapel_info || null);
       setPertemuanDates(res.pertemuan_dates || []);
@@ -116,20 +121,10 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
     }
 
     try {
-      const url = getApiUrl(`/api/guru/download-laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`);
-      const resp = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/guru/download-laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`, {
+        responseType: 'blob'
       });
       
-      if (!resp.ok) {
-        throw new Error('Gagal mengunduh file Excel');
-      }
-      
-      
-      const blob = await resp.blob();
       const link = document.createElement('a');
       link.href = globalThis.URL.createObjectURL(blob);
       link.download = `laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx`;

@@ -61,8 +61,13 @@ export const HARI_EFEKTIF = {
     // Semester Genap (Januari - Juni)
     GENAP: 142,
     // Total Tahunan (untuk rekap guru)
-    TAHUNAN: 237
-};
+    TAHUNAN: 237,
+    
+    // Rincian per bulan (digunakan oleh export controller)
+    BULANAN: {
+        7: 14, 8: 21, 9: 22, 10: 23, 11: 20, 12: 17,  // Jul-Des (Gasal)
+        1: 15, 2: 20, 3: 22, 4: 22, 5: 21, 6: 20      // Jan-Jun (Genap)
+    }};
 
 // ================================================
 // BULAN MAPPING

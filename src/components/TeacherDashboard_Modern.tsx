@@ -7,7 +7,7 @@ import {
   Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings
 } from "lucide-react";
 import { EditProfile } from './EditProfile';
-import { getApiUrl } from '@/config/api';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { ScheduleListView, AttendanceView, LaporanKehadiranSiswaView, BandingAbsenView, HistoryView, RiwayatBandingAbsenView } from './teacher';
 
 interface TeacherDashboardProps {
@@ -162,25 +162,6 @@ interface BandingAbsenTeacher {
   jam_selesai?: string;
 }
 
-// API utility function - using getApiUrl for all endpoints
-const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-  const response = await fetch(getApiUrl(endpoint), {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-    throw new Error(errorData.error || `Error: ${response.status}`);
-  }
-
-  return response.json();
-};
-
 // Main TeacherDashboard Component
 export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) => {
   const [activeView, setActiveView] = useState<'schedule' | 'history' | 'banding-absen' | 'history-banding' | 'reports'>('schedule');
@@ -192,6 +173,22 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [currentUserData, setCurrentUserData] = useState<TeacherDashboardProps['userData']>(userData);
 
+  const handleSessionExpired = useCallback(() => {
+    toast({
+      title: "Sesi Berakhir",
+      description: "Sesi login Anda telah berakhir. Silakan login kembali.",
+      variant: "destructive"
+    });
+    onLogout();
+  }, [onLogout]);
+
+  const apiRequest = useCallback(
+    async <T,>(endpoint: string, options: Parameters<typeof apiCall>[1] = {}) => {
+      return apiCall<T>(endpoint, { onLogout: handleSessionExpired, ...options });
+    },
+    [handleSessionExpired]
+  );
+
   const user = currentUserData;
 
   const handleUpdateProfile = (updatedData: TeacherDashboardProps['userData']) => {
@@ -202,7 +199,32 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
   useEffect(() => {
     const loadLatestProfile = async () => {
       try {
-        const profileResponse = await apiCall('/api/guru/info');
+        const profileResponse = await apiRequest<{
+          success?: boolean;
+          id?: number;
+          username?: string;
+          nama?: string;
+          role?: string;
+          guru_id?: number;
+          nip?: string;
+          mata_pelajaran?: string;
+          alamat?: string;
+          no_telepon?: string;
+          jenis_kelamin?: string;
+          email?: string;
+          message?: string;
+          error?: unknown;
+        }>('/api/guru/info');
+
+        if (!profileResponse?.success) {
+          toast({
+            title: "Gagal memuat profil",
+            description: profileResponse?.message || "Data profil guru tidak tersedia.",
+            variant: "destructive"
+          });
+          return;
+        }
+
         if (profileResponse.success) {
           setCurrentUserData({
             id: profileResponse.id,
@@ -221,12 +243,18 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           } as TeacherDashboardProps['userData']);
         }
       } catch (error) {
-        console.error('Failed to load latest profile data:', error);
+        const message = getErrorMessage(error);
+        console.error('Failed to load latest profile data:', message);
+        toast({
+          title: "Gagal memuat profil",
+          description: message,
+          variant: "destructive"
+        });
       }
     };
 
     loadLatestProfile();
-  }, []);
+  }, [apiRequest]);
 
   // Fetch schedules
   const fetchSchedules = useCallback(async () => {
@@ -234,8 +262,20 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
     try {
       setIsLoading(true);
       // Gunakan endpoint backend yang tersedia: /api/guru/jadwal (auth user diambil dari token)
-      const res = await apiCall(`/api/guru/jadwal`);
-      const list: Schedule[] = Array.isArray(res) ? res : (res.data || []);
+      const res = await apiRequest(`/api/guru/jadwal`);
+      const list: Schedule[] = Array.isArray(res)
+        ? res
+        : (Array.isArray((res as { data?: unknown })?.data) ? (res as { data: Schedule[] }).data : []);
+
+      if (!Array.isArray(res) && !Array.isArray((res as { data?: unknown })?.data)) {
+        toast({
+          title: "Error memuat jadwal",
+          description: "Format data jadwal tidak valid.",
+          variant: "destructive"
+        });
+        setSchedules([]);
+        return;
+      }
 
       // Filter hanya jadwal hari ini dan hitung status berdasar waktu sekarang
       const now = getWIBTime();
@@ -279,12 +319,14 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
 
       setSchedules(schedulesWithStatus);
     } catch (error) {
-      console.error('Error fetching schedules:', error);
-      toast({ title: 'Error', description: 'Gagal memuat jadwal', variant: 'destructive' });
+      const message = getErrorMessage(error);
+      console.error('Error fetching schedules:', message);
+      toast({ title: 'Error memuat jadwal', description: message, variant: 'destructive' });
+      setSchedules([]);
     } finally {
       setIsLoading(false);
     }
-  }, [user.guru_id, user.id]);
+  }, [user.guru_id, user.id, apiRequest]);
 
   useEffect(() => {
     fetchSchedules();

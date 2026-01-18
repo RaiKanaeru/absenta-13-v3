@@ -282,17 +282,6 @@ export const getSiswa = async (req, res) => {
         log.dbError('query', error, { page, limit, search });
         return sendDatabaseError(res, error, 'Gagal mengambil data siswa');
     }
-};
-
-// Create Siswa
-export const createSiswa = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { nis, nama, kelas_id, username, password, email, jabatan, nomor_telepon_siswa, telepon_orangtua, jenis_kelamin, alamat, status = 'aktif' } = req.body;
-    
-    log.requestStart('Create', { nis, nama, username, kelas_id });
-    
-    const connection = await globalThis.dbPool.getConnection();
-    try {
         // Validasi payload
         const validation = await validateSiswaPayload(req.body, { isUpdate: false });
         if (!validation.isValid) {

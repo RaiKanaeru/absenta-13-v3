@@ -21,7 +21,7 @@ interface SettingsState {
   alpha_voids_day: boolean;
 }
 
-export const AttendanceSettingsView: React.FC<AttendanceSettingsViewProps> = ({ onLogout }) => {
+export const AttendanceSettingsView: React.FC<Readonly<AttendanceSettingsViewProps>> = ({ onLogout }) => {
   const [settings, setSettings] = useState<SettingsState>({
     default_start_time: '07:00',
     late_tolerance_minutes: 15,
@@ -43,7 +43,7 @@ export const AttendanceSettingsView: React.FC<AttendanceSettingsViewProps> = ({ 
       // Expected API format: { key: { value: "...", ... }, ... }
       setSettings({
         default_start_time: data.default_start_time?.value || '07:00',
-        late_tolerance_minutes: parseInt(data.late_tolerance_minutes?.value || '15'),
+        late_tolerance_minutes: Number.parseInt(data.late_tolerance_minutes?.value || '15'),
         enable_late_detection: data.enable_late_detection?.value === 'true',
         alpha_voids_day: data.alpha_voids_day?.value === 'true'
       });
@@ -163,7 +163,7 @@ export const AttendanceSettingsView: React.FC<AttendanceSettingsViewProps> = ({ 
                 min="0"
                 max="60"
                 value={settings.late_tolerance_minutes}
-                onChange={(e) => setSettings({...settings, late_tolerance_minutes: parseInt(e.target.value) || 0})}
+                onChange={(e) => setSettings({...settings, late_tolerance_minutes: Number.parseInt(e.target.value) || 0})}
                 disabled={!settings.enable_late_detection}
               />
               <p className="text-xs text-gray-500">

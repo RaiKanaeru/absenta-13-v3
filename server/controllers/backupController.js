@@ -80,6 +80,55 @@ function validateBackupId(backupId) {
 }
 
 /**
+ * Parse backup filename to extract name, date, and type
+ * Pattern: semester_backup_YYYY-MM-DDTHH-MM-SS-mmmZ.sql or .zip
+ */
+function parseBackupFilename(filename) {
+    // Default values
+    const result = {
+        name: filename,
+        date: null,
+        type: 'manual'
+    };
+    
+    // Try parsing semester_backup pattern
+    // e.g., semester_backup_2026-01-17T19-00-00-031Z.sql
+    const semesterMatch = filename.match(/semester_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})/);
+    if (semesterMatch) {
+        const [, year, month, day, hour, minute, second] = semesterMatch;
+        const dateStr = `${year}-${month}-${day}T${hour}:${minute}:${second}Z`;
+        result.date = new Date(dateStr).toISOString();
+        result.name = `Backup ${day}/${month}/${year} ${hour}:${minute}`;
+        result.type = 'scheduled';
+        return result;
+    }
+    
+    // Try parsing backup_ pattern 
+    // e.g., backup_2026-01-17.sql
+    const backupMatch = filename.match(/backup[_-](\d{4})-(\d{2})-(\d{2})/);
+    if (backupMatch) {
+        const [, year, month, day] = backupMatch;
+        result.date = `${year}-${month}-${day}T00:00:00Z`;
+        result.name = `Backup ${day}/${month}/${year}`;
+        result.type = 'manual';
+        return result;
+    }
+    
+    // Try extracting any date pattern from filename
+    const anyDateMatch = filename.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (anyDateMatch) {
+        const [, year, month, day] = anyDateMatch;
+        result.date = `${year}-${month}-${day}T00:00:00Z`;
+        result.name = `Backup ${day}/${month}/${year}`;
+        return result;
+    }
+    
+    // No date pattern found - use file's last modified if we have stat
+    return result;
+}
+
+
+/**
  * Perform SQL transaction execution
  * @param {string[]} commands - Array of SQL commands to execute
  * @param {Object} options - Execution options
@@ -404,6 +453,42 @@ async function performManualDatabaseBackup(filepath, filename) {
     }
 }
 
+/**
+ * Helper to delete a single backup (system or manual)
+ * Returns { success: boolean, reason?: string, id: string }
+ */
+async function deleteSingleBackup(backupId) {
+    if (!validateBackupId(backupId)) {
+        return { success: false, id: backupId, reason: 'Invalid ID format' };
+    }
+
+    try {
+        // Try system delete first
+        await globalThis.backupSystem.deleteBackup(backupId);
+        return { success: true, id: backupId };
+    } catch (err) {
+        // Fallback to manual delete
+        try {
+            const { filePath } = await resolveBackupFilePath(BACKUP_DIR, backupId);
+            
+            if (!filePath) {
+                 return { success: false, id: backupId, reason: 'File not found' };
+            }
+
+            const stat = await fs.stat(filePath);
+            if (stat.isDirectory()) {
+                await fs.rm(filePath, { recursive: true, force: true });
+            } else {
+                await fs.unlink(filePath);
+            }
+            
+            return { success: true, id: backupId };
+        } catch (manualErr) {
+            return { success: false, id: backupId, reason: manualErr.message };
+        }
+    }
+}
+
 // ================================================
 // BACKUP CRUD ENDPOINTS
 // ================================================
@@ -558,9 +643,23 @@ const getBackups = async (req, res) => {
             const backups = await globalThis.backupSystem.listBackups();
             logger.debug('BackupSystem returned backups', { count: backups.length });
             
+            // Ensure each backup has name and date parsed from filename if missing
+            const enrichedBackups = backups.map(backup => {
+                if (!backup.name || backup.name === 'Unknown Backup' || !backup.date) {
+                    const parsed = parseBackupFilename(backup.id || backup.filename || '');
+                    return {
+                        ...backup,
+                        name: backup.name && backup.name !== 'Unknown Backup' ? backup.name : parsed.name,
+                        date: backup.date || parsed.date,
+                        type: backup.type || parsed.type
+                    };
+                }
+                return backup;
+            });
+            
             return res.status(200).json({
                 ok: true,
-                backups: backups || []
+                backups: enrichedBackups || []
             });
         }
 
@@ -571,14 +670,34 @@ const getBackups = async (req, res) => {
         try {
             await fs.access(backupDir);
             const files = await fs.readdir(backupDir);
-            // Basic fallback list
-            const backups = files.map(f => ({
-                id: f,
-                filename: f,
-                created: new Date(), // Approximate
-                type: 'unknown',
-                size: 0
-            }));
+            
+            // Enhanced fallback list with proper parsing
+            const backupsPromises = files.map(async (f) => {
+                const filePath = path.join(backupDir, f);
+                const parsed = parseBackupFilename(f);
+                
+                // Get actual file stats
+                let size = 0;
+                let modified = null;
+                try {
+                    const stats = await fs.stat(filePath);
+                    size = stats.size;
+                    modified = stats.mtime.toISOString();
+                } catch {
+                    // Ignore stat errors
+                }
+                
+                return {
+                    id: f,
+                    filename: f,
+                    name: parsed.name,
+                    date: parsed.date || modified,
+                    type: parsed.type,
+                    size: size
+                };
+            });
+            
+            const backups = await Promise.all(backupsPromises);
             
             res.status(200).json({
                 ok: true,
@@ -599,6 +718,7 @@ const getBackups = async (req, res) => {
         });
     }
 };
+
 
 /**
  * Delete backup
@@ -666,6 +786,63 @@ const deleteBackup = async (req, res) => {
         });
     }
 };
+
+/**
+ * Delete multiple backups
+ * DELETE /api/admin/backups/batch
+ */
+const deleteBackupBatch = async (req, res) => {
+    try {
+        const { backupIds } = req.body;
+
+        if (!Array.isArray(backupIds) || backupIds.length === 0) {
+            return res.status(400).json({
+                error: 'Invalid input',
+                message: 'Backup IDs array is required'
+            });
+        }
+
+        logger.info('Attempting to delete multiple backups', { count: backupIds.length });
+
+        if (!globalThis.backupSystem) {
+            logger.error('Backup system not initialized');
+            return res.status(503).json({
+                error: 'Backup system not ready',
+                message: 'Backup system is not initialized yet'
+            });
+        }
+
+        const results = {
+            success: [],
+            failed: []
+        };
+
+        const deletePromises = backupIds.map(deleteSingleBackup);
+        const deleteResults = await Promise.all(deletePromises);
+
+        for (const result of deleteResults) {
+            if (result.success) {
+                results.success.push(result.id);
+            } else {
+                results.failed.push({ id: result.id, reason: result.reason });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Deleted ${results.success.length} backups, ${results.failed.length} failed`,
+            data: results
+        });
+
+    } catch (error) {
+        logger.error('Error deleting backup batch', error);
+        res.status(500).json({
+            error: ERROR_INTERNAL,
+            message: 'Gagal menghapus backup batch'
+        });
+    }
+};
+
 
 /**
  * Helper to resolve backup file path from ID
@@ -791,6 +968,14 @@ const restoreBackupById = async (req, res) => {
             });
         }
 
+        if (!globalThis.backupSystem) {
+             logger.error('Backup system not initialized');
+             return res.status(503).json({
+                 error: 'Backup system not ready',
+                 message: 'Backup system is not initialized yet. Please try again in a few seconds.'
+             });
+        }
+
         const result = await globalThis.backupSystem.restoreFromBackup(backupId);
 
         res.json({
@@ -803,10 +988,12 @@ const restoreBackupById = async (req, res) => {
         logger.error('Error restoring backup', error);
         res.status(500).json({
             error: ERROR_INTERNAL,
-            message: 'Gagal memulihkan backup'
+            message: 'Gagal memulihkan backup',
+            details: error.message
         });
     }
 };
+
 
 /**
  * Restore backup from uploaded file
