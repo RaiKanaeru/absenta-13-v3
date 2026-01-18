@@ -457,6 +457,81 @@ class SystemMonitor extends EventEmitter {
     }
     
     /**
+     * Clear all alerts
+     */
+    clearAlerts() {
+        this.alerts.clear();
+        logger.info('All alerts cleared');
+        this.emit('alertsCleared');
+    }
+    
+    /**
+     * Resolve a specific alert by ID
+     * @param {string} alertId - The ID of the alert to resolve
+     * @returns {boolean} - True if alert was found and resolved
+     */
+    resolveAlert(alertId) {
+        if (this.alerts.has(alertId)) {
+            const alert = this.alerts.get(alertId);
+            alert.resolved = true;
+            alert.resolvedAt = new Date().toISOString();
+            this.alerts.set(alertId, alert);
+            logger.info(`Alert resolved: ${alertId}`);
+            this.emit('alertResolved', alert);
+            return true;
+        }
+        
+        // Try to find alert by partial ID match (e.g., "disk_29478455")
+        for (const [key, alert] of this.alerts) {
+            if (key.includes(alertId) || alertId.includes(key.split('_')[0])) {
+                alert.resolved = true;
+                alert.resolvedAt = new Date().toISOString();
+                this.alerts.set(key, alert);
+                logger.info(`Alert resolved (partial match): ${key}`);
+                this.emit('alertResolved', alert);
+                return true;
+            }
+        }
+        
+        logger.warn(`Alert not found: ${alertId}`);
+        return false;
+    }
+    
+    /**
+     * Create a test alert for debugging
+     */
+    createTestAlert() {
+        const testAlert = {
+            type: 'test',
+            severity: 'info',
+            message: 'This is a test alert',
+            data: { test: true },
+            timestamp: new Date().toISOString(),
+            id: `test_${Date.now()}`
+        };
+        
+        this.alerts.set(testAlert.id, testAlert);
+        this.emit('alert', testAlert);
+        logger.info('Test alert created');
+        return testAlert;
+    }
+    
+    /**
+     * Get performance history
+     * @returns {Array} - Array of historical performance data points
+     */
+    getPerformanceHistory() {
+        // Return current metrics as single data point if no history tracking
+        // In a full implementation, this would return historical data
+        return [{
+            timestamp: new Date().toISOString(),
+            system: this.metrics.system,
+            application: this.metrics.application,
+            database: this.metrics.database
+        }];
+    }
+    
+    /**
      * Format bytes (delegates to shared utility)
      */
     formatBytes(bytes) {
