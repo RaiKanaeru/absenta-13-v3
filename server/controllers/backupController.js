@@ -81,27 +81,78 @@ function validateBackupId(backupId) {
 
 /**
  * Perform SQL transaction execution
+ * @param {string[]} commands - Array of SQL commands to execute
+ * @param {Object} options - Execution options
+ * @param {boolean} options.continueOnError - Continue execution on recoverable errors
  */
-const executeSqlCommands = async (commands) => {
+const executeSqlCommands = async (commands, options = {}) => {
+    const { continueOnError = true } = options;
+    
     if (!globalThis.dbPool) {
         throw new Error('Database connection pool is not initialized');
     }
+    
     const connection = await globalThis.dbPool.getConnection();
+    const results = {
+        total: commands.length,
+        executed: 0,
+        skipped: 0,
+        errors: []
+    };
+    
     try {
         await connection.beginTransaction();
+        
         for (const command of commands) {
-            if (command.trim()) {
+            if (!command.trim()) continue;
+            
+            try {
                 await connection.execute(command);
+                results.executed++;
+            } catch (cmdError) {
+                // Check if it's a recoverable error
+                const isRecoverable = isRecoverableSqlError(cmdError);
+                
+                if (isRecoverable && continueOnError) {
+                    results.skipped++;
+                    results.errors.push({
+                        command: command.substring(0, 100) + '...',
+                        error: cmdError.message,
+                        skipped: true
+                    });
+                    logger.warn('SQL command skipped (recoverable)', { 
+                        error: cmdError.message,
+                        command: command.substring(0, 50)
+                    });
+                } else {
+                    // Non-recoverable error, throw to rollback
+                    throw cmdError;
+                }
             }
         }
+        
         await connection.commit();
-        return commands.length;
+        return results;
     } catch (error) {
         await connection.rollback();
         throw error;
     } finally {
         connection.release();
     }
+}
+
+/**
+ * Check if SQL error is recoverable (can continue execution)
+ */
+function isRecoverableSqlError(error) {
+    const recoverablePatterns = [
+        /already exists/i,           // Table/index already exists
+        /duplicate entry/i,          // Duplicate key
+        /doesn't exist/i,            // Table doesn't exist for DROP
+        /can't drop.*doesn't exist/i // DROP IF EXISTS equivalent
+    ];
+    
+    return recoverablePatterns.some(pattern => pattern.test(error.message));
 }
 
 /**
@@ -143,13 +194,15 @@ async function restoreDatabaseFromSqlFile(filePath) {
         }
 
         const commands = splitSqlStatements(sqlContent);
-        const executedCount = await executeSqlCommands(commands);
+        const results = await executeSqlCommands(commands);
 
         return {
             type: 'sql',
             message: 'Database berhasil dipulihkan dari file SQL',
             tablesRestored: normalizedSql.match(/create\s+table/g)?.length || 0,
-            commandsExecuted: executedCount
+            commandsExecuted: results.executed,
+            commandsSkipped: results.skipped,
+            errors: results.errors
         };
     } catch (error) {
         throw new Error(`Gagal memproses file SQL: ${error.message}`);
@@ -184,13 +237,15 @@ async function restoreDatabaseFromZipArchive(filePath) {
         }
 
         const commands = splitSqlStatements(sqlContent);
-        const executedCount = await executeSqlCommands(commands);
+        const results = await executeSqlCommands(commands);
 
         return {
             type: 'zip',
             message: 'Database berhasil dipulihkan dari file ZIP',
             filesExtracted: zipEntries.length,
-            commandsExecuted: executedCount
+            commandsExecuted: results.executed,
+            commandsSkipped: results.skipped,
+            errors: results.errors
         };
     } catch (error) {
         throw new Error(`Gagal memproses file ZIP: ${error.message}`);
