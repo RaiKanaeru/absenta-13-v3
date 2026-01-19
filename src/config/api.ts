@@ -5,22 +5,17 @@ const getBaseUrl = (): string => {
         return import.meta.env.VITE_API_BASE_URL;
     }
     
-    // Production fallback: jika di production dan tidak ada env var, gunakan subdomain API
+    // Production: Use relative URL (same-origin) to avoid CORS issues
+    // Frontend nginx will proxy /api/* requests to backend
     const isProduction = globalThis.location.hostname !== 'localhost' && 
                          globalThis.location.hostname !== '127.0.0.1' &&
                          !globalThis.location.hostname.includes('192.168') &&
                          !globalThis.location.hostname.includes('10.0');
     
     if (isProduction) {
-        // Gunakan subdomain API untuk production
-        const currentHost = globalThis.location.hostname;
-        // Jika hostname adalah absenta13.my.id, gunakan api.absenta13.my.id
-        if (currentHost === 'absenta13.my.id' || currentHost === 'www.absenta13.my.id') {
-            return 'https://api.absenta13.my.id';
-        }
-        // Fallback: coba gunakan subdomain api
-        const apiHost = currentHost.replace(/^(www\.)?/, 'api.');
-        return `https://${apiHost}`;
+        // Use empty string for same-origin requests (relative URLs)
+        // Nginx will proxy /api/* to backend service
+        return '';
     }
     
     // Check if we're in mobile/network environment
