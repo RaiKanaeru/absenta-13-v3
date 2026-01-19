@@ -2275,8 +2275,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             </div>
             </>
           )}
-        </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };

@@ -650,6 +650,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                       </div>
                     </div>
                   </div>
+                  </div>
                 ))}
               </div>
             ) : (
