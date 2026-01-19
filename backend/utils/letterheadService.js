@@ -53,7 +53,7 @@ const DEFAULT_LETTERHEAD = {
 export async function getLetterhead({ reportKey = null } = {}) {
   try {
     if (!globalThis.dbPool) {
-      console.warn('⚠️ Database pool tidak tersedia, menggunakan default letterhead');
+      console.warn('[WARN] Database pool tidak tersedia, menggunakan default letterhead');
       return DEFAULT_LETTERHEAD;
     }
 
@@ -93,7 +93,7 @@ export async function getLetterhead({ reportKey = null } = {}) {
     const [rows] = await globalThis.dbPool.execute(query, params);
     
     if (rows.length === 0) {
-      console.warn('⚠️ Tidak ada KOP ditemukan, menggunakan default');
+      console.warn('[WARN] Tidak ada KOP ditemukan, menggunakan default');
       return DEFAULT_LETTERHEAD;
     }
 
@@ -121,7 +121,7 @@ export async function getLetterhead({ reportKey = null } = {}) {
     };
 
   } catch (error) {
-    console.error('❌ Error fetching letterhead from database:', error);
+    console.error('[ERROR] Error fetching letterhead from database:', error);
     return DEFAULT_LETTERHEAD;
   }
 }
@@ -172,7 +172,7 @@ export async function setLetterheadGlobal(letterhead) {
     return true;
 
   } catch (error) {
-    console.error('❌ Error saving global letterhead:', error);
+    console.error('[ERROR] Error saving global letterhead:', error);
     return false;
   }
 }
@@ -228,7 +228,7 @@ export async function setLetterheadForReport(reportKey, letterhead) {
     return true;
 
   } catch (error) {
-    console.error('❌ Error saving report letterhead:', error);
+    console.error('[ERROR] Error saving report letterhead:', error);
     return false;
   }
 }
@@ -255,7 +255,7 @@ export async function getAllLetterheads() {
     return rows;
 
   } catch (error) {
-    console.error('❌ Error fetching all letterheads:', error);
+    console.error('[ERROR] Error fetching all letterheads:', error);
     return [];
   }
 }
@@ -277,7 +277,7 @@ export async function deleteLetterhead(id) {
     return result.affectedRows > 0;
 
   } catch (error) {
-    console.error('❌ Error deleting letterhead:', error);
+    console.error('[ERROR] Error deleting letterhead:', error);
     return false;
   }
 }

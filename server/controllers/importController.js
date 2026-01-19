@@ -6,7 +6,7 @@
 
 import ExcelJS from 'exceljs';
 
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Import');
@@ -17,6 +17,12 @@ const ERROR_NO_VALID_ROWS = 'Tidak ada baris valid untuk diimpor';
 const ERROR_DB_CHECK_FAILED = 'Gagal memeriksa data yang sudah ada';
 const ERROR_TEMPLATE_MISMATCH = 'Format file tidak sesuai template';
 const MSG_DRY_RUN_COMPLETED = 'Dry run completed. No data was imported.';
+
+const sendImportValidationError = (res, message, errors = null) => {
+    const error = new AppError(ERROR_CODES.VALIDATION_FAILED, message, errors);
+    const extra = errors ? { errors } : null;
+    return sendErrorResponse(res, error, null, null, extra);
+};
 
 import {
     sheetToJsonByHeader,
@@ -58,7 +64,7 @@ import {
  */
 const importMapel = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -82,7 +88,7 @@ const importMapel = async (req, res) => {
                 message: MSG_DRY_RUN_COMPLETED
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -113,7 +119,7 @@ const importMapel = async (req, res) => {
  */
 const importKelas = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -137,7 +143,7 @@ const importKelas = async (req, res) => {
                 message: MSG_DRY_RUN_COMPLETED
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -168,7 +174,7 @@ const importKelas = async (req, res) => {
  */
 const importRuang = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
 
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
@@ -192,7 +198,7 @@ const importRuang = async (req, res) => {
                 message: MSG_DRY_RUN_COMPLETED
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -323,7 +329,7 @@ async function persistJadwalBatch(conn, validItems) {
  */
 const importJadwal = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
 
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -355,7 +361,7 @@ const importJadwal = async (req, res) => {
                 message: MSG_DRY_RUN_COMPLETED
             });
         }
-        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -387,7 +393,7 @@ const importJadwal = async (req, res) => {
  */
 const importSiswa = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -402,10 +408,7 @@ const importSiswa = async (req, res) => {
             dbNis.forEach(row => existingNis.add(row.nis));
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
-            return res.status(500).json({
-                error: ERROR_DB_CHECK_FAILED,
-                message: 'Terjadi kesalahan saat memeriksa database. Coba lagi nanti.'
-            });
+            return sendDatabaseError(res, dbError, ERROR_DB_CHECK_FAILED);
         }
 
         // Use generic batch validator (wrapped to match signature)
@@ -427,10 +430,7 @@ const importSiswa = async (req, res) => {
         }
 
         if (valid.length === 0) {
-            return res.status(400).json({
-                error: ERROR_NO_VALID_ROWS,
-                errors
-            });
+            return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
         }
 
         // Process records with helper function
@@ -480,7 +480,7 @@ const importSiswa = async (req, res) => {
  */
 const importGuru = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
         // Parse Excel file
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
@@ -514,7 +514,7 @@ const importGuru = async (req, res) => {
         }
 
         if (valid.length === 0) {
-            return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+            return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
         }
 
         const conn = await globalThis.dbPool.getConnection();
@@ -561,7 +561,7 @@ const importGuru = async (req, res) => {
  */
 const importStudentAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
@@ -581,7 +581,7 @@ const importStudentAccount = async (req, res) => {
             });
         }
 
-        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
         const conn = await globalThis.dbPool.getConnection();
         try {
@@ -614,7 +614,7 @@ const importStudentAccount = async (req, res) => {
  */
 const importTeacherAccount = async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: ERROR_FILE_NOT_FOUND });
+        if (!req.file) return sendImportValidationError(res, ERROR_FILE_NOT_FOUND);
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
@@ -634,7 +634,7 @@ const importTeacherAccount = async (req, res) => {
              });
         }
 
-        if (valid.length === 0) return res.status(400).json({ error: ERROR_NO_VALID_ROWS, errors });
+        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
         const conn = await globalThis.dbPool.getConnection();
         try {

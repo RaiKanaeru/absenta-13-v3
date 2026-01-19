@@ -3,7 +3,7 @@
  * Menyediakan interface yang konsisten untuk semua role (admin, guru, siswa)
  */
 
-import { getApiUrl } from '@/config/api';
+import { apiCall } from '@/utils/apiClient';
 
 type JadwalRole = 'admin' | 'guru' | 'siswa';
 type JadwalArrayResponse = any[];
@@ -35,23 +35,12 @@ export class JadwalService {
       throw new Error(`Role '${role}' tidak valid. Gunakan: admin, guru, atau siswa`);
     }
     
-    const response = await fetch(getApiUrl(`/api${endpoint}`), {
-      headers: { 
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Gagal memuat jadwal');
-    }
-    
-    const data = await response.json();
+    const data = await apiCall<JadwalArrayResponse | JadwalEnvelopeResponse>(`/api${endpoint}`);
     
     // Handle format response berbeda antara admin dan guru
-    if (role === 'guru' && data.success) {
-      return data.data;
+    if (role === 'guru' && (data as JadwalEnvelopeResponse)?.success) {
+      const envelope = data as JadwalEnvelopeResponse;
+      return Array.isArray(envelope.data) ? envelope.data : data;
     }
     
     return data;
@@ -63,21 +52,10 @@ export class JadwalService {
    * @returns Promise<any> - Response dari server
    */
   static async createJadwal(jadwalData: any): Promise<any> {
-    const response = await fetch(getApiUrl('/api/admin/jadwal'), {
+    return apiCall('/api/admin/jadwal', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
       body: JSON.stringify(jadwalData)
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Gagal membuat jadwal');
-    }
-    
-    return response.json();
   }
   
   /**
@@ -87,21 +65,10 @@ export class JadwalService {
    * @returns Promise<any> - Response dari server
    */
   static async updateJadwal(id: number, jadwalData: any): Promise<any> {
-    const response = await fetch(getApiUrl(`/api/admin/jadwal/${id}`), {
+    return apiCall(`/api/admin/jadwal/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
       body: JSON.stringify(jadwalData)
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Gagal mengupdate jadwal');
-    }
-    
-    return response.json();
   }
   
   /**
@@ -110,19 +77,9 @@ export class JadwalService {
    * @returns Promise<any> - Response dari server
    */
   static async deleteJadwal(id: number): Promise<any> {
-    const response = await fetch(getApiUrl(`/api/admin/jadwal/${id}`), {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
+    return apiCall(`/api/admin/jadwal/${id}`, {
+      method: 'DELETE'
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Gagal menghapus jadwal');
-    }
-    
-    return response.json();
   }
   
   /**
@@ -131,18 +88,7 @@ export class JadwalService {
    * @returns Promise<any> - Response dari server
    */
   static async getJadwalHariIniSiswa(siswaId: number): Promise<any> {
-    const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-hari-ini`), {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Gagal memuat jadwal hari ini');
-    }
-    
-    return response.json();
+    return apiCall(`/api/siswa/${siswaId}/jadwal-hari-ini`);
   }
   
   /**
@@ -152,17 +98,7 @@ export class JadwalService {
    * @returns Promise<any> - Response dari server
    */
   static async getJadwalRentangSiswa(siswaId: number, tanggal: string): Promise<any> {
-    const response = await fetch(getApiUrl(`/api/siswa/${siswaId}/jadwal-rentang?tanggal=${tanggal}`), {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Gagal memuat jadwal rentang');
-    }
-    
-    return response.json();
+    const encodedTanggal = encodeURIComponent(tanggal);
+    return apiCall(`/api/siswa/${siswaId}/jadwal-rentang?tanggal=${encodedTanggal}`);
   }
 }

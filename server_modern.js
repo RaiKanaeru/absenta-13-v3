@@ -1,4 +1,4 @@
-﻿// Load environment variables
+// Load environment variables
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -662,10 +662,10 @@ initializeDatabase().then(() => {
     initAutoAttendanceScheduler();
 
     const server = app.listen(port, '0.0.0.0', () => {
-        console.log(`🚀 ABSENTA Modern Server is running on http://0.0.0.0:${port}`);
-        console.log(`🌐 Accessible from network: http://[YOUR_IP]:${port}`);
-        console.log(`📱 Frontend should connect to this server`);
-        console.log(`🔧 Database optimization: Connection pool active`);
+        console.log(`[START] ABSENTA Modern Server is running on http://0.0.0.0:${port}`);
+        console.log(`[NETWORK] Accessible from network: http://[YOUR_IP]:${port}`);
+        console.log(`[INFO] Frontend should connect to this server`);
+        console.log(`[DB] Database optimization: Connection pool active`);
     });
 
     // Graceful Shutdown
@@ -695,14 +695,14 @@ initializeDatabase().then(() => {
 
     // Global Error Handlers for Uncaught Exceptions/Rejections
     process.on('unhandledRejection', (err) => {
-        console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+        console.error('[FATAL] UNHANDLED REJECTION! Shutting down...');
         console.error(err.name, err.message);
         console.error(err.stack);
         shutdown('UNHANDLED_REJECTION');
     });
 
     process.on('uncaughtException', (err) => {
-        console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+        console.error('[FATAL] UNCAUGHT EXCEPTION! Shutting down...');
         console.error(err.name, err.message);
         console.error(err.stack);
         shutdown('UNCAUGHT_EXCEPTION');

@@ -6,22 +6,22 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-console.log('🛠️  ABSENTA Manual Setup Helper');
+console.log('[TOOL] ABSENTA Manual Setup Helper');
 console.log('================================');
 console.log('Script ini akan membantu Anda membuat file .env secara manual.');
 console.log('Anda perlu memasukkan IP Address atau Hostname komputer ini.');
 console.log('--------------------------------');
 
-rl.question('\n📝 Masukkan IP Address / Hostname (contoh: 192.168.1.5): ', (inputIP) => {
+rl.question('\\n[INPUT] Masukkan IP Address / Hostname (contoh: 192.168.1.5): ', (inputIP) => {
     const ip = inputIP.trim();
 
     if (!ip) {
-        console.log('❌ IP Address tidak boleh kosong!');
+        console.log('[ERROR] IP Address tidak boleh kosong!');
         rl.close();
         return;
     }
 
-    console.log(`\n✅ Menggunakan IP: ${ip}`);
+    console.log(`\\n[OK] Menggunakan IP: ${ip}`);
 
     // Create .env file content
     const envContent = `# ===========================================
@@ -73,15 +73,15 @@ LOG_DIR=logs
     // Write .env file
     try {
         fs.writeFileSync('.env', envContent);
-        console.log('\n✅ File .env berhasil dibuat!');
-        console.log('\n📋 Konfigurasi:');
+        console.log('\\n[OK] File .env berhasil dibuat!');
+        console.log('\\n[LOG] Konfigurasi:');
         console.log(`   Backend URL: http://${ip}:3001`);
         console.log(`   Frontend URL: http://${ip}:8080`);
-        console.log('\n🚀 Langkah selanjutnya:');
+        console.log('\\n[START] Langkah selanjutnya:');
         console.log('1. Restart server: npm run dev');
         console.log(`2. Akses dari browser: http://${ip}:8080`);
     } catch (error) {
-        console.error('\n❌ Gagal membuat file .env:', error.message);
+        console.error('\\n[ERROR] Gagal membuat file .env:', error.message);
     }
 
     rl.close();

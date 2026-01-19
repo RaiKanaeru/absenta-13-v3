@@ -60,7 +60,7 @@ function updateFile(filePath) {
     // Save if modified
     if (modified) {
         fs.writeFileSync(filePath, content, 'utf8');
-        console.log(`✅ Updated: ${path.basename(filePath)}`);
+        console.log(`[OK] Updated: ${path.basename(filePath)}`);
         return true;
     }
     
@@ -81,11 +81,11 @@ try {
         }
     });
 
-    console.log(`\n🎉 Batch update complete!`);
-    console.log(`📊 Updated ${updatedCount} controller files`);
-    console.log(`\n⚠️  Note: Please review the changes and test thoroughly`);
+    console.log(`\\n[DONE] Batch update complete!`);
+    console.log(`[STATS] Updated ${updatedCount} controller files`);
+    console.log(`\\n[WARN] Note: Please review the changes and test thoroughly`);
 
 } catch (error) {
-    console.error('❌ Error during batch update:', error);
+    console.error('[ERROR] Error during batch update:', error);
     process.exit(1);
 }

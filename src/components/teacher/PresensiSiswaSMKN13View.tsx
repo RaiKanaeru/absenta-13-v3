@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB } from "@/lib/time-utils";
 import { FileText, Search, Download, ArrowLeft } from "lucide-react";
-import { getApiUrl } from '@/config/api';
+import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
@@ -57,13 +57,17 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Error fetching presensi siswa SMKN 13:', err);
-      setError(err instanceof Error ? err.message : 'Gagal memuat data presensi siswa');
+      setError(getErrorMessage(err) || 'Gagal memuat data presensi siswa');
     } finally {
       setLoading(false);
     }
   };
 
   const downloadExcel = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      setError('Mohon pilih periode mulai dan akhir');
+      return;
+    }
     try {
       const params = new URLSearchParams({ 
         startDate: dateRange.startDate, 
@@ -71,31 +75,23 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       
-      const url = getApiUrl(`/api/export/presensi-siswa-smkn13?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/presensi-siswa-smkn13?${params.toString()}`, {
+        responseType: 'blob'
       });
-      
-      if (!response.ok) {
-        throw new Error('Gagal mengunduh file Excel');
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `presensi-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
+      URL.revokeObjectURL(url);
       
       toast({
-        title: "Berhasil!",
+        title: "Berhasil",
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
       console.error('Error downloading Excel:', err);
-      setError('Gagal mengunduh file Excel');
+      setError(getErrorMessage(err) || 'Gagal mengunduh file Excel');
     }
   };
 

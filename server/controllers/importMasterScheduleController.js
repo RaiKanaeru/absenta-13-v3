@@ -90,7 +90,7 @@ const loadJamPelajaranMap = async (conn, tahunAjaran) => {
 export const importMasterSchedule = async (req, res) => {
     const log = logger.withRequest(req, res);
     try {
-        if (!req.file) return res.status(400).json({ error: 'File tidak ditemukan' });
+        if (!req.file) return sendValidationError(res, 'File tidak ditemukan');
 
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(req.file.buffer); // Works for CSV too if format is correct
@@ -142,7 +142,7 @@ export const importMasterSchedule = async (req, res) => {
             // Manual mapping based on analysis
             // SENIN: E(5) - S(19) ??
             // This is risky. Let's error if no days found for now.
-             return res.status(400).json({ error: 'Format header hari (SENIN, SELASA...) tidak ditemukan di 10 baris pertama.' });
+             return sendValidationError(res, 'Format header hari (SENIN, SELASA...) tidak ditemukan di 10 baris pertama.');
         }
 
         // 2. Identify Class Blocks
@@ -218,7 +218,7 @@ export const importMasterSchedule = async (req, res) => {
         }
 
         if (scheduleData.length === 0) {
-            return res.status(400).json({ error: 'Tidak ada data jadwal yang ditemukan.' });
+            return sendValidationError(res, 'Tidak ada data jadwal yang ditemukan.');
         }
 
         if (req.query.dryRun === 'true') {

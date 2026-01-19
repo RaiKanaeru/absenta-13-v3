@@ -13,8 +13,7 @@ import { ReportLetterhead } from './ui/report-letterhead';
 import { ReportSummary } from './ui/report-summary';
 import { getCurrentYearWIB, formatDateOnly } from '../lib/time-utils';
 import { ACADEMIC_MONTHS, getMonthName } from '../lib/academic-constants';
-import { apiCall } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 
 interface Kelas {
   id: number;
@@ -113,36 +112,29 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
   const handleExportExcel = async () => {
     try {
-      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-guru?tahun=${selectedTahun}`), {
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru?tahun=${selectedTahun}`, {
+        responseType: 'blob',
+        onLogout
       });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = globalThis.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Rekap_Ketidakhadiran_Guru_${selectedTahun}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        globalThis.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "Success",
-          description: "File Excel berhasil diunduh"
-        });
-      } else {
-        throw new Error('Export failed');
-      }
+      const url = globalThis.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rekap_Ketidakhadiran_Guru_${selectedTahun}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      globalThis.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Berhasil",
+        description: "File Excel berhasil diunduh"
+      });
     } catch (error) {
       console.error('Export error:', error);
+      const message = getErrorMessage(error) || "Gagal mengunduh file Excel";
       toast({
         title: "Error",
-        description: "Gagal mengunduh file Excel",
+        description: message,
         variant: "destructive"
       });
     }
@@ -150,36 +142,29 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
   const handleExportSMKN13 = async () => {
     try {
-      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-guru-smkn13?tahun=${selectedTahun}`), {
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru-smkn13?tahun=${selectedTahun}`, {
+        responseType: 'blob',
+        onLogout
       });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = globalThis.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `REKAP_KETIDAKHADIRAN_GURU_SMKN13_${selectedTahun}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        globalThis.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "Success",
-          description: "File Excel SMKN 13 berhasil diunduh"
-        });
-      } else {
-        throw new Error('Export failed');
-      }
+      const url = globalThis.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `REKAP_KETIDAKHADIRAN_GURU_SMKN13_${selectedTahun}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      globalThis.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Berhasil",
+        description: "File Excel SMKN 13 berhasil diunduh"
+      });
     } catch (error) {
       console.error('Export error:', error);
+      const message = getErrorMessage(error) || "Gagal mengunduh file Excel SMKN 13";
       toast({
         title: "Error",
-        description: "Gagal mengunduh file Excel SMKN 13",
+        description: message,
         variant: "destructive"
       });
     }

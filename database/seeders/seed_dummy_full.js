@@ -90,7 +90,7 @@ const pad = (n) => String(n).padStart(2, '0');
 // ============================================================================
 
 async function seed() {
-    console.log('🚀 STARTING DUMMY SEEDER (FULL)...');
+    console.log('[START] STARTING DUMMY SEEDER (FULL)...');
     
     const connection = await mysql.createConnection({
         host: process.env.DB_HOST === 'mysql' ? '127.0.0.1' : (process.env.DB_HOST || 'localhost'),
@@ -103,7 +103,7 @@ async function seed() {
         // ---------------------------------------------------------
         // 1. CLEANUP (Truncate tables to start fresh)
         // ---------------------------------------------------------
-        console.log('\n🧹 Cleaning up old data...');
+        console.log('\n[CLEAN] Cleaning up old data...');
         // Order matters due to Foreign Keys
         await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
         await connection.execute('TRUNCATE TABLE jadwal');
@@ -117,12 +117,12 @@ async function seed() {
         await connection.execute("DELETE g FROM guru g JOIN users u ON g.user_id = u.id WHERE u.username LIKE 'guru%'"); 
         await connection.execute("DELETE FROM users WHERE username LIKE 'guru%' AND role='guru'");
         await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
-        console.log('✅ Cleanup done.');
+        console.log('[OK] Cleanup done.');
 
         // ---------------------------------------------------------
         // 2. SEED ROOMS
         // ---------------------------------------------------------
-        console.log('\n🏫 Seeding Rooms...');
+        console.log('\n[SCHOOL] Seeding Rooms...');
         const roomIds = [];
         for (const r of ROOMS) {
             const [res] = await connection.execute(
@@ -131,12 +131,12 @@ async function seed() {
             );
             roomIds.push(res.insertId);
         }
-        console.log(`✅ Inserted ${roomIds.length} rooms.`);
+        console.log(`[OK] Inserted ${roomIds.length} rooms.`);
 
         // ---------------------------------------------------------
         // 2.5 ENSURE JAM PELAJARAN
         // ---------------------------------------------------------
-        console.log('\n⏰ Ensuring Jam Pelajaran...');
+        console.log('\n[TIME] Ensuring Jam Pelajaran...');
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS jam_pelajaran (
               id int PRIMARY KEY AUTO_INCREMENT,
@@ -270,13 +270,13 @@ async function seed() {
                 `INSERT INTO jam_pelajaran (hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label, tahun_ajaran) VALUES ?`,
                 [jamInserts]
             );
-            console.log(`   ✅ Inserted ${jamInserts.length} jam_pelajaran slots.`);
+            console.log(`   [OK] Inserted ${jamInserts.length} jam_pelajaran slots.`);
         }
 
         // ---------------------------------------------------------
         // 3. SEED MAPEL
         // ---------------------------------------------------------
-        console.log('\n📚 Seeding Mapel...');
+        console.log('\n[BOOKS] Seeding Mapel...');
         const mapelIds = []; // Array of {id, kode}
         for (const m of MAPEL_LIST) {
             const [res] = await connection.execute(
@@ -285,12 +285,12 @@ async function seed() {
             );
             mapelIds.push({ id: res.insertId, kode: m.kode });
         }
-        console.log(`✅ Inserted ${mapelIds.length} subjects.`);
+        console.log(`[OK] Inserted ${mapelIds.length} subjects.`);
 
         // ---------------------------------------------------------
         // 4. SEED KELAS
         // ---------------------------------------------------------
-        console.log('\n🎓 Seeding Classes...');
+        console.log('\n[STUDENTS] Seeding Classes...');
         const kelasIds = [];
         for (const k of KELAS_LIST) {
             const [res] = await connection.execute(
@@ -299,12 +299,12 @@ async function seed() {
             );
             kelasIds.push(res.insertId);
         }
-        console.log(`✅ Inserted ${kelasIds.length} classes.`);
+        console.log(`[OK] Inserted ${kelasIds.length} classes.`);
 
         // ---------------------------------------------------------
         // 5. SEED GURU (and Users)
         // ---------------------------------------------------------
-        console.log('\n👨‍🏫 Seeding Teachers...');
+        console.log('\n[TEACHERS] Seeding Teachers...');
         const guruIds = []; // Array of {id, mapel_id} so we know what they teach
         const defaultPass = await bcrypt.hash('123456', 10);
 
@@ -346,12 +346,12 @@ async function seed() {
                 name 
             });
         }
-        console.log(`✅ Inserted ${guruIds.length} teachers.`);
+        console.log(`[OK] Inserted ${guruIds.length} teachers.`);
 
         // ---------------------------------------------------------
         // 6. GENERATE SCHEDULE
         // ---------------------------------------------------------
-        console.log('\n📅 Generating Conflict-Free Schedule...');
+        console.log('\n[SCHEDULE] Generating Conflict-Free Schedule...');
         
         // Fetch valid slots from DB
         const [slots] = await connection.execute(
@@ -489,11 +489,11 @@ async function seed() {
             }
         }
 
-        console.log(`\n✅ Generated ${jadwalCount} schedule entries.`);
-        console.log('🎉 Seed Complete!');
+        console.log(`\n[OK] Generated ${jadwalCount} schedule entries.`);
+        console.log('[DONE] Seed Complete!');
 
     } catch (error) {
-        console.error('❌ Error seeding:', error);
+        console.error('[ERROR] Error seeding:', error);
     } finally {
         await connection.end();
     }

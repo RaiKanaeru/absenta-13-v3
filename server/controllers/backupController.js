@@ -7,16 +7,14 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import AdmZip from 'adm-zip';
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendErrorResponse, sendValidationError, sendNotFoundError, sendServiceUnavailableError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
 import { splitSqlStatements } from '../utils/sqlParser.js';
 
 const logger = createLogger('Backup');
 
-// Constants to avoid duplicate literals
-// Constants to avoid duplicate literals
-const ERROR_INTERNAL = 'Internal server error';
+// Constants
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'backups');
 const TEMP_DIR = path.join(process.cwd(), 'temp');
 
@@ -503,27 +501,18 @@ const createSemesterBackup = async (req, res) => {
 
         if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
-            return res.status(503).json({
-                error: 'Backup system not ready',
-                message: 'Backup system is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Sistem backup belum siap. Silakan coba lagi beberapa saat.');
         }
 
         const { semester, year } = req.body;
 
         // Validasi input
         if (!semester || !['Ganjil', 'Genap'].includes(semester)) {
-            return res.status(400).json({
-                error: 'Invalid input',
-                message: 'Semester harus Ganjil atau Genap'
-            });
+            return sendValidationError(res, 'Semester harus Ganjil atau Genap');
         }
 
         if (!year || Number.isNaN(Number(year)) || year < 2020 || year > 2030) {
-            return res.status(400).json({
-                error: 'Invalid input',
-                message: 'Tahun harus antara 2020-2030'
-            });
+            return sendValidationError(res, 'Tahun harus antara 2020-2030');
         }
 
         const backupResult = await globalThis.backupSystem.createSemesterBackup(semester, year);
@@ -554,10 +543,7 @@ const createDateBackup = async (req, res) => {
 
         if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
-            return res.status(503).json({
-                error: 'Backup system not ready',
-                message: 'Backup system is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Sistem backup belum siap. Silakan coba lagi beberapa saat.');
         }
 
         const { startDate, endDate } = req.body;
@@ -571,10 +557,7 @@ const createDateBackup = async (req, res) => {
             endDateObj = validation.endDateObj;
         } catch (validationError) {
             logger.warn('Backup date validation failed', { error: validationError.message });
-            return res.status(validationError.status || 400).json({
-                error: validationError.error,
-                message: validationError.message
-            });
+            return sendValidationError(res, validationError.message);
         }
 
         logger.info('Creating date backup', { startDate, endDate: actualEndDate });
@@ -601,10 +584,7 @@ const createDateBackup = async (req, res) => {
 
     } catch (error) {
         logger.error('Error creating date-based backup', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to create date-based backup'
-        });
+        return sendDatabaseError(res, error, 'Gagal membuat backup berdasarkan tanggal');
     }
 };
 
@@ -624,10 +604,7 @@ const getBackupList = async (req, res) => {
 
     } catch (error) {
         logger.error('Error getting backup list', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: 'Gagal memuat daftar backup'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat daftar backup');
     }
 };
 
@@ -711,11 +688,7 @@ const getBackups = async (req, res) => {
 
     } catch (error) {
         logger.error('Error getting backups', error);
-        res.status(500).json({
-            ok: false,
-            message: 'Gagal mendapatkan daftar backup',
-            error: error.message
-        });
+        return sendDatabaseError(res, error, 'Gagal mendapatkan daftar backup');
     }
 };
 
@@ -729,24 +702,18 @@ const deleteBackup = async (req, res) => {
         const { backupId } = req.params;
 
         if (!backupId) {
-            return res.status(400).json({
-                error: 'Invalid input',
-                message: 'Backup ID is required'
-            });
+            return sendValidationError(res, 'Backup ID wajib diisi');
         }
 
         logger.info('Attempting to delete backup', { backupId });
 
         if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
-            return res.status(503).json({
-                error: 'Backup system not ready',
-                message: 'Backup system is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Sistem backup belum siap. Silakan coba lagi beberapa saat.');
         }
 
         if (!validateBackupId(backupId)) {
-            return res.status(400).json({ error: 'Invalid input', message: 'Invalid backup ID format' });
+            return sendValidationError(res, 'Format Backup ID tidak valid');
         }
 
         // Try to delete using backup system first
@@ -780,10 +747,7 @@ const deleteBackup = async (req, res) => {
 
     } catch (error) {
         logger.error('Error deleting backup', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Gagal menghapus backup'
-        });
+        return sendDatabaseError(res, error, 'Gagal menghapus backup');
     }
 };
 
@@ -796,20 +760,14 @@ const deleteBackupBatch = async (req, res) => {
         const { backupIds } = req.body;
 
         if (!Array.isArray(backupIds) || backupIds.length === 0) {
-            return res.status(400).json({
-                error: 'Invalid input',
-                message: 'Backup IDs array is required'
-            });
+            return sendValidationError(res, 'Array Backup IDs wajib diisi');
         }
 
         logger.info('Attempting to delete multiple backups', { count: backupIds.length });
 
         if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
-            return res.status(503).json({
-                error: 'Backup system not ready',
-                message: 'Backup system is not initialized yet'
-            });
+            return sendServiceUnavailableError(res, 'Sistem backup belum siap');
         }
 
         const results = {
@@ -836,10 +794,7 @@ const deleteBackupBatch = async (req, res) => {
 
     } catch (error) {
         logger.error('Error deleting backup batch', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: 'Gagal menghapus backup batch'
-        });
+        return sendDatabaseError(res, error, 'Gagal menghapus backup batch');
     }
 };
 
@@ -903,10 +858,7 @@ const downloadBackup = async (req, res) => {
         const sanitizedBackupId = path.basename(backupId);
         if (sanitizedBackupId !== backupId || !backupId || backupId.includes('..')) {
             logger.warn('Invalid backup ID detected', { backupId });
-            return res.status(400).json({
-                error: 'Invalid backup ID',
-                message: 'Backup ID contains invalid characters'
-            });
+            return sendValidationError(res, 'Backup ID mengandung karakter tidak valid');
         }
 
         logger.info('Downloading backup', { backupId: sanitizedBackupId });
@@ -915,10 +867,7 @@ const downloadBackup = async (req, res) => {
 
         if (!filePath) {
             logger.error('No backup file found', { backupId: sanitizedBackupId });
-            return res.status(404).json({
-                error: 'Backup file not found',
-                message: `No backup file found for ID: ${sanitizedBackupId}`
-            });
+            return sendNotFoundError(res, `File backup tidak ditemukan: ${sanitizedBackupId}`);
         }
 
         // Set proper headers for file download
@@ -930,10 +879,7 @@ const downloadBackup = async (req, res) => {
             if (err) {
                 logger.error('Error during file download', err);
                 if (!res.headersSent) {
-                    res.status(500).json({
-                        error: 'Download failed',
-                        message: err.message || 'Failed to download file'
-                    });
+                    sendErrorResponse(res, err, err.message || 'Gagal mengunduh file');
                 }
             } else {
                 logger.info('File download completed', { filename });
@@ -942,10 +888,7 @@ const downloadBackup = async (req, res) => {
 
     } catch (error) {
         logger.error('Error downloading backup', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to download backup'
-        });
+        return sendDatabaseError(res, error, 'Gagal mengunduh backup');
     }
 };
 
@@ -962,18 +905,12 @@ const restoreBackupById = async (req, res) => {
         const { backupId } = req.params;
 
         if (!backupId) {
-            return res.status(400).json({
-                error: 'Invalid input',
-                message: 'Backup ID is required'
-            });
+            return sendValidationError(res, 'Backup ID wajib diisi');
         }
 
         if (!globalThis.backupSystem) {
              logger.error('Backup system not initialized');
-             return res.status(503).json({
-                 error: 'Backup system not ready',
-                 message: 'Backup system is not initialized yet. Please try again in a few seconds.'
-             });
+             return sendServiceUnavailableError(res, 'Sistem backup belum siap. Silakan coba lagi beberapa saat.');
         }
 
         const result = await globalThis.backupSystem.restoreFromBackup(backupId);
@@ -986,11 +923,7 @@ const restoreBackupById = async (req, res) => {
 
     } catch (error) {
         logger.error('Error restoring backup', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: 'Gagal memulihkan backup',
-            details: error.message
-        });
+        return sendDatabaseError(res, error, 'Gagal memulihkan backup');
     }
 };
 
@@ -1002,17 +935,11 @@ const restoreBackupById = async (req, res) => {
 const restoreBackupFromFile = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({
-                error: 'File tidak ditemukan',
-                message: 'File backup harus diupload'
-            });
+            return sendValidationError(res, 'File backup harus diupload');
         }
 
         if (!globalThis.dbPool) {
-            return res.status(503).json({
-                error: 'System not ready',
-                message: 'Database connection is not initialized yet'
-            });
+            return sendServiceUnavailableError(res, 'Koneksi database belum siap');
         }
 
         logger.info('Processing backup file upload', {
@@ -1026,10 +953,7 @@ const restoreBackupFromFile = async (req, res) => {
         const fileExtension = rawExtension.replaceAll(/[^a-z0-9.]/g, '');
 
         if (!['.sql', '.zip'].includes(fileExtension)) {
-            return res.status(400).json({
-                error: 'Format file tidak didukung',
-                message: 'File harus berformat .sql atau .zip'
-            });
+            return sendValidationError(res, 'File harus berformat .sql atau .zip');
         }
 
         // Save uploaded file temporarily - use safe filename to prevent path traversal (S2083)
@@ -1062,12 +986,7 @@ const restoreBackupFromFile = async (req, res) => {
 
     } catch (error) {
         logger.error('Error restoring backup', error);
-        res.status(500).json({
-            error: 'Restore Failed',
-            message: error.message || 'Gagal memulihkan backup',
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-            details: error.toString()
-        });
+        return sendDatabaseError(res, error, 'Gagal memulihkan backup');
     }
 };
 
@@ -1085,10 +1004,7 @@ const createTestArchiveData = async (req, res) => {
 
         if (!globalThis.dbPool) {
             logger.error('Database pool not initialized');
-            return res.status(503).json({
-                error: 'Database not ready',
-                message: 'Database connection pool is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Koneksi database belum siap. Silakan coba lagi beberapa saat.');
         }
 
         // Create test data that is 25 months old
@@ -1145,10 +1061,7 @@ const createTestArchiveData = async (req, res) => {
 
     } catch (error) {
         logger.error('Error creating test archive data', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to create test archive data'
-        });
+        return sendDatabaseError(res, error, 'Gagal membuat data arsip test');
     }
 };
 
@@ -1164,18 +1077,12 @@ const archiveOldData = async (req, res) => {
 
         if (!globalThis.backupSystem) {
             logger.error('Backup system not initialized');
-            return res.status(503).json({
-                error: 'Backup system not ready',
-                message: 'Backup system is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Sistem backup belum siap. Silakan coba lagi beberapa saat.');
         }
 
         if (!globalThis.dbPool) {
             logger.error('Database pool not initialized');
-            return res.status(503).json({
-                error: 'Database not ready',
-                message: 'Database connection pool is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Koneksi database belum siap. Silakan coba lagi beberapa saat.');
         }
 
         const archiveResult = await globalThis.backupSystem.archiveOldData(monthsOld);
@@ -1188,10 +1095,7 @@ const archiveOldData = async (req, res) => {
 
     } catch (error) {
         logger.error('Error archiving old data', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to archive old data'
-        });
+        return sendDatabaseError(res, error, 'Gagal mengarsipkan data lama');
     }
 };
 
@@ -1205,10 +1109,7 @@ const getArchiveStats = async (req, res) => {
 
         if (!globalThis.dbPool) {
             logger.error('Database pool not initialized');
-            return res.status(503).json({
-                error: 'Database not ready',
-                message: 'Database connection pool is not initialized yet. Please try again in a few seconds.'
-            });
+            return sendServiceUnavailableError(res, 'Koneksi database belum siap. Silakan coba lagi beberapa saat.');
         }
 
         // Get student archive count
@@ -1262,10 +1163,7 @@ const getArchiveStats = async (req, res) => {
 
     } catch (error) {
         logger.error('Error getting archive stats', error);
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: 'Gagal memuat statistik arsip'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat statistik arsip');
     }
 };
 
@@ -1356,10 +1254,7 @@ const getBackupDirectoryStatus = async (req, res) => {
 
     } catch (error) {
         logger.error('Error checking backup directory', { error: error.message });
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: 'Gagal memeriksa direktori backup'
-        });
+        return sendDatabaseError(res, error, 'Gagal memeriksa direktori backup');
     }
 };
 
@@ -1454,10 +1349,7 @@ const saveBackupSettings = async (req, res) => {
 
     } catch (error) {
         logger.error('Error saving backup settings', { error: error.message });
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to save backup settings'
-        });
+        return sendDatabaseError(res, error, 'Gagal menyimpan pengaturan backup');
     }
 };
 
@@ -1495,20 +1387,14 @@ const createCustomSchedule = async (req, res) => {
         logger.info('Creating custom schedule', { name, date, time });
 
         if (!name || !date || !time) {
-            return res.status(400).json({
-                error: 'Missing required fields',
-                message: 'Name, date, and time are required'
-            });
+            return sendValidationError(res, 'Nama, tanggal, dan waktu wajib diisi');
         }
 
         // Validate date is not in the past
         const scheduleDate = new Date(`${date}T${time}`);
         const now = new Date();
         if (scheduleDate <= now) {
-            return res.status(400).json({
-                error: 'Invalid date',
-                message: 'Schedule date must be in the future'
-            });
+            return sendValidationError(res, 'Tanggal jadwal harus di masa depan');
         }
 
         const schedules = await readCustomSchedules();
@@ -1534,10 +1420,7 @@ const createCustomSchedule = async (req, res) => {
 
     } catch (error) {
         logger.error('Error creating custom schedule', { error: error.message });
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to create custom schedule'
-        });
+        return sendDatabaseError(res, error, 'Gagal membuat jadwal kustom');
     }
 };
 
@@ -1555,10 +1438,7 @@ const updateCustomSchedule = async (req, res) => {
 
         const scheduleIndex = schedules.findIndex(s => s.id === id);
         if (scheduleIndex === -1) {
-            return res.status(404).json({
-                error: 'Schedule not found',
-                message: 'Schedule with the given ID not found'
-            });
+            return sendNotFoundError(res, 'Jadwal dengan ID tersebut tidak ditemukan');
         }
 
         // Update schedule
@@ -1581,10 +1461,7 @@ const updateCustomSchedule = async (req, res) => {
 
     } catch (error) {
         logger.error('Error updating custom schedule', { error: error.message });
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to update custom schedule'
-        });
+        return sendDatabaseError(res, error, 'Gagal memperbarui jadwal kustom');
     }
 };
 
@@ -1603,10 +1480,7 @@ const deleteCustomSchedule = async (req, res) => {
         const filteredSchedules = schedules.filter(s => s.id !== id);
 
         if (filteredSchedules.length === initialLength) {
-            return res.status(404).json({
-                error: 'Schedule not found',
-                message: 'Schedule with the given ID not found'
-            });
+            return sendNotFoundError(res, 'Jadwal dengan ID tersebut tidak ditemukan');
         }
 
         await writeCustomSchedules(filteredSchedules);
@@ -1618,10 +1492,7 @@ const deleteCustomSchedule = async (req, res) => {
 
     } catch (error) {
         logger.error('Error deleting custom schedule', { error: error.message });
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to delete custom schedule'
-        });
+        return sendDatabaseError(res, error, 'Gagal menghapus jadwal kustom');
     }
 };
 
@@ -1642,18 +1513,12 @@ const runCustomSchedule = async (req, res) => {
             schedules = JSON.parse(schedulesData);
         } catch (fileError) {
             logger.warn('Schedules file not found', { error: fileError.message });
-            return res.status(404).json({
-                error: 'Schedules not found',
-                message: 'No schedules file found'
-            });
+            return sendNotFoundError(res, 'File jadwal tidak ditemukan');
         }
 
         const schedule = schedules.find(s => s.id === id);
         if (!schedule) {
-            return res.status(404).json({
-                error: 'Schedule not found',
-                message: 'Schedule with the given ID not found'
-            });
+            return sendNotFoundError(res, 'Jadwal dengan ID tersebut tidak ditemukan');
         }
 
         // Run the scheduled backup
@@ -1670,18 +1535,12 @@ const runCustomSchedule = async (req, res) => {
                 backup: backupResult
             });
         } else {
-            res.status(503).json({
-                error: 'Backup system not available',
-                message: 'Backup system is not initialized'
-            });
+            return sendServiceUnavailableError(res, 'Sistem backup belum siap');
         }
 
     } catch (error) {
         logger.error('Error running custom schedule', { error: error.message });
-        res.status(500).json({
-            error: ERROR_INTERNAL,
-            message: error.message || 'Failed to run custom schedule'
-        });
+        return sendDatabaseError(res, error, 'Gagal menjalankan jadwal kustom');
     }
 };
 

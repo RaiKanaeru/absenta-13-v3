@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, BookOpen, TrendingUp, CheckCircle, AlertCircle } from "lucide-react";
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { formatTime24WithSeconds, formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { LiveData } from '@/types/dashboard';
+import { toast } from "@/hooks/use-toast";
 
 interface LiveSummaryViewProps {
   onLogout: () => void;
@@ -20,6 +21,12 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
       setLiveData(data as LiveData);
     } catch (error) {
       console.error('Error fetching live data:', error);
+      // Only show toast on first error to avoid spam during polling
+      toast({
+        title: "Gagal memuat data live",
+        description: getErrorMessage(error),
+        variant: "destructive"
+      });
     }
   }, [onLogout]);
 

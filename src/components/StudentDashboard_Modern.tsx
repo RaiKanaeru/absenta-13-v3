@@ -1740,8 +1740,8 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                       </div>
                     )}
 
-                    {/* Tombol Absen Kelas - Muncul ketika guru Tidak Hadir */}
-                    {kehadiranData[jadwal.id_jadwal]?.status === 'Tidak Hadir' && !isEditMode && (
+                    {/* Tombol Absen Kelas - Muncul ketika guru tidak hadir */}
+                    {['Tidak Hadir', 'Izin', 'Sakit'].includes(kehadiranData[jadwal.id_jadwal]?.status || '') && !isEditMode && (
                       <div className="mt-3">
                         <Button
                           onClick={() => openAbsenKelasModal(jadwal.id_jadwal, jadwal.nama_guru || 'Guru')}
@@ -1752,10 +1752,11 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                           Absen Kelas (Guru Tidak Hadir)
                         </Button>
                         <p className="text-xs text-gray-500 mt-1 text-center">
-                          Klik untuk mengabsen siswa karena guru tidak hadir
+                          Klik untuk mengabsen siswa karena guru tidak hadir/izin/sakit
                         </p>
                       </div>
                     )}
+
 
                     {/* Keterangan untuk single guru */}
                     {!jadwal.is_multi_guru && (

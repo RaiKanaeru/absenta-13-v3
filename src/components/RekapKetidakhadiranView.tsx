@@ -13,8 +13,7 @@ import { ReportLetterhead } from './ui/report-letterhead';
 import { ReportSummary } from './ui/report-summary';
 import { formatDateOnly } from '../lib/time-utils';
 import { ACADEMIC_MONTHS, getMonthName } from '../lib/academic-constants';
-import { apiCall } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { Kelas, Siswa } from '@/types/school';
 
 interface PresensiData {
@@ -192,8 +191,6 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      
       const params = new URLSearchParams({
         kelas_id: selectedKelas,
         tahun: selectedTahun,
@@ -208,18 +205,10 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
         params.append('tanggal_akhir', selectedTanggalAkhir);
       }
 
-      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-siswa?${params}`), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-siswa?${params.toString()}`, {
+        responseType: 'blob',
+        onLogout
       });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
       const url = globalThis.URL.createObjectURL(blob);
       const downloadLink = document.createElement('a');
       downloadLink.href = url;
@@ -242,14 +231,15 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       document.body.removeChild(downloadLink);
 
       toast({
-        title: "Success",
+        title: "Berhasil",
         description: "Data berhasil diekspor ke Excel",
       });
     } catch (error) {
       console.error('Export error:', error);
+      const message = getErrorMessage(error) || "Gagal mengekspor data ke Excel";
       toast({
         title: "Error",
-        description: "Gagal mengekspor data ke Excel",
+        description: message,
         variant: "destructive",
       });
     } finally {

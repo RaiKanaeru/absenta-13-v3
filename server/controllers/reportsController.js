@@ -4,7 +4,7 @@
  */
 
 import { getMySQLDateWIB, getWIBTime, HARI_INDONESIA } from '../utils/timeUtils.js';
-import { sendErrorResponse, sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendDatabaseError, sendDeprecatedError, sendValidationError } from '../utils/errorHandler.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { REPORT_STATUS, REPORT_MESSAGES, CSV_HEADERS, HARI_EFEKTIF_MAP } from '../config/reportConfig.js';
 import { createLogger } from '../utils/logger.js';
@@ -282,10 +282,7 @@ export const updatePermissionStatus = async (req, res) => {
 
         // Endpoint deprecated - pengajuan izin sudah dihapus
         log.warn('Deprecated endpoint called', { id });
-        return res.status(410).json({
-            error: 'Endpoint deprecated',
-            message: 'Pengajuan izin sudah dihapus dari sistem'
-        });
+        return sendDeprecatedError(res, 'Pengajuan izin sudah dihapus dari sistem');
     } catch (error) {
         log.dbError('updatePermission', error, { id });
         return sendDatabaseError(res, error);

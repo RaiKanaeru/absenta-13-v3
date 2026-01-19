@@ -14,6 +14,7 @@
 
 import { ERROR_CODES, AppError, generateRequestId } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import { asyncHandler, asyncMiddleware } from '../utils/asyncHandler.js';
 
 const logger = createLogger('ErrorMiddleware');
 
@@ -178,23 +179,11 @@ export function globalErrorHandler(err, req, res, next) {
 }
 
 // ================================================
-// ASYNC HANDLER WRAPPER
+// ASYNC HANDLER - Re-exported from asyncHandler.js
 // ================================================
-
-/**
- * Wrap async route handlers to automatically catch errors
- * 
- * Usage:
- *   router.get('/', asyncHandler(async (req, res) => {
- *     const data = await someAsyncOperation();
- *     res.json(data);
- *   }));
- */
-export function asyncHandler(fn) {
-    return (req, res, next) => {
-        Promise.resolve(fn(req, res, next)).catch(next);
-    };
-}
+// asyncHandler and asyncMiddleware are imported from '../utils/asyncHandler.js'
+// and re-exported below for backward compatibility
+export { asyncHandler, asyncMiddleware };
 
 // ================================================
 // ERROR THROWING HELPERS
@@ -233,6 +222,7 @@ export default {
     notFoundHandler,
     globalErrorHandler,
     asyncHandler,
+    asyncMiddleware,
     throwNotFound,
     throwValidationError,
     throwUnauthorized,

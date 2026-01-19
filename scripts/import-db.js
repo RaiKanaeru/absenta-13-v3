@@ -41,10 +41,10 @@ const run = async () => {
         console.log(`Executing SQL... (this may take a moment)`);
         await connection.query(sql);
 
-        console.log(`✅ Successfully imported ${sqlFile}`);
+        console.log(`[OK] Successfully imported ${sqlFile}`);
 
     } catch (err) {
-        console.error('❌ Import failed:', err);
+        console.error('[ERROR] Import failed:', err);
         process.exit(1);
     } finally {
         if (connection) await connection.end();

@@ -12,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, getMonthRangeWIB } from "@/lib/time-utils";
 import { ArrowLeft, Filter, FileText, Search, Download, XCircle } from "lucide-react";
-import { getApiUrl } from '@/config/api';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
+import { getErrorMessage } from "@/utils/apiClient";
 import ExcelPreview from '../ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
 
@@ -70,52 +70,54 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
   };
 
   const downloadExcel = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      setError('Mohon pilih periode mulai dan akhir');
+      return;
+    }
     try {
       const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
-      const url = getApiUrl(`/api/guru/download-attendance-excel?${params.toString()}`);
-      const resp = await fetch(url, { credentials: 'include' });
-      const blob = await resp.blob();
+      const blob = await apiCall<Blob>(`/api/guru/download-attendance-excel?${params.toString()}`, {
+        responseType: 'blob'
+      });
       const link = document.createElement('a');
-      link.href = globalThis.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
+      link.href = url;
       link.download = `laporan-kehadiran-siswa-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
+      globalThis.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error downloading excel:', err);
-      setError('Gagal mengunduh file Excel');
+      setError(getErrorMessage(err) || 'Gagal mengunduh file Excel');
     }
   };
 
   const downloadSMKN13Format = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      setError('Mohon pilih periode mulai dan akhir');
+      return;
+    }
     try {
       const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       
-      const url = getApiUrl(`/api/export/ringkasan-kehadiran-siswa-smkn13?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/ringkasan-kehadiran-siswa-smkn13?${params.toString()}`, {
+        responseType: 'blob'
       });
-      
-      if (!response.ok) {
-        throw new Error('Gagal mengunduh file format SMKN 13');
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = globalThis.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
+      link.href = url;
       link.download = `laporan-kehadiran-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
+      globalThis.URL.revokeObjectURL(url);
       
       toast({
-        title: "Berhasil!",
+        title: "Berhasil",
         description: "File format SMKN 13 berhasil diunduh"
       });
     } catch (err) {
       console.error('Error downloading SMKN 13 format:', err);
-      setError('Gagal mengunduh file format SMKN 13');
+      setError(getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13');
     }
   };
 

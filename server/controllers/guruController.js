@@ -4,7 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
-import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse, sendConflictError } from '../utils/errorHandler.js';
 import dotenv from 'dotenv';
 import { getMySQLDateTimeWIB, getWIBTime } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -504,7 +504,7 @@ export const deleteGuru = async (req, res) => {
         log.dbError('deleteGuru', error, { id });
 
         if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-            return res.status(409).json({ error: 'Tidak dapat menghapus guru karena masih memiliki relasi dengan data lain' });
+            return sendConflictError(res, 'Tidak dapat menghapus guru karena masih memiliki relasi dengan data lain');
         } else {
             return sendDatabaseError(res, error, 'Gagal menghapus guru');
         }

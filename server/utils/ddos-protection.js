@@ -13,6 +13,7 @@
 
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { sendRateLimitError } from './errorHandler.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('DDoS');
@@ -111,11 +112,11 @@ class DDoSProtection extends EventEmitter {
             // Check if blocked
             if (this.isBlocked(clientIP)) {
                 this.stats.blockedRequests++;
-                return res.status(429).json({
-                    error: 'Too Many Requests',
-                    message: 'Anda telah diblokir sementara karena aktivitas mencurigakan',
-                    retryAfter: this.getBlockTimeRemaining(clientIP)
-                });
+                return sendRateLimitError(
+                    res,
+                    'Anda telah diblokir sementara karena aktivitas mencurigakan',
+                    this.getBlockTimeRemaining(clientIP)
+                );
             }
             
             // Check rate limit using deviceId (fingerprint + IP)
@@ -126,11 +127,11 @@ class DDoSProtection extends EventEmitter {
                     limit: this.config.maxRequestsPerWindow
                 });
                 
-                return res.status(429).json({
-                    error: 'Rate Limit Exceeded',
-                    message: 'Terlalu banyak permintaan. Silakan coba lagi nanti.',
-                    retryAfter: Math.ceil((this.config.windowMs - rateLimitResult.elapsed) / 1000)
-                });
+                return sendRateLimitError(
+                    res,
+                    'Terlalu banyak permintaan. Silakan coba lagi nanti.',
+                    Math.ceil((this.config.windowMs - rateLimitResult.elapsed) / 1000)
+                );
             }
             
             // Check burst using deviceId
@@ -140,11 +141,11 @@ class DDoSProtection extends EventEmitter {
                     requestsPerSecond: burstResult.rps
                 });
                 
-                return res.status(429).json({
-                    error: 'Burst Detected',
-                    message: 'Terlalu banyak permintaan dalam waktu singkat',
-                    retryAfter: 3
-                });
+                return sendRateLimitError(
+                    res,
+                    'Terlalu banyak permintaan dalam waktu singkat',
+                    3
+                );
             }
             
             // Track fingerprint

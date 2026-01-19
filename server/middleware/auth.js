@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { AppError, ERROR_CODES, sendErrorResponse } from '../utils/errorHandler.js';
 
 dotenv.config();
 
@@ -14,12 +15,15 @@ export function authenticateToken(req, res, next) {
     const token = authHeader?.split(' ')[1] || req.cookies?.token;
 
     if (!token) {
-        return res.status(401).json({ error: 'Access token required' });
+        return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_UNAUTHORIZED, 'Token akses diperlukan'));
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
-            return res.status(403).json({ error: 'Invalid or expired token' });
+            const errorCode = err.name === 'TokenExpiredError'
+                ? ERROR_CODES.AUTH_TOKEN_EXPIRED
+                : ERROR_CODES.AUTH_UNAUTHORIZED;
+            return sendErrorResponse(res, new AppError(errorCode, 'Token tidak valid atau kadaluarsa'));
         }
 
         req.user = user;
@@ -31,10 +35,10 @@ export function authenticateToken(req, res, next) {
 export function requireRole(roles) {
     return (req, res, next) => {
         if (!req.user || !req.user.role) {
-            return res.status(403).json({ error: 'User not authenticated' });
+            return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_UNAUTHORIZED, 'Pengguna belum terautentikasi'));
         }
         if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ error: 'Insufficient permissions' });
+            return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_FORBIDDEN, 'Anda tidak memiliki izin untuk akses ini'));
         }
         next();
     };

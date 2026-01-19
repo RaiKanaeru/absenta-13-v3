@@ -137,7 +137,7 @@ function generateInserts() {
 
 // Main seeder function
 async function seedJamPelajaran(pool) {
-  console.log('🌱 Seeding jam_pelajaran table...');
+  console.log('[SEED] Seeding jam_pelajaran table...');
   
   const inserts = generateInserts();
   
@@ -167,7 +167,7 @@ async function seedJamPelajaran(pool) {
     ]);
   }
   
-  console.log(`✅ Inserted ${inserts.length} jam_pelajaran records`);
+  console.log(`[OK] Inserted ${inserts.length} jam_pelajaran records`);
   return inserts.length;
 }
 

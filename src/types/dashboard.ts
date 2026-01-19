@@ -42,11 +42,12 @@ export interface Student {
   email?: string;
   jenis_kelamin: 'L' | 'P';
   jabatan?: string;
-  status: 'aktif' | 'nonaktif';
+  status: 'aktif' | 'tidak_aktif' | 'ditangguhkan';
   alamat?: string;
   telepon_orangtua?: string;
   nomor_telepon_siswa?: string;
 }
+
 
 export interface StudentData {
   id_siswa: number;

@@ -32,7 +32,7 @@ function fixImports(filePath) {
             content = content.slice(0, insertPos) + '\n' + importStatement + content.slice(insertPos);
             
             fs.writeFileSync(filePath, content, 'utf8');
-            console.log(`✅ Fixed imports in: ${path.basename(filePath)}`);
+            console.log(`[OK] Fixed imports in: ${path.basename(filePath)}`);
             return true;
         }
     }
@@ -54,7 +54,7 @@ try {
         }
     });
 
-    console.log(`\n🎉 Import fix complete! Fixed ${fixedCount} files`);
+    console.log(`\\n[DONE] Import fix complete! Fixed ${fixedCount} files`);
 } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('[ERROR] Error:', error);
 }

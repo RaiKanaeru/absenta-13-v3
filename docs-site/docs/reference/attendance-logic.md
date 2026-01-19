@@ -38,7 +38,6 @@ Dokumentasi lengkap tentang bagaimana sistem Absenta13 menghitung dan memproses 
 | TH | Tidak Hadir | Guru tidak hadir |
 | I | Izin | Tidak hadir dengan izin |
 | S | Sakit | Tidak hadir karena sakit |
-| D | Dispen | Dispensasi (tugas dinas) |
 
 ---
 
@@ -53,6 +52,8 @@ const HADIR = ['Hadir', 'Dispen', 'Terlambat'];
 - **Hadir** - Kehadiran normal
 - **Dispen** - Dispensasi = dianggap HADIR (tidak merugikan siswa/guru)
 - **Terlambat** - Tetap hadir, hanya flag tambahan
+
+> Catatan: Status Dispen saat ini hanya berlaku untuk absensi siswa.
 
 ### Status Dihitung TIDAK HADIR (Ketidakhadiran)
 

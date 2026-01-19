@@ -117,7 +117,7 @@ function registerKelasValidation(kelas_id, isUpdate, errors, promises, checks) {
 function validateSiswaBasicRules(body, isUpdate, errors) {
     const { jenis_kelamin, jabatan, nomor_telepon_siswa, password } = body;
     const isPresent = (val) => val !== undefined && val !== null && val !== '';
-    const VALID_JABATAN = ['Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
+    const VALID_JABATAN = ['Siswa', 'Ketua Kelas', 'Wakil Ketua', 'Sekretaris Kelas', 'Bendahara', 'Anggota'];
 
     if (isPresent(jenis_kelamin) && !['L', 'P'].includes(jenis_kelamin)) {
         errors.push('Jenis kelamin harus L atau P');
@@ -126,6 +126,7 @@ function validateSiswaBasicRules(body, isUpdate, errors) {
     if (isPresent(jabatan) && !VALID_JABATAN.includes(jabatan)) {
         errors.push(`Jabatan harus salah satu dari: ${VALID_JABATAN.join(', ')}`);
     }
+
 
     if (isPresent(nomor_telepon_siswa) && !/^\d{10,15}$/.test(nomor_telepon_siswa)) {
         errors.push('Nomor telepon siswa harus berupa angka 10-15 digit');
@@ -246,7 +247,7 @@ export const getSiswa = async (req, res) => {
 
     try {
         let query = `
-            SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status
+            SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
             JOIN users u ON s.user_id = u.id
@@ -282,55 +283,125 @@ export const getSiswa = async (req, res) => {
         log.dbError('query', error, { page, limit, search });
         return sendDatabaseError(res, error, 'Gagal mengambil data siswa');
     }
-        // Validasi payload
-        const validation = await validateSiswaPayload(req.body, { isUpdate: false });
-        if (!validation.isValid) {
-            log.validationFail('payload', null, validation.errors.join(', '));
-            return sendValidationError(res, 'Data tidak valid', { details: validation.errors });
+};
+
+/**
+ * Menambahkan akun siswa perwakilan berdasarkan data siswa yang sudah ada
+ * POST /api/admin/siswa
+ */
+export const createSiswa = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const { nis, username, password, email, status } = req.body;
+    const trimmedNis = typeof nis === 'string' ? nis.trim() : '';
+    const trimmedUsername = typeof username === 'string' ? username.trim() : '';
+    const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+    const accountStatus = status || 'aktif';
+
+    log.requestStart('Create', { nis: trimmedNis, username: trimmedUsername });
+
+    if (!trimmedNis) {
+        log.validationFail('nis', null, 'Required');
+        return sendValidationError(res, 'NIS wajib diisi');
+    }
+
+    if (!/^\d{8,15}$/.test(trimmedNis)) {
+        log.validationFail('nis', trimmedNis, 'Invalid format');
+        return sendValidationError(res, 'NIS harus berupa angka 8-15 digit');
+    }
+
+    if (!trimmedUsername) {
+        log.validationFail('username', null, 'Required');
+        return sendValidationError(res, 'Username wajib diisi');
+    }
+
+    if (!/^[a-z0-9._-]{4,30}$/.test(trimmedUsername)) {
+        log.validationFail('username', trimmedUsername, 'Invalid format');
+        return sendValidationError(res, 'Username harus 4-30 karakter, hanya huruf kecil, angka, titik, underscore, dan strip');
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+        log.validationFail('password', null, 'Invalid');
+        return sendValidationError(res, 'Password wajib diisi minimal 6 karakter');
+    }
+
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        log.validationFail('email', trimmedEmail, 'Invalid format');
+        return sendValidationError(res, 'Format email tidak valid');
+    }
+
+    const validStatuses = ['aktif', 'tidak_aktif', 'ditangguhkan'];
+    if (accountStatus && !validStatuses.includes(accountStatus)) {
+        log.validationFail('status', accountStatus, 'Invalid status');
+        return sendValidationError(res, 'Status akun tidak valid');
+    }
+
+    const connection = await globalThis.dbPool.getConnection();
+
+    try {
+        const [siswaRows] = await connection.execute(
+            'SELECT id, nama, kelas_id, user_id FROM siswa WHERE nis = ? LIMIT 1',
+            [trimmedNis]
+        );
+
+        if (siswaRows.length === 0) {
+            log.validationFail('nis', trimmedNis, 'Student data not found');
+            return sendValidationError(res, 'Data siswa belum ada. Tambahkan di Data Siswa terlebih dahulu.');
         }
 
-        // Hash password
+        const siswa = siswaRows[0];
+
+        if (siswa.user_id) {
+            log.validationFail('user_id', siswa.user_id, 'Account already exists');
+            return sendDuplicateError(res, 'Akun siswa sudah terdaftar');
+        }
+
+        const [existingUser] = await connection.execute(
+            'SELECT id FROM users WHERE username = ? LIMIT 1',
+            [trimmedUsername]
+        );
+
+        if (existingUser.length > 0) {
+            log.validationFail('username', trimmedUsername, 'Already used');
+            return sendDuplicateError(res, 'Username sudah digunakan');
+        }
+
+        if (trimmedEmail) {
+            const [existingEmail] = await connection.execute(
+                'SELECT id FROM users WHERE email = ? LIMIT 1',
+                [trimmedEmail]
+            );
+
+            if (existingEmail.length > 0) {
+                log.validationFail('email', trimmedEmail, 'Already used');
+                return sendDuplicateError(res, 'Email sudah digunakan');
+            }
+        }
+
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Start transaction
         await connection.beginTransaction();
 
         try {
-            // Create user account
             const [userResult] = await connection.execute(
-                'INSERT INTO users (username, password, role, nama, email, status) VALUES (?, ?, "siswa", ?, ?, ?)',
-                [username, hashedPassword, nama, email || null, status]
+                'INSERT INTO users (username, password, role, nama, email, status, is_perwakilan) VALUES (?, ?, "siswa", ?, ?, ?, ?)',
+                [trimmedUsername, hashedPassword, siswa.nama, trimmedEmail || null, accountStatus, 1]
             );
 
-            // Create siswa record
             await connection.execute(
-                'INSERT INTO siswa (nis, nama, kelas_id, user_id, jabatan, telepon_orangtua, nomor_telepon_siswa, jenis_kelamin, alamat, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                    nis, 
-                    nama, 
-                    kelas_id, 
-                    userResult.insertId, 
-                    jabatan || 'Anggota', 
-                    telepon_orangtua || null, 
-                    nomor_telepon_siswa || null,
-                    jenis_kelamin || null,
-                    alamat || null,
-                    status
-                ]
+                'UPDATE siswa SET user_id = ?, username = ?, updated_at = ? WHERE id = ?',
+                [userResult.insertId, trimmedUsername, getMySQLDateTimeWIB(), siswa.id]
             );
 
             await connection.commit();
 
-            log.success('Create', { userId: userResult.insertId, nis, nama });
-            return sendSuccessResponse(res, { id: userResult.insertId }, 'Siswa berhasil ditambahkan', 201);
-
+            log.success('Create', { userId: userResult.insertId, nis: trimmedNis, nama: siswa.nama });
+            return sendSuccessResponse(res, { id: userResult.insertId }, 'Akun siswa berhasil ditambahkan', 201);
         } catch (error) {
             await connection.rollback();
             throw error;
         }
-
     } catch (error) {
-        log.dbError('insert', error, { nis, nama });
+        log.dbError('insert', error, { nis: trimmedNis, username: trimmedUsername });
 
         if (error.code === 'ER_DUP_ENTRY') {
             return sendDuplicateError(res, 'NIS, Username, atau Email sudah digunakan');
@@ -405,8 +476,9 @@ export const updateSiswa = async (req, res) => {
                 const values = [];
                 const fieldMap = {
                     nama: data.nama, username: data.username,
-                    email: data.email, status: data.status
+                    email: data.email, status: data.status, is_perwakilan: data.is_perwakilan
                 };
+
                 for (const [key, value] of Object.entries(fieldMap)) {
                     if (value !== undefined) {
                         fields.push(`${key} = ?`);
@@ -431,15 +503,31 @@ export const updateSiswa = async (req, res) => {
                 );
             }
 
-            // Update users record
-            const userUpdate = await buildSiswaUserUpdateFields(req.body, bcrypt, saltRounds);
-            if (userUpdate.fields.length > 0 && siswa.user_id) {
-                userUpdate.values.push(siswa.user_id);
+             // Update users record
+             const userUpdate = await buildSiswaUserUpdateFields(req.body, bcrypt, saltRounds);
+             if (userUpdate.fields.length > 0 && siswa.user_id) {
+                 userUpdate.values.push(siswa.user_id);
+                 await connection.execute(
+                     `UPDATE users SET ${userUpdate.fields.join(', ')} WHERE id = ?`,
+                     userUpdate.values
+                 );
+             }
+
+            if (req.body.username !== undefined && siswa.user_id) {
                 await connection.execute(
-                    `UPDATE users SET ${userUpdate.fields.join(', ')} WHERE id = ?`,
-                    userUpdate.values
+                    'UPDATE siswa SET username = ?, updated_at = ? WHERE id = ?',
+                    [req.body.username, getMySQLDateTimeWIB(), siswa.id]
                 );
             }
+
+            if (req.body.is_perwakilan !== undefined && siswa.user_id) {
+                await connection.execute(
+                    'UPDATE users SET is_perwakilan = ? WHERE id = ?',
+                    [req.body.is_perwakilan ? 1 : 0, siswa.user_id]
+                );
+            }
+
+
 
             await connection.commit();
             log.success('Update', { nis: paramNis, nama: nama || siswa.nama });

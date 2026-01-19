@@ -6,6 +6,7 @@
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { AppError, ERROR_CODES, sendErrorResponse, sendRateLimitError } from '../../utils/errorHandler.js';
 import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('Security');
@@ -175,10 +176,11 @@ class SecuritySystem extends EventEmitter {
                     method: req.method
                 });
                 
-                return res.status(429).json({
-                    error: 'Too many requests',
-                    retryAfter: Math.ceil((rateLimitData.blockUntil - now) / 1000)
-                });
+                return sendRateLimitError(
+                    res,
+                    'Terlalu banyak permintaan. Akses diblokir sementara.',
+                    Math.ceil((rateLimitData.blockUntil - now) / 1000)
+                );
             }
             
             // Clean old requests
@@ -200,10 +202,11 @@ class SecuritySystem extends EventEmitter {
                     limit: this.options.rateLimiting.maxRequests
                 });
                 
-                return res.status(429).json({
-                    error: 'Rate limit exceeded',
-                    retryAfter: 300
-                });
+                return sendRateLimitError(
+                    res,
+                    'Batas permintaan terlampaui. Silakan coba lagi nanti.',
+                    300
+                );
             }
             
             // Add current request
@@ -247,8 +250,12 @@ class SecuritySystem extends EventEmitter {
                             violations: validationResult.violations
                         });
                         
-                        return res.status(400).json({
-                            error: 'Invalid input data',
+                        const error = new AppError(
+                            ERROR_CODES.VALIDATION_FAILED,
+                            'Data input tidak valid',
+                            validationResult.violations
+                        );
+                        return sendErrorResponse(res, error, null, null, {
                             violations: validationResult.violations
                         });
                     }
@@ -266,8 +273,12 @@ class SecuritySystem extends EventEmitter {
                             violations: validationResult.violations
                         });
                         
-                        return res.status(400).json({
-                            error: 'Invalid query parameters',
+                        const error = new AppError(
+                            ERROR_CODES.VALIDATION_FAILED,
+                            'Parameter query tidak valid',
+                            validationResult.violations
+                        );
+                        return sendErrorResponse(res, error, null, null, {
                             violations: validationResult.violations
                         });
                     }
@@ -285,8 +296,12 @@ class SecuritySystem extends EventEmitter {
                             violations: validationResult.violations
                         });
                         
-                        return res.status(400).json({
-                            error: 'Invalid URL parameters',
+                        const error = new AppError(
+                            ERROR_CODES.VALIDATION_FAILED,
+                            'Parameter URL tidak valid',
+                            validationResult.violations
+                        );
+                        return sendErrorResponse(res, error, null, null, {
                             violations: validationResult.violations
                         });
                     }
@@ -302,9 +317,7 @@ class SecuritySystem extends EventEmitter {
                     error: error.message
                 });
                 
-                return res.status(500).json({
-                    error: 'Input validation error'
-                });
+                return sendErrorResponse(res, error, 'Gagal memvalidasi input');
             }
         };
     }

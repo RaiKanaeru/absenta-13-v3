@@ -50,25 +50,25 @@ function loadLogoBuffer(logoUrl, position) {
 
     // Handle base64 data URL
     if (logoUrl.startsWith('data:image/')) {
-        console.log(`📸 Logo ${position}: Processing base64 data URL`);
+        console.log(`[LOG] Logo ${position}: Processing base64 data URL`);
         const base64Data = logoUrl.split(',')[1];
         return Buffer.from(base64Data, 'base64');
     }
 
     // Handle file path
     const possiblePaths = getLogoPaths(logoUrl);
-    console.log(`📁 Searching for logo ${position} in paths:`, possiblePaths);
+    console.log(`[FILE] Searching for logo ${position} in paths:`, possiblePaths);
 
     for (const testPath of possiblePaths) {
         if (fs.existsSync(testPath)) {
-            console.log(`✅ Logo ${position} found at:`, testPath);
+            console.log(`[OK] Logo ${position} found at:`, testPath);
             const buffer = fs.readFileSync(testPath);
-            console.log(`✅ Logo ${position} loaded successfully, size:`, buffer.length, 'bytes');
+            console.log(`[OK] Logo ${position} loaded successfully, size:`, buffer.length, 'bytes');
             return buffer;
         }
     }
 
-    console.warn(`⚠️ Logo ${position} file not found in any path`);
+    console.warn(`[WARN] Logo ${position} file not found in any path`);
     return null;
 }
 
@@ -130,14 +130,14 @@ function processLogo(workbook, worksheet, logoRow, logoUrl, side, currentRow, co
                 : { col: Math.max(columnsCount - 1, 3), row: currentRow - 1, colSpan: 2, rowSpan: 3 };
             
             addLogoToWorksheet(workbook, worksheet, logoBuffer, colPosition);
-            console.log(`✅ Logo ${position} added to Excel successfully`);
+            console.log(`[OK] Logo ${position} added to Excel successfully`);
         } else {
             const cellIndex = side === 'left' ? 1 : Math.max(columnsCount, 3);
             const alignment = side === 'left' ? 'left' : 'right';
             setLogoFallback(logoRow, cellIndex, `[LOGO ${position.toUpperCase()}]`, alignment);
         }
     } catch (error) {
-        console.warn(`⚠️ Could not add ${side} logo to Excel:`, error.message);
+        console.warn(`[WARN] Could not add ${side} logo to Excel:`, error.message);
         const cellIndex = side === 'left' ? 1 : Math.max(columnsCount, 3);
         const alignment = side === 'left' ? 'left' : 'right';
         setLogoFallback(logoRow, cellIndex, `[LOGO ${position.toUpperCase()}]`, alignment);
@@ -163,7 +163,7 @@ function addLogosRow(workbook, worksheet, letterhead, currentRow, columnsCount) 
 
     const logoRow = worksheet.getRow(currentRow);
     
-    console.log('🎨 Rendering letterhead with logos:', {
+    console.log('[RENDER] Rendering letterhead with logos:', {
         logoLeftUrl: letterhead.logoLeftUrl,
         logoRightUrl: letterhead.logoRightUrl
     });

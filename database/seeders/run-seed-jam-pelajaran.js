@@ -11,7 +11,7 @@ import { seedJamPelajaran } from './seed_jam_pelajaran.js';
 dotenv.config();
 
 async function main() {
-  console.log('🚀 Connecting to database...');
+  console.log('[START] Connecting to database...');
   
   const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -26,27 +26,27 @@ async function main() {
   try {
     // Test connection
     const [rows] = await pool.execute('SELECT 1');
-    console.log('✅ Database connected');
+    console.log('[OK] Database connected');
 
     // Run seeder
     const count = await seedJamPelajaran(pool);
-    console.log(`🎉 Seeding complete! ${count} records inserted.`);
+    console.log(`[DONE] Seeding complete! ${count} records inserted.`);
 
     // Verify
     const [result] = await pool.execute(
       'SELECT hari, COUNT(*) as count FROM jam_pelajaran GROUP BY hari'
     );
-    console.log('📊 Summary:');
+    console.log('[STATS] Summary:');
     for (const row of result) {
       console.log(`   ${row.hari}: ${row.count} jam slots`);
     }
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('[ERROR] Error:', error.message);
     process.exit(1);
   } finally {
     await pool.end();
-    console.log('👋 Connection closed');
+    console.log('[BYE] Connection closed');
   }
 }
 

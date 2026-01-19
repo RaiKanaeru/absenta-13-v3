@@ -10,8 +10,7 @@ import { ArrowLeft, Download, Search, FileText, Users, Calendar } from 'lucide-r
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
 
-import { apiCall } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { Kelas, Siswa } from '@/types/school';
 
 interface PresensiData {
@@ -184,26 +183,16 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      
       const params = new URLSearchParams({
         kelas_id: selectedKelas,
         bulan: selectedBulan,
         tahun: selectedTahun,
       });
 
-      const response = await fetch(getApiUrl(`/api/export/presensi-siswa?${params}`), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const blob = await apiCall<Blob>(`/api/export/presensi-siswa?${params.toString()}`, {
+        responseType: 'blob',
+        onLogout
       });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
       const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -219,14 +208,15 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       document.body.removeChild(a);
 
       toast({
-        title: "Success",
+        title: "Berhasil",
         description: "Data presensi berhasil diekspor ke Excel",
       });
     } catch (error) {
       console.error('Export error:', error);
+      const message = getErrorMessage(error) || "Gagal mengekspor data presensi ke Excel";
       toast({
         title: "Error",
-        description: "Gagal mengekspor data presensi ke Excel",
+        description: message,
         variant: "destructive",
       });
     } finally {

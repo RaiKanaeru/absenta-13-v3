@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log('🧪 Configuration Test');
+console.log('[TEST] Configuration Test');
 console.log('═══════════════════════════════════════════════════════\n');
 
 const required = [
@@ -28,7 +28,7 @@ const warnings = [];
 const errors = [];
 let validCount = 0;
 
-console.log('📋 Required Environment Variables:\n');
+console.log('[LOG] Required Environment Variables:\\n');
 
 required.forEach(key => {
     const value = process.env[key];
@@ -37,14 +37,14 @@ required.forEach(key => {
         const displayValue = key.includes('PASSWORD') || key.includes('SECRET') 
             ? '***' 
             : value;
-        console.log(`   ✅ ${key}: ${displayValue}`);
+        console.log(`   [OK] ${key}: ${displayValue}`);
     } else {
-        errors.push(`❌ Missing required: ${key}`);
-        console.log(`   ❌ ${key}: MISSING`);
+        errors.push(`[ERROR] Missing required: ${key}`);
+        console.log(`   [ERROR] ${key}: MISSING`);
     }
 });
 
-console.log('\n📋 Optional Environment Variables:\n');
+console.log('\\n[LOG] Optional Environment Variables:\\n');
 
 optional.forEach(key => {
     const value = process.env[key];
@@ -54,27 +54,27 @@ optional.forEach(key => {
         displayValue = value ? '***' : 'not set';
     }
     
-    console.log(`   ℹ️  ${key}: ${displayValue}`);
+    console.log(`   [INFO] ${key}: ${displayValue}`);
 });
 
 // Security checks for production
 if (process.env.NODE_ENV === 'production') {
-    console.log('\n🔒 Production Security Checks:\n');
+    console.log('\\n[SECURITY] Production Security Checks:\\n');
     
     if (process.env.JWT_SECRET === 'absenta-super-secret-key-2025') {
-        warnings.push('⚠️  JWT_SECRET using default value in production!');
+        warnings.push('[WARN] JWT_SECRET using default value in production!');
     }
     
     if (!process.env.DB_PASSWORD) {
-        warnings.push('⚠️  DB_PASSWORD is empty in production!');
+        warnings.push('[WARN] DB_PASSWORD is empty in production!');
     }
     
     if (!process.env.REDIS_PASSWORD) {
-        warnings.push('⚠️  REDIS_PASSWORD is empty (consider setting for security)');
+        warnings.push('[WARN] REDIS_PASSWORD is empty (consider setting for security)');
     }
     
     if (process.env.API_BASE_URL && process.env.API_BASE_URL.includes('localhost')) {
-        warnings.push('⚠️  API_BASE_URL still points to localhost in production!');
+        warnings.push('[WARN] API_BASE_URL still points to localhost in production!');
     }
 }
 
@@ -82,32 +82,32 @@ if (process.env.NODE_ENV === 'production') {
 console.log('\n═══════════════════════════════════════════════════════\n');
 
 if (warnings.length > 0) {
-    console.log('⚠️  WARNINGS:\n');
+    console.log('[WARN] WARNINGS:\\n');
     warnings.forEach(w => console.log(`   ${w}`));
     console.log('');
 }
 
 if (errors.length > 0) {
-    console.log('❌ ERRORS:\n');
+    console.log('[ERROR] ERRORS:\\n');
     errors.forEach(e => console.log(`   ${e}`));
     console.log('');
 }
 
 // Summary
 console.log('═══════════════════════════════════════════════════════');
-console.log(`📊 Summary: ${validCount}/${required.length} required variables set`);
+console.log(`[STATS] Summary: ${validCount}/${required.length} required variables set`);
 console.log(`   Warnings: ${warnings.length}`);
 console.log(`   Errors: ${errors.length}`);
 console.log('═══════════════════════════════════════════════════════\n');
 
 if (errors.length > 0) {
-    console.log('❌ Configuration validation FAILED!\n');
+    console.log('[ERROR] Configuration validation FAILED!\\n');
     process.exit(1);
 } else if (warnings.length > 0) {
-    console.log('⚠️  Configuration validation passed with warnings.\n');
+    console.log('[WARN] Configuration validation passed with warnings.\\n');
     process.exit(0);
 } else {
-    console.log('✅ Configuration validation PASSED!\n');
+    console.log('[OK] Configuration validation PASSED!\\n');
     process.exit(0);
 }
 

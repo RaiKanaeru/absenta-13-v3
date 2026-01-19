@@ -18,13 +18,13 @@ const run = async () => {
         if (cols.length === 0) {
             await connection.query("ALTER TABLE jam_pelajaran ADD COLUMN kelas_id INT DEFAULT NULL");
             await connection.query("ALTER TABLE jam_pelajaran ADD INDEX idx_kelas_id (kelas_id)");
-            console.log('✅ Column kelas_id added.');
+            console.log('[OK] Column kelas_id added.');
         } else {
-            console.log('ℹ️ Column kelas_id already exists.');
+            console.log('[INFO] Column kelas_id already exists.');
         }
 
     } catch (err) {
-        console.error('❌ Check failed:', err);
+        console.error('[ERROR] Check failed:', err);
     } finally {
         if (connection) await connection.end();
     }

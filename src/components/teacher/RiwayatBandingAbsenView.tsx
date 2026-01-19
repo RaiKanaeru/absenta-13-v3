@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB, getMonthRangeWIB } from "@/lib/time-utils";
 import { MessageCircle, Search, Download } from "lucide-react";
-import { getApiUrl } from '@/config/api';
+import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
@@ -69,13 +69,17 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Error fetching banding absen history:', err);
-      setError(err instanceof Error ? err.message : 'Gagal memuat data riwayat banding absen');
+      setError(getErrorMessage(err) || 'Gagal memuat data riwayat banding absen');
     } finally {
       setLoading(false);
     }
   };
 
   const downloadExcel = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      setError('Mohon pilih periode mulai dan akhir');
+      return;
+    }
     try {
       const params = new URLSearchParams({ 
         startDate: dateRange.startDate, 
@@ -84,31 +88,23 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
       
-      const url = getApiUrl(`/api/export/riwayat-banding-absen?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/riwayat-banding-absen?${params.toString()}`, {
+        responseType: 'blob'
       });
-      
-      if (!response.ok) {
-        throw new Error('Gagal mengunduh file Excel');
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `riwayat-banding-absen-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
+      URL.revokeObjectURL(url);
       
       toast({
-        title: "Berhasil!",
+        title: "Berhasil",
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
       console.error('Error downloading Excel:', err);
-      setError('Gagal mengunduh file Excel');
+      setError(getErrorMessage(err) || 'Gagal mengunduh file Excel');
     }
   };
 

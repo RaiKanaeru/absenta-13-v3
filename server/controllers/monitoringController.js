@@ -4,7 +4,7 @@
  */
 
 import os from 'node:os';
-import { sendDatabaseError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendErrorResponse, sendNotFoundError, sendServiceUnavailableError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { formatBytes } from '../utils/formatUtils.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -615,7 +615,7 @@ export const resolveAlert = async (req, res) => {
     try {
         if (!globalThis.systemMonitor) {
             log.warn('ResolveAlert - system monitor not available');
-            return res.status(503).json({ success: false, message: 'System monitor not available' });
+            return sendServiceUnavailableError(res, 'System monitor tidak tersedia');
         }
         
         const resolved = globalThis.systemMonitor.resolveAlert(alertId);
@@ -625,11 +625,11 @@ export const resolveAlert = async (req, res) => {
             return sendSuccessResponse(res, null, `Alert ${alertId} resolved`);
         } else {
             log.warn('ResolveAlert - alert not found', { alertId });
-            return res.status(404).json({ success: false, message: `Alert ${alertId} not found or already resolved` });
+            return sendNotFoundError(res, `Alert ${alertId} tidak ditemukan atau sudah diselesaikan`);
         }
     } catch (error) {
         log.error('ResolveAlert failed', { error: error.message, alertId });
-        return res.status(500).json({ success: false, message: error.message || 'Failed to resolve alert' });
+        return sendErrorResponse(res, error, 'Gagal menyelesaikan alert');
     }
 };
 
@@ -649,7 +649,7 @@ export const testAlert = async (req, res) => {
             return sendSuccessResponse(res, null, 'Test alert created');
         } else {
             log.warn('TestAlert - system monitor not available');
-            return res.json({ success: false, message: 'System monitor not available' });
+            return sendServiceUnavailableError(res, 'System monitor tidak tersedia');
         }
     } catch (error) {
         log.error('TestAlert failed', { error: error.message });

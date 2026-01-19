@@ -2,10 +2,10 @@
 
 import fs from 'node:fs';
 
-console.log('🏠 ABSENTA Localhost Setup Helper');
+console.log('[HOME] ABSENTA Localhost Setup Helper');
 console.log('==================================');
 
-console.log('\n📋 Setting up configuration for localhost development...');
+console.log('\\n[LOG] Setting up configuration for localhost development...');
 
 // Create .env file content for localhost
 const envContent = `# ===========================================
@@ -57,22 +57,22 @@ LOG_DIR=logs
 // Write .env file
 try {
   fs.writeFileSync('.env', envContent);
-  console.log('\n✅ .env file created successfully for localhost!');
-  console.log('\n📋 Configuration Summary:');
+  console.log('\\n[OK] .env file created successfully for localhost!');
+  console.log('\\n[LOG] Configuration Summary:');
   console.log('   Backend URL: http://localhost:3001');
   console.log('   Frontend URL: http://localhost:8080');
   console.log('   API Base URL: http://localhost:3001');
-  console.log('\n📋 Next steps:');
+  console.log('\\n[LOG] Next steps:');
   console.log('1. Restart your server: npm run dev');
   console.log('2. Access from browser: http://localhost:8080');
   console.log('3. Backend API: http://localhost:3001');
 } catch (error) {
-  console.error('\n❌ Error creating .env file:', error.message);
-  console.log('\n📝 Please create .env file manually with the following content:');
+  console.error('\\n[ERROR] Error creating .env file:', error.message);
+  console.log('\\n[NOTE] Please create .env file manually with the following content:');
   console.log(envContent);
 }
 
-console.log('\n💡 Tips:');
+console.log('\\n[TIP] Tips:');
 console.log('- This configuration is for local development only');
 console.log('- Use setup-network.js if you need mobile/network access');
 console.log('- Make sure MySQL is running on localhost:3306');

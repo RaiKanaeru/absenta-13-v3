@@ -35,11 +35,13 @@ export const ERROR_CODES = {
     AUTH_FORBIDDEN: { code: 3002, message: 'Anda tidak memiliki akses untuk operasi ini', en: 'You do not have permission for this operation' },
     AUTH_INVALID_CREDENTIALS: { code: 3003, message: 'Username atau password salah', en: 'Invalid username or password' },
     AUTH_TOKEN_EXPIRED: { code: 3004, message: 'Token telah kadaluarsa', en: 'Token has expired' },
+    RATE_LIMIT_EXCEEDED: { code: 3005, message: 'Terlalu banyak permintaan. Silakan coba lagi nanti', en: 'Too many requests. Please try again later' },
     
     // Business Logic Errors (4xxx)
     BUSINESS_RULE_VIOLATION: { code: 4001, message: 'Operasi melanggar aturan bisnis', en: 'Business rule violation' },
     RESOURCE_CONFLICT: { code: 4002, message: 'Konflik dengan data yang sudah ada', en: 'Conflict with existing data' },
     OPERATION_NOT_ALLOWED: { code: 4003, message: 'Operasi tidak diizinkan', en: 'Operation not allowed' },
+    ENDPOINT_DEPRECATED: { code: 4004, message: 'Endpoint sudah tidak digunakan', en: 'Endpoint deprecated' },
     
     // Server Errors (5xxx)
     INTERNAL_ERROR: { code: 5001, message: 'Terjadi kesalahan sistem. Silakan coba lagi', en: 'System error occurred. Please try again' },
@@ -88,6 +90,10 @@ export class AppError extends Error {
         if (code === ERROR_CODES.DB_NOT_FOUND.code) return 404;
         // Special case for Duplicate Entry (DB)
         if (code === ERROR_CODES.DB_DUPLICATE_ENTRY.code) return 409;
+        // Special case for Rate Limit
+        if (code === ERROR_CODES.RATE_LIMIT_EXCEEDED.code) return 429;
+        // Special case for Deprecated Endpoint
+        if (code === ERROR_CODES.ENDPOINT_DEPRECATED.code) return 410;
 
         const codePrefix = Math.floor(code / 1000);
         switch (codePrefix) {
@@ -147,28 +153,37 @@ export function mapMySQLError(error) {
 /**
  * Send standardized error response
  */
-export function sendErrorResponse(res, error, userMessage = null, statusCode = null) {
+export function sendErrorResponse(res, error, userMessage = null, statusCode = null, extra = null) {
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const requestId = res.locals?.requestId || generateRequestId();
+    const errorToLog = error || new Error(userMessage || ERROR_CODES.INTERNAL_ERROR.message);
     
     // Log error
     console.error(`[${requestId}] Error:`, {
-        message: error.message,
-        code: error.code,
-        stack: isDevelopment ? error.stack : undefined
+        message: errorToLog.message,
+        code: errorToLog.code,
+        stack: isDevelopment ? errorToLog.stack : undefined
     });
     
     // Handle AppError
     if (error instanceof AppError) {
         error.requestId = requestId;
-        return res.status(error.httpStatus).json(error.toJSON());
+        const payload = error.toJSON();
+        if (extra && typeof extra === 'object') {
+            Object.assign(payload, extra);
+        }
+        return res.status(error.httpStatus).json(payload);
     }
     
     // Handle MySQL errors
-    if (error.code && MYSQL_ERROR_MAP[error.code]) {
+    if (error?.code && MYSQL_ERROR_MAP[error.code]) {
         const appError = mapMySQLError(error);
         appError.requestId = requestId;
-        return res.status(appError.httpStatus).json(appError.toJSON());
+        const payload = appError.toJSON();
+        if (extra && typeof extra === 'object') {
+            Object.assign(payload, extra);
+        }
+        return res.status(appError.httpStatus).json(payload);
     }
     
     // Handle generic errors
@@ -185,11 +200,15 @@ export function sendErrorResponse(res, error, userMessage = null, statusCode = n
     
     if (isDevelopment) {
         response.devInfo = {
-            errorType: error.name,
-            errorMessage: error.message,
-            errorCode: error.code,
-            stack: error.stack?.split('\n').slice(0, 10)
+            errorType: errorToLog.name,
+            errorMessage: errorToLog.message,
+            errorCode: errorToLog.code,
+            stack: errorToLog.stack?.split('\n').slice(0, 10)
         };
+    }
+
+    if (extra && typeof extra === 'object') {
+        Object.assign(response, extra);
     }
     
     return res.status(httpStatus).json(response);
@@ -260,4 +279,67 @@ export function sendPaginatedResponse(res, data, pagination, message = 'Data ber
         data,
         pagination
     });
+}
+
+/**
+ * Service unavailable error helper (503)
+ */
+export function sendServiceUnavailableError(res, message = 'Layanan sedang tidak tersedia', retryAfter = null) {
+    const error = new AppError(ERROR_CODES.SERVICE_UNAVAILABLE, message);
+    error.requestId = res.locals?.requestId || generateRequestId();
+    const response = error.toJSON();
+    
+    if (retryAfter) {
+        res.setHeader('Retry-After', retryAfter);
+        response.retryAfter = retryAfter;
+    }
+    
+    return res.status(503).json(response);
+}
+
+/**
+ * Conflict error helper (409)
+ */
+export function sendConflictError(res, message = 'Konflik dengan data yang sudah ada') {
+    const error = new AppError(ERROR_CODES.RESOURCE_CONFLICT, message);
+    return sendErrorResponse(res, error);
+}
+
+/**
+ * Timeout error helper (408/504)
+ */
+export function sendTimeoutError(res, message = 'Request timeout. Silakan coba lagi') {
+    const error = new AppError(ERROR_CODES.TIMEOUT, message);
+    error.requestId = res.locals?.requestId || generateRequestId();
+    return res.status(504).json(error.toJSON());
+}
+
+/**
+ * Business rule violation error helper (409)
+ */
+export function sendBusinessRuleError(res, message = 'Operasi melanggar aturan bisnis') {
+    const error = new AppError(ERROR_CODES.BUSINESS_RULE_VIOLATION, message);
+    return sendErrorResponse(res, error);
+}
+
+/**
+ * Rate limit error helper (429)
+ */
+export function sendRateLimitError(res, message = ERROR_CODES.RATE_LIMIT_EXCEEDED.message, retryAfter = null) {
+    const error = new AppError(ERROR_CODES.RATE_LIMIT_EXCEEDED, message);
+    error.requestId = res.locals?.requestId || generateRequestId();
+    const response = error.toJSON();
+    if (retryAfter) {
+        res.setHeader('Retry-After', retryAfter);
+        response.retryAfter = retryAfter;
+    }
+    return res.status(429).json(response);
+}
+
+/**
+ * Deprecated endpoint helper (410)
+ */
+export function sendDeprecatedError(res, message = ERROR_CODES.ENDPOINT_DEPRECATED.message) {
+    const error = new AppError(ERROR_CODES.ENDPOINT_DEPRECATED, message);
+    return sendErrorResponse(res, error);
 }

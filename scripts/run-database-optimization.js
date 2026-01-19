@@ -9,25 +9,25 @@ import DatabaseOptimization from './database-optimization.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-console.log('🚀 Starting Database Optimization Process...');
-console.log('📋 Phase 1: Database Indexing, Connection Pooling, and Partitioning');
-console.log('🎯 Target: 150 concurrent users, 250K+ records, 2GB RAM, 2 Core\n');
+console.log('[START] Starting Database Optimization Process...');
+console.log('[LOG] Phase 1: Database Indexing, Connection Pooling, and Partitioning');
+console.log('[TARGET] Target: 150 concurrent users, 250K+ records, 2GB RAM, 2 Core\\n');
 
 const dbOptimization = new DatabaseOptimization();
 
 try {
-    console.log('⏳ Step 1: Initializing database optimization system...');
+    console.log('[WAIT] Step 1: Initializing database optimization system...');
     await dbOptimization.initialize();
     
-    console.log('\n⏳ Step 2: Testing connection pool performance...');
+    console.log('\\n[WAIT] Step 2: Testing connection pool performance...');
     const stats = dbOptimization.getPoolStats();
-    console.log('📊 Connection Pool Statistics:');
+    console.log('[STATS] Connection Pool Statistics:');
     console.log(`   Total Connections: ${stats.totalConnections}`);
     console.log(`   Active Connections: ${stats.activeConnections}`);
     console.log(`   Idle Connections: ${stats.idleConnections}`);
     console.log(`   Queued Requests: ${stats.queuedRequests}`);
     
-    console.log('\n⏳ Step 3: Running performance tests...');
+    console.log('\\n[WAIT] Step 3: Running performance tests...');
     
     // Test concurrent connections
     const concurrentTests = [];
@@ -41,9 +41,9 @@ try {
     await Promise.all(concurrentTests);
     const endTime = Date.now();
     
-    console.log(`✅ Concurrent query test: ${endTime - startTime}ms for 10 parallel queries`);
+    console.log(`[OK] Concurrent query test: ${endTime - startTime}ms for 10 parallel queries`);
     
-    console.log('\n⏳ Step 4: Testing query performance with indexes...');
+    console.log('\\n[WAIT] Step 4: Testing query performance with indexes...');
     
     // Test optimized queries
     const testQueries = [
@@ -67,10 +67,10 @@ try {
         const endTime = Date.now();
         const executionTime = endTime - startTime;
         
-        console.log(`✅ ${test.name}: ${executionTime}ms`);
+        console.log(`[OK] ${test.name}: ${executionTime}ms`);
     }
     
-    console.log('\n⏳ Step 5: Creating optimization report...');
+    console.log('\\n[WAIT] Step 5: Creating optimization report...');
     
     // Create optimization report
     const report = {
@@ -105,20 +105,20 @@ try {
     const reportFile = path.join(reportDir, `database-optimization-report-${new Date().toISOString().split('T')[0]}.json`);
     await fs.writeFile(reportFile, JSON.stringify(report, null, 2));
     
-    console.log(`📄 Optimization report saved to: ${reportFile}`);
+    console.log(`[FILE] Optimization report saved to: ${reportFile}`);
     
-    console.log('\n🎉 Database Optimization Phase 1 Completed Successfully!');
-    console.log('✅ All indexes added');
-    console.log('✅ Connection pooling active');
-    console.log('✅ Archive tables created');
-    console.log('✅ Performance optimized');
-    console.log('\n📋 Ready for Phase 2: Backup & Archive System');
+    console.log('\\n[DONE] Database Optimization Phase 1 Completed Successfully!');
+    console.log('[OK] All indexes added');
+    console.log('[OK] Connection pooling active');
+    console.log('[OK] Archive tables created');
+    console.log('[OK] Performance optimized');
+    console.log('\\n[LOG] Ready for Phase 2: Backup & Archive System');
     
     // Close connection pool
     await dbOptimization.close();
     
 } catch (error) {
-    console.error('❌ Database optimization failed:', error);
+    console.error('[ERROR] Database optimization failed:', error);
     
     // Create error report
     const errorReport = {
@@ -134,9 +134,9 @@ try {
         await fs.mkdir(reportDir, { recursive: true });
         const errorFile = path.join(reportDir, `database-optimization-error-${new Date().toISOString().split('T')[0]}.json`);
         await fs.writeFile(errorFile, JSON.stringify(errorReport, null, 2));
-        console.log(`📄 Error report saved to: ${errorFile}`);
+        console.log(`[FILE] Error report saved to: ${errorFile}`);
     } catch (reportError) {
-        console.error('❌ Failed to save error report:', reportError);
+        console.error('[ERROR] Failed to save error report:', reportError);
     }
     
     process.exit(1);

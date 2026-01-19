@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createLogger } from '../utils/logger.js';
 import { splitSqlStatements } from '../utils/sqlParser.js';
+import { sendDatabaseError, sendValidationError, sendPermissionError, sendSuccessResponse } from '../utils/errorHandler.js';
 
 const logger = createLogger('DatabaseFile');
 
@@ -67,10 +68,7 @@ export const listDatabaseFiles = async (req, res) => {
 
     } catch (error) {
         logger.error('Error listing database files', error);
-        res.status(500).json({
-            success: false,
-            message: 'Gagal memuat daftar file database'
-        });
+        return sendDatabaseError(res, error, 'Gagal memuat daftar file database');
     }
 };
 
@@ -81,19 +79,19 @@ export const executeDatabaseFile = async (req, res) => {
     const { filename, pathType } = req.body;
 
     if (!filename || !pathType) {
-        return res.status(400).json({ success: false, message: 'Filename and Path Type required' });
+        return sendValidationError(res, 'Filename dan Path Type wajib diisi');
     }
 
     let targetDir;
     if (pathType === 'root') targetDir = DB_DIR;
     else if (pathType === 'seeders') targetDir = SEEDER_DIR;
-    else return res.status(400).json({ success: false, message: 'Invalid path type' });
+    else return sendValidationError(res, 'Tipe path tidak valid');
 
     const filePath = path.join(targetDir, filename);
 
     // Security check: Ensure file is actually in the directory (prevent ../)
     if (!filePath.startsWith(targetDir)) {
-        return res.status(403).json({ success: false, message: 'Access denied: Invalid file path' });
+        return sendPermissionError(res, 'Akses ditolak: Path file tidak valid');
     }
 
     try {
@@ -104,12 +102,12 @@ export const executeDatabaseFile = async (req, res) => {
         const cleanSql = sqlContent.replace(/^\uFEFF/, '');
         
         if (!cleanSql.trim()) {
-            return res.status(400).json({ success: false, message: 'File is empty' });
+            return sendValidationError(res, 'File kosong');
         }
 
         // Simple check for safety
         if (cleanSql.toLowerCase().includes('drop database')) {
-             return res.status(403).json({ success: false, message: 'Safety Block: DROP DATABASE is not allowed.' });
+             return sendPermissionError(res, 'Keamanan: DROP DATABASE tidak diizinkan');
         }
 
         // Execute
@@ -119,7 +117,7 @@ export const executeDatabaseFile = async (req, res) => {
         try {
              const commands = splitSqlStatements(cleanSql);
              if (commands.length === 0) {
-                 return res.status(400).json({ success: false, message: 'Tidak ada perintah SQL yang dapat dieksekusi' });
+                 return sendValidationError(res, 'Tidak ada perintah SQL yang dapat dieksekusi');
              }
              
              await connection.beginTransaction();
@@ -148,9 +146,6 @@ export const executeDatabaseFile = async (req, res) => {
 
     } catch (error) {
         logger.error('Error executing database file', error);
-        res.status(500).json({
-            success: false,
-            message: `Gagal mengeksekusi: ${error.message}`
-        });
+        return sendDatabaseError(res, error, `Gagal mengeksekusi: ${error.message}`);
     }
 };

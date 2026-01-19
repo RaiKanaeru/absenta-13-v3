@@ -6,6 +6,7 @@
 import { getWIBTime, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
 import { sendDatabaseError, sendNotFoundError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import { validateSelfAccess, validatePerwakilanAccess, validateUserContext } from '../utils/validationUtils.js';
 
 const logger = createLogger('UserInfo');
 
@@ -76,9 +77,13 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
     
     log.requestStart('GetSiswaPerwakilanInfo', { userId: req.user.id });
 
+    if (!validatePerwakilanAccess(req, res)) {
+        return;
+    }
+
     try {
         const [siswaData] = await globalThis.dbPool.execute(
-            `SELECT u.id, u.username, u.nama, u.email, u.role, s.id_siswa, s.nis, s.kelas_id, 
+            `SELECT u.id, u.username, u.nama, u.email, u.role, u.is_perwakilan, s.id_siswa, s.nis, s.kelas_id, 
                     k.nama_kelas, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa, s.jenis_kelamin, s.jabatan, 
                     u.created_at, u.updated_at
              FROM users u
@@ -87,6 +92,7 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
              WHERE u.id = ?`,
             [req.user.id]
         );
+
 
         if (siswaData.length === 0) {
             log.warn('Siswa perwakilan not found', { userId: req.user.id });
@@ -103,6 +109,7 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
             nama: info.nama,
             email: info.email,
             role: info.role,
+            is_perwakilan: Number(info.is_perwakilan) === 1,
             id_siswa: info.id_siswa,
             nis: info.nis,
             kelas_id: info.kelas_id,
@@ -115,6 +122,7 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
             created_at: info.created_at,
             updated_at: info.updated_at
         });
+
 
     } catch (error) {
         log.dbError('query', error, { userId: req.user.id });
@@ -219,10 +227,19 @@ export const getSiswaJadwalHariIni = async (req, res) => {
     
     log.requestStart('GetSiswaJadwalHariIni', { siswaId: siswa_id });
 
+    if (!validateUserContext(req, res) || !validatePerwakilanAccess(req, res)) {
+        return;
+    }
+
+    if (!validateSelfAccess(req, res, siswa_id, 'siswa_id')) {
+        return;
+    }
+
     try {
         const wibTime = getWIBTime();
         const currentDay = HARI_INDONESIA[wibTime.getDay()];
         const todayWIB = getMySQLDateWIB();
+
 
         log.debug('Date context', { currentDay, todayWIB });
 
@@ -259,12 +276,21 @@ export const getSiswaJadwalRentang = async (req, res) => {
     
     log.requestStart('GetSiswaJadwalRentang', { siswaId: siswa_id, tanggal });
 
+    if (!validateUserContext(req, res) || !validatePerwakilanAccess(req, res)) {
+        return;
+    }
+
+    if (!validateSelfAccess(req, res, siswa_id, 'siswa_id')) {
+        return;
+    }
+
     try {
         // Get siswa's class
         const [siswaData] = await globalThis.dbPool.execute(
             SQL_GET_SISWA_KELAS,
             [siswa_id]
         );
+
 
         if (siswaData.length === 0) {
             log.warn('Siswa not found', { siswaId: siswa_id });

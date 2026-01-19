@@ -1,83 +1,93 @@
-# AGENTS.md — Absenta 13 v3 (Project Instructions for Codex)
+# AGENTS.md — Absenta 13 v3 Developer Guide
 
-## 0) Ringkasan Sistem
-Absenta-13-v3 adalah web app absensi sekolah:
-- Frontend: React + TypeScript + Vite (port 5173)
-- Backend: Node.js + Express (port 3001)
-- Database: MySQL (3306)
-- Cache/Queue: Redis (6379)
+## 1. Project Context
+**Absenta 13 v3** is a school attendance web application.
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Shadcn UI.
+- **Backend:** Node.js 18+, Express, ESM (ECMAScript Modules).
+- **Database:** MySQL 8+ (via `mysql2` with pool).
+- **Infrastructure:** Redis (Queue/Cache), PM2 (Process Manager).
 
-Repo ini sudah mengandung sistem caching, queue untuk export Excel, monitoring, dan security (rate limiting, audit logging, dsb).
+## 2. Development Commands
+Use `npm run <command>` in the root directory:
 
-## 1) Cara Menjalankan (Local Dev)
-### Prasyarat
-- Node.js v18+
-- MySQL v8+
-- Redis v6+
+| Task | Command | Description |
+|------|---------|-------------|
+| **Start Dev** | `npm run dev:full` | Starts both Backend (3001) and Frontend (5173). |
+| **Backend Only** | `npm run start:modern` | Starts the Node.js server. |
+| **Frontend Only** | `npm run dev` | Starts the Vite dev server. |
+| **Build** | `npm run build` | Builds the frontend for production. |
+| **Lint** | `npm run lint` | Runs ESLint for code quality. |
+| **Setup DB** | `npm run setup-db` | Runs database migrations/seeds. |
 
-### Quick start (manual)
-1) Install dependency:
-   - npm install
-2) Database:
-   - Import file `absenta13.sql` ke MySQL (phpMyAdmin/XAMPP).
-3) Redis:
-   - Windows: jalankan `redis-server.exe` dari folder `redis/`
-   - Linux/Mac: start redis service
-4) Jalankan backend:
-   - node server_modern.js
-5) Jalankan frontend:
-   - npm run dev
-6) Akses:
-   - Frontend: http://localhost:5173
-   - Backend:  http://localhost:3001
+## 3. Testing Strategy
+**Frameworks:** `vitest` (Frontend) and Node.js native test runner (Backend).
 
-## 2) Environment Variables (.env)
-Buat file `.env` di root. Minimal wajib:
-- DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
-- REDIS_HOST, REDIS_PORT
-- PORT (default 3001)
-- JWT_SECRET (WAJIB untuk production; minimal 32 karakter)
+### Running Tests
+- **Run All Tests:**
+  ```bash
+  npm test
+  ```
 
-Catatan:
-- Jangan pernah commit `.env` atau secrets.
-- Kalau menambah env var baru, update `.env.example` dan dokumentasi.
+- **Run Single Frontend Test (Unit/Component):**
+  ```bash
+  npx vitest run src/path/to/test-file.test.tsx
+  ```
 
-## 3) Struktur Folder (Peta Navigasi)
-- src/        : Frontend React (components/pages/contexts/hooks)
-- server/     : Backend Express (routes/controllers/services/middleware)
-- backend/    : utilitas pendukung backend (config/export/scripts/utils)
-- migrations/ : migrasi/seed DB
-- scripts/    : script deployment/otomasi
-- redis/      : resource redis (untuk Windows juga)
-- docs/       : dokumentasi tambahan
+- **Run Single Backend Test (Integration/Unit):**
+  ```bash
+  node --test server/path/to/test-file.test.js
+  ```
 
-## 4) Aturan Kerja untuk Codex
-Sebelum coding:
-1) Identifikasi lokasi perubahan (frontend vs backend vs DB).
-2) Sebutkan file target yang akan diubah.
-3) Jelaskan rencana singkat (2–5 langkah) dan risiko.
+## 4. Code Style & Standards
 
-Saat implementasi:
-- Jaga perubahan tetap kecil dan fokus.
-- Hindari duplikasi logic (tarik ke util/service bila perlu).
-- Selalu validasi input di backend (jangan percaya body/query).
-- Untuk endpoint berat: pertimbangkan caching/queue sesuai pola yang sudah ada.
+### 4.1 Frontend (React + TypeScript)
+- **Imports:** ALWAYS use absolute paths alias `@/` defined in `tsconfig.json`.
+  - ✅ `import { Button } from "@/components/ui/button"`
+  - ❌ `import { Button } from "../../components/ui/button"`
+- **Components:** Functional components with typed props. Use PascalCase for filenames.
+- **UI & Styling:**
+  - Use **Tailwind CSS** utility classes. Avoid inline styles or CSS files.
+  - Prefer **Shadcn UI** components located in `@/components/ui/`.
+  - Icons: Use `lucide-react`.
+- **Data Fetching:**
+  - Use the `apiCall` utility from `@/utils/apiClient` for all backend requests.
+  - **Error Handling:** Catch errors and display user-friendly messages using `toast` (from `@/hooks/use-toast`). Do NOT use `alert()`.
 
-Setelah implementasi:
-- Jalankan test/lint bila tersedia.
-- Pastikan port, env, dan dokumentasi tetap konsisten.
-- Kalau mengubah API, update dokumentasi endpoint yang relevan.
+### 4.2 Backend (Node.js + Express)
+- **Module System:** **ESM** is mandatory (`import`/`export`). Do NOT use `require()`.
+- **Documentation:** **JSDoc** is mandatory for all Controllers and Service functions.
+- **Database Access:**
+  - Use the global pool: `globalThis.dbPool`.
+  - **Security:** ALWAYS use parameterized queries (`?`) to prevent SQL Injection.
+  - ✅ `await globalThis.dbPool.execute('SELECT * FROM users WHERE id = ?', [id])`
+- **Error Handling:**
+  - Import helpers from `../utils/errorHandler.js`.
+  - Use: `sendSuccessResponse`, `sendValidationError`, `sendDatabaseError`, `sendNotFoundError`.
+  - Wrap async route handlers to catch errors (or use try/catch blocks that delegate to these helpers).
+- **Logging:** Use `createLogger` from `../utils/logger.js` instead of raw `console.log`.
 
-## 5) Guardrails (Wajib)
-- Tidak boleh menambahkan secrets hardcoded.
-- Tidak boleh menjalankan perintah destruktif (rm -rf, drop DB, deploy) tanpa meminta approval.
-- Jika ada aksi menyentuh data nyata/produksi: STOP dan minta konfirmasi.
+## 5. Agent Protocol & Rules
 
-## 6) UPGRADE: Precision Protocol (Smart Rules)
-Agent telah dilengkapi dengan "Precision Protocol" untuk meningkatkan akurasi.
-Silakan baca detailnya di: `.agent/skills/precision_protocol/SKILL.md`
+### 5.1 Precision Protocol (CRITICAL)
+1.  **UI Freeze:** **DO NOT** modify UI components (`src/components/ui/*`) or layout structures unless explicitly requested.
+2.  **Granular Debugging:** If an Error 500 occurs, you MUST analyze the specific error code/stack trace before applying a fix.
+3.  **Global Var Check:** In backend code, acknowledge that `dbPool`, `redisClient`, etc., might be attached to `globalThis`.
 
-Aturan utama:
-1. **JANGAN UBAH UI** tanpa izin.
-2. **DEBUGGING GRANULAR** wajib saat error 500.
-3. **GLOBAL VAR CHECK** wajib untuk Node.js backend.
+### 5.2 Guardrails
+- **Secrets:** NEVER hardcode secrets, API keys, or passwords. Use `process.env`.
+- **Destructive Actions:** NEVER run `rm -rf`, `DROP TABLE`, or destructive migrations without explicit user confirmation.
+- **Production Safety:** If you detect you are running against a production DB, STOP and confirm.
+
+### 5.3 Working Mode
+- **Plan Mode:** Analyze files, grep patterns, and propose a plan. Do not edit.
+- **Act Mode:** Execute the approved plan. Run tests after significant changes.
+
+## 6. Directory Structure
+- `src/` - Frontend source.
+  - `components/ui/` - Reusable UI components (buttons, inputs).
+  - `pages/` - Route pages.
+  - `utils/` - Frontend helpers (`apiClient.ts`).
+- `server/` - Backend source.
+  - `controllers/` - Request logic.
+  - `routes/` - API definitions.
+  - `utils/` - Backend helpers (`errorHandler.js`, `logger.js`).

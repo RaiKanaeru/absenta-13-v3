@@ -55,7 +55,6 @@ const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseMa
 
 
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
 import { 
   Users,
   GraduationCap,
@@ -3107,7 +3106,11 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       console.error('Error exporting live student attendance:', message);
-      alert(`Gagal mengekspor data: ${message}`);
+      toast({
+        title: "Gagal mengekspor data",
+        description: message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -3461,55 +3464,30 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           params.append('status', selectedStatus);
         }
 
-        // UBAH ENDPOINT KE EXCEL FORMAT
-        const response = await fetch(getApiUrl(`/api/export/banding-absen?${params}`), {
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-          }
+        const blob = await apiCall<Blob>(`/api/export/banding-absen?${params.toString()}`, {
+          responseType: 'blob',
+          onLogout
         });
-
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = globalThis.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          // UBAH EXTENSION KE .xlsx
-          a.download = `riwayat-banding-absen-${dateRange.startDate || 'all'}-${dateRange.endDate || 'all'}.xlsx`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          globalThis.URL.revokeObjectURL(url);
-          
-          toast({
-            title: "Berhasil",
-            description: "Laporan berhasil didownload dalam format Excel"
-          });
-        } else {
-          if (response.status === 401) {
-            toast({
-              title: "Error",
-              description: "Sesi Anda telah berakhir. Silakan login ulang.",
-              variant: "destructive"
-            });
-            setTimeout(() => onLogout(), 2000);
-          } else {
-            const errorData = await response.json().catch(() => ({ error: 'Gagal mendownload laporan' }));
-            console.error('Download error:', errorData);
-            toast({
-              title: "Error",
-              description: errorData.error || "Gagal mendownload laporan", 
-              variant: "destructive"
-            });
-          }
-        }
+        const url = globalThis.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `riwayat-banding-absen-${dateRange.startDate || 'all'}-${dateRange.endDate || 'all'}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        globalThis.URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Berhasil",
+          description: "Laporan berhasil didownload dalam format Excel"
+        });
       } catch (error) {
         console.error('Download network error:', error);
+        const message = getErrorMessage(error) || "Gagal mendownload laporan";
         toast({
           title: "Error",
-          description: "Terjadi kesalahan jaringan saat download. Pastikan server berjalan.",
+          description: message,
           variant: "destructive" 
         });
       }
@@ -3550,34 +3528,28 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           params.append('status', selectedStatus);
         }
 
-        const url = getApiUrl(`/api/export/${exportType}?${params.toString()}`);
-        const response = await fetch(url, { 
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-          }
+        const blob = await apiCall<Blob>(`/api/export/${exportType}?${params.toString()}`, {
+          responseType: 'blob',
+          onLogout
         });
-        
-        if (!response.ok) {
-          throw new Error('Gagal mengunduh file format SMKN 13');
-        }
-        
-        const blob = await response.blob();
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        link.href = url;
         link.download = `banding-absen-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
         link.click();
+        URL.revokeObjectURL(url);
         
         toast({
-          title: "Berhasil!",
+          title: "Berhasil",
           description: "File format SMKN 13 berhasil diunduh"
         });
       } catch (err) {
         console.error('Error downloading SMKN 13 format:', err);
-        setError('Gagal mengunduh file format SMKN 13');
+        const message = getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13';
+        setError(message);
         toast({
           title: "Error",
-          description: "Gagal mengunduh file format SMKN 13",
+          description: message,
           variant: "destructive"
         });
       }
@@ -4829,40 +4801,22 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         params.append('kelas_id', selectedKelas);
       }
 
-      const url = getApiUrl(`/api/admin/download-student-attendance-excel?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/admin/download-student-attendance-excel?${params.toString()}`, {
+        responseType: 'blob',
+        onLogout
       });
-      
-      if (!response.ok) {
-        // Coba baca error message dari response
-        let errorMessage = 'Gagal mengunduh file';
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          }
-        } catch (parseError) {
-          console.warn('Could not parse error response:', parseError);
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `ringkasan-kehadiran-siswa-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
       
       // Clean up
-      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Error downloading excel:', err);
-      setError(`Gagal mengunduh file Excel: ${err.message}`);
+      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
+      setError(message);
     }
   };
 
@@ -4882,31 +4836,25 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         params.append('kelas_id', selectedKelas);
       }
 
-      const url = getApiUrl(`/api/export/${exportType}?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/export/${exportType}?${params.toString()}`, {
+        responseType: 'blob',
+        onLogout
       });
-      
-      if (!response.ok) {
-        throw new Error('Gagal mengunduh file format SMKN 13');
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `${exportType}-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
+      URL.revokeObjectURL(url);
       
       toast({
-        title: "Berhasil!",
+        title: "Berhasil",
         description: "File format SMKN 13 berhasil diunduh"
       });
     } catch (err) {
       console.error('Error downloading SMKN 13 format:', err);
-      setError('Gagal mengunduh file format SMKN 13');
+      const message = getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13';
+      setError(message);
     }
   };
 
@@ -5115,40 +5063,22 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         endDate: dateRange.endDate
       });
 
-      const url = getApiUrl(`/api/admin/download-teacher-attendance-excel?${params.toString()}`);
-      const response = await fetch(url, { 
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
+      const blob = await apiCall<Blob>(`/api/admin/download-teacher-attendance-excel?${params.toString()}`, {
+        responseType: 'blob',
+        onLogout
       });
-      
-      if (!response.ok) {
-        // Coba baca error message dari response
-        let errorMessage = 'Gagal mengunduh file';
-        try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          }
-        } catch (parseError) {
-          console.warn('Could not parse error response:', parseError);
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const blob = await response.blob();
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `ringkasan-kehadiran-guru-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
       
       // Clean up
-      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Error downloading excel:', err);
-      setError(`Gagal mengunduh file Excel: ${err.message}`);
+      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
+      setError(message);
     }
   };
 

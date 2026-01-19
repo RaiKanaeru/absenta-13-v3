@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Download, Upload, FileSpreadsheet, CheckCircle, AlertTriangle } from "lucide-react";
-import { apiCall } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 
 interface ExcelImportViewProps {
   entityType: 'mapel' | 'kelas' | 'guru' | 'siswa' | 'jadwal' | 'teacher-account' | 'student-account' | 'ruang' | 'schedule-master';
@@ -92,50 +91,39 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         endpoint = `/api/admin/${entityType}/template-friendly`;
       }
       
-      const response = await fetch(getApiUrl(endpoint), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const blob = await apiCall<Blob>(endpoint, { responseType: 'blob' });
+      const url = globalThis.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
       
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = globalThis.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        
-        // Simplified filename
-        const entityNames: Record<string, string> = {
-          'guru': 'data-guru',
-          'teacher-account': 'akun-guru',
-          'student-account': 'akun-siswa',
-          'siswa': 'data-siswa',
-          'mapel': 'mata-pelajaran',
-          'kelas': 'kelas',
-          'ruang': 'ruang-kelas',
-          'ruang': 'ruang-kelas',
-          'jadwal': 'jadwal-pelajaran',
-          'schedule-master': 'master-schedule'
-        };
-        a.download = `template-${entityNames[entityType] || entityType}.xlsx`;
-        
-        document.body.appendChild(a);
-        a.click();
-        globalThis.URL.revokeObjectURL(url);
-        a.remove();
-        
-        toast({
-          title: "Berhasil",
-          description: "Template berhasil didownload"
-        });
-      } else {
-        throw new Error('Gagal download template');
-      }
+      // Simplified filename
+      const entityNames: Record<string, string> = {
+        'guru': 'data-guru',
+        'teacher-account': 'akun-guru',
+        'student-account': 'akun-siswa',
+        'siswa': 'data-siswa',
+        'mapel': 'mata-pelajaran',
+        'kelas': 'kelas',
+        'ruang': 'ruang-kelas',
+        'jadwal': 'jadwal-pelajaran',
+        'schedule-master': 'master-schedule'
+      };
+      a.download = `template-${entityNames[entityType] || entityType}.xlsx`;
+      
+      document.body.appendChild(a);
+      a.click();
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
+      
+      toast({
+        title: "Berhasil",
+        description: "Template berhasil didownload"
+      });
     } catch (error) {
       console.error('Download template error:', error);
       toast({
         title: "Error",
-        description: "Gagal download template",
+        description: getErrorMessage(error) || "Gagal download template",
         variant: "destructive"
       });
     }

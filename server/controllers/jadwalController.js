@@ -10,6 +10,42 @@ import { seedDefaultJamPelajaranData } from './jamPelajaranController.js';
 
 const logger = createLogger('Jadwal');
 
+const ALLOWED_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const DAY_NAME_MAP = {
+    senin: 'Senin',
+    selasa: 'Selasa',
+    rabu: 'Rabu',
+    kamis: 'Kamis',
+    jumat: 'Jumat',
+    sabtu: 'Sabtu'
+};
+const ACTIVITY_ALIASES = {
+    kbm: 'pelajaran',
+    'kegiatan khusus': 'kegiatan_khusus',
+    'kegiatan-khusus': 'kegiatan_khusus'
+};
+const ALLOWED_ACTIVITY_TYPES = [
+    'pelajaran',
+    'upacara',
+    'istirahat',
+    'kegiatan_khusus',
+    'libur',
+    'ujian',
+    'lainnya'
+];
+
+const normalizeHariName = (value) => {
+    if (!value) return '';
+    const key = String(value).trim().toLowerCase();
+    return DAY_NAME_MAP[key] || String(value).trim();
+};
+
+const normalizeJenisAktivitas = (value) => {
+    const raw = value ? String(value).trim().toLowerCase() : 'pelajaran';
+    const normalized = ACTIVITY_ALIASES[raw] || raw;
+    return ALLOWED_ACTIVITY_TYPES.includes(normalized) ? normalized : '';
+};
+
 // ================================================
 // FUNGSI PEMBANTU (HELPER FUNCTIONS)
 // ================================================
@@ -119,6 +155,7 @@ const checkGuruConflict = async (db, { guruIds, hari, sqlTime, qParams, excludeJ
     if (!guruIds || guruIds.length === 0) return null;
     
     const guruPlaceholders = guruIds.map(() => '?').join(',');
+    const excludeClause = excludeJadwalId ? 'AND j.id_jadwal != ?' : '';
     const guruQuery = `
         SELECT j.id_jadwal, k.nama_kelas, g.nama as nama_guru
         FROM jadwal j
@@ -135,11 +172,11 @@ const checkGuruConflict = async (db, { guruIds, hari, sqlTime, qParams, excludeJ
                 AND jg.guru_id IN (${guruPlaceholders})
             )
         )
-        ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+        ${excludeClause}
         LIMIT 1
     `;
-
-    const [guruConflicts] = await db.execute(guruQuery, qParams);
+    const params = excludeJadwalId ? [...qParams, excludeJadwalId] : qParams;
+    const [guruConflicts] = await db.execute(guruQuery, params);
     
     if (guruConflicts.length > 0) {
         const conflict = guruConflicts[0];
@@ -154,6 +191,7 @@ const checkGuruConflict = async (db, { guruIds, hari, sqlTime, qParams, excludeJ
 const checkRoomConflict = async (db, { ruang_id, hari, sqlTime, timeParams, excludeJadwalId }) => {
     if (!ruang_id) return null;
 
+    const excludeClause = excludeJadwalId ? 'AND j.id_jadwal != ?' : '';
     const ruangQuery = `
         SELECT k.nama_kelas, rk.nama_ruang
         FROM jadwal j
@@ -163,11 +201,12 @@ const checkRoomConflict = async (db, { ruang_id, hari, sqlTime, timeParams, excl
         AND j.hari = ?
         ${sqlTime}
         AND j.ruang_id = ?
-        ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+        ${excludeClause}
         LIMIT 1
     `;
     
-    const [ruangConflicts] = await db.execute(ruangQuery, [...timeParams, ruang_id]);
+    const params = excludeJadwalId ? [...timeParams, ruang_id, excludeJadwalId] : [...timeParams, ruang_id];
+    const [ruangConflicts] = await db.execute(ruangQuery, params);
     
     if (ruangConflicts.length > 0) {
         return { 
@@ -181,6 +220,7 @@ const checkRoomConflict = async (db, { ruang_id, hari, sqlTime, timeParams, excl
 const checkClassConflict = async (db, { kelas_id, hari, sqlTime, timeParams, excludeJadwalId }) => {
     if (!kelas_id) return null;
 
+    const excludeClause = excludeJadwalId ? 'AND j.id_jadwal != ?' : '';
     const kelasQuery = `
         SELECT m.nama_mapel
         FROM jadwal j
@@ -189,11 +229,12 @@ const checkClassConflict = async (db, { kelas_id, hari, sqlTime, timeParams, exc
         AND j.hari = ?
         ${sqlTime}
         AND j.kelas_id = ?
-        ${excludeJadwalId ? `AND j.id_jadwal != ${excludeJadwalId}` : ''}
+        ${excludeClause}
         LIMIT 1
     `;
     
-    const [kelasConflicts] = await db.execute(kelasQuery, [...timeParams, kelas_id]);
+    const params = excludeJadwalId ? [...timeParams, kelas_id, excludeJadwalId] : [...timeParams, kelas_id];
+    const [kelasConflicts] = await db.execute(kelasQuery, params);
     
     if (kelasConflicts.length > 0) {
             return { 
@@ -217,43 +258,67 @@ const checkAllScheduleConflicts = async ({
     ruang_id,
     guruIds,
     excludeJadwalId,
-    connection 
+    connection,
+    collectConflicts = false
 }) => {
-    if (!hari || !jam_mulai || !jam_selesai) {
+    const normalizedHari = normalizeHariName(hari);
+    if (!normalizedHari || !jam_mulai || !jam_selesai) {
         return { hasConflict: true, error: "Data waktu tidak lengkap" };
+    }
+    if (!ALLOWED_DAYS.includes(normalizedHari)) {
+        return { hasConflict: true, error: 'Hari tidak valid' };
     }
 
     const db = connection || globalThis.dbPool;
+    const excludeId = normalizeId(excludeJadwalId);
     // Overlap: (start1 < end2) AND (end1 > start2)
     // SQL: j.jam_mulai < ? (newEnd) AND j.jam_selesai > ? (newStart)
     const timeOverlapCondition = `(jam_mulai < ? AND jam_selesai > ?)`;
     const sqlTime = `AND ${timeOverlapCondition}`; 
-    const timeParams = [hari, jam_selesai, jam_mulai]; 
+    const timeParams = [normalizedHari, jam_selesai, jam_mulai]; 
+    const conflicts = [];
 
     // 1. Cek Konflik Guru
     if (guruIds && guruIds.length > 0) {
-        const qParams = [hari, jam_selesai, jam_mulai, ...guruIds, ...guruIds];
-        const conflict = await checkGuruConflict(db, { guruIds, hari, sqlTime, qParams, excludeJadwalId });
-        if (conflict) return conflict;
+        const qParams = [normalizedHari, jam_selesai, jam_mulai, ...guruIds, ...guruIds];
+        const conflict = await checkGuruConflict(db, { guruIds, hari: normalizedHari, sqlTime, qParams, excludeJadwalId: excludeId });
+        if (conflict) {
+            if (!collectConflicts) return conflict;
+            conflicts.push({ type: 'guru', message: conflict.error });
+        }
     }
 
     // 2. Cek Konflik Ruang
-    const roomConflict = await checkRoomConflict(db, { ruang_id, hari, sqlTime, timeParams, excludeJadwalId });
-    if (roomConflict) return roomConflict;
+    const roomConflict = await checkRoomConflict(db, { ruang_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
+    if (roomConflict) {
+        if (!collectConflicts) return roomConflict;
+        conflicts.push({ type: 'ruang', message: roomConflict.error });
+    }
 
     // 3. Cek Konflik Kelas
-    const classConflict = await checkClassConflict(db, { kelas_id, hari, sqlTime, timeParams, excludeJadwalId });
-    if (classConflict) return classConflict;
+    const classConflict = await checkClassConflict(db, { kelas_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
+    if (classConflict) {
+        if (!collectConflicts) return classConflict;
+        conflicts.push({ type: 'kelas', message: classConflict.error });
+    }
+
+    if (collectConflicts) {
+        return {
+            hasConflict: conflicts.length > 0,
+            error: conflicts[0]?.message || null,
+            conflicts
+        };
+    }
 
     return { hasConflict: false };
 };
 
 const fetchJamSlotsByDay = async () => {
-    const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+    const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const [allJamSlots] = await globalThis.dbPool.execute(
         `SELECT hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
          FROM jam_pelajaran 
-         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'), jam_ke`
+         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`
     );
 
     const jamSlotsByDay = {};
@@ -403,9 +468,9 @@ const normalizeMatrixChanges = (changes, fallbackHari) => {
     for (const change of changes) {
         const kelasId = Number(change.kelas_id);
         const jamKe = Number(change.jam_ke);
-        const hari = change.hari || fallbackHari;
+        const hari = normalizeHariName(change.hari || fallbackHari);
 
-        if (!Number.isFinite(kelasId) || !Number.isFinite(jamKe) || !hari) {
+        if (!Number.isFinite(kelasId) || !Number.isFinite(jamKe) || !hari || !ALLOWED_DAYS.includes(hari)) {
             continue;
         }
 
@@ -542,7 +607,7 @@ const validateGuruIdsExist = async (guruIds, connection = globalThis.dbPool) => 
 
     const placeholders = guruIds.map(() => '?').join(',');
     const [rows] = await connection.execute(
-        `SELECT id_guru FROM guru WHERE id_guru IN (${placeholders})`,
+        `SELECT id_guru FROM guru WHERE id_guru IN (${placeholders}) AND status = "aktif"`,
         guruIds
     );
 
@@ -551,6 +616,26 @@ const validateGuruIdsExist = async (guruIds, connection = globalThis.dbPool) => 
 
     if (missingIds.length > 0) {
         return { valid: false, error: `Guru tidak ditemukan: ${missingIds.join(', ')}` };
+    }
+
+    return { valid: true };
+};
+
+const validateJamSlotExists = async (hari, jamKe, connection = globalThis.dbPool) => {
+    const normalizedHari = normalizeHariName(hari);
+    const normalizedJamKe = Number(jamKe);
+
+    if (!normalizedHari || !Number.isFinite(normalizedJamKe)) {
+        return { valid: false, error: 'Hari atau jam ke tidak valid' };
+    }
+
+    const [rows] = await connection.execute(
+        'SELECT jam_ke FROM jam_pelajaran WHERE hari = ? AND jam_ke = ?',
+        [normalizedHari, normalizedJamKe]
+    );
+
+    if (rows.length === 0) {
+        return { valid: false, error: `Jam pelajaran untuk ${normalizedHari} jam ${normalizedJamKe} tidak ditemukan` };
     }
 
     return { valid: true };
@@ -572,11 +657,27 @@ const processJadwalData = async (payload, log, options = {}) => {
 
     const kelasId = normalizeId(kelas_id);
     const jamKe = Number(jam_ke);
-    const normalizedHari = hari ? String(hari).trim() : '';
+    const normalizedHari = normalizeHariName(hari);
+    const normalizedJenisAktivitas = normalizeJenisAktivitas(jenis_aktivitas);
 
     if (!kelasId || !normalizedHari || !Number.isFinite(jamKe) || jam_mulai === undefined || jam_selesai === undefined) {
         log.validationFail('jadwal', payload, 'Missing required fields');
         return { success: false, error: 'Semua field wajib diisi' };
+    }
+
+    if (!ALLOWED_DAYS.includes(normalizedHari)) {
+        log.validationFail('hari', normalizedHari, 'Invalid day');
+        return { success: false, error: 'Hari tidak valid (gunakan Senin-Sabtu)' };
+    }
+
+    if (!normalizedJenisAktivitas) {
+        log.validationFail('jenis_aktivitas', jenis_aktivitas, 'Invalid activity');
+        return { success: false, error: 'Jenis aktivitas tidak valid' };
+    }
+
+    if (!Number.isInteger(jamKe) || jamKe < 0) {
+        log.validationFail('jam_ke', jam_ke, 'Invalid jam_ke');
+        return { success: false, error: 'Jam ke tidak valid' };
     }
 
     const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
@@ -585,11 +686,21 @@ const processJadwalData = async (payload, log, options = {}) => {
         return { success: false, error: timeValidation.error };
     }
 
-    const { primaryGuruId, guruIds } = normalizeGuruIds(payload);
-    const finalMapelId = normalizeId(mapel_id);
+    const jamSlotValidation = await validateJamSlotExists(
+        normalizedHari,
+        jamKe,
+        options.connection
+    );
+    if (!jamSlotValidation.valid) {
+        log.validationFail('jam_ke', { hari: normalizedHari, jam_ke: jamKe }, jamSlotValidation.error);
+        return { success: false, error: jamSlotValidation.error };
+    }
+
+    const isPelajaran = normalizedJenisAktivitas === 'pelajaran';
+    const { primaryGuruId, guruIds } = isPelajaran ? normalizeGuruIds(payload) : { primaryGuruId: null, guruIds: [] };
+    const finalMapelId = isPelajaran ? normalizeId(mapel_id) : null;
     const finalRuangId = normalizeId(ruang_id);
-    const isPelajaran = jenis_aktivitas === 'pelajaran';
-    const isAbsenable = normalizeBoolean(payload.is_absenable, isPelajaran);
+    const isAbsenable = isPelajaran;
 
     if (isPelajaran && (!finalMapelId || guruIds.length === 0)) {
         log.validationFail('pelajaran', payload, 'Mapel and guru required');
@@ -649,7 +760,7 @@ const processJadwalData = async (payload, log, options = {}) => {
             jam_ke: jamKe,
             jam_mulai: String(jam_mulai),
             jam_selesai: String(jam_selesai),
-            jenis_aktivitas,
+            jenis_aktivitas: normalizedJenisAktivitas,
             is_absenable: isAbsenable,
             keterangan_khusus: payload.keterangan_khusus || null
         }
@@ -767,7 +878,12 @@ export const batchUpdateMatrix = async (req, res) => {
         return sendValidationError(res, 'hari dan changes array diperlukan');
     }
 
-    const normalizedChanges = normalizeMatrixChanges(changes, hari);
+    const normalizedHari = normalizeHariName(hari);
+    if (!ALLOWED_DAYS.includes(normalizedHari)) {
+        return sendValidationError(res, 'Hari tidak valid');
+    }
+
+    const normalizedChanges = normalizeMatrixChanges(changes, normalizedHari);
     if (normalizedChanges.length === 0) {
         return sendValidationError(res, 'Tidak ada perubahan jadwal yang valid');
     }
@@ -777,10 +893,10 @@ export const batchUpdateMatrix = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const [jamSlots] = await connection.execute(
-            'SELECT jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran WHERE hari = ?',
-            [hari]
-        );
+            const [jamSlots] = await connection.execute(
+                'SELECT jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran WHERE hari = ?',
+                [normalizedHari]
+            );
         const jamSlotMap = new Map(jamSlots.map(slot => [slot.jam_ke, slot]));
 
         let created = 0;
@@ -793,7 +909,7 @@ export const batchUpdateMatrix = async (req, res) => {
             // Check if schedule exists
             const [existing] = await connection.execute(
                 'SELECT id_jadwal, mapel_id, guru_id, ruang_id FROM jadwal WHERE kelas_id = ? AND hari = ? AND jam_ke = ? AND status = "aktif"',
-                [kelas_id, hari, jam_ke]
+                [kelas_id, normalizedHari, jam_ke]
             );
 
             if (action === 'delete') {
@@ -833,7 +949,7 @@ export const batchUpdateMatrix = async (req, res) => {
             // Use transaction connection to detect conflicts with committed data AND self-checks if isolation works
             const conflictCheck = await checkAllScheduleConflicts({
                 kelas_id,
-                hari,
+                hari: normalizedHari,
                 jam_mulai: jamSlot.jam_mulai,
                 jam_selesai: jamSlot.jam_selesai,
                 ruang_id: finalRuangId,
@@ -861,9 +977,9 @@ export const batchUpdateMatrix = async (req, res) => {
                 // Create new
                 const [insertResult] = await connection.execute(
                     `INSERT INTO jadwal 
-                     (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', 'pelajaran')`,
-                    [kelas_id, finalMapelId, finalGuruId, finalRuangId, hari, jam_ke, jamSlot.jam_mulai, jamSlot.jam_selesai]
+                     (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, is_multi_guru)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', 'pelajaran', 1, 0)`,
+                    [kelas_id, finalMapelId, finalGuruId, finalRuangId, normalizedHari, jam_ke, jamSlot.jam_mulai, jamSlot.jam_selesai]
                 );
                 await ensurePrimaryGuru(connection, insertResult.insertId, finalGuruId);
                 created++;
@@ -898,6 +1014,11 @@ export const checkScheduleConflicts = async (req, res) => {
         if (!hari || jam_mulai === undefined || jam_selesai === undefined) {
             return sendValidationError(res, 'Hari dan waktu wajib diisi');
         }
+
+        const normalizedHari = normalizeHariName(hari);
+        if (!ALLOWED_DAYS.includes(normalizedHari)) {
+            return sendValidationError(res, 'Hari tidak valid');
+        }
         if (!Array.isArray(kelas_ids) || kelas_ids.length === 0) {
             return sendValidationError(res, 'Minimal satu kelas harus dipilih');
         }
@@ -931,7 +1052,7 @@ export const checkScheduleConflicts = async (req, res) => {
         for (const kelasId of classIds) {
             const conflictCheck = await checkAllScheduleConflicts({
                 kelas_id: kelasId,
-                hari: String(hari),
+                hari: normalizedHari,
                 jam_mulai: String(jam_mulai),
                 jam_selesai: String(jam_selesai),
                 ruang_id: finalRuangId,
@@ -992,6 +1113,16 @@ export const bulkCreateJadwal = async (req, res) => {
             return sendValidationError(res, 'Hari, jam ke, dan waktu wajib diisi');
         }
 
+        const normalizedHari = normalizeHariName(hari);
+        if (!ALLOWED_DAYS.includes(normalizedHari)) {
+            return sendValidationError(res, 'Hari tidak valid');
+        }
+
+        const normalizedJenisAktivitas = normalizeJenisAktivitas(jenis_aktivitas);
+        if (!normalizedJenisAktivitas) {
+            return sendValidationError(res, 'Jenis aktivitas tidak valid');
+        }
+
         const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
         if (!timeValidation.valid) {
             return sendValidationError(res, timeValidation.error);
@@ -1003,15 +1134,20 @@ export const bulkCreateJadwal = async (req, res) => {
         }
 
         const jamKe = Number(jam_ke);
-        if (!Number.isFinite(jamKe)) {
+        if (!Number.isInteger(jamKe) || jamKe < 0) {
             return sendValidationError(res, 'Jam ke tidak valid');
         }
 
-        const { primaryGuruId, guruIds } = normalizeGuruIds({ guru_ids });
-        const finalMapelId = normalizeId(mapel_id);
+        const jamSlotValidation = await validateJamSlotExists(normalizedHari, jamKe);
+        if (!jamSlotValidation.valid) {
+            return sendValidationError(res, jamSlotValidation.error);
+        }
+
+        const isPelajaran = normalizedJenisAktivitas === 'pelajaran';
+        const { primaryGuruId, guruIds } = isPelajaran ? normalizeGuruIds({ guru_ids }) : { primaryGuruId: null, guruIds: [] };
+        const finalMapelId = isPelajaran ? normalizeId(mapel_id) : null;
         const finalRuangId = normalizeId(ruang_id);
-        const isPelajaran = jenis_aktivitas === 'pelajaran';
-        const isAbsenable = normalizeBoolean(is_absenable, isPelajaran);
+        const isAbsenable = isPelajaran;
         const primaryId = primaryGuruId || guruIds[0] || null;
 
         if (isPelajaran && (!finalMapelId || guruIds.length === 0)) {
@@ -1059,7 +1195,7 @@ export const bulkCreateJadwal = async (req, res) => {
         for (const kelasId of kelasIds) {
             const conflictCheck = await checkAllScheduleConflicts({
                 kelas_id: kelasId,
-                hari: String(hari),
+                hari: normalizedHari,
                 jam_mulai: String(jam_mulai),
                 jam_selesai: String(jam_selesai),
                 ruang_id: finalRuangId,
@@ -1085,10 +1221,10 @@ export const bulkCreateJadwal = async (req, res) => {
                 `INSERT INTO jadwal 
                  (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
-                [kelasId, finalMapelId, primaryId, finalRuangId, hari, jamKe, jam_mulai, jam_selesai, jenis_aktivitas, isAbsenable ? 1 : 0, keterangan_khusus, guruIds.length > 1 ? 1 : 0]
+                [kelasId, finalMapelId, primaryId, finalRuangId, normalizedHari, jamKe, jam_mulai, jam_selesai, normalizedJenisAktivitas, isAbsenable ? 1 : 0, keterangan_khusus, guruIds.length > 1 ? 1 : 0]
             );
 
-            if (jenis_aktivitas === 'pelajaran' && guruIds.length > 0) {
+            if (normalizedJenisAktivitas === 'pelajaran' && guruIds.length > 0) {
                 await insertJadwalGuru(insertResult.insertId, guruIds, connection);
             }
 
@@ -1205,9 +1341,13 @@ export const cloneJadwal = async (req, res) => {
 
         for (const targetId of targetIds) {
             for (const schedule of sourceSchedules) {
-                const guruIds = buildGuruIds(schedule);
-                const primaryGuruId = include_guru ? (schedule.guru_id || guruIds[0] || null) : null;
+                const normalizedJenis = normalizeJenisAktivitas(schedule.jenis_aktivitas) || schedule.jenis_aktivitas;
+                const isPelajaran = normalizedJenis === 'pelajaran';
+                const guruIds = include_guru && isPelajaran ? buildGuruIds(schedule) : [];
+                const primaryGuruId = include_guru && isPelajaran ? (schedule.guru_id || guruIds[0] || null) : null;
                 const ruangId = include_ruang ? schedule.ruang_id : null;
+                const mapelId = isPelajaran ? schedule.mapel_id : null;
+                const isAbsenable = isPelajaran;
 
                 const conflictCheck = await checkAllScheduleConflicts({
                     kelas_id: targetId,
@@ -1233,21 +1373,21 @@ export const cloneJadwal = async (req, res) => {
                     continue;
                 }
 
-                const [insertResult] = await connection.execute(
+                    const [insertResult] = await connection.execute(
                     `INSERT INTO jadwal 
                      (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
                     [
                         targetId,
-                        schedule.mapel_id,
+                        mapelId,
                         primaryGuruId,
                         ruangId,
                         schedule.hari,
                         schedule.jam_ke,
                         schedule.jam_mulai,
                         schedule.jam_selesai,
-                        schedule.jenis_aktivitas,
-                        schedule.is_absenable ? 1 : 0,
+                        normalizedJenis,
+                        isAbsenable ? 1 : 0,
                         schedule.keterangan_khusus,
                         include_guru && guruIds.length > 1 ? 1 : 0
                     ]
@@ -1542,12 +1682,14 @@ export const updateJadwal = async (req, res) => {
             return sendNotFoundError(res, 'Jadwal tidak ditemukan');
         }
 
-        if (jenis_aktivitas === 'pelajaran' && finalGuruIds.length > 0) {
+        if (jenisAktivitas === 'pelajaran' && finalGuruIds.length > 0) {
             await globalThis.dbPool.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
             
             // Using batch insert logic from helper logic used in createJadwal (manual implementation here for consistency with original or use insertJadwalGuru)
             // Original code used a specific block. Let's reuse insertJadwalGuru which handles validation inside.
             await insertJadwalGuru(id, finalGuruIds);
+        } else {
+            await globalThis.dbPool.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
         }
 
         log.success('UpdateJadwal', { id, hari, jam_ke });

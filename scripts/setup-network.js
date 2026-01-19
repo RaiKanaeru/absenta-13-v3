@@ -3,21 +3,21 @@
 import os from 'node:os';
 import fs from 'node:fs';
 
-console.log('🌐 ABSENTA Network Setup Helper');
+console.log('[NETWORK] ABSENTA Network Setup Helper');
 console.log('================================');
 
 // Get network interfaces
 const networkInterfaces = os.networkInterfaces();
 let localIP = 'localhost';
 
-console.log('\n📡 Available Network Interfaces:');
+console.log('\\n[SIGNAL] Available Network Interfaces:');
 console.log('--------------------------------');
 
 for (const [name, interfaces] of Object.entries(networkInterfaces)) {
   console.log(`\n${name}:`);
   for (const iface of interfaces) {
     if (iface.family === 'IPv4' && !iface.internal) {
-      console.log(`  📍 ${iface.address} (${iface.netmask})`);
+      console.log(`  [ADDR] ${iface.address} (${iface.netmask})`);
       if (iface.address.startsWith('192.168.') || iface.address.startsWith('10.') || iface.address.startsWith('172.')) {
         localIP = iface.address;
       }
@@ -25,9 +25,9 @@ for (const [name, interfaces] of Object.entries(networkInterfaces)) {
   }
 }
 
-console.log(`\n🎯 Recommended IP for mobile access: ${localIP}`);
-console.log(`\n📱 Mobile URL: http://${localIP}:3001`);
-console.log(`💻 Desktop URL: http://localhost:3001`);
+console.log(`\\n[TARGET] Recommended IP for mobile access: ${localIP}`);
+console.log(`\\n[MOBILE] Mobile URL: http://${localIP}:3001`);
+console.log(`[DESKTOP] Desktop URL: http://localhost:3001`);
 
 // Create .env file content
 const envContent = `# ===========================================
@@ -79,19 +79,19 @@ LOG_DIR=logs
 // Write .env file
 try {
   fs.writeFileSync('.env', envContent);
-  console.log('\n✅ .env file created successfully!');
-  console.log('\n📋 Next steps:');
+  console.log('\\n[OK] .env file created successfully!');
+  console.log('\\n[LOG] Next steps:');
   console.log('1. Restart your server: npm run dev');
   console.log('2. Access from mobile: http://' + localIP + ':3001');
   console.log('3. Make sure both devices are on the same network');
   console.log('4. Check firewall settings if connection fails');
 } catch (error) {
-  console.error('\n❌ Error creating .env file:', error.message);
-  console.log('\n📝 Please create .env file manually with the following content:');
+  console.error('\\n[ERROR] Error creating .env file:', error.message);
+  console.log('\\n[NOTE] Please create .env file manually with the following content:');
   console.log(envContent);
 }
 
-console.log('\n🔧 Troubleshooting:');
+console.log('\\n[FIX] Troubleshooting:');
 console.log('- If mobile can\'t connect, check Windows Firewall');
 console.log('- Make sure both devices are on the same WiFi network');
 console.log('- Try accessing http://' + localIP + ':3001 from desktop browser first');

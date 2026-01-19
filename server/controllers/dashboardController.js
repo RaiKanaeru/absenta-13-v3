@@ -5,7 +5,7 @@
  */
 
 import { getWIBTime, formatWIBDate, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
-import { sendDatabaseError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendSuccessResponse, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Dashboard');
@@ -60,6 +60,11 @@ export const getStats = async (req, res) => {
             stats.persentaseKehadiran = persentaseKehadiran[0].persentase || 0;
 
         } else if (req.user.role === 'guru') {
+            // Validasi: Pastikan guru memiliki guru_id
+            if (!req.user.guru_id) {
+                return sendValidationError(res, 'Data guru tidak ditemukan. Hubungi administrator untuk memperbaiki data akun Anda.');
+            }
+
             // Guru statistics - execute queries in parallel
             const wibNow = getWIBTime();
             const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
@@ -91,6 +96,11 @@ export const getStats = async (req, res) => {
             stats.persentaseKehadiran = persentaseKehadiran[0].persentase || 0;
 
         } else if (req.user.role === 'siswa') {
+            // Validasi: Pastikan siswa memiliki kelas_id
+            if (!req.user.kelas_id) {
+                return sendValidationError(res, 'Data kelas tidak ditemukan. Hubungi administrator untuk memperbaiki data akun Anda.');
+            }
+
             // Siswa statistics - execute queries in parallel
             const wibNow = getWIBTime();
             const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
@@ -166,6 +176,11 @@ export const getChart = async (req, res) => {
             }));
 
         } else if (req.user.role === 'guru') {
+            // Validasi: Pastikan guru memiliki guru_id
+            if (!req.user.guru_id) {
+                return sendValidationError(res, 'Data guru tidak ditemukan. Hubungi administrator untuk memperbaiki data akun Anda.');
+            }
+
             // Guru chart - Personal attendance
             const startDateWIB = formatWIBDate(new Date(getWIBTime().getTime() - days * 24 * 60 * 60 * 1000));
             const [personalData] = await globalThis.dbPool.execute(

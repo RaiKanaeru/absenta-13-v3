@@ -5,7 +5,7 @@ import { setLetterheadGlobal } from '../utils/letterheadService.js';
  */
 async function initDefaultLetterhead() {
   try {
-    console.log('🚀 Menginisialisasi letterhead default...');
+    console.log('[START] Menginisialisasi letterhead default...');
     
     const defaultLetterhead = {
       enabled: true,
@@ -24,14 +24,14 @@ async function initDefaultLetterhead() {
     const result = await setLetterheadGlobal(defaultLetterhead);
     
     if (result) {
-      console.log('✅ Letterhead default berhasil diinisialisasi');
+      console.log('[SUCCESS] Letterhead default berhasil diinisialisasi');
     } else {
-      console.log('❌ Gagal menginisialisasi letterhead default');
+      console.log('[ERROR] Gagal menginisialisasi letterhead default');
     }
     
     return result;
   } catch (error) {
-    console.error('❌ Error initializing default letterhead:', error);
+    console.error('[ERROR] Error initializing default letterhead:', error);
     return false;
   }
 }

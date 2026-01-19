@@ -14,12 +14,16 @@ Shared actions
 
 ## Siswa (Perwakilan Kelas)
 
+Perwakilan
+- Hanya siswa yang memiliki akun login yang dianggap perwakilan.
+- Data siswa pada menu "Data Siswa" tetap netral (tanpa flag perwakilan).
+
 Menu Kehadiran
 - Shows schedule for today or a selected date (edit mode with date picker and limited range).
 - Records teacher attendance per schedule: Hadir, Tidak Hadir, Izin, Sakit.
 - Optional "Ada Tugas" flag when teacher is not present.
 - Notes per schedule and multi guru attendance preview.
-- "Absen Kelas" action appears when teacher is not present, to record student attendance.
+- "Absen Kelas" action appears when teacher is not present/izin/sakit, to record student attendance.
 
 Riwayat
 - Class attendance history grouped by date.

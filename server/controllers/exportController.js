@@ -5,7 +5,7 @@
  */
 
 import ExcelJS from 'exceljs';
-import { sendDatabaseError } from '../utils/errorHandler.js';
+import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendNotFoundError, sendPermissionError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
 
@@ -1445,13 +1445,13 @@ export const downloadFile = async (req, res) => {
             await fs.default.access(filePath);
         } catch (error) {
              logger.debug('File not found check', { filePath, error: error.message });
-            return res.status(404).json({ error: 'File not found' });
+            return sendErrorResponse(res, new AppError(ERROR_CODES.FILE_NOT_FOUND, 'File tidak ditemukan'));
         }
 
         // Verify user has access to this file
         const hasAccess = await globalThis.downloadQueue.verifyFileAccess(filename, userId);
         if (!hasAccess) {
-            return res.status(403).json({ error: 'Access denied' });
+            return sendPermissionError(res, 'Akses ditolak');
         }
 
         res.download(filePath, filename);
@@ -1470,8 +1470,8 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const { kelas_id, startDate, endDate } = req.query;
         const guruId = req.user.guru_id;
 
-        if (!kelas_id) return res.status(400).json({ error: 'Kelas ID wajib diisi' });
-        if (!startDate || !endDate) return res.status(400).json({ error: 'Tanggal mulai dan tanggal selesai wajib diisi' });
+        if (!kelas_id) return sendValidationError(res, 'Kelas ID wajib diisi');
+        if (!startDate || !endDate) return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
 
         // Parse dates manually to avoid timezone issues
         const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
@@ -1480,7 +1480,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const end = new Date(eYear, eMonth - 1, eDay);
         const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
 
-        if (diffDays > 62) return res.status(400).json({ error: 'Rentang tanggal maksimal 62 hari' });
+        if (diffDays > 62) return sendValidationError(res, 'Rentang tanggal maksimal 62 hari');
 
         // Get mapel info
         const [mapelInfo] = await globalThis.dbPool.execute(`
@@ -1816,7 +1816,7 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
     try {
         const { tahun } = req.query;
         if (!tahun) {
-            return res.status(400).json({ error: ERROR_YEAR_REQUIRED });
+            return sendValidationError(res, ERROR_YEAR_REQUIRED);
         }
 
         const mapping = templateExportService.REKAP_GURU_MAPPING;
@@ -1824,10 +1824,13 @@ export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
         // Check if template exists
         const hasTemplate = await templateExportService.templateExists(mapping.templateFile);
         if (!hasTemplate) {
-            return res.status(404).json({ 
-                error: ERROR_TEMPLATE_NOT_FOUND,
-                message: `Please copy "${mapping.templateFile}" to server/templates/excel/`,
-                fallback: '/api/export/rekap-ketidakhadiran-guru' // Fallback to schema-based
+            const error = new AppError(
+                ERROR_CODES.FILE_NOT_FOUND,
+                ERROR_TEMPLATE_NOT_FOUND,
+                `Please copy "${mapping.templateFile}" to server/templates/excel/`
+            );
+            return sendErrorResponse(res, error, null, null, {
+                fallback: '/api/export/rekap-ketidakhadiran-guru'
             });
         }
 
@@ -1914,7 +1917,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
     try {
         const { kelas_id, tahun } = req.query;
         if (!kelas_id || !tahun) {
-            return res.status(400).json({ error: 'kelas_id dan tahun harus diisi' });
+            return sendValidationError(res, 'kelas_id dan tahun harus diisi');
         }
 
         // Get kelas info
@@ -1923,7 +1926,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
             [kelas_id]
         );
         if (kelasRows.length === 0) {
-            return res.status(404).json({ error: 'Kelas tidak ditemukan' });
+            return sendNotFoundError(res, 'Kelas tidak ditemukan');
         }
         const namaKelas = kelasRows[0].nama_kelas;
 
@@ -1940,10 +1943,13 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         // Check if template exists
         const hasTemplate = await templateExportService.templateExists(templateFile);
         if (!hasTemplate) {
-            return res.status(404).json({ 
-                error: ERROR_TEMPLATE_NOT_FOUND,
-                message: `Please copy "${templateFile}" to server/templates/excel/`,
-                fallback: '/api/export/rekap-ketidakhadiran-siswa' // Fallback
+            const error = new AppError(
+                ERROR_CODES.FILE_NOT_FOUND,
+                ERROR_TEMPLATE_NOT_FOUND,
+                `Please copy "${templateFile}" to server/templates/excel/`
+            );
+            return sendErrorResponse(res, error, null, null, {
+                fallback: '/api/export/rekap-ketidakhadiran-siswa'
             });
         }
 
@@ -2242,7 +2248,7 @@ export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
     try {
         const { tahun } = req.query;
         if (!tahun) {
-            return res.status(400).json({ error: ERROR_YEAR_REQUIRED });
+            return sendValidationError(res, ERROR_YEAR_REQUIRED);
         }
 
         const rows = await ExportService.getRekapKetidakhadiranGuruSmkn13(tahun);

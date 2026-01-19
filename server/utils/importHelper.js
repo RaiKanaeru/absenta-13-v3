@@ -177,6 +177,40 @@ function validateTimeLogic(startTime, endTime) {
 // ================================================
 
 const ALLOWED_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const DAY_NAME_MAP = {
+    senin: 'Senin',
+    selasa: 'Selasa',
+    rabu: 'Rabu',
+    kamis: 'Kamis',
+    jumat: 'Jumat',
+    sabtu: 'Sabtu'
+};
+const ACTIVITY_ALIASES = {
+    kbm: 'pelajaran',
+    'kegiatan khusus': 'kegiatan_khusus',
+    'kegiatan-khusus': 'kegiatan_khusus'
+};
+const ALLOWED_JENIS_AKTIVITAS = [
+    'pelajaran',
+    'upacara',
+    'istirahat',
+    'kegiatan_khusus',
+    'libur',
+    'ujian',
+    'lainnya'
+];
+
+const normalizeHariName = (value) => {
+    if (!value) return '';
+    const key = String(value).trim().toLowerCase();
+    return DAY_NAME_MAP[key] || String(value).trim();
+};
+
+const normalizeJenisAktivitas = (value) => {
+    const raw = value ? String(value).trim().toLowerCase() : 'pelajaran';
+    const normalized = ACTIVITY_ALIASES[raw] || raw;
+    return ALLOWED_JENIS_AKTIVITAS.includes(normalized) ? normalized : '';
+};
 
 /**
  * Get field value from row with multiple possible keys
@@ -240,14 +274,28 @@ function validateRequiredJadwalFields(rowData) {
     const jamKe = getFieldValue(rowData, ['jam_ke', 'Jam Ke']);
     const jamMulai = getFieldValue(rowData, ['jam_mulai', 'Jam Mulai']);
     const jamSelesai = getFieldValue(rowData, ['jam_selesai', 'Jam Selesai']);
+    const jenisAktivitas = getFieldValue(rowData, ['jenis_aktivitas', 'Jenis Aktivitas']);
     
+    const normalizedHari = normalizeHariName(hari);
+    const normalizedJenis = normalizeJenisAktivitas(jenisAktivitas);
+    const jamKeValue = jamKe === null || jamKe === undefined ? '' : String(jamKe).trim();
+    const jamKeNumber = Number(jamKeValue);
+
     if (!hari) errors.push('hari wajib');
-    if (!jamKe) errors.push('jam_ke wajib');
+    if (jamKeValue === '') errors.push('jam_ke wajib');
     if (!jamMulai) errors.push('jam_mulai wajib');
     if (!jamSelesai) errors.push('jam_selesai wajib');
     
-    if (hari && !ALLOWED_DAYS.includes(String(hari))) {
+    if (hari && !ALLOWED_DAYS.includes(normalizedHari)) {
         errors.push('hari tidak valid (harus Senin-Sabtu)');
+    }
+
+    if (jamKeValue !== '' && (!Number.isInteger(jamKeNumber) || jamKeNumber < 0)) {
+        errors.push('jam_ke tidak valid');
+    }
+
+    if (jenisAktivitas && !normalizedJenis) {
+        errors.push('jenis_aktivitas tidak valid');
     }
     
     if (jamMulai && !validateTimeFormat(String(jamMulai))) {
@@ -274,21 +322,24 @@ function validateRequiredJadwalFields(rowData) {
  * @returns {Object} Jadwal object for insertion
  */
 function buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_ids_array) {
-    const hari = getFieldValue(rowData, ['hari', 'Hari']);
+    const hari = normalizeHariName(getFieldValue(rowData, ['hari', 'Hari']));
     const jamKe = getFieldValue(rowData, ['jam_ke', 'Jam Ke']);
     const jamMulai = getFieldValue(rowData, ['jam_mulai', 'Jam Mulai']);
     const jamSelesai = getFieldValue(rowData, ['jam_selesai', 'Jam Selesai']);
-    const jenisAktivitas = getFieldValue(rowData, ['jenis_aktivitas', 'Jenis Aktivitas']) || 'pelajaran';
+    const jenisAktivitasRaw = getFieldValue(rowData, ['jenis_aktivitas', 'Jenis Aktivitas']) || 'pelajaran';
+    const jenisAktivitas = normalizeJenisAktivitas(jenisAktivitasRaw) || 'pelajaran';
     const keteranganKhusus = getFieldValue(rowData, ['keterangan_khusus', 'Keterangan Khusus']);
-    const isAbsenable = jenisAktivitas === 'pelajaran' ? 1 : 0;
+    const isPelajaran = jenisAktivitas === 'pelajaran';
+    const isAbsenable = isPelajaran ? 1 : 0;
     
     // Normalize guru_ids
-    const uniqueGuruIds = Array.from(new Set(guru_ids_array));
-    const primaryGuru = guru_id ? Number(guru_id) : (uniqueGuruIds[0] || null);
+    const uniqueGuruIds = isPelajaran ? Array.from(new Set(guru_ids_array)) : [];
+    const primaryGuru = isPelajaran ? (guru_id ? Number(guru_id) : (uniqueGuruIds[0] || null)) : null;
+    const finalMapelId = isPelajaran && mapel_id ? Number(mapel_id) : null;
     
     return {
         kelas_id: Number(kelas_id),
-        mapel_id: mapel_id ? Number(mapel_id) : null,
+        mapel_id: finalMapelId,
         guru_id: primaryGuru ? Number(primaryGuru) : null,
         ruang_id: ruang_id ? Number(ruang_id) : null,
         hari: String(hari),

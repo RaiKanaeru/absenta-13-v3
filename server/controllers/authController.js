@@ -15,7 +15,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { sendErrorResponse, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { AppError, ERROR_CODES, sendErrorResponse, sendRateLimitError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
 dotenv.config();
@@ -139,11 +139,11 @@ export const login = async (req, res) => {
             attempts: lockoutCheck.count,
             remainingMinutes: lockoutCheck.remainingMinutes 
         });
-        return res.status(429).json({ 
-            success: false,
-            error: `Terlalu banyak percobaan login. Coba lagi dalam ${lockoutCheck.remainingMinutes} menit.`,
-            retryAfter: lockoutCheck.remainingTime
-        });
+        return sendRateLimitError(
+            res,
+            `Terlalu banyak percobaan login. Coba lagi dalam ${lockoutCheck.remainingMinutes} menit.`,
+            lockoutCheck.remainingTime
+        );
     }
 
     try {
@@ -160,17 +160,17 @@ export const login = async (req, res) => {
         // 1. 'user.id' is used in token generation (fixes 500 error)
         // 2. 'id_user' is expected by some parts of the backend
         const [rows] = await globalThis.dbPool.execute(
-            'SELECT id, id as id_user, username, password, nama, role, email, status FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
+            'SELECT id, id as id_user, username, password, nama, role, email, status, is_perwakilan FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
             [username]
         );
 
         if (rows.length === 0) {
             recordFailedAttempt(clientIP);
             log.warn('Login failed - user not found', { username, ip: clientIP });
-            return res.status(401).json({ 
-                success: false,
-                error: ERROR_INVALID_CREDENTIALS 
-            });
+            return sendErrorResponse(
+                res,
+                new AppError(ERROR_CODES.AUTH_INVALID_CREDENTIALS, ERROR_INVALID_CREDENTIALS)
+            );
         }
 
         const user = rows[0];
@@ -189,17 +189,17 @@ export const login = async (req, res) => {
             
             // Check if this attempt triggered lockout
             if (attempts.lockedUntil) {
-                return res.status(429).json({ 
-                    success: false,
-                    error: `Terlalu banyak percobaan login. Coba lagi dalam ${Math.ceil(LOCKOUT_DURATION / 60000)} menit.`,
-                    retryAfter: Math.ceil(LOCKOUT_DURATION / 1000)
-                });
+                return sendRateLimitError(
+                    res,
+                    `Terlalu banyak percobaan login. Coba lagi dalam ${Math.ceil(LOCKOUT_DURATION / 60000)} menit.`,
+                    Math.ceil(LOCKOUT_DURATION / 1000)
+                );
             }
             
-            return res.status(401).json({ 
-                success: false,
-                error: ERROR_INVALID_CREDENTIALS 
-            });
+            return sendErrorResponse(
+                res,
+                new AppError(ERROR_CODES.AUTH_INVALID_CREDENTIALS, ERROR_INVALID_CREDENTIALS)
+            );
         }
 
         // SUCCESS - Reset login attempts
@@ -247,6 +247,7 @@ export const login = async (req, res) => {
             username: user.username,
             nama: user.nama,
             role: user.role,
+            is_perwakilan: Number(user.is_perwakilan) === 1,
             ...additionalData
         };
 

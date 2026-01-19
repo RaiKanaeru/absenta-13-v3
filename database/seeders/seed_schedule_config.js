@@ -101,7 +101,7 @@ const APP_SETTINGS = [
 // ============================================================
 
 async function runSeeder() {
-  console.log('🚀 Starting Schedule Config Seeder...\n');
+  console.log('[START] Starting Schedule Config Seeder...\n');
 
   // Create connection
   const connection = await mysql.createConnection({
@@ -114,15 +114,15 @@ async function runSeeder() {
 
   try {
     // 1. Insert Guru MANDIRI (System Entity)
-    console.log('📌 Inserting Guru MANDIRI (System Entity)...');
+    console.log('[PIN] Inserting Guru MANDIRI (System Entity)...');
     await connection.execute(`
       INSERT IGNORE INTO guru (id_guru, user_id, username, nip, nama, status, is_system_entity)
       VALUES (0, 0, 'MANDIRI', 'SYSTEM-001', 'TUGAS MANDIRI', 'aktif', 1)
     `);
-    console.log('   ✅ Guru MANDIRI inserted\n');
+    console.log('   [OK] Guru MANDIRI inserted\n');
 
     // 2. Insert Jam Pelajaran
-    console.log('📌 Inserting Jam Pelajaran...');
+    console.log('[PIN] Inserting Jam Pelajaran...');
     const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis'];
     
     for (const hari of hariList) {
@@ -140,7 +140,7 @@ async function runSeeder() {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, [hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.durasi, jam.jenis, jam.label || null, TAHUN_AJARAN]);
       }
-      console.log(`   ✅ ${hari}: ${JAM_BIASA.length + 1} jam inserted`);
+      console.log(`   [OK] ${hari}: ${JAM_BIASA.length + 1} jam inserted`);
     }
 
     // Insert Jumat (durasi berbeda)
@@ -156,21 +156,21 @@ async function runSeeder() {
         VALUES ('Jumat', ?, ?, ?, ?, ?, ?, ?)
       `, [jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.durasi, jam.jenis, jam.label || null, TAHUN_AJARAN]);
     }
-    console.log(`   ✅ Jumat: ${JAM_JUMAT.length + 1} jam inserted (35 menit/JP)\n`);
+    console.log(`   [OK] Jumat: ${JAM_JUMAT.length + 1} jam inserted (35 menit/JP)\n`);
 
     // 3. Insert App Settings
-    console.log('📌 Inserting App Settings...');
+    console.log('[PIN] Inserting App Settings...');
     for (const setting of APP_SETTINGS) {
       await connection.execute(`
         INSERT INTO app_settings (setting_key, setting_value, category, description)
         VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
       `, [setting.key, JSON.stringify(setting.value), setting.category, setting.description]);
-      console.log(`   ✅ ${setting.key}`);
+      console.log(`   [OK] ${setting.key}`);
     }
 
-    console.log('\n✅ Seeder completed successfully!');
-    console.log('\n📊 Summary:');
+    console.log('\n[OK] Seeder completed successfully!');
+    console.log('\n[STATS] Summary:');
     
     const [jamCount] = await connection.execute('SELECT COUNT(*) as count FROM jam_pelajaran');
     const [settingCount] = await connection.execute('SELECT COUNT(*) as count FROM app_settings');
@@ -179,7 +179,7 @@ async function runSeeder() {
     console.log(`   - app_settings: ${settingCount[0].count} records`);
 
   } catch (error) {
-    console.error('❌ Seeder failed:', error.message);
+    console.error('[ERROR] Seeder failed:', error.message);
     throw error;
   } finally {
     await connection.end();

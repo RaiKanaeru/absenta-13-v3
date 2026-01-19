@@ -59,7 +59,7 @@ function formatDateWIB(date) {
  * Audit guru attendance records
  */
 async function auditGuruRecords(connection, anomalies) {
-    console.log('📋 Auditing absensi_guru table...');
+    console.log('[LOG] Auditing absensi_guru table...');
     
     const [guruRecords] = await connection.execute(`
         SELECT 
@@ -103,7 +103,7 @@ async function auditGuruRecords(connection, anomalies) {
  * Audit siswa attendance records
  */
 async function auditSiswaRecords(connection, anomalies) {
-    console.log('📋 Auditing absensi_siswa table...');
+    console.log('[LOG] Auditing absensi_siswa table...');
     
     try {
         const [siswaRecords] = await connection.execute(`
@@ -143,7 +143,7 @@ async function auditSiswaRecords(connection, anomalies) {
         
         logAnomalySummary('absensi_siswa', siswaAnomalies, anomalies.absensi_siswa);
     } catch (error) {
-        console.log(`   ℹ️  Table absensi_siswa not found or error: ${error.message}\n`);
+        console.log(`   [INFO] Table absensi_siswa not found or error: ${error.message}\n`);
     }
 }
 
@@ -151,8 +151,8 @@ async function auditSiswaRecords(connection, anomalies) {
  * Audit banding absen records
  */
 async function auditBandingRecords(connection, anomalies) {
-    console.log('📋 Auditing pengajuan_banding_absen table...');
-    console.log('ℹ️  Note: banding_absen_detail table is deprecated and will be removed');
+    console.log('[LOG] Auditing pengajuan_banding_absen table...');
+    console.log('[INFO] Note: banding_absen_detail table is deprecated and will be removed');
     
     try {
         const [bandingRecords] = await connection.execute(`
@@ -190,9 +190,9 @@ async function auditBandingRecords(connection, anomalies) {
             }
         }
         
-        console.log(`   ⚠️  Anomalies found: ${bandingAnomalies}\n`);
+        console.log(`   [WARN] Anomalies found: ${bandingAnomalies}\n`);
     } catch (error) {
-        console.log(`   ℹ️  Table pengajuan_banding_absen not found or error: ${error.message}\n`);
+        console.log(`   [INFO] Table pengajuan_banding_absen not found or error: ${error.message}\n`);
     }
 }
 
@@ -200,7 +200,7 @@ async function auditBandingRecords(connection, anomalies) {
  * Log anomaly summary for a table
  */
 function logAnomalySummary(tableName, count, anomalyList) {
-    console.log(`   ⚠️  Anomalies found: ${count}`);
+    console.log(`   [WARN] Anomalies found: ${count}`);
     if (count > 0) {
         const behind = anomalyList.filter(a => a.day_difference < 0).length;
         const ahead = anomalyList.filter(a => a.day_difference > 0).length;
@@ -221,7 +221,7 @@ function printAuditSummary(anomalies) {
     
     console.log('');
     console.log('═'.repeat(60));
-    console.log('📊 AUDIT SUMMARY');
+    console.log('[STATS] AUDIT SUMMARY');
     console.log('═'.repeat(60));
     console.log(`Total Anomalies Found: ${totalAnomalies}`);
     console.log(`  - absensi_guru: ${anomalies.absensi_guru.length}`);
@@ -230,13 +230,13 @@ function printAuditSummary(anomalies) {
     console.log('');
     
     if (totalAnomalies > 0) {
-        console.log('⚠️  RECOMMENDED ACTIONS:');
+        console.log('[WARN] RECOMMENDED ACTIONS:');
         console.log('   1. Review anomalies in generated JSON report');
         console.log('   2. Verify with stakeholders if dates look incorrect');
         console.log('   3. If corrections needed, use fixTimezoneData.js script');
         console.log('   4. Always backup database before making corrections!');
     } else {
-        console.log('✅ No timezone anomalies detected!');
+        console.log('[OK] No timezone anomalies detected!');
         console.log('   Your data appears to be consistent.');
     }
     console.log('═'.repeat(60));
@@ -275,7 +275,7 @@ async function saveAuditReport(anomalies, totalAnomalies) {
     };
     
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
-    console.log(`📄 Detailed report saved to: ${reportPath}\n`);
+    console.log(`[FILE] Detailed report saved to: ${reportPath}\n`);
 }
 
 /**
@@ -283,7 +283,7 @@ async function saveAuditReport(anomalies, totalAnomalies) {
  */
 function printSampleAnomalies(anomalies) {
     if (anomalies.absensi_guru.length > 0) {
-        console.log('📋 Sample absensi_guru anomalies (first 5):');
+        console.log('[LOG] Sample absensi_guru anomalies (first 5):');
         anomalies.absensi_guru.slice(0, 5).forEach((a, i) => {
             console.log(`   ${i + 1}. ID ${a.id_absensi}: ${a.tanggal_stored} (stored) vs ${a.expected_date} (expected) - ${a.issue}`);
         });
@@ -299,11 +299,11 @@ async function auditTimezoneData() {
     let connection;
     
     try {
-        console.log('🔍 Starting Timezone Data Audit...\n');
+        console.log('[SEARCH] Starting Timezone Data Audit...\n');
         
         // Connect to database
         connection = await mysql.createConnection(dbConfig);
-        console.log('✅ Database connected\n');
+        console.log('[OK] Database connected\n');
         
         const anomalies = {
             absensi_guru: [],
@@ -323,12 +323,12 @@ async function auditTimezoneData() {
         printSampleAnomalies(anomalies);
         
     } catch (error) {
-        console.error('❌ Audit failed:', error);
+        console.error('[ERROR] Audit failed:', error);
         throw error;
     } finally {
         if (connection) {
             await connection.end();
-            console.log('🔌 Database connection closed');
+            console.log('[DB] Database connection closed');
         }
     }
 }
@@ -336,10 +336,10 @@ async function auditTimezoneData() {
 // Run audit using top-level await
 await auditTimezoneData()
     .then(() => {
-        console.log('\n✅ Audit completed successfully');
+        console.log('\n[SUCCESS] Audit completed successfully');
         process.exit(0);
     })
     .catch((error) => {
-        console.error('\n❌ Audit failed:', error);
+        console.error('\n[ERROR] Audit failed:', error);
         process.exit(1);
     });

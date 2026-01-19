@@ -32,7 +32,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     username: '',
     password: '',
     email: '',
-    jabatan: 'Siswa'
+    jabatan: 'Siswa',
+    is_perwakilan: true
   });
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const [students, setStudents] = useState<Student[]>([]);
@@ -75,21 +76,20 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     // Define validation rules
     type ValidationRule = { field: string; condition: boolean; message: string };
     const rules: ValidationRule[] = [
-      { field: 'nis', condition: !formData.nis || !/^\d{8,20}$/.test(formData.nis), message: 'NIS harus berupa angka 8-20 digit' },
-      { field: 'nama', condition: !formData.nama || formData.nama.trim().length < 2, message: 'Nama lengkap wajib diisi minimal 2 karakter' },
-      { field: 'kelas_id', condition: !formData.kelas_id, message: 'Kelas wajib dipilih' },
-      { field: 'jenis_kelamin', condition: !formData.jenis_kelamin, message: 'Jenis kelamin wajib dipilih' },
-      { field: 'username', condition: !formData.username || formData.username.trim().length < 3, message: 'Username wajib diisi minimal 3 karakter' },
+      { field: 'nis', condition: !editingId && (!formData.nis || !/^\d{8,15}$/.test(formData.nis)), message: 'NIS harus berupa angka 8-15 digit' },
+      { field: 'username', condition: !formData.username || !/^[a-z0-9._-]{4,30}$/.test(formData.username), message: 'Username harus 4-30 karakter, hanya huruf kecil, angka, titik, underscore, dan strip' },
       { field: 'password', condition: !editingId && (!formData.password || formData.password.length < 6), message: 'Password wajib diisi minimal 6 karakter' },
-      { field: 'email', condition: !!formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), message: 'Format email tidak valid' },
-      { field: 'telepon_orangtua', condition: !!formData.telepon_orangtua && !/^[\d+]{1,20}$/.test(formData.telepon_orangtua), message: 'Nomor telepon orang tua harus berupa angka dan plus, maksimal 20 karakter' },
-      { field: 'nomor_telepon_siswa', condition: !!formData.nomor_telepon_siswa && !/^[\d+]{1,20}$/.test(formData.nomor_telepon_siswa), message: 'Nomor telepon siswa harus berupa angka dan plus, maksimal 20 karakter' }
+      { field: 'email', condition: !!formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), message: 'Format email tidak valid' }
     ];
     
     // Apply validation rules
     rules.forEach(rule => {
       if (rule.condition) errors[rule.field] = rule.message;
     });
+
+    if (!editingId && !formData.is_perwakilan) {
+      errors.is_perwakilan = 'Akun siswa harus ditandai sebagai perwakilan';
+    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -114,10 +114,22 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       const url = editingId ? `/api/admin/students/${editingNis}` : '/api/admin/students';
       const method = editingId ? 'PUT' : 'POST';
       
-      const submitData = {
-        ...formData,
-        kelas_id: Number.parseInt(formData.kelas_id),
-      };
+      const submitData = editingId
+        ? {
+            username: formData.username,
+            password: formData.password,
+            email: formData.email,
+            status: formData.status,
+            is_perwakilan: Boolean(formData.is_perwakilan)
+          }
+        : {
+            nis: formData.nis,
+            username: formData.username,
+            password: formData.password,
+            email: formData.email,
+            status: formData.status,
+            is_perwakilan: Boolean(formData.is_perwakilan)
+          };
 
       await apiCall(url, {
         method,
@@ -138,7 +150,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
         username: '',
         password: '',
         email: '',
-        jabatan: 'Siswa'
+        jabatan: 'Siswa',
+        is_perwakilan: true
       });
       setFormErrors({});
       setEditingId(null);
@@ -171,7 +184,10 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       username: student.username || '',
       password: '', // Kosongkan password saat edit
       email: student.email || '',
-      jabatan: student.jabatan || 'Siswa'
+      jabatan: student.jabatan || 'Siswa',
+      is_perwakilan: typeof (student as any).is_perwakilan === 'boolean'
+        ? (student as any).is_perwakilan
+        : Boolean((student as any).is_perwakilan)
     });
     setEditingId(student.id);
     setEditingNis(student.nis || null);
@@ -246,12 +262,13 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                   telepon_orangtua: '', 
                   nomor_telepon_siswa: '', 
                   alamat: '', 
-                  status: 'aktif',
-                  username: '',
-                  password: '',
-                  email: '',
-                  jabatan: 'Siswa'
-                });
+    status: 'aktif',
+    username: '',
+    password: '',
+    email: '',
+    jabatan: 'Siswa',
+    is_perwakilan: true
+  });
                 setFormErrors({});
               }} 
               size="sm"
@@ -287,15 +304,14 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="nama">Nama Lengkap *</Label>
+                  <Label htmlFor="nama">Nama Lengkap</Label>
                   <Input
                     id="nama"
                     value={formData.nama}
                     onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                    placeholder="Masukkan nama lengkap"
-                    className={formErrors.nama ? 'border-red-500' : ''}
+                    placeholder="Diambil dari Data Siswa"
+                    disabled
                   />
-                  {formErrors.nama && <p className="text-sm text-red-500 mt-1">{formErrors.nama}</p>}
                 </div>
                 <div>
                   <Label htmlFor="username">Username *</Label>
@@ -339,67 +355,82 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                   {formErrors.password && <p className="text-sm text-red-500 mt-1">{formErrors.password}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="nis">NIS *</Label>
-                  <Input
-                    id="nis"
-                    value={formData.nis}
-                    onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
-                    placeholder="Masukkan NIS (8-15 digit)"
-                    className={formErrors.nis ? 'border-red-500' : ''}
+                    <Label htmlFor="nis">NIS *</Label>
+                    <Input
+                      id="nis"
+                      value={formData.nis}
+                      onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
+                      placeholder="Masukkan NIS (8-15 digit)"
+                      disabled={Boolean(editingId)}
+                      className={formErrors.nis ? 'border-red-500' : ''}
+                    />
+                    {formErrors.nis && <p className="text-sm text-red-500 mt-1">{formErrors.nis}</p>}
+                    <p className="text-xs text-gray-500 mt-1">Data siswa diambil dari menu Data Siswa.</p>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                    <Label htmlFor="kelas_id">Kelas</Label>
+                    <Select value={formData.kelas_id} onValueChange={(value) => setFormData({ ...formData, kelas_id: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih kelas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.filter(kelas => kelas.id).map((kelas, index) => (
+                          <SelectItem key={`class-select-${kelas.id}-${index}`} value={kelas.id.toString()}>
+                            {kelas.nama_kelas} {kelas.tingkat ? `(${kelas.tingkat})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="jabatan">Jabatan</Label>
+                    <Select value={formData.jabatan} onValueChange={(value) => setFormData({ ...formData, jabatan: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih jabatan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Siswa">Siswa</SelectItem>
+                        <SelectItem value="Ketua Kelas">Ketua Kelas</SelectItem>
+                        <SelectItem value="Wakil Ketua">Wakil Ketua</SelectItem>
+                        <SelectItem value="Sekretaris Kelas">Sekretaris Kelas</SelectItem>
+                        <SelectItem value="Bendahara">Bendahara</SelectItem>
+                        <SelectItem value="Anggota">Anggota</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="is-perwakilan"
+                    type="checkbox"
+                    checked={formData.is_perwakilan}
+                    onChange={(e) => setFormData({ ...formData, is_perwakilan: e.target.checked })}
+                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                   />
-                  {formErrors.nis && <p className="text-sm text-red-500 mt-1">{formErrors.nis}</p>}
+                  <Label htmlFor="is-perwakilan" className="text-sm font-medium text-gray-700">
+                    Akun perwakilan
+                  </Label>
                 </div>
+                {formErrors.is_perwakilan && (
+                  <p className="text-sm text-red-500 sm:col-span-2">{formErrors.is_perwakilan}</p>
+                )}
               </div>
+
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label htmlFor="kelas_id">Kelas *</Label>
-                  <Select value={formData.kelas_id} onValueChange={(value) => setFormData({ ...formData, kelas_id: value })}>
-                    <SelectTrigger className={formErrors.kelas_id ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Pilih kelas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.filter(kelas => kelas.id).map((kelas, index) => (
-                        <SelectItem key={`class-select-${kelas.id}-${index}`} value={kelas.id.toString()}>
-                          {kelas.nama_kelas} {kelas.tingkat ? `(${kelas.tingkat})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.kelas_id && <p className="text-sm text-red-500 mt-1">{formErrors.kelas_id}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="jabatan">Jabatan</Label>
-                  <Select value={formData.jabatan} onValueChange={(value) => setFormData({ ...formData, jabatan: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih jabatan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Siswa">Siswa</SelectItem>
-                      <SelectItem value="Ketua Kelas">Ketua Kelas</SelectItem>
-                      <SelectItem value="Wakil Ketua Kelas">Wakil Ketua Kelas</SelectItem>
-                      <SelectItem value="Sekretaris Kelas">Sekretaris Kelas</SelectItem>
-                      <SelectItem value="Bendahara Kelas">Bendahara Kelas</SelectItem>
-                      <SelectItem value="Perwakilan Siswa">Perwakilan Siswa</SelectItem>
-                      <SelectItem value="Ketua Murid">Ketua Murid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <Label htmlFor="jenis_kelamin">Jenis Kelamin *</Label>
+                  <Label htmlFor="jenis_kelamin">Jenis Kelamin</Label>
                   <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({ ...formData, jenis_kelamin: value })}>
-                    <SelectTrigger className={formErrors.jenis_kelamin ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Pilih jenis kelamin" />
+                    <SelectTrigger>
+                      <SelectValue placeholder="Diambil dari Data Siswa" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="L">Laki-laki</SelectItem>
                       <SelectItem value="P">Perempuan</SelectItem>
                     </SelectContent>
                   </Select>
-                  {formErrors.jenis_kelamin && <p className="text-sm text-red-500 mt-1">{formErrors.jenis_kelamin}</p>}
                 </div>
                 <div>
                   <Label htmlFor="email">Email</Label>
@@ -422,10 +453,9 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                     id="telepon_orangtua"
                     value={formData.telepon_orangtua}
                     onChange={(e) => setFormData({ ...formData, telepon_orangtua: e.target.value })}
-                    placeholder="Masukkan nomor telepon orang tua"
-                    className={formErrors.telepon_orangtua ? 'border-red-500' : ''}
+                    placeholder="Diambil dari Data Siswa"
+                    disabled
                   />
-                  {formErrors.telepon_orangtua && <p className="text-sm text-red-500 mt-1">{formErrors.telepon_orangtua}</p>}
                 </div>
                 <div>
                   <Label htmlFor="nomor_telepon_siswa">Telepon Siswa</Label>
@@ -433,10 +463,9 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                     id="nomor_telepon_siswa"
                     value={formData.nomor_telepon_siswa}
                     onChange={(e) => setFormData({ ...formData, nomor_telepon_siswa: e.target.value })}
-                    placeholder="Masukkan nomor telepon siswa"
-                    className={formErrors.nomor_telepon_siswa ? 'border-red-500' : ''}
+                    placeholder="Diambil dari Data Siswa"
+                    disabled
                   />
-                  {formErrors.nomor_telepon_siswa && <p className="text-sm text-red-500 mt-1">{formErrors.nomor_telepon_siswa}</p>}
                 </div>
               </div>
 
@@ -446,7 +475,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                   id="alamat"
                   value={formData.alamat}
                   onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
-                  placeholder="Masukkan alamat lengkap"
+                  placeholder="Diambil dari Data Siswa"
+                  disabled
                 />
               </div>
 
