@@ -82,7 +82,7 @@ import {
   Layers,
   BookOpen,
   UserPlus,
-  TrendingUp, Home, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, AlertTriangle, ChevronLeft, LayoutGrid, Gavel, Maximize2, Minimize2
+  TrendingUp, Home, CheckCircle, CheckCircle2, MessageCircle, ClipboardList, AlertTriangle, ChevronLeft, LayoutGrid, Gavel, Maximize2, Minimize2, ArrowUpCircle, ArrowLeft, Monitor, BarChart3, Eye, RefreshCw
 } from "lucide-react";
 
 /**
