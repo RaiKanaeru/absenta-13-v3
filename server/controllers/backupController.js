@@ -1755,6 +1755,7 @@ export {
     getBackupList,
     getBackups,
     deleteBackup,
+    deleteBackupBatch,
     downloadBackup,
     
     // Restore
