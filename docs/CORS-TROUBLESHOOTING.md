@@ -123,7 +123,7 @@ grep "absenta13.my.id" .env
 ALLOWED_ORIGINS=https://absenta13.my.id,https://www.absenta13.my.id,https://api.absenta13.my.id
 
 # 3. Restart server
-pm2 restart absenta
+docker-compose restart app
 ```
 
 ---
@@ -270,7 +270,7 @@ curl -X GET "${API_URL}/api/health" \
 
 ```bash
 # Cek log CORS di server
-pm2 logs absenta --lines 100 | grep -i "cors"
+docker-compose logs app --lines 100 | grep -i "cors"
 
 # Atau jika menggunakan Docker
 docker logs absenta-app 2>&1 | grep -i "cors"
@@ -392,7 +392,7 @@ Gunakan checklist ini saat menghadapi error CORS:
 ### Step 1: Verifikasi Konfigurasi
 
 - [ ] Origin ada di `ALLOWED_ORIGINS` di `.env`?
-- [ ] Server Node.js running (`pm2 status` atau `docker ps`)?
+- [ ] Server Node.js running (`docker-compose ps` atau `docker ps`)?
 - [ ] Nginx running dan proxy berfungsi?
 
 ### Step 2: Test Endpoint
@@ -426,7 +426,7 @@ curl -X OPTIONS https://api.absenta13.my.id/api/login \
 
 ```bash
 # PM2
-pm2 logs absenta --lines 50 | grep -i cors
+docker-compose logs app --lines 50 | grep -i cors
 
 # Docker
 docker logs absenta-app 2>&1 | tail -50 | grep -i cors
@@ -456,7 +456,7 @@ nano .env
 ALLOWED_ORIGINS=https://absenta13.my.id,https://www.absenta13.my.id,https://api.absenta13.my.id,https://new-domain.com
 
 # 3. Restart server
-pm2 restart absenta
+docker-compose restart app
 # atau
 docker-compose restart app
 ```
@@ -482,7 +482,7 @@ docker-compose restart app
 ALLOWED_ORIGINS=*
 
 # Restart server
-pm2 restart absenta
+docker-compose restart app
 ```
 
 ### Verify CORS Working
@@ -594,7 +594,7 @@ Response akan berisi:
     "suggestions": [
       "Add \"https://your-domain.com\" to ALLOWED_ORIGINS in .env file",
       "Format: ALLOWED_ORIGINS=https://domain1.com,https://domain2.com",
-      "Restart server after changing .env: pm2 restart absenta"
+      "Restart server after changing .env: docker-compose restart app"
     ]
   }
 }
@@ -618,7 +618,7 @@ curl -v https://api.absenta13.my.id/api/health \
 
 **4. Cek Server Logs:**
 ```bash
-pm2 logs absenta --lines 100 | grep "CORS"
+docker-compose logs app --lines 100 | grep "CORS"
 
 # Output example:
 # ╔══════════════════════════════════════════════════════════════╗
@@ -640,7 +640,7 @@ pm2 logs absenta --lines 100 | grep "CORS"
 
 | Error Code | Quick Fix Command |
 |------------|-------------------|
-| CORS_001 | `echo 'ALLOWED_ORIGINS=...,https://new-origin.com' >> .env && pm2 restart absenta` |
+| CORS_001 | `echo 'ALLOWED_ORIGINS=...,https://new-origin.com' >> .env && docker-compose restart app` |
 | CORS_006 | Edit `docker/nginx/default.conf`, hapus `add_header 'Access-Control-*'` lines |
 | CORS_009 | Ganti `http://` ke `https://` di ALLOWED_ORIGINS atau sebaliknya |
 | CORS_010 | Tambahkan `https://www.domain.com,https://domain.com` ke ALLOWED_ORIGINS |
