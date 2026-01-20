@@ -780,9 +780,23 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         }
 
         const tahunAjaran = `${tahunAwal}-${tahunAkhir}`;
+        const tahunPelajaran = `${tahunAwal}/${tahunAkhir}`; // Format untuk kalender_akademik
         const startDate = `${tahunAwal}-07-01`;
         const endDate = `${tahunAkhir}-06-30`;
         const statusPlaceholders = ABSENT_STATUSES.map(() => '?').join(', ');
+
+        // Fetch hari efektif dari kalender_akademik
+        const { getEffectiveDaysMap } = await import('./kalenderAkademikController.js');
+        const hariEfektifMap = await getEffectiveDaysMap(tahunPelajaran);
+        
+        // Calculate total hari efektif from database
+        const totalHariEfektif = Object.values(hariEfektifMap).reduce((sum, days) => sum + days, 0);
+        
+        logger.info('Fetched hari efektif from kalender_akademik', { 
+            tahunPelajaran, 
+            hariEfektifMap, 
+            totalHariEfektif 
+        });
 
         const query = `
             SELECT 
@@ -824,8 +838,9 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             const monthColumns = ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
             const monthKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
 
+            // Use hari efektif from database
             monthColumns.forEach((col, index) => {
-                worksheet.getCell(`${col}${hariEfektifRow}`).value = HARI_EFEKTIF.BULANAN[monthKeys[index]] ?? 0;
+                worksheet.getCell(`${col}${hariEfektifRow}`).value = hariEfektifMap[monthKeys[index]] ?? 0;
             });
 
             const templateRowCount = 20;
@@ -854,7 +869,6 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 
             templateExportService.fillCells(worksheet, templateData, mapping, mapping.startRow);
 
-            const totalHariEfektif = HARI_EFEKTIF.TAHUNAN;
             const applyFormulas = (rowIndex) => {
                 worksheet.getCell(`O${rowIndex}`).value = { formula: `SUM(C${rowIndex}:N${rowIndex})`, result: 0 };
                 worksheet.getCell(`P${rowIndex}`).value = { formula: `IF(O${rowIndex}=0,0,(O${rowIndex}/${totalHariEfektif})*100)`, result: 0 };
@@ -866,14 +880,13 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             }
 
             res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
-            res.setHeader(CONTENT_DISPOSITION, `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahunAjaran}.xlsx"`);
+            res.setHeader(CONTENT_DISPOSITION, `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_TAHUNAN_${tahunAjaran}.xlsx"`);
 
             await workbook.xlsx.write(res);
             res.end();
             return;
         }
 
-        const totalHariEfektif = HARI_EFEKTIF.TAHUNAN;
         const dataWithPercentage = rows.map((row) => {
             const totalKetidakhadiran = (row.jul || 0) + (row.agt || 0) + (row.sep || 0) + (row.okt || 0) + (row.nov || 0) + (row.des || 0)
                 + (row.jan || 0) + (row.feb || 0) + (row.mar || 0) + (row.apr || 0) + (row.mei || 0) + (row.jun || 0);
@@ -915,15 +928,15 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 
         const workbook = await buildExcel({
             title: rekapGuruSchema.default.title,
-            subtitle: rekapGuruSchema.default.subtitle,
-            reportPeriod: `Tahun ${tahunAjaran}`,
+            subtitle: `Rekap Ketidakhadiran Guru Tahun Pelajaran ${tahunPelajaran}`,
+            reportPeriod: `Tahun Ajaran ${tahunAjaran} (Total ${totalHariEfektif} Hari Efektif)`,
             letterhead: letterhead,
             columns: rekapGuruSchema.default.columns,
             rows: reportData
         });
 
         res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
-        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahunAjaran}.xlsx"`);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_TAHUNAN_${tahunAjaran}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();

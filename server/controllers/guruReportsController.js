@@ -26,6 +26,12 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
     log.requestStart('GetPresensiSiswaSmkn13', { startDate, endDate, kelas_id, guruId });
 
     try {
+        // Validasi: Pastikan guru memiliki guru_id
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
+            return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
+        }
+
         if (!startDate || !endDate) {
             log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
             return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
@@ -88,6 +94,12 @@ export const getRekapKetidakhadiran = async (req, res) => {
     log.requestStart('GetRekapKetidakhadiran', { startDate, endDate, kelas_id, reportType, guruId });
 
     try {
+        // Validasi: Pastikan guru memiliki guru_id
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
+            return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
+        }
+
         if (!startDate || !endDate) {
             log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
             return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
@@ -179,6 +191,12 @@ export const getGuruClasses = async (req, res) => {
     log.requestStart('GetGuruClasses', { guruId });
 
     try {
+        // Validasi: Pastikan guru memiliki guru_id
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
+            return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
+        }
+
         const [rows] = await globalThis.dbPool.execute(
             `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
              FROM jadwal j JOIN kelas k ON j.kelas_id = k.id_kelas 
@@ -206,6 +224,12 @@ export const getAttendanceSummary = async (req, res) => {
     log.requestStart('GetAttendanceSummary', { startDate, endDate, kelas_id, guruId });
 
     try {
+        // Validasi: Pastikan guru memiliki guru_id
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
+            return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
+        }
+
         if (!startDate || !endDate) {
             log.validationFail('dates', { startDate, endDate }, 'Required fields missing');
             return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
@@ -257,6 +281,12 @@ export const getJadwalPertemuan = async (req, res) => {
     log.requestStart('GetJadwalPertemuan', { kelas_id, startDate, endDate, guruId });
 
     try {
+        // Validasi: Pastikan guru memiliki guru_id
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
+            return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
+        }
+
         if (!kelas_id) {
             log.validationFail('kelas_id', null, 'Required field missing');
             return sendValidationError(res, 'Kelas ID wajib diisi', { field: 'kelas_id' });
@@ -348,6 +378,12 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
     log.requestStart('GetLaporanKehadiranSiswa', { kelas_id, startDate, endDate, guruId });
 
     try {
+        // Validasi: Pastikan guru memiliki guru_id
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
+            return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
+        }
+
         if (!kelas_id) {
             log.validationFail('kelas_id', null, 'Required field missing');
             return sendValidationError(res, 'Kelas ID wajib diisi', { field: 'kelas_id' });

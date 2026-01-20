@@ -355,6 +355,51 @@ function addDataRows(worksheet, columns, rows, currentRow) {
 }
 
 /**
+ * Format date to Indonesian locale string
+ * @param {Date} date - Date object
+ * @returns {string} Formatted date string
+ */
+function formatIndonesianDate(date) {
+    const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Jakarta'
+    };
+    return date.toLocaleDateString('id-ID', options) + ' WIB';
+}
+
+/**
+ * Add print footer to worksheet
+ * @param {ExcelJS.Worksheet} worksheet - Excel worksheet
+ * @param {number} currentRow - Current row number
+ * @param {number} columnsCount - Number of columns
+ * @returns {number} Updated row number
+ */
+function addPrintFooter(worksheet, currentRow, columnsCount) {
+    // Add empty row for spacing
+    currentRow += 2;
+    
+    const footerRow = worksheet.getRow(currentRow);
+    const printDate = formatIndonesianDate(new Date());
+    const footerText = `Dicetak oleh Sistem Absenta13, ${printDate}`;
+    
+    footerRow.getCell(1).value = footerText;
+    footerRow.getCell(1).font = { italic: true, size: 9, color: { argb: 'FF666666' } };
+    footerRow.getCell(1).alignment = { horizontal: 'right' };
+    
+    // Merge cells for footer
+    if (columnsCount > 1) {
+        worksheet.mergeCells(currentRow, 1, currentRow, columnsCount);
+    }
+    
+    return currentRow + 1;
+}
+
+/**
  * Set column widths
  * @param {ExcelJS.Worksheet} worksheet - Excel worksheet
  * @param {Array} columns - Column definitions
@@ -431,7 +476,10 @@ async function buildExcel(options) {
 
     // Add data section
     currentRow = addHeaderRow(worksheet, columns, currentRow);
-    addDataRows(worksheet, columns, rows, currentRow);
+    currentRow = addDataRows(worksheet, columns, rows, currentRow);
+
+    // Add print footer
+    addPrintFooter(worksheet, currentRow, columnsCount);
 
     // Final column width adjustment
     setColumnWidths(worksheet, columns);

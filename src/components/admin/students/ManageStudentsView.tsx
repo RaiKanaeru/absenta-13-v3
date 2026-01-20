@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search } from "lucide-react";
+import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
 import ExcelImportView from '../../ExcelImportView';
 import { Student, Kelas } from '@/types/dashboard';
@@ -45,6 +45,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
   const [searchTerm, setSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pageSize, setPageSize] = useState(15);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -221,6 +223,20 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       (student.nama_kelas && student.nama_kelas.toLowerCase().includes(searchLower))
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const pagedStudents = filteredStudents.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   if (showImport) {
     return <ExcelImportView entityType="siswa" entityName="Data Siswa" onBack={() => setShowImport(false)} />;
@@ -501,8 +517,9 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       {/* Search */}
       <Card>
         <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="relative flex-1 w-full">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Cari berdasarkan nama, NIS..."
@@ -515,6 +532,52 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
               {filteredStudents.length} siswa ditemukan
             </Badge>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Limit</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[72px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground">Hal {currentPage} / {totalPages}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
         </CardContent>
       </Card>
 
@@ -551,7 +614,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudents.map((student) => (
+                    {pagedStudents.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="text-xs">{student.nis}</TableCell>
                         <TableCell className="font-medium text-xs">{student.nama}</TableCell>
@@ -610,7 +673,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
 
               {/* Mobile Card View */}
               <div className="lg:hidden space-y-3">
-                {filteredStudents.map((student) => (
+                {pagedStudents.map((student) => (
                   <Card key={student.id} className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between">

@@ -132,7 +132,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     setMessage('');
 
     const formData = new FormData();
-    formData.append('backup', selectedFile);
+    formData.append('backupFile', selectedFile);
 
     try {
       const xhr = new XMLHttpRequest();

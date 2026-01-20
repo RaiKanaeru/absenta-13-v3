@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
-import { ArrowLeft, Download, Search, Users, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Search, Users, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { StudentData, Kelas } from "@/types/dashboard";
 
@@ -39,6 +39,8 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [pageSize, setPageSize] = useState(15);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchStudentsData = useCallback(async () => {
     try {
@@ -187,6 +189,20 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       (student.nama_kelas && student.nama_kelas.toLowerCase().includes(searchLower))
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const pagedStudents = filteredStudents.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   if (showImport) {
     return <ExcelImportView entityType="siswa" entityName="Data Siswa" onBack={() => setShowImport(false)} />;
@@ -367,19 +383,66 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       {/* Search */}
       <Card>
         <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Cari berdasarkan nama, NIS, atau kelas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 text-sm"
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Cari berdasarkan nama, NIS, atau kelas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 text-sm"
+                />
+              </div>
+              <Badge variant="secondary" className="px-2 py-1 text-xs whitespace-nowrap">
+                {filteredStudents.length} siswa ditemukan
+              </Badge>
             </div>
-            <Badge variant="secondary" className="px-2 py-1 text-xs whitespace-nowrap">
-              {filteredStudents.length} siswa ditemukan
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Limit</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[72px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">15</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Hal {currentPage} / {totalPages}</span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -421,9 +484,9 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStudents.map((student, index) => (
+                  {pagedStudents.map((student, index) => (
                     <TableRow key={student.id_siswa}>
-                      <TableCell className="text-gray-500 text-sm">{index + 1}</TableCell>
+                      <TableCell className="text-gray-500 text-sm">{startIndex + index + 1}</TableCell>
                       <TableCell className="font-mono text-sm">{student.nis}</TableCell>
                       <TableCell className="font-medium">{student.nama}</TableCell>
                       <TableCell>
@@ -501,7 +564,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
 
             {/* Mobile & Tablet Card View */}
             <div className="lg:hidden space-y-3">
-              {filteredStudents.map((student, index) => (
+              {pagedStudents.map((student) => (
                 <Card key={student.id_siswa} className="p-3">
                   <div className="space-y-2">
                     <div className="flex justify-between items-start">

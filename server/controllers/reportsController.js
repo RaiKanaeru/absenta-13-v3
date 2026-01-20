@@ -504,7 +504,7 @@ export const getLiveTeacherAttendance = async (req, res) => {
             LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
                 AND DATE(ag.tanggal) = ?
             WHERE j.hari = ?
-            GROUP BY g.id_guru, g.nama, g.nip, ag.status, ag.waktu_catat, ag.keterangan
+            GROUP BY g.id_guru, g.nama, g.nip, ag.status, ag.waktu_catat, ag.keterangan, ag.terlambat
             ORDER BY 
                 CASE WHEN ag.waktu_catat IS NOT NULL THEN 0 ELSE 1 END,
                 ag.waktu_catat DESC,

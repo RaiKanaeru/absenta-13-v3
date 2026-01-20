@@ -235,7 +235,7 @@ export const getLiveSummary = async (req, res) => {
                 k.nama_kelas,
                 m.nama_mapel,
                 g.nama as nama_guru,
-                COUNT(ag.id) as absensi_diambil
+                COUNT(ag.id_absensi) as absensi_diambil
             FROM jadwal j
             JOIN kelas k ON j.kelas_id = k.id_kelas
             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel

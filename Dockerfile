@@ -11,8 +11,12 @@ RUN apk add --no-cache python3 make g++ git
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies
-RUN npm ci --legacy-peer-deps
+# Install ALL dependencies (with retry tuning)
+RUN npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000 \
+    && npm config set fetch-timeout 120000 \
+    && npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Copy source code
 COPY . .
@@ -40,8 +44,9 @@ RUN apk add --no-cache wget curl tzdata \
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
+# Copy dependencies from builder and prune dev deps
+COPY --from=builder /app/node_modules ./node_modules
+RUN npm prune --omit=dev && npm cache clean --force
 
 # Copy built frontend
 COPY --from=builder /app/dist ./dist
