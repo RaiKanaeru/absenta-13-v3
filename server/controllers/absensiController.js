@@ -1043,3 +1043,335 @@ export async function submitStudentAttendanceByPiket(req, res) {
     }
 }
 
+/**
+ * Update teacher attendance status (real-time update by class representative)
+ * @route POST /api/siswa/update-status-guru
+ * @description Allows class representative to update teacher attendance status in real-time
+ */
+export async function updateTeacherStatus(req, res) {
+    const log = logger.withRequest(req, res);
+    const { jadwal_id, guru_id, status, keterangan, tanggal_absen, ada_tugas, terlambat } = req.body;
+    
+    log.requestStart('UpdateTeacherStatus', { jadwal_id, guru_id, status });
+
+    // Validate user context and perwakilan access
+    if (!validateUserContext(req, res) || !validatePerwakilanAccess(req, res)) {
+        return;
+    }
+
+    try {
+        // Validate required fields
+        if (!jadwal_id || !guru_id || !status) {
+            log.validationFail('required_fields', { jadwal_id, guru_id, status }, 'Missing required fields');
+            return sendValidationError(res, 'jadwal_id, guru_id, dan status wajib diisi');
+        }
+
+        // Validate status
+        if (!VALID_TEACHER_STATUSES.has(status)) {
+            log.validationFail('status', status, 'Invalid status');
+            return sendValidationError(res, `Status tidak valid. Gunakan: ${[...VALID_TEACHER_STATUSES].join(', ')}`);
+        }
+
+        // Validate jadwal belongs to user's class
+        if (req.user.kelas_id) {
+            const [jadwalRows] = await globalThis.dbPool.execute(
+                'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? LIMIT 1',
+                [jadwal_id]
+            );
+            if (jadwalRows.length === 0) {
+                log.warn('Schedule not found', { jadwal_id });
+                return sendNotFoundError(res, 'Jadwal tidak ditemukan');
+            }
+            if (jadwalRows[0].kelas_id !== req.user.kelas_id) {
+                log.warn('Schedule class mismatch', { jadwal_id, kelas_id: jadwalRows[0].kelas_id });
+                return sendPermissionError(res, 'Jadwal tidak sesuai dengan kelas Anda');
+            }
+        }
+
+        const targetDate = tanggal_absen || getMySQLDateWIB();
+        
+        // Map status with flags
+        let finalStatus = status;
+        let isLate = 0;
+        let hasTask = 0;
+
+        if (terlambat && status === 'Hadir') {
+            isLate = 1;
+        }
+        if (ada_tugas && ['Tidak Hadir', 'Alpa', 'Izin', 'Sakit'].includes(status)) {
+            hasTask = 1;
+        }
+
+        // Check if record exists
+        const [existing] = await globalThis.dbPool.execute(
+            'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ? LIMIT 1',
+            [jadwal_id, guru_id, targetDate]
+        );
+
+        if (existing.length > 0) {
+            // Update existing record
+            await globalThis.dbPool.execute(
+                `UPDATE absensi_guru 
+                 SET status = ?, keterangan = ?, terlambat = ?, ada_tugas = ?, updated_at = NOW()
+                 WHERE id_absensi = ?`,
+                [finalStatus, keterangan || null, isLate, hasTask, existing[0].id_absensi]
+            );
+            log.success('UpdateTeacherStatus', { action: 'update', jadwal_id, guru_id, status: finalStatus });
+        } else {
+            // Insert new record
+            await globalThis.dbPool.execute(
+                `INSERT INTO absensi_guru (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, status, keterangan, terlambat, ada_tugas)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [jadwal_id, guru_id, req.user.kelas_id, req.user.siswa_id, targetDate, finalStatus, keterangan || null, isLate, hasTask]
+            );
+            log.success('UpdateTeacherStatus', { action: 'insert', jadwal_id, guru_id, status: finalStatus });
+        }
+
+        res.json({
+            success: true,
+            message: existing.length > 0 ? 'Status guru berhasil diperbarui' : 'Absensi guru berhasil dicatat',
+            data: {
+                jadwal_id,
+                guru_id,
+                status: finalStatus,
+                tanggal: targetDate
+            }
+        });
+
+    } catch (error) {
+        log.dbError('updateTeacherStatus', error, { jadwal_id, guru_id });
+        return sendDatabaseError(res, error, 'Gagal memperbarui status guru');
+    }
+}
+
+/**
+ * Get class attendance history with statistics
+ * @route GET /api/siswa/:siswa_id/riwayat-kehadiran
+ * @description Returns attendance history for the student's class
+ */
+export async function getClassAttendanceHistory(req, res) {
+    const log = logger.withRequest(req, res);
+    const { siswa_id } = req.params;
+    const { start_date, end_date, limit = 30 } = req.query;
+    
+    log.requestStart('GetClassAttendanceHistory', { siswa_id, start_date, end_date });
+
+    if (!validateUserContext(req, res)) {
+        return;
+    }
+
+    // Validate self access
+    if (!validateSelfAccess(req, res, parseInt(siswa_id), 'siswa_id')) {
+        return;
+    }
+
+    try {
+        // Get student's class
+        const [siswaRows] = await globalThis.dbPool.execute(
+            'SELECT kelas_id FROM siswa WHERE id_siswa = ? AND status = "aktif" LIMIT 1',
+            [siswa_id]
+        );
+
+        if (siswaRows.length === 0) {
+            log.warn('Student not found', { siswa_id });
+            return sendNotFoundError(res, 'Siswa tidak ditemukan');
+        }
+
+        const kelasId = siswaRows[0].kelas_id;
+
+        // Build date filter
+        let dateFilter = '';
+        const params = [kelasId];
+        
+        if (start_date && end_date) {
+            dateFilter = 'AND ag.tanggal BETWEEN ? AND ?';
+            params.push(start_date, end_date);
+        } else {
+            // Default: last 30 days
+            dateFilter = 'AND ag.tanggal >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
+        }
+
+        // Get teacher attendance history for this class
+        const [history] = await globalThis.dbPool.execute(`
+            SELECT 
+                ag.tanggal,
+                ag.status,
+                ag.keterangan,
+                ag.terlambat,
+                ag.ada_tugas,
+                g.nama as guru_nama,
+                m.nama_mapel,
+                j.hari,
+                j.jam_mulai,
+                j.jam_selesai
+            FROM absensi_guru ag
+            JOIN jadwal j ON ag.jadwal_id = j.id_jadwal
+            JOIN guru g ON ag.guru_id = g.id_guru
+            JOIN mapel m ON j.mapel_id = m.id_mapel
+            WHERE j.kelas_id = ? ${dateFilter}
+            ORDER BY ag.tanggal DESC, j.jam_mulai ASC
+            LIMIT ?
+        `, [...params, parseInt(limit)]);
+
+        // Calculate statistics
+        const stats = {
+            total: history.length,
+            hadir: history.filter(h => h.status === 'Hadir').length,
+            tidak_hadir: history.filter(h => h.status === 'Tidak Hadir').length,
+            izin: history.filter(h => h.status === 'Izin').length,
+            sakit: history.filter(h => h.status === 'Sakit').length,
+            terlambat: history.filter(h => h.terlambat === 1).length
+        };
+
+        // Calculate percentage
+        if (stats.total > 0) {
+            stats.persentase_hadir = Math.round((stats.hadir / stats.total) * 100);
+        } else {
+            stats.persentase_hadir = 0;
+        }
+
+        log.success('GetClassAttendanceHistory', { kelasId, count: history.length });
+        
+        res.json({
+            success: true,
+            data: {
+                history,
+                statistics: stats,
+                kelas_id: kelasId
+            }
+        });
+
+    } catch (error) {
+        log.dbError('getClassAttendanceHistory', error, { siswa_id });
+        return sendDatabaseError(res, error, 'Gagal memuat riwayat kehadiran');
+    }
+}
+
+/**
+ * Get student's own attendance status for a specific date and schedule
+ * @route GET /api/siswa/:siswaId/status-kehadiran
+ * @description Returns the student's attendance status for specified date/schedule
+ */
+export async function getStudentAttendanceStatus(req, res) {
+    const log = logger.withRequest(req, res);
+    const { siswaId } = req.params;
+    const { tanggal, jadwal_id } = req.query;
+    
+    log.requestStart('GetStudentAttendanceStatus', { siswaId, tanggal, jadwal_id });
+
+    if (!validateUserContext(req, res)) {
+        return;
+    }
+
+    // Validate self access
+    if (!validateSelfAccess(req, res, parseInt(siswaId), 'siswa_id')) {
+        return;
+    }
+
+    try {
+        const targetDate = tanggal || getMySQLDateWIB();
+
+        // Build query based on whether jadwal_id is provided
+        let query;
+        let params;
+
+        if (jadwal_id) {
+            // Get specific schedule attendance
+            query = `
+                SELECT 
+                    a.id,
+                    a.status,
+                    a.keterangan,
+                    a.tanggal,
+                    a.waktu_absen,
+                    a.terlambat,
+                    j.id_jadwal,
+                    j.hari,
+                    j.jam_mulai,
+                    j.jam_selesai,
+                    m.nama_mapel,
+                    g.nama as guru_nama,
+                    CASE 
+                        WHEN a.pencatat_type = 'guru' THEN gp.nama
+                        WHEN a.pencatat_type = 'siswa' THEN sp.nama
+                        ELSE NULL
+                    END as pencatat_nama,
+                    a.pencatat_type
+                FROM siswa s
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND a.jadwal_id = ? AND a.tanggal = ?
+                LEFT JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                LEFT JOIN guru g ON j.guru_id = g.id_guru
+                LEFT JOIN guru gp ON a.guru_pengabsen_id = gp.id_guru
+                LEFT JOIN siswa sp ON a.siswa_pencatat_id = sp.id_siswa
+                WHERE s.id_siswa = ?
+                LIMIT 1
+            `;
+            params = [jadwal_id, targetDate, siswaId];
+        } else {
+            // Get all attendance for the day
+            query = `
+                SELECT 
+                    a.id,
+                    a.status,
+                    a.keterangan,
+                    a.tanggal,
+                    a.waktu_absen,
+                    a.terlambat,
+                    j.id_jadwal,
+                    j.hari,
+                    j.jam_mulai,
+                    j.jam_selesai,
+                    m.nama_mapel,
+                    g.nama as guru_nama,
+                    CASE 
+                        WHEN a.pencatat_type = 'guru' THEN gp.nama
+                        WHEN a.pencatat_type = 'siswa' THEN sp.nama
+                        ELSE NULL
+                    END as pencatat_nama,
+                    a.pencatat_type
+                FROM absensi_siswa a
+                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                JOIN mapel m ON j.mapel_id = m.id_mapel
+                LEFT JOIN guru g ON j.guru_id = g.id_guru
+                LEFT JOIN guru gp ON a.guru_pengabsen_id = gp.id_guru
+                LEFT JOIN siswa sp ON a.siswa_pencatat_id = sp.id_siswa
+                WHERE a.siswa_id = ? AND a.tanggal = ?
+                ORDER BY j.jam_mulai ASC
+            `;
+            params = [siswaId, targetDate];
+        }
+
+        const [results] = await globalThis.dbPool.execute(query, params);
+
+        // Calculate daily statistics if getting all attendance
+        let statistics = null;
+        if (!jadwal_id && results.length > 0) {
+            statistics = {
+                total: results.length,
+                hadir: results.filter(r => r.status === 'Hadir').length,
+                izin: results.filter(r => r.status === 'Izin').length,
+                sakit: results.filter(r => r.status === 'Sakit').length,
+                alpa: results.filter(r => r.status === 'Alpa').length,
+                dispen: results.filter(r => r.status === 'Dispen').length,
+                terlambat: results.filter(r => r.terlambat === 1).length
+            };
+        }
+
+        log.success('GetStudentAttendanceStatus', { siswaId, tanggal: targetDate, count: results.length });
+
+        res.json({
+            success: true,
+            data: jadwal_id ? (results[0] || null) : results,
+            statistics,
+            tanggal: targetDate
+        });
+
+    } catch (error) {
+        log.dbError('getStudentAttendanceStatus', error, { siswaId, tanggal, jadwal_id });
+        return sendDatabaseError(res, error, 'Gagal memuat status kehadiran');
+    }
+}
+
+
