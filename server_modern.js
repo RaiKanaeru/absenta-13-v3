@@ -54,6 +54,12 @@ import { requestIdMiddleware, notFoundHandler, globalErrorHandler } from './serv
 import { 
     formatWIBTime, getWIBTimestamp 
 } from './server/utils/timeUtils.js';
+import { 
+    diagnoseCORS, 
+    formatCORSErrorLog, 
+    createCORSErrorResponse,
+    CORS_ERROR_CODES 
+} from './server/utils/corsErrorHandler.js';
 
 // Configuration from environment variables
 const port = Number.parseInt(process.env.PORT) || 3001;
@@ -107,13 +113,17 @@ app.set('trust proxy', 2);
 // Time functions are now imported from server/utils/timeUtils.js
 
 // Parse allowed origins from environment
+// ALWAYS include production domains to prevent CORS issues
+const productionOrigins = [
+    'https://absenta13.my.id',
+    'https://www.absenta13.my.id',
+    'https://api.absenta13.my.id'
+];
+
 const rawAllowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',')
+    ? [...new Set([...process.env.ALLOWED_ORIGINS.split(','), ...productionOrigins])]
     : [
-        // Production domains
-        'https://absenta13.my.id',
-        'https://www.absenta13.my.id',
-        'https://api.absenta13.my.id',
+        ...productionOrigins,
         // Development domains
         'http://localhost:8080',
         'http://localhost:8081',
@@ -150,43 +160,57 @@ const corsOptions = {
 // This catches preflight OPTIONS and sets headers before any other middleware
 app.use((req, res, next) => {
     const origin = req.headers.origin;
+    const method = req.method;
+    const requestId = req.requestId || `req_${Date.now()}`;
     
-    // Normalize checking origin
-    const cleanOrigin = origin ? origin.replace(/\/$/, '') : null;
+    // Run comprehensive CORS diagnostics
+    const diagnostic = diagnoseCORS({
+        origin,
+        allowedOrigins,
+        method,
+        headers: req.headers
+    });
     
-    // Check if origin is allowed
-    // Allow if:
-    // 1. No origin (server-to-server, mobile app)
-    // 2. Exact match in allowedOrigins
-    // 3. Clean version matches allowedOrigins
-    // 4. Wildcard '*' is in allowedOrigins
-    const isAllowed = !origin || 
-                      allowedOrigins.includes(origin) || 
-                      allowedOrigins.includes(cleanOrigin) ||
-                      allowedOrigins.includes('*');
+    // Attach diagnostic to request for debugging
+    req.corsDiagnostic = diagnostic;
 
-    if (isAllowed) {
-        res.header('Access-Control-Allow-Origin', origin || '*');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-        res.header('Access-Control-Expose-Headers', 'Content-Disposition');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
-    } else {
-        console.log(`CORS Rejection in Middleware: ${origin} (Clean: ${cleanOrigin})`);
-    }
-    
-    // Handle preflight OPTIONS request immediately
-    if (req.method === 'OPTIONS') {
-        if (isAllowed) {
-            console.log(`CORS preflight handled for origin: ${origin}`);
-            return res.status(200).end();
-        } else {
-             // If not allowed, we still return 200 but WITHOUT headers, which fails the browser check securely
-            return res.status(200).end();
+    if (diagnostic.allowed) {
+        // Set CORS headers for allowed origins
+        if (origin) {
+            res.header('Access-Control-Allow-Origin', origin);
+            res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+            res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+            res.header('Access-Control-Expose-Headers', 'Content-Disposition, X-Request-ID, X-CORS-Debug');
+            res.header('Access-Control-Allow-Credentials', 'true');
+            res.header('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
+            res.header('X-CORS-Status', 'allowed');
         }
+        
+        // Handle preflight OPTIONS request
+        if (method === 'OPTIONS') {
+            console.log(`[CORS:${requestId}] Preflight OK - Origin: ${origin}`);
+            return res.status(204).end();
+        }
+        
+        return next();
+    }
+
+    // CORS not allowed - log detailed error
+    console.error(formatCORSErrorLog(diagnostic));
+    
+    // Set debug headers for troubleshooting
+    res.header('X-CORS-Status', 'blocked');
+    res.header('X-CORS-Error-Code', diagnostic.errorCode);
+    res.header('X-CORS-Fix', diagnostic.errorInfo?.fix || 'Check ALLOWED_ORIGINS');
+    res.header('Access-Control-Allow-Origin', 'null');
+    
+    // Handle preflight for blocked origins
+    if (method === 'OPTIONS') {
+        const errorResponse = createCORSErrorResponse(diagnostic);
+        return res.status(403).json(errorResponse);
     }
     
+    // For non-preflight requests, continue but browser will block due to missing headers
     next();
 });
 
@@ -547,6 +571,100 @@ app.get('/api/health', (req, res) => {
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || 'development'
     });
+});
+
+// ================================================
+// CORS DEBUG ENDPOINT
+// ================================================
+app.get('/api/debug/cors', (req, res) => {
+    const origin = req.headers.origin;
+    
+    // Run full diagnostic
+    const diagnostic = diagnoseCORS({
+        origin,
+        allowedOrigins,
+        method: req.method,
+        headers: req.headers
+    });
+    
+    // Build comprehensive response
+    res.json({
+        status: diagnostic.allowed ? 'ok' : 'blocked',
+        summary: {
+            origin: origin || 'NO_ORIGIN_HEADER',
+            allowed: diagnostic.allowed,
+            errorCode: diagnostic.errorCode || null,
+            errorTitle: diagnostic.errorInfo?.title || null,
+            fix: diagnostic.errorInfo?.fix || null
+        },
+        diagnostic: {
+            checks: diagnostic.checks,
+            suggestions: diagnostic.suggestions
+        },
+        configuration: {
+            allowedOrigins: allowedOrigins,
+            totalOrigins: allowedOrigins.length,
+            environment: process.env.NODE_ENV || 'development',
+            envFile: process.env.ALLOWED_ORIGINS ? '.env (custom)' : 'defaults'
+        },
+        headers: {
+            request: {
+                origin: req.headers.origin || null,
+                host: req.headers.host,
+                referer: req.headers.referer || null,
+                userAgent: req.headers['user-agent']
+            },
+            response: {
+                'Access-Control-Allow-Origin': res.get('Access-Control-Allow-Origin') || 'not set',
+                'Access-Control-Allow-Credentials': res.get('Access-Control-Allow-Credentials') || 'not set',
+                'Access-Control-Allow-Methods': res.get('Access-Control-Allow-Methods') || 'not set',
+                'Access-Control-Allow-Headers': res.get('Access-Control-Allow-Headers') || 'not set',
+                'X-CORS-Status': res.get('X-CORS-Status') || 'not set'
+            }
+        },
+        errorCodes: CORS_ERROR_CODES,
+        documentation: {
+            troubleshooting: '/docs/CORS-TROUBLESHOOTING.md',
+            testScript: 'bash scripts/test-cors.sh production'
+        },
+        timestamp: formatWIBTime(),
+        requestId: req.requestId || null
+    });
+});
+
+// Test specific origin
+app.get('/api/debug/cors/test', (req, res) => {
+    const testOrigin = req.query.origin;
+    
+    if (!testOrigin) {
+        return res.status(400).json({
+            error: 'Missing origin parameter',
+            usage: '/api/debug/cors/test?origin=https://example.com',
+            example: '/api/debug/cors/test?origin=https://absenta13.my.id'
+        });
+    }
+    
+    const diagnostic = diagnoseCORS({
+        origin: testOrigin,
+        allowedOrigins,
+        method: 'GET',
+        headers: { origin: testOrigin }
+    });
+    
+    res.json({
+        testOrigin: testOrigin,
+        result: diagnostic.allowed ? 'ALLOWED' : 'BLOCKED',
+        errorCode: diagnostic.errorCode,
+        errorInfo: diagnostic.errorInfo,
+        checks: diagnostic.checks,
+        suggestions: diagnostic.suggestions,
+        fix: diagnostic.errorInfo?.fix || null
+    });
+});
+
+app.options('/api/debug/cors', (req, res) => {
+    // Preflight akan ditangani oleh middleware di atas
+    res.status(204).end();
 });
 
 // ================================================

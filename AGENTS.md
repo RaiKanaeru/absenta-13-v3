@@ -91,3 +91,34 @@ Use `npm run <command>` in the root directory:
   - `controllers/` - Request logic.
   - `routes/` - API definitions.
   - `utils/` - Backend helpers (`errorHandler.js`, `logger.js`).
+- `docs/` - Documentation.
+  - `CORS-TROUBLESHOOTING.md` - Complete CORS troubleshooting guide.
+- `scripts/` - Utility scripts.
+  - `test-cors.sh` - Script untuk testing CORS.
+
+## 7. Troubleshooting Guides
+
+### 7.1 CORS Errors
+Jika muncul error CORS seperti:
+```
+Access to fetch at 'https://api.absenta13.my.id/api/...' from origin 
+'https://absenta13.my.id' has been blocked by CORS policy
+```
+
+**Quick Fix:**
+1. Pastikan origin ada di `ALLOWED_ORIGINS` di `.env`
+2. Restart server: `pm2 restart absenta`
+3. Test dengan: `bash scripts/test-cors.sh production`
+
+**Full Guide:** Lihat `docs/CORS-TROUBLESHOOTING.md`
+
+**Debug Endpoint:** `GET /api/debug/cors` - menampilkan info CORS saat ini.
+
+### 7.2 Common Production Issues
+
+| Error | Kemungkinan Penyebab | Quick Fix |
+|-------|---------------------|-----------|
+| CORS Error | Origin tidak di whitelist | Tambah ke `ALLOWED_ORIGINS` di `.env` |
+| 502 Bad Gateway | Node.js crash | `pm2 restart absenta` |
+| 504 Gateway Timeout | Query terlalu lama | Check slow queries di logs |
+| SSL Error | Certificate expired | Renew certificate |
