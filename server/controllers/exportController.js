@@ -267,16 +267,495 @@ export const exportStudentSummary = async (req, res) => {
 
         // Generate Excel workbook
         const workbook = await buildExcel({
-            title: studentSummarySchema.default.title,
-            subtitle: studentSummarySchema.default.subtitle,
-            reportPeriod: reportPeriod,
+            title: rekapGuruSchema.default.title,
+            subtitle: rekapGuruSchema.default.subtitle,
+            reportPeriod: `Tahun ${tahun}`,
             letterhead: letterhead,
-            columns: studentSummarySchema.default.columns,
+            columns: rekapGuruSchema.default.columns,
             rows: reportData
         });
 
-        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
-        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export riwayat banding absen (history of attendance appeals)
+ * @route GET /api/export/riwayat-banding-absen
+ * @access Guru, Admin
+ */
+export const exportRiwayatBandingAbsen = async (req, res) => {
+    try {
+        const { guru_id, tanggal_mulai, tanggal_akhir, status } = req.query;
+        
+        // Build query based on filters
+        let query = `
+            SELECT 
+                ba.id,
+                ba.tanggal,
+                ba.status_awal,
+                ba.status_baru,
+                ba.alasan,
+                ba.status_pengajuan,
+                ba.created_at,
+                ba.updated_at,
+                s.nama as nama_siswa,
+                s.nis,
+                k.nama as nama_kelas,
+                g.nama as nama_guru
+            FROM banding_absen ba
+            JOIN siswa s ON ba.siswa_id = s.id
+            JOIN kelas k ON s.kelas_id = k.id
+            LEFT JOIN guru g ON ba.guru_id = g.id
+            WHERE 1=1
+        `;
+        const params = [];
+
+        if (guru_id) {
+            query += ' AND ba.guru_id = ?';
+            params.push(guru_id);
+        }
+        if (tanggal_mulai) {
+            query += ' AND ba.tanggal >= ?';
+            params.push(tanggal_mulai);
+        }
+        if (tanggal_akhir) {
+            query += ' AND ba.tanggal <= ?';
+            params.push(tanggal_akhir);
+        }
+        if (status) {
+            query += ' AND ba.status_pengajuan = ?';
+            params.push(status);
+        }
+
+        query += ' ORDER BY ba.created_at DESC';
+
+        const [rows] = await globalThis.dbPool.execute(query, params);
+
+        // Build Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Riwayat Banding Absen');
+
+        worksheet.columns = [
+            { header: 'No', key: 'no', width: 5 },
+            { header: 'Tanggal', key: 'tanggal', width: 12 },
+            { header: 'NIS', key: 'nis', width: 12 },
+            { header: 'Nama Siswa', key: 'nama_siswa', width: 25 },
+            { header: 'Kelas', key: 'nama_kelas', width: 12 },
+            { header: 'Status Awal', key: 'status_awal', width: 12 },
+            { header: 'Status Baru', key: 'status_baru', width: 12 },
+            { header: 'Alasan', key: 'alasan', width: 30 },
+            { header: 'Status Pengajuan', key: 'status_pengajuan', width: 15 },
+            { header: 'Guru', key: 'nama_guru', width: 20 },
+            { header: 'Tanggal Pengajuan', key: 'created_at', width: 18 }
+        ];
+
+        rows.forEach((row, index) => {
+            worksheet.addRow({
+                no: index + 1,
+                tanggal: row.tanggal,
+                nis: row.nis,
+                nama_siswa: row.nama_siswa,
+                nama_kelas: row.nama_kelas,
+                status_awal: row.status_awal,
+                status_baru: row.status_baru,
+                alasan: row.alasan,
+                status_pengajuan: row.status_pengajuan,
+                nama_guru: row.nama_guru,
+                created_at: row.created_at
+            });
+        });
+
+        // Style header
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="Riwayat_Banding_Absen.xlsx"');
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export presensi siswa format SMKN13
+ * @route GET /api/export/presensi-siswa-smkn13
+ * @access Guru, Admin
+ */
+export const exportPresensiSiswaSmkn13 = async (req, res) => {
+    try {
+        const { kelas_id, bulan, tahun } = req.query;
+
+        if (!kelas_id || !bulan || !tahun) {
+            return sendValidationError(res, 'kelas_id, bulan, dan tahun wajib diisi');
+        }
+
+        // Get class info
+        const [kelasRows] = await globalThis.dbPool.execute(
+            'SELECT nama FROM kelas WHERE id = ?',
+            [kelas_id]
+        );
+        const namaKelas = kelasRows[0]?.nama || 'Unknown';
+
+        // Get students in class
+        const [siswaRows] = await globalThis.dbPool.execute(
+            'SELECT id, nis, nama FROM siswa WHERE kelas_id = ? ORDER BY nama',
+            [kelas_id]
+        );
+
+        // Get attendance data for the month
+        const startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+        const endDate = new Date(tahun, bulan, 0).toISOString().split('T')[0];
+
+        const [absensiRows] = await globalThis.dbPool.execute(`
+            SELECT siswa_id, tanggal, status
+            FROM absensi
+            WHERE siswa_id IN (SELECT id FROM siswa WHERE kelas_id = ?)
+            AND tanggal BETWEEN ? AND ?
+        `, [kelas_id, startDate, endDate]);
+
+        // Build attendance map
+        const absensiMap = {};
+        absensiRows.forEach(row => {
+            const key = `${row.siswa_id}_${row.tanggal}`;
+            absensiMap[key] = row.status;
+        });
+
+        // Get days in month
+        const daysInMonth = new Date(tahun, bulan, 0).getDate();
+
+        // Build Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Presensi Siswa');
+
+        // Header columns
+        const columns = [
+            { header: 'No', key: 'no', width: 5 },
+            { header: 'NIS', key: 'nis', width: 12 },
+            { header: 'Nama Siswa', key: 'nama', width: 25 }
+        ];
+
+        // Add day columns
+        for (let d = 1; d <= daysInMonth; d++) {
+            columns.push({ header: String(d), key: `day_${d}`, width: 4 });
+        }
+
+        // Summary columns
+        columns.push(
+            { header: 'H', key: 'hadir', width: 4 },
+            { header: 'S', key: 'sakit', width: 4 },
+            { header: 'I', key: 'izin', width: 4 },
+            { header: 'A', key: 'alpha', width: 4 }
+        );
+
+        worksheet.columns = columns;
+
+        // Add data rows
+        siswaRows.forEach((siswa, index) => {
+            const rowData = {
+                no: index + 1,
+                nis: siswa.nis,
+                nama: siswa.nama,
+                hadir: 0, sakit: 0, izin: 0, alpha: 0
+            };
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${tahun}-${String(bulan).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const status = absensiMap[`${siswa.id}_${dateStr}`] || '-';
+                rowData[`day_${d}`] = status === 'hadir' ? 'H' : 
+                                      status === 'sakit' ? 'S' : 
+                                      status === 'izin' ? 'I' : 
+                                      status === 'alpha' ? 'A' : '-';
+                
+                if (status === 'hadir') rowData.hadir++;
+                else if (status === 'sakit') rowData.sakit++;
+                else if (status === 'izin') rowData.izin++;
+                else if (status === 'alpha') rowData.alpha++;
+            }
+
+            worksheet.addRow(rowData);
+        });
+
+        // Style header
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                           'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Presensi_${namaKelas}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export rekap ketidakhadiran (general)
+ * @route GET /api/export/rekap-ketidakhadiran
+ * @access Guru, Admin
+ */
+export const exportRekapKetidakhadiran = async (req, res) => {
+    try {
+        const { kelas_id, bulan, tahun, tipe = 'siswa' } = req.query;
+
+        if (!bulan || !tahun) {
+            return sendValidationError(res, 'bulan dan tahun wajib diisi');
+        }
+
+        const startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+        const endDate = new Date(tahun, bulan, 0).toISOString().split('T')[0];
+
+        let query, params;
+        
+        if (tipe === 'guru') {
+            query = `
+                SELECT 
+                    g.nama,
+                    g.nip,
+                    COUNT(CASE WHEN ag.status = 'sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN ag.status = 'izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN ag.status = 'alpha' THEN 1 END) as alpha,
+                    COUNT(CASE WHEN ag.status != 'hadir' THEN 1 END) as total_tidak_hadir
+                FROM guru g
+                LEFT JOIN absensi_guru ag ON g.id = ag.guru_id 
+                    AND ag.tanggal BETWEEN ? AND ?
+                GROUP BY g.id, g.nama, g.nip
+                ORDER BY g.nama
+            `;
+            params = [startDate, endDate];
+        } else {
+            query = `
+                SELECT 
+                    s.nama,
+                    s.nis,
+                    k.nama as kelas,
+                    COUNT(CASE WHEN a.status = 'sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN a.status = 'izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN a.status = 'alpha' THEN 1 END) as alpha,
+                    COUNT(CASE WHEN a.status != 'hadir' THEN 1 END) as total_tidak_hadir
+                FROM siswa s
+                JOIN kelas k ON s.kelas_id = k.id
+                LEFT JOIN absensi a ON s.id = a.siswa_id 
+                    AND a.tanggal BETWEEN ? AND ?
+                WHERE 1=1
+            `;
+            params = [startDate, endDate];
+            
+            if (kelas_id) {
+                query += ' AND s.kelas_id = ?';
+                params.push(kelas_id);
+            }
+            
+            query += ' GROUP BY s.id, s.nama, s.nis, k.nama ORDER BY k.nama, s.nama';
+        }
+
+        const [rows] = await globalThis.dbPool.execute(query, params);
+
+        // Build Excel
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Rekap Ketidakhadiran');
+
+        if (tipe === 'guru') {
+            worksheet.columns = [
+                { header: 'No', key: 'no', width: 5 },
+                { header: 'Nama', key: 'nama', width: 30 },
+                { header: 'NIP', key: 'nip', width: 20 },
+                { header: 'Sakit', key: 'sakit', width: 8 },
+                { header: 'Izin', key: 'izin', width: 8 },
+                { header: 'Alpha', key: 'alpha', width: 8 },
+                { header: 'Total Tidak Hadir', key: 'total_tidak_hadir', width: 18 }
+            ];
+        } else {
+            worksheet.columns = [
+                { header: 'No', key: 'no', width: 5 },
+                { header: 'Nama', key: 'nama', width: 30 },
+                { header: 'NIS', key: 'nis', width: 15 },
+                { header: 'Kelas', key: 'kelas', width: 12 },
+                { header: 'Sakit', key: 'sakit', width: 8 },
+                { header: 'Izin', key: 'izin', width: 8 },
+                { header: 'Alpha', key: 'alpha', width: 8 },
+                { header: 'Total Tidak Hadir', key: 'total_tidak_hadir', width: 18 }
+            ];
+        }
+
+        rows.forEach((row, index) => {
+            worksheet.addRow({
+                no: index + 1,
+                ...row
+            });
+        });
+
+        // Style header
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE0E0E0' }
+        };
+
+        const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                           'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Rekap_Ketidakhadiran_${tipe}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        return sendDatabaseError(res, error);
+    }
+};
+
+/**
+ * Export ringkasan kehadiran siswa format SMKN13
+ * @route GET /api/export/ringkasan-kehadiran-siswa-smkn13
+ * @access Guru, Admin
+ */
+export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
+    try {
+        const { kelas_id, semester, tahun_ajaran } = req.query;
+
+        if (!kelas_id) {
+            return sendValidationError(res, 'kelas_id wajib diisi');
+        }
+
+        // Get class info
+        const [kelasRows] = await globalThis.dbPool.execute(
+            'SELECT nama FROM kelas WHERE id = ?',
+            [kelas_id]
+        );
+        const namaKelas = kelasRows[0]?.nama || 'Unknown';
+
+        // Determine date range based on semester
+        let startMonth, endMonth, year;
+        if (semester === '1') {
+            // Semester 1: July - December
+            startMonth = 7;
+            endMonth = 12;
+            year = tahun_ajaran ? tahun_ajaran.split('/')[0] : new Date().getFullYear();
+        } else {
+            // Semester 2: January - June
+            startMonth = 1;
+            endMonth = 6;
+            year = tahun_ajaran ? tahun_ajaran.split('/')[1] : new Date().getFullYear();
+        }
+
+        const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01`;
+        const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${new Date(year, endMonth, 0).getDate()}`;
+
+        // Get students with attendance summary
+        const [rows] = await globalThis.dbPool.execute(`
+            SELECT 
+                s.nis,
+                s.nama,
+                COUNT(CASE WHEN a.status = 'hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status = 'sakit' THEN 1 END) as sakit,
+                COUNT(CASE WHEN a.status = 'izin' THEN 1 END) as izin,
+                COUNT(CASE WHEN a.status = 'alpha' THEN 1 END) as alpha,
+                COUNT(a.id) as total_hari
+            FROM siswa s
+            LEFT JOIN absensi a ON s.id = a.siswa_id 
+                AND a.tanggal BETWEEN ? AND ?
+            WHERE s.kelas_id = ?
+            GROUP BY s.id, s.nis, s.nama
+            ORDER BY s.nama
+        `, [startDate, endDate, kelas_id]);
+
+        // Build Excel with SMKN13 format
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Ringkasan Kehadiran');
+
+        // Add header info
+        worksheet.mergeCells('A1:H1');
+        worksheet.getCell('A1').value = 'RINGKASAN KEHADIRAN SISWA';
+        worksheet.getCell('A1').font = { bold: true, size: 14 };
+        worksheet.getCell('A1').alignment = { horizontal: 'center' };
+
+        worksheet.mergeCells('A2:H2');
+        worksheet.getCell('A2').value = `Kelas: ${namaKelas} | Semester: ${semester || '-'} | Tahun Ajaran: ${tahun_ajaran || '-'}`;
+        worksheet.getCell('A2').alignment = { horizontal: 'center' };
+
+        // Add empty row
+        worksheet.addRow([]);
+
+        // Column headers
+        worksheet.columns = [
+            { key: 'no', width: 5 },
+            { key: 'nis', width: 15 },
+            { key: 'nama', width: 30 },
+            { key: 'hadir', width: 10 },
+            { key: 'sakit', width: 10 },
+            { key: 'izin', width: 10 },
+            { key: 'alpha', width: 10 },
+            { key: 'persentase', width: 15 }
+        ];
+
+        const headerRow = worksheet.addRow(['No', 'NIS', 'Nama Siswa', 'Hadir', 'Sakit', 'Izin', 'Alpha', '% Kehadiran']);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' }
+        };
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+        // Add data rows
+        rows.forEach((row, index) => {
+            const totalHari = row.total_hari || 1;
+            const persentase = ((row.hadir / totalHari) * 100).toFixed(1);
+            
+            worksheet.addRow([
+                index + 1,
+                row.nis,
+                row.nama,
+                row.hadir || 0,
+                row.sakit || 0,
+                row.izin || 0,
+                row.alpha || 0,
+                `${persentase}%`
+            ]);
+        });
+
+        // Add borders
+        const lastRow = worksheet.rowCount;
+        for (let i = 4; i <= lastRow; i++) {
+            for (let j = 1; j <= 8; j++) {
+                worksheet.getCell(i, j).border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            }
+        }
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_${namaKelas}_Semester${semester || ''}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
