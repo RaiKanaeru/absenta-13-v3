@@ -95,7 +95,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         params.append('tanggal_akhir', tanggalAkhir);
       }
 
-      const data = await apiCall(`/api/admin/rekap-ketidakhadiran-guru?${params}`, {
+      const data = await apiCall<RekapGuru[]>(`/api/admin/rekap-ketidakhadiran-guru?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -119,7 +119,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Rekap_Ketidakhadiran_Guru_${selectedTahun}.xlsx`;
+      a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`;
       document.body.appendChild(a);
       a.click();
       globalThis.URL.revokeObjectURL(url);
@@ -149,7 +149,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `REKAP_KETIDAKHADIRAN_GURU_SMKN13_${selectedTahun}.xlsx`;
+      a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`;
       document.body.appendChild(a);
       a.click();
       globalThis.URL.revokeObjectURL(url);

@@ -27,6 +27,7 @@ import {
     EXPORT_HEADERS,
     HARI_EFEKTIF
 } from '../config/exportConfig.js';
+import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
 
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
@@ -286,104 +287,49 @@ export const exportStudentSummary = async (req, res) => {
 };
 
 /**
- * Export riwayat banding absen (history of attendance appeals)
- * @route GET /api/export/riwayat-banding-absen
- * @access Guru, Admin
+ * Export riwayat banding absen
+ * GET /api/export/riwayat-banding-absen
  */
 export const exportRiwayatBandingAbsen = async (req, res) => {
     try {
-        const { guru_id, tanggal_mulai, tanggal_akhir, status } = req.query;
-        
-        // Build query based on filters
-        let query = `
-            SELECT 
-                ba.id,
-                ba.tanggal,
-                ba.status_awal,
-                ba.status_baru,
-                ba.alasan,
-                ba.status_pengajuan,
-                ba.created_at,
-                ba.updated_at,
-                s.nama as nama_siswa,
-                s.nis,
-                k.nama as nama_kelas,
-                g.nama as nama_guru
-            FROM banding_absen ba
-            JOIN siswa s ON ba.siswa_id = s.id
-            JOIN kelas k ON s.kelas_id = k.id
-            LEFT JOIN guru g ON ba.guru_id = g.id
-            WHERE 1=1
-        `;
-        const params = [];
+        const { startDate, endDate, kelas_id, status } = req.query;
+        // For guru, filter by their ID. For admin, we use the logged-in user's ID or handle permissions appropriately.
+        const guruId = req.user.id; 
 
-        if (guru_id) {
-            query += ' AND ba.guru_id = ?';
-            params.push(guru_id);
-        }
-        if (tanggal_mulai) {
-            query += ' AND ba.tanggal >= ?';
-            params.push(tanggal_mulai);
-        }
-        if (tanggal_akhir) {
-            query += ' AND ba.tanggal <= ?';
-            params.push(tanggal_akhir);
-        }
-        if (status) {
-            query += ' AND ba.status_pengajuan = ?';
-            params.push(status);
-        }
+        const rows = await ExportService.getRiwayatBandingAbsen(startDate, endDate, guruId, kelas_id, status);
 
-        query += ' ORDER BY ba.created_at DESC';
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
-
-        // Build Excel
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Riwayat Banding Absen');
-
-        worksheet.columns = [
-            { header: 'No', key: 'no', width: 5 },
-            { header: 'Tanggal', key: 'tanggal', width: 12 },
-            { header: 'NIS', key: 'nis', width: 12 },
-            { header: 'Nama Siswa', key: 'nama_siswa', width: 25 },
-            { header: 'Kelas', key: 'nama_kelas', width: 12 },
-            { header: 'Status Awal', key: 'status_awal', width: 12 },
-            { header: 'Status Baru', key: 'status_baru', width: 12 },
-            { header: 'Alasan', key: 'alasan', width: 30 },
-            { header: 'Status Pengajuan', key: 'status_pengajuan', width: 15 },
-            { header: 'Guru', key: 'nama_guru', width: 20 },
-            { header: 'Tanggal Pengajuan', key: 'created_at', width: 18 }
+        const columns = [
+            { key: 'no', label: 'No', width: 5 },
+            { key: 'tanggal_pengajuan', label: 'Tanggal Pengajuan', width: 15 },
+            { key: 'tanggal_absen', label: 'Tanggal Absen', width: 15 },
+            { key: 'nama_siswa', label: 'Nama Siswa', width: 30 },
+            { key: 'nama_kelas', label: 'Kelas', width: 10 },
+            { key: 'status_absen', label: 'Status Awal', width: 15 },
+            { key: 'alasan_banding', label: 'Alasan', width: 30 },
+            { key: 'status', label: 'Status Pengajuan', width: 15 },
+            { key: 'tanggal_disetujui', label: 'Tanggal Disetujui', width: 15 },
+            { key: 'catatan', label: 'Catatan', width: 30 }
         ];
 
-        rows.forEach((row, index) => {
-            worksheet.addRow({
-                no: index + 1,
-                tanggal: row.tanggal,
-                nis: row.nis,
-                nama_siswa: row.nama_siswa,
-                nama_kelas: row.nama_kelas,
-                status_awal: row.status_awal,
-                status_baru: row.status_baru,
-                alasan: row.alasan,
-                status_pengajuan: row.status_pengajuan,
-                nama_guru: row.nama_guru,
-                created_at: row.created_at
-            });
+        const reportData = rows.map((row, index) => ({
+            no: index + 1,
+            ...row
+        }));
+
+        const workbook = await buildExcel({
+            title: 'RIWAYAT BANDING ABSEN',
+            subtitle: `Periode: ${startDate} s/d ${endDate}`,
+            reportPeriod: `${startDate} - ${endDate}`,
+            letterhead,
+            columns,
+            rows: reportData
         });
 
-        // Style header
-        worksheet.getRow(1).font = { bold: true };
-        worksheet.getRow(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' }
-        };
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="Riwayat_Banding_Absen.xlsx"');
-
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Riwayat_Banding_${startDate}_${endDate}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
@@ -392,119 +338,51 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 };
 
 /**
- * Export presensi siswa format SMKN13
- * @route GET /api/export/presensi-siswa-smkn13
- * @access Guru, Admin
+ * Export presensi siswa format SMKN 13
+ * GET /api/export/presensi-siswa-smkn13
  */
 export const exportPresensiSiswaSmkn13 = async (req, res) => {
     try {
-        const { kelas_id, bulan, tahun } = req.query;
+        const { startDate, endDate, kelas_id } = req.query;
+        const guruId = req.user.id;
 
-        if (!kelas_id || !bulan || !tahun) {
-            return sendValidationError(res, 'kelas_id, bulan, dan tahun wajib diisi');
-        }
+        const rows = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, guruId, kelas_id);
 
-        // Get class info
-        const [kelasRows] = await globalThis.dbPool.execute(
-            'SELECT nama FROM kelas WHERE id = ?',
-            [kelas_id]
-        );
-        const namaKelas = kelasRows[0]?.nama || 'Unknown';
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
 
-        // Get students in class
-        const [siswaRows] = await globalThis.dbPool.execute(
-            'SELECT id, nis, nama FROM siswa WHERE kelas_id = ? ORDER BY nama',
-            [kelas_id]
-        );
-
-        // Get attendance data for the month
-        const startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
-        const endDate = new Date(tahun, bulan, 0).toISOString().split('T')[0];
-
-        const [absensiRows] = await globalThis.dbPool.execute(`
-            SELECT siswa_id, tanggal, status
-            FROM absensi
-            WHERE siswa_id IN (SELECT id FROM siswa WHERE kelas_id = ?)
-            AND tanggal BETWEEN ? AND ?
-        `, [kelas_id, startDate, endDate]);
-
-        // Build attendance map
-        const absensiMap = {};
-        absensiRows.forEach(row => {
-            const key = `${row.siswa_id}_${row.tanggal}`;
-            absensiMap[key] = row.status;
-        });
-
-        // Get days in month
-        const daysInMonth = new Date(tahun, bulan, 0).getDate();
-
-        // Build Excel
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Presensi Siswa');
-
-        // Header columns
         const columns = [
-            { header: 'No', key: 'no', width: 5 },
-            { header: 'NIS', key: 'nis', width: 12 },
-            { header: 'Nama Siswa', key: 'nama', width: 25 }
+            { key: 'no', label: 'No', width: 5 },
+            { key: 'tanggal', label: 'Tanggal', width: 15 },
+            { key: 'hari', label: 'Hari', width: 10 },
+            { key: 'jam_mulai', label: 'Jam Mulai', width: 10 },
+            { key: 'jam_selesai', label: 'Jam Selesai', width: 10 },
+            { key: 'mata_pelajaran', label: 'Mata Pelajaran', width: 25 },
+            { key: 'nama_kelas', label: 'Kelas', width: 10 },
+            { key: 'total_siswa', label: 'Total Siswa', width: 10 },
+            { key: 'hadir', label: 'Hadir', width: 8 },
+            { key: 'izin', label: 'Izin', width: 8 },
+            { key: 'sakit', label: 'Sakit', width: 8 },
+            { key: 'alpa', label: 'Alpa', width: 8 },
+            { key: 'dispen', label: 'Dispen', width: 8 }
         ];
 
-        // Add day columns
-        for (let d = 1; d <= daysInMonth; d++) {
-            columns.push({ header: String(d), key: `day_${d}`, width: 4 });
-        }
+        const reportData = rows.map((row, index) => ({
+            no: index + 1,
+            ...row
+        }));
 
-        // Summary columns
-        columns.push(
-            { header: 'H', key: 'hadir', width: 4 },
-            { header: 'S', key: 'sakit', width: 4 },
-            { header: 'I', key: 'izin', width: 4 },
-            { header: 'A', key: 'alpha', width: 4 }
-        );
-
-        worksheet.columns = columns;
-
-        // Add data rows
-        siswaRows.forEach((siswa, index) => {
-            const rowData = {
-                no: index + 1,
-                nis: siswa.nis,
-                nama: siswa.nama,
-                hadir: 0, sakit: 0, izin: 0, alpha: 0
-            };
-
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${tahun}-${String(bulan).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const status = absensiMap[`${siswa.id}_${dateStr}`] || '-';
-                rowData[`day_${d}`] = status === 'hadir' ? 'H' : 
-                                      status === 'sakit' ? 'S' : 
-                                      status === 'izin' ? 'I' : 
-                                      status === 'alpha' ? 'A' : '-';
-                
-                if (status === 'hadir') rowData.hadir++;
-                else if (status === 'sakit') rowData.sakit++;
-                else if (status === 'izin') rowData.izin++;
-                else if (status === 'alpha') rowData.alpha++;
-            }
-
-            worksheet.addRow(rowData);
+        const workbook = await buildExcel({
+            title: 'LAPORAN PRESENSI SISWA (FORMAT SMKN 13)',
+            subtitle: `Periode: ${startDate} s/d ${endDate}`,
+            reportPeriod: `${startDate} - ${endDate}`,
+            letterhead,
+            columns,
+            rows: reportData
         });
 
-        // Style header
-        worksheet.getRow(1).font = { bold: true };
-        worksheet.getRow(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' }
-        };
-
-        const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
-                           'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Presensi_${namaKelas}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx"`);
-
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Presensi_Siswa_SMKN13_${startDate}_${endDate}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
@@ -876,118 +754,160 @@ export const exportBandingAbsen = async (req, res) => {
 };
 
 /**
- * Export rekap ketidakhadiran guru - Format SMK13
+ * Export rekap ketidakhadiran guru - format tahunan
  * GET /api/export/rekap-ketidakhadiran-guru
- * Template: REKAP KETIDAKHADIRAN GURU with BULAN/JUMLAH HARI EFEKTIF KERJA header
-
-
+ */
 export const exportRekapKetidakhadiranGuru = async (req, res) => {
     try {
         const { tahun } = req.query;
-        const tahunAjaran = tahun || getWIBTime().getFullYear();
-        // Calculate total hari efektif from config
-        const totalHariEfektif = Object.values(HARI_EFEKTIF.BULANAN).reduce((sum, h) => sum + h, 0);
+        if (!tahun) {
+            return sendValidationError(res, ERROR_YEAR_REQUIRED);
+        }
 
-        // Query data guru dengan ketidakhadiran per bulan
-        const rows = await ExportService.getRekapKetidakhadiranGuru(tahunAjaran);
+        const tahunInput = String(tahun).trim();
+        let tahunAwal;
+        let tahunAkhir;
 
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('REKAP KETIDAKHADIRAN GURU');
+        if (/^\d{4}\s*-\s*\d{4}$/.test(tahunInput)) {
+            const [awal, akhir] = tahunInput.split('-').map((value) => Number.parseInt(value.trim(), 10));
+            tahunAwal = awal;
+            tahunAkhir = akhir;
+        } else if (/^\d{4}$/.test(tahunInput)) {
+            tahunAwal = Number.parseInt(tahunInput, 10);
+            tahunAkhir = tahunAwal + 1;
+        } else {
+            return sendValidationError(res, 'Format tahun ajaran tidak valid');
+        }
 
-        // Styles
-        const titleStyle = { font: { bold: true, size: 12, color: { argb: 'FFCC0000' } }, alignment: { horizontal: 'center' } };
-        const headerStyle = {
-            font: { bold: true, size: 10 },
-            alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-            border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
-        };
-        const dataStyle = {
-            alignment: { horizontal: 'center', vertical: 'middle' },
-            border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
-        };
+        const tahunAjaran = `${tahunAwal}-${tahunAkhir}`;
+        const startDate = `${tahunAwal}-07-01`;
+        const endDate = `${tahunAkhir}-06-30`;
+        const statusPlaceholders = ABSENT_STATUSES.map(() => '?').join(', ');
 
-        // Color fills for columns
-        const greenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
-        const cyanFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B0F0' } };
-        const yellowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-        const lightGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+        const query = `
+            SELECT 
+                g.id_guru as id,
+                g.nama,
+                g.nip,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 7 THEN 1 ELSE 0 END), 0) as jul,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 8 THEN 1 ELSE 0 END), 0) as agt,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 9 THEN 1 ELSE 0 END), 0) as sep,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 10 THEN 1 ELSE 0 END), 0) as okt,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 11 THEN 1 ELSE 0 END), 0) as nov,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 12 THEN 1 ELSE 0 END), 0) as des,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 1 THEN 1 ELSE 0 END), 0) as jan,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 2 THEN 1 ELSE 0 END), 0) as feb,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 3 THEN 1 ELSE 0 END), 0) as mar,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
+                COALESCE(SUM(CASE WHEN MONTH(ag.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun
+            FROM guru g
+            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                AND ag.tanggal BETWEEN ? AND ?
+                AND ag.status IN (${statusPlaceholders})
+            WHERE g.status = 'aktif'
+            GROUP BY g.id_guru, g.nama, g.nip
+            ORDER BY g.nama
+        `;
 
-        // Title Headers (Row 1-3)
-        worksheet.mergeCells('A1:Q1');
-        worksheet.getCell('A1').value = EXPORT_TITLES.REKAP_GURU;
-        Object.assign(worksheet.getCell('A1'), titleStyle);
+        const [rows] = await globalThis.dbPool.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
+        const mapping = templateExportService.REKAP_GURU_MAPPING;
+        const templateAvailable = await templateExportService.templateExists(mapping.templateFile);
 
-        worksheet.mergeCells('A2:Q2');
-        worksheet.getCell('A2').value = EXPORT_TITLES.SCHOOL_NAME;
-        Object.assign(worksheet.getCell('A2'), titleStyle);
+        if (templateAvailable) {
+            const workbook = await templateExportService.loadTemplate(mapping.templateFile);
+            const worksheet = workbook.worksheets[0];
 
-        worksheet.mergeCells('A3:Q3');
-        worksheet.getCell('A3').value = `${EXPORT_TITLES.YEAR_PREFIX} ${tahunAjaran}-${Number.parseInt(tahunAjaran) + 1}`;
-        Object.assign(worksheet.getCell('A3'), titleStyle);
+            worksheet.getCell('A3').value = `${EXPORT_TITLES.YEAR_PREFIX} ${tahunAjaran}`;
 
-        // Header Row 1 - BULAN / JUMLAH HARI EFEKTIF KERJA (Row 5)
-        const headerRow1 = 5;
-        worksheet.mergeCells(`A${headerRow1}:B${headerRow1}`);
-        worksheet.getCell(`A${headerRow1}`).value = '';
-        
-        worksheet.mergeCells(`C${headerRow1}:N${headerRow1}`);
-        worksheet.getCell(`C${headerRow1}`).value = 'BULAN/ JUMLAH HARI EFEKTIF KERJA';
-        Object.assign(worksheet.getCell(`C${headerRow1}`), headerStyle);
+            const hariEfektifRow = mapping.startRow - 1;
+            const monthColumns = ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
+            const monthKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
 
-        // Kolom summary headers di row 5
-        worksheet.getCell(`O${headerRow1}`).value = 'JUMLAH SE KETIDAK\nHADIRAN';
-        worksheet.getCell(`P${headerRow1}`).value = 'PERSENTA SE KETIDAKH ADIRAN';
-        worksheet.getCell(`Q${headerRow1}`).value = 'PERSENTA SE KEHADIRA N (%)';
-        
-        [`O${headerRow1}`, `P${headerRow1}`, `Q${headerRow1}`].forEach(cell => {
-            Object.assign(worksheet.getCell(cell), { ...headerStyle, fill: yellowFill });
-        });
+            monthColumns.forEach((col, index) => {
+                worksheet.getCell(`${col}${hariEfektifRow}`).value = HARI_EFEKTIF.BULANAN[monthKeys[index]] ?? 0;
+            });
 
-        // Header Row 2 - Month names with hari efektif (Row 6)
-        const headerRow2 = 6;
-        const monthOrder = MONTH_NAMES_SHORT;
-        const monthCols = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // C-N
+            const templateRowCount = 20;
+            if (rows.length > templateRowCount) {
+                for (let i = templateRowCount; i < rows.length; i++) {
+                    templateExportService.cloneRowStyle(worksheet, mapping.startRow, mapping.startRow + i);
+                }
+            }
 
-        worksheet.getCell(`A${headerRow2}`).value = EXPORT_HEADERS.NO;
-        worksheet.getCell(`B${headerRow2}`).value = EXPORT_HEADERS.NAMA_GURU;
-        Object.assign(worksheet.getCell(`A${headerRow2}`), { ...headerStyle, fill: yellowFill });
-        Object.assign(worksheet.getCell(`B${headerRow2}`), { ...headerStyle, fill: yellowFill });
+            const templateData = rows.map((row, index) => ({
+                no: index + 1,
+                nama: row.nama,
+                jul: row.jul || 0,
+                agt: row.agt || 0,
+                sep: row.sep || 0,
+                okt: row.okt || 0,
+                nov: row.nov || 0,
+                des: row.des || 0,
+                jan: row.jan || 0,
+                feb: row.feb || 0,
+                mar: row.mar || 0,
+                apr: row.apr || 0,
+                mei: row.mei || 0,
+                jun: row.jun || 0
+            }));
 
-        monthOrder.forEach((month, idx) => {
-            const col = monthCols[idx];
-            worksheet.getCell(headerRow2, col).value = month;
-            Object.assign(worksheet.getCell(headerRow2, col), { ...headerStyle, fill: greenFill });
-        });
+            templateExportService.fillCells(worksheet, templateData, mapping, mapping.startRow);
 
-        // Header Row 3 - Hari efektif numbers (Row 7)
-        const headerRow3 = 7;
-        worksheet.mergeCells(`A${headerRow1}:A${headerRow3}`);
-        worksheet.mergeCells(`B${headerRow1}:B${headerRow3}`);
-        worksheet.getCell(`A${headerRow1}`).value = EXPORT_HEADERS.NO;
-        worksheet.getCell(`B${headerRow1}`).value = EXPORT_HEADERS.NAMA_GURU;
-        Object.assign(worksheet.getCell(`A${headerRow1}`), { ...headerStyle, fill: yellowFill });
-        Object.assign(worksheet.getCell(`B${headerRow1}`), { ...headerStyle, fill: yellowFill });
+            const totalHariEfektif = HARI_EFEKTIF.TAHUNAN;
+            const applyFormulas = (rowIndex) => {
+                worksheet.getCell(`O${rowIndex}`).value = { formula: `SUM(C${rowIndex}:N${rowIndex})`, result: 0 };
+                worksheet.getCell(`P${rowIndex}`).value = { formula: `IF(O${rowIndex}=0,0,(O${rowIndex}/${totalHariEfektif})*100)`, result: 0 };
+                worksheet.getCell(`Q${rowIndex}`).value = { formula: `IF(P${rowIndex}=0,100,100-P${rowIndex})`, result: 0 };
+            };
 
-        const hariPerMonth = [
-            HARI_EFEKTIF.BULANAN[7], HARI_EFEKTIF.BULANAN[8], HARI_EFEKTIF.BULANAN[9], HARI_EFEKTIF.BULANAN[10], HARI_EFEKTIF.BULANAN[11], HARI_EFEKTIF.BULANAN[12],
-            HARI_EFEKTIF.BULANAN[1], HARI_EFEKTIF.BULANAN[2], HARI_EFEKTIF.BULANAN[3], HARI_EFEKTIF.BULANAN[4], HARI_EFEKTIF.BULANAN[5], HARI_EFEKTIF.BULANAN[6]
+            for (let i = 0; i < templateData.length; i++) {
+                applyFormulas(mapping.startRow + i);
+            }
+
+            res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+            res.setHeader(CONTENT_DISPOSITION, `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahunAjaran}.xlsx"`);
+
+            await workbook.xlsx.write(res);
+            res.end();
+            return;
+        }
+
+        const totalHariEfektif = HARI_EFEKTIF.TAHUNAN;
+        const dataWithPercentage = rows.map((row) => {
+            const totalKetidakhadiran = (row.jul || 0) + (row.agt || 0) + (row.sep || 0) + (row.okt || 0) + (row.nov || 0) + (row.des || 0)
+                + (row.jan || 0) + (row.feb || 0) + (row.mar || 0) + (row.apr || 0) + (row.mei || 0) + (row.jun || 0);
+            const persentaseKetidakhadiran = totalHariEfektif > 0 ? (totalKetidakhadiran / totalHariEfektif) * 100 : 0;
+            const persentaseKehadiran = 100 - persentaseKetidakhadiran;
+
+            return {
                 ...row,
+                total_ketidakhadiran: totalKetidakhadiran,
                 persentase_ketidakhadiran: Number.parseFloat(persentaseKetidakhadiran.toFixed(2)),
                 persentase_kehadiran: Number.parseFloat(persentaseKehadiran.toFixed(2))
             };
         });
 
-        // Import required modules
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
         const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
-
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
 
         const reportData = dataWithPercentage.map((row, index) => ({
-            no: index + 1, nama: row.nama, nip: row.nip,
-            jul: row.jul, agt: row.agt, sep: row.sep, okt: row.okt, nov: row.nov, des: row.des,
-            jan: row.jan, feb: row.feb, mar: row.mar, apr: row.apr, mei: row.mei, jun: row.jun,
+            no: index + 1,
+            nama: row.nama,
+            nip: row.nip,
+            jul: row.jul,
+            agt: row.agt,
+            sep: row.sep,
+            okt: row.okt,
+            nov: row.nov,
+            des: row.des,
+            jan: row.jan,
+            feb: row.feb,
+            mar: row.mar,
+            apr: row.apr,
+            mei: row.mei,
+            jun: row.jun,
             total_ketidakhadiran: row.total_ketidakhadiran,
             persentase_ketidakhadiran: row.persentase_ketidakhadiran / 100,
             persentase_kehadiran: row.persentase_kehadiran / 100
@@ -996,14 +916,14 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         const workbook = await buildExcel({
             title: rekapGuruSchema.default.title,
             subtitle: rekapGuruSchema.default.subtitle,
-            reportPeriod: `Tahun ${tahun}`,
+            reportPeriod: `Tahun ${tahunAjaran}`,
             letterhead: letterhead,
             columns: rekapGuruSchema.default.columns,
             rows: reportData
         });
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
+        res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahunAjaran}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -2292,98 +2212,7 @@ import templateExportService from '../services/templateExportService.js';
  * Uses actual template from sekolah, preserving formulas and formatting
  */
 export const exportRekapKetidakhadiranGuruTemplate = async (req, res) => {
-    try {
-        const { tahun } = req.query;
-        if (!tahun) {
-            return sendValidationError(res, ERROR_YEAR_REQUIRED);
-        }
-
-        const mapping = templateExportService.REKAP_GURU_MAPPING;
-        
-        // Check if template exists
-        const hasTemplate = await templateExportService.templateExists(mapping.templateFile);
-        if (!hasTemplate) {
-            const error = new AppError(
-                ERROR_CODES.FILE_NOT_FOUND,
-                ERROR_TEMPLATE_NOT_FOUND,
-                `Please copy "${mapping.templateFile}" to server/templates/excel/`
-            );
-            return sendErrorResponse(res, error, null, null, {
-                fallback: '/api/export/rekap-ketidakhadiran-guru'
-            });
-        }
-
-        // Load template
-        const workbook = await templateExportService.loadTemplate(mapping.templateFile);
-        const worksheet = workbook.worksheets[0]; // First sheet
-
-        // Query data (same as schema-based version)
-        const query = `
-            SELECT 
-                g.id_guru as id,
-                g.nama,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as jul,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as agt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as sep,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as okt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as nov,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as des,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as jan,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as feb,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as mar,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as apr,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as mei,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 AND a.status IN ('Tidak Hadir', 'S', 'I', 'A') THEN 1 ELSE 0 END), 0) as jun
-            FROM guru g
-            LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
-                AND (YEAR(a.tanggal) = ? OR (YEAR(a.tanggal) = ? - 1 AND MONTH(a.tanggal) >= 7))
-            WHERE g.status = 'aktif'
-            GROUP BY g.id_guru, g.nama
-            ORDER BY g.nama
-        `;
-
-        const tahunInt = Number.parseInt(tahun);
-        const [rows] = await globalThis.dbPool.execute(query, [tahunInt, tahunInt]);
-
-        // Transform data for template
-        const templateData = rows.map((row, index) => ({
-            no: index + 1,
-            nama: row.nama,
-            jul: row.jul || 0,
-            agt: row.agt || 0,
-            sep: row.sep || 0,
-            okt: row.okt || 0,
-            nov: row.nov || 0,
-            des: row.des || 0,
-            jan: row.jan || 0,
-            feb: row.feb || 0,
-            mar: row.mar || 0,
-            apr: row.apr || 0,
-            mei: row.mei || 0,
-            jun: row.jun || 0
-        }));
-
-        // Clone row styles for additional data rows if needed
-        const templateRowCount = 20; // Assume template has ~20 preset rows
-        if (templateData.length > templateRowCount) {
-            for (let i = templateRowCount; i < templateData.length; i++) {
-                templateExportService.cloneRowStyle(worksheet, mapping.startRow, mapping.startRow + i);
-            }
-        }
-
-        // Fill data using mapping (preserves formulas in O, P, Q)
-        templateExportService.fillCells(worksheet, templateData, mapping, mapping.startRow);
-
-        // Send response
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_${tahun}.xlsx"`);
-        
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        logger.error('Template export rekap ketidakhadiran guru error', { error: error.message });
-        return sendDatabaseError(res, error);
-    }
+    return exportRekapKetidakhadiranGuru(req, res);
 };
 
 /**
@@ -2724,69 +2553,5 @@ export const exportScheduleExcel = async (req, res) => {
  * GET /api/export/rekap-ketidakhadiran-guru-smkn13
  */
 export const exportRekapKetidakhadiranGuruSmkn13 = async (req, res) => {
-    try {
-        const { tahun } = req.query;
-        if (!tahun) {
-            return sendValidationError(res, ERROR_YEAR_REQUIRED);
-        }
-
-        const rows = await ExportService.getRekapKetidakhadiranGuruSmkn13(tahun);
-
-        // Calculate percentages using centralized HARI_EFEKTIF configuration
-        const dataWithPercentage = rows.map(row => {
-            const totalKetidakhadiran = row.total_ketidakhadiran;
-            let totalHariEfektif = 0;
-            const bulanData = [row.jul, row.agt, row.sep, row.okt, row.nov, row.des, row.jan, row.feb, row.mar, row.apr, row.mei, row.jun];
-            const bulanKeys = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
-
-            bulanKeys.forEach((bulan, index) => {
-                if (bulanData[index] > 0) totalHariEfektif += HARI_EFEKTIF.BULANAN[bulan];
-            });
-
-            if (totalHariEfektif === 0) {
-                totalHariEfektif = Object.values(HARI_EFEKTIF.BULANAN).reduce((sum, hari) => sum + hari, 0);
-            }
-            const persentaseKetidakhadiran = totalHariEfektif > 0 ? (totalKetidakhadiran / totalHariEfektif) * 100 : 0;
-            const persentaseKehadiran = 100 - persentaseKetidakhadiran;
-
-            return {
-                ...row,
-                persentase_ketidakhadiran: Number.parseFloat(persentaseKetidakhadiran.toFixed(2)),
-                persentase_kehadiran: Number.parseFloat(persentaseKehadiran.toFixed(2))
-            };
-        });
-
-        // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
-
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
-
-        const reportData = dataWithPercentage.map((row, index) => ({
-            no: index + 1, nama: row.nama, nip: row.nip,
-            jul: row.jul, agt: row.agt, sep: row.sep, okt: row.okt, nov: row.nov, des: row.des,
-            jan: row.jan, feb: row.feb, mar: row.mar, apr: row.apr, mei: row.mei, jun: row.jun,
-            total_ketidakhadiran: row.total_ketidakhadiran,
-            persentase_ketidakhadiran: row.persentase_ketidakhadiran / 100,
-            persentase_kehadiran: row.persentase_kehadiran / 100
-        }));
-
-        const workbook = await buildExcel({
-            title: rekapGuruSchema.default.title,
-            subtitle: rekapGuruSchema.default.subtitle,
-            reportPeriod: `Tahun ${tahun}`,
-            letterhead: letterhead,
-            columns: rekapGuruSchema.default.columns,
-            rows: reportData
-        });
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
-
-        await workbook.xlsx.write(res);
-        res.end();
-    } catch (error) {
-        return sendDatabaseError(res, error);
-    }
+    return exportRekapKetidakhadiranGuru(req, res);
 };
