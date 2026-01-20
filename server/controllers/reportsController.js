@@ -1083,24 +1083,49 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 
-        // Post-processing for percentages (since we can't easily get total effective days dynamically in SQL without a calendar table)
-        // Default assumption: ~240 effective days/year or ~20 days/month
-        const effectiveDays = isAnnual ? 240 : 20;
+        // Fetch hari efektif from kalender_akademik for accurate calculation
+        const tahunPelajaran = `${selectedYear}/${selectedYear + 1}`;
+        const { getEffectiveDaysMap } = await import('./kalenderAkademikController.js');
+        const hariEfektifMap = await getEffectiveDaysMap(tahunPelajaran);
+        
+        // Calculate total effective days from map
+        const totalHariEfektif = Object.values(hariEfektifMap).reduce((sum, val) => sum + val, 0);
+        
+        log.info('Fetched hari efektif from kalender_akademik', { 
+            tahunPelajaran, 
+            totalHariEfektif,
+            isAnnual
+        });
 
         const processedRows = rows.map(row => {
             const absences = Number.parseInt(row.total_ketidakhadiran) || 0;
+            
+            // For annual view, use total hari efektif; for monthly, use specific month
+            let effectiveDays;
+            if (isAnnual) {
+                effectiveDays = totalHariEfektif;
+            } else if (bulan) {
+                effectiveDays = hariEfektifMap[Number.parseInt(bulan)] || 20;
+            } else {
+                // Date range mode - estimate based on days
+                const startD = new Date(start);
+                const endD = new Date(end);
+                const daysDiff = Math.ceil((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
+                effectiveDays = Math.round(daysDiff * 0.7); // Approx 70% are working days
+            }
+            
             const presence = Math.max(0, effectiveDays - absences);
             
             return {
                 ...row,
                 total_hari_efektif: effectiveDays,
                 total_kehadiran: presence,
-                persentase_ketidakhadiran: ((absences / effectiveDays) * 100).toFixed(2),
-                persentase_kehadiran: ((presence / effectiveDays) * 100).toFixed(2)
+                persentase_ketidakhadiran: effectiveDays > 0 ? ((absences / effectiveDays) * 100).toFixed(2) : '0.00',
+                persentase_kehadiran: effectiveDays > 0 ? ((presence / effectiveDays) * 100).toFixed(2) : '100.00'
             };
         });
 
-        log.success('GetRekapKetidakhadiranGuru', { count: processedRows.length });
+        log.success('GetRekapKetidakhadiranGuru', { count: processedRows.length, totalHariEfektif });
         res.json(processedRows);
 
     } catch (error) {
