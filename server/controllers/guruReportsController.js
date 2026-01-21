@@ -22,12 +22,14 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id } = req.query;
     const guruId = req.user.guru_id;
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
 
-    log.requestStart('GetPresensiSiswaSmkn13', { startDate, endDate, kelas_id, guruId });
+    log.requestStart('GetPresensiSiswaSmkn13', { startDate, endDate, kelas_id, guruId, isAdmin });
 
     try {
-        // Validasi: Pastikan guru memiliki guru_id
-        if (!guruId) {
+        // Validasi: Pastikan guru memiliki guru_id (kecuali admin)
+        if (!isAdmin && !guruId) {
             log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
@@ -37,7 +39,44 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        let query = `
+        let query;
+        let params = [startDate, endDate];
+
+        if (isAdmin) {
+            // Admin: can see all attendance data
+            query = `
+      SELECT 
+        a.tanggal,
+        j.hari,
+        j.jam_mulai,
+        j.jam_selesai,
+        COALESCE(m.nama_mapel, j.keterangan_khusus) as mata_pelajaran,
+        k.nama_kelas,
+        COALESCE(g.nama, 'Sistem') as nama_guru,
+        COUNT(DISTINCT s.id_siswa) as total_siswa,
+        COUNT(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 END) as hadir,
+        COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+        COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+        COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
+        COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen,
+        SUM(CASE WHEN a.terlambat = 1 THEN 1 ELSE 0 END) as terlambat_count
+      FROM absensi_siswa a
+      JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+      JOIN kelas k ON j.kelas_id = k.id_kelas
+      LEFT JOIN guru g ON j.guru_id = g.id_guru
+      LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+      LEFT JOIN siswa s ON j.kelas_id = s.kelas_id AND s.status = 'aktif'
+      WHERE a.tanggal BETWEEN ? AND ?
+    `;
+            params = [startDate, endDate];
+
+            if (kelas_id && kelas_id !== 'all') {
+                query += ` AND j.kelas_id = ?`;
+                params.push(kelas_id);
+            }
+        } else {
+            // Guru: can only see their own classes
+            query = `
       SELECT 
         a.tanggal,
         j.hari,
@@ -62,12 +101,12 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
       WHERE a.tanggal BETWEEN ? AND ?
         AND j.guru_id = ?
     `;
+            params = [startDate, endDate, guruId];
 
-        const params = [startDate, endDate, guruId];
-
-        if (kelas_id && kelas_id !== 'all') {
-            query += ` AND j.kelas_id = ?`;
-            params.push(kelas_id);
+            if (kelas_id && kelas_id !== 'all') {
+                query += ` AND j.kelas_id = ?`;
+                params.push(kelas_id);
+            }
         }
 
         query += `
@@ -77,7 +116,7 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 
-        log.success('GetPresensiSiswaSmkn13', { count: rows.length, guruId });
+        log.success('GetPresensiSiswaSmkn13', { count: rows.length, guruId, isAdmin });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
@@ -90,12 +129,14 @@ export const getRekapKetidakhadiran = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id, reportType } = req.query;
     const guruId = req.user.guru_id;
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
 
-    log.requestStart('GetRekapKetidakhadiran', { startDate, endDate, kelas_id, reportType, guruId });
+    log.requestStart('GetRekapKetidakhadiran', { startDate, endDate, kelas_id, reportType, guruId, isAdmin });
 
     try {
-        // Validasi: Pastikan guru memiliki guru_id
-        if (!guruId) {
+        // Validasi: Pastikan guru memiliki guru_id (kecuali admin)
+        if (!isAdmin && !guruId) {
             log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
@@ -124,20 +165,8 @@ export const getRekapKetidakhadiran = async (req, res) => {
         JOIN kelas k ON s.kelas_id = k.id_kelas
         JOIN jadwal j ON a.jadwal_id = j.id_jadwal
         WHERE a.tanggal BETWEEN ? AND ?
-          AND j.guru_id = ?
       `;
 
-            params = [startDate, endDate, guruId];
-
-            if (kelas_id && kelas_id !== 'all') {
-                query += ` AND s.kelas_id = ?`;
-                params.push(kelas_id);
-            }
-
-            query += `
-        GROUP BY DATE_FORMAT(a.tanggal, '%Y-%m'), k.nama_kelas
-        ORDER BY periode DESC, k.nama_kelas
-      `;
         } else {
             query = `
         SELECT 
@@ -154,25 +183,33 @@ export const getRekapKetidakhadiran = async (req, res) => {
         JOIN kelas k ON s.kelas_id = k.id_kelas
         JOIN jadwal j ON a.jadwal_id = j.id_jadwal
         WHERE a.tanggal BETWEEN ? AND ?
-          AND j.guru_id = ?
       `;
 
-            params = [startDate, endDate, guruId];
+        }
 
-            if (kelas_id && kelas_id !== 'all') {
-                query += ` AND s.kelas_id = ?`;
-                params.push(kelas_id);
-            }
+        if (!isAdmin) {
+            query += ' AND j.guru_id = ?';
+            params.push(guruId);
+        }
 
-            query += `
+        if (kelas_id && kelas_id !== 'all') {
+            query += ' AND s.kelas_id = ?';
+            params.push(kelas_id);
+        }
+
+        query += reportType === 'bulanan'
+            ? `
+        GROUP BY DATE_FORMAT(a.tanggal, '%Y-%m'), k.nama_kelas
+        ORDER BY periode DESC, k.nama_kelas
+      `
+            : `
         GROUP BY YEAR(a.tanggal), k.nama_kelas
         ORDER BY periode DESC, k.nama_kelas
       `;
-        }
 
         const [rows] = await globalThis.dbPool.execute(query, params);
 
-        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType });
+        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType, isAdmin });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, reportType, guruId });
@@ -187,27 +224,41 @@ export const getRekapKetidakhadiran = async (req, res) => {
 export const getGuruClasses = async (req, res) => {
     const log = logger.withRequest(req, res);
     const guruId = req.user.guru_id;
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
     
-    log.requestStart('GetGuruClasses', { guruId });
+    log.requestStart('GetGuruClasses', { guruId, userRole, isAdmin });
 
     try {
-        // Validasi: Pastikan guru memiliki guru_id
-        if (!guruId) {
+        let rows;
+        
+        if (isAdmin) {
+            // Admin: return all active classes
+            [rows] = await globalThis.dbPool.execute(
+                `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
+                 FROM kelas k 
+                 WHERE k.status = 'aktif' 
+                 ORDER BY k.tingkat, k.nama_kelas`
+            );
+            log.success('GetGuruClasses (Admin)', { count: rows.length });
+        } else if (guruId) {
+            // Guru: return only classes they teach
+            [rows] = await globalThis.dbPool.execute(
+                `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
+                 FROM jadwal j JOIN kelas k ON j.kelas_id = k.id_kelas 
+                 WHERE j.guru_id = ? AND j.status = 'aktif' ORDER BY k.nama_kelas`,
+                [guruId]
+            );
+            log.success('GetGuruClasses (Guru)', { count: rows.length, guruId });
+        } else {
+            // Neither admin nor valid guru
             log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
-
-        const [rows] = await globalThis.dbPool.execute(
-            `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
-             FROM jadwal j JOIN kelas k ON j.kelas_id = k.id_kelas 
-             WHERE j.guru_id = ? AND j.status = 'aktif' ORDER BY k.nama_kelas`,
-            [guruId]
-        );
         
-        log.success('GetGuruClasses', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {
-        log.dbError('query', error, { guruId });
+        log.dbError('query', error, { guruId, userRole });
         return sendDatabaseError(res, error, 'Gagal mengambil data kelas guru');
     }
 };
@@ -220,12 +271,14 @@ export const getAttendanceSummary = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id } = req.query;
     const guruId = req.user.guru_id;
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
     
-    log.requestStart('GetAttendanceSummary', { startDate, endDate, kelas_id, guruId });
+    log.requestStart('GetAttendanceSummary', { startDate, endDate, kelas_id, guruId, isAdmin });
 
     try {
-        // Validasi: Pastikan guru memiliki guru_id
-        if (!guruId) {
+        // Validasi: Pastikan guru memiliki guru_id (kecuali admin)
+        if (!isAdmin && !guruId) {
             log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
@@ -235,33 +288,62 @@ export const getAttendanceSummary = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        let query = `
-            SELECT 
-                s.id_siswa as siswa_id, s.nama, s.nis, k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
-                COUNT(a.id_absensi) AS total
-            FROM siswa s
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND a.waktu_absen BETWEEN ? AND ?
-            JOIN jadwal j ON j.kelas_id = s.kelas_id AND j.guru_id = ? AND j.status = 'aktif'
-            WHERE s.status = 'aktif'
-        `;
-        const params = [startDate, endDate + ' 23:59:59', guruId];
+        let query;
+        let params = [startDate, endDate];
 
-        if (kelas_id && kelas_id !== 'all') {
-            query += ' AND s.kelas_id = ?';
-            params.push(kelas_id);
+        if (isAdmin) {
+            // Admin: can see all students, optionally filtered by class
+            query = `
+                SELECT 
+                    s.id_siswa as siswa_id, s.nama, s.nis, k.nama_kelas,
+                    COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
+                    COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+                    COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+                    COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
+                    COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+                    COUNT(a.id_absensi) AS total
+                FROM siswa s
+                JOIN kelas k ON s.kelas_id = k.id_kelas
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND a.waktu_absen BETWEEN ? AND ?
+                WHERE s.status = 'aktif'
+            `;
+            params = [startDate, endDate + ' 23:59:59'];
+
+            if (kelas_id && kelas_id !== 'all') {
+                query += ' AND s.kelas_id = ?';
+                params.push(kelas_id);
+            }
+        } else {
+            // Guru: can only see students in their classes
+            query = `
+                SELECT 
+                    s.id_siswa as siswa_id, s.nama, s.nis, k.nama_kelas,
+                    COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
+                    COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+                    COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+                    COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
+                    COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+                    COUNT(a.id_absensi) AS total
+                FROM siswa s
+                JOIN kelas k ON s.kelas_id = k.id_kelas
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND a.waktu_absen BETWEEN ? AND ?
+                JOIN jadwal j ON j.kelas_id = s.kelas_id AND j.guru_id = ? AND j.status = 'aktif'
+                WHERE s.status = 'aktif'
+            `;
+            params = [startDate, endDate + ' 23:59:59', guruId];
+
+            if (kelas_id && kelas_id !== 'all') {
+                query += ' AND s.kelas_id = ?';
+                params.push(kelas_id);
+            }
         }
 
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
         const [rows] = await globalThis.dbPool.execute(query, params);
         
-        log.success('GetAttendanceSummary', { count: rows.length, guruId });
+        log.success('GetAttendanceSummary', { count: rows.length, guruId, isAdmin });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
@@ -277,12 +359,14 @@ export const getJadwalPertemuan = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { kelas_id, startDate, endDate } = req.query;
     const guruId = req.user.guru_id;
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
 
-    log.requestStart('GetJadwalPertemuan', { kelas_id, startDate, endDate, guruId });
+    log.requestStart('GetJadwalPertemuan', { kelas_id, startDate, endDate, guruId, isAdmin });
 
     try {
-        // Validasi: Pastikan guru memiliki guru_id
-        if (!guruId) {
+        // Validasi: Pastikan guru memiliki guru_id (kecuali admin)
+        if (!isAdmin && !guruId) {
             log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
@@ -304,18 +388,38 @@ export const getJadwalPertemuan = async (req, res) => {
             return sendValidationError(res, 'Rentang tanggal maksimal 62 hari', { maxDays: 62, requestedDays: diffDays });
         }
 
-        const [jadwalData] = await globalThis.dbPool.execute(`
-            SELECT j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai,
-                COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
-                mp.kode_mapel, k.nama_kelas, rk.kode_ruang, rk.nama_ruang
-            FROM jadwal j
-            LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
-            WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
-            ORDER BY CASE j.hari WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 
-                WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 WHEN 'Sabtu' THEN 6 WHEN 'Minggu' THEN 7 END, j.jam_ke
-        `, [guruId, kelas_id]);
+        let jadwalData;
+        if (isAdmin) {
+            // Admin: get all schedules for the class
+            [jadwalData] = await globalThis.dbPool.execute(`
+                SELECT j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai,
+                    COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                    mp.kode_mapel, k.nama_kelas, rk.kode_ruang, rk.nama_ruang,
+                    g.nama as nama_guru
+                FROM jadwal j
+                LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+                LEFT JOIN guru g ON j.guru_id = g.id_guru
+                WHERE j.kelas_id = ? AND j.status = 'aktif'
+                ORDER BY CASE j.hari WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 
+                    WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 WHEN 'Sabtu' THEN 6 WHEN 'Minggu' THEN 7 END, j.jam_ke
+            `, [kelas_id]);
+        } else {
+            // Guru: get only their schedules for the class
+            [jadwalData] = await globalThis.dbPool.execute(`
+                SELECT j.hari, j.jam_ke, j.jam_mulai, j.jam_selesai,
+                    COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel,
+                    mp.kode_mapel, k.nama_kelas, rk.kode_ruang, rk.nama_ruang
+                FROM jadwal j
+                LEFT JOIN mapel mp ON j.mapel_id = mp.id_mapel
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                LEFT JOIN ruang_kelas rk ON j.ruang_id = rk.id_ruang
+                WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
+                ORDER BY CASE j.hari WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 
+                    WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 WHEN 'Sabtu' THEN 6 WHEN 'Minggu' THEN 7 END, j.jam_ke
+            `, [guruId, kelas_id]);
+        }
 
         const pertemuanDates = [];
         const endTime = end.getTime();
@@ -335,7 +439,8 @@ export const getJadwalPertemuan = async (req, res) => {
                     jadwal: daySchedules.map(s => ({
                         jam_ke: s.jam_ke, jam_mulai: s.jam_mulai, jam_selesai: s.jam_selesai,
                         nama_mapel: s.nama_mapel, kode_mapel: s.kode_mapel,
-                        ruang: s.kode_ruang ? `${s.kode_ruang} - ${s.nama_ruang}` : '-'
+                        ruang: s.kode_ruang ? `${s.kode_ruang} - ${s.nama_ruang}` : '-',
+                        ...(isAdmin && s.nama_guru ? { nama_guru: s.nama_guru } : {})
                     }))
                 });
             }
@@ -346,7 +451,7 @@ export const getJadwalPertemuan = async (req, res) => {
             if (currentDate.getTime() > endTime + (1000 * 60 * 60 * 24 * 7)) break; // Buffer 1 week
         }
 
-        log.success('GetJadwalPertemuan', { totalPertemuan: pertemuanDates.length, guruId });
+        log.success('GetJadwalPertemuan', { totalPertemuan: pertemuanDates.length, guruId, isAdmin });
         
         res.json({
             success: true,
@@ -374,12 +479,14 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { kelas_id, startDate, endDate } = req.query;
     const guruId = req.user.guru_id;
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
 
-    log.requestStart('GetLaporanKehadiranSiswa', { kelas_id, startDate, endDate, guruId });
+    log.requestStart('GetLaporanKehadiranSiswa', { kelas_id, startDate, endDate, guruId, isAdmin });
 
     try {
-        // Validasi: Pastikan guru memiliki guru_id
-        if (!guruId) {
+        // Validasi: Pastikan guru memiliki guru_id (kecuali admin)
+        if (!isAdmin && !guruId) {
             log.validationFail('guru_id', null, 'Guru ID tidak ditemukan dalam token');
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
@@ -400,12 +507,24 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
             [kelas_id]
         );
 
-        const [absensiData] = await globalThis.dbPool.execute(`
-            SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
-            FROM absensi_siswa a
-            JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-            WHERE j.guru_id = ? AND j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?
-        `, [guruId, kelas_id, startDate, endDate]);
+        let absensiData;
+        if (isAdmin) {
+            // Admin: get all attendance data for the class
+            [absensiData] = await globalThis.dbPool.execute(`
+                SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
+                FROM absensi_siswa a
+                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                WHERE j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?
+            `, [kelas_id, startDate, endDate]);
+        } else {
+            // Guru: get only attendance data from their schedules
+            [absensiData] = await globalThis.dbPool.execute(`
+                SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
+                FROM absensi_siswa a
+                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                WHERE j.guru_id = ? AND j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?
+            `, [guruId, kelas_id, startDate, endDate]);
+        }
 
         const absensiMap = new Map();
         absensiData.forEach(a => {
@@ -433,7 +552,7 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
             };
         });
 
-        log.success('GetLaporanKehadiranSiswa', { siswaCount: result.length, guruId });
+        log.success('GetLaporanKehadiranSiswa', { siswaCount: result.length, guruId, isAdmin });
         res.json({ success: true, data: result, periode: { startDate, endDate } });
     } catch (error) {
         log.dbError('query', error, { kelas_id, startDate, endDate, guruId });
