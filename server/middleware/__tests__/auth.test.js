@@ -42,6 +42,8 @@ describe('auth middleware', () => {
       const req = {
         headers: { authorization: 'Bearer valid.token' },
         cookies: {},
+        method: 'GET',
+        originalUrl: '/api/test',
       };
       const res = createResponse();
       const next = createNext();
@@ -62,26 +64,45 @@ describe('auth middleware', () => {
       const req = {
         headers: { authorization: 'Bearer invalid.token' },
         cookies: {},
+        method: 'GET',
+        originalUrl: '/api/test',
       };
       const res = createResponse();
       const next = createNext();
 
       authenticateToken(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid or expired token' });
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          code: 3001,
+          message: 'Token tidak valid atau kadaluarsa',
+        })
+      }));
       expect(next).not.toHaveBeenCalled();
     });
 
     it('returns 401 when token is missing', () => {
-      const req = { headers: {}, cookies: {} };
+      const req = {
+        headers: {},
+        cookies: {},
+        method: 'GET',
+        originalUrl: '/api/test',
+      };
       const res = createResponse();
       const next = createNext();
 
       authenticateToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Access token required' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          code: 3001,
+          message: 'Token akses diperlukan',
+        })
+      }));
       expect(next).not.toHaveBeenCalled();
     });
   });
@@ -107,8 +128,14 @@ describe('auth middleware', () => {
 
       middleware(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({ error: 'User not authenticated' });
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          code: 3001,
+          message: 'Pengguna belum terautentikasi',
+        })
+      }));
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -121,7 +148,13 @@ describe('auth middleware', () => {
       middleware(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Insufficient permissions' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          code: 3002,
+          message: 'Anda tidak memiliki izin untuk akses ini',
+        })
+      }));
       expect(next).not.toHaveBeenCalled();
     });
   });

@@ -100,6 +100,7 @@ describe('Jadwal Controller', () => {
 
             // Mock implementation sequence...
             globalThis.dbPool.execute.mock.mockImplementation(async (query) => {
+                if (query.includes('FROM jam_pelajaran')) return [[{ jam_ke: 1 }]];
                 if (query.includes('FROM kelas WHERE id_kelas = ?')) return [[{ id_kelas: 1 }]];
                 if (query.includes('FROM mapel WHERE id_mapel = ?')) return [[{ id_mapel: 1 }]];
                 if (query.includes('FROM guru WHERE id_guru IN')) return [[{ id_guru: 1 }]];

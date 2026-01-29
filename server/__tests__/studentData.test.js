@@ -24,7 +24,7 @@ function validateStudentData({ nis, nama, kelas_id, jenis_kelamin }) {
     if (!nama || typeof nama !== 'string' || nama.trim().length < 2) {
         errors.push('Nama wajib diisi minimal 2 karakter');
     }
-    if (!kelas_id ||.isNaN(Number.parseInt(kelas_id))) {
+    if (!kelas_id || Number.isNaN(Number.parseInt(kelas_id))) {
         errors.push('Kelas wajib dipilih');
     }
     if (!jenis_kelamin || !['L', 'P'].includes(jenis_kelamin)) {

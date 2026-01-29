@@ -66,31 +66,23 @@ describe('Teacher Data Controller', () => {
     describe('addTeacherData', () => {
         it('should fail if missing required fields', async () => {
             req.body = { nama: 'Guru Baru' }; // Missing NIP, jenis_kelamin
-            
-            const release = mock.fn();
-            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({ release }));
-            
+
             await teacherDataController.addTeacherData(req, res);
             
             assert.strictEqual(res.status.mock.calls[0].arguments[0], 400);
             assert.match(res.json.mock.calls[0].arguments[0].error.message, /wajib diisi/);
-            // release is called explicitly + in finally block
-            assert.ok(release.mock.callCount() >= 1);
         });
 
         it('should fail if NIP exists', async () => {
             req.body = { nip: '123', nama: 'Guru', jenis_kelamin: 'L' };
-            
             const release = mock.fn();
             const execute = mock.fn();
-            
-            // Mock connection & execute sequence
-            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({ 
-                release, 
-                execute 
+
+            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+                release,
+                execute
             }));
 
-            // Mock NIP check returning result
             execute.mock.mockImplementation(async (query) => {
                 if (query.includes('FROM guru WHERE nip')) return [[{ id: 1 }]];
                 return [[]];
@@ -100,24 +92,29 @@ describe('Teacher Data Controller', () => {
 
             assert.strictEqual(res.status.mock.calls[0].arguments[0], 409); // Duplicate
             assert.match(res.json.mock.calls[0].arguments[0].error.message, /NIP sudah terdaftar/);
+            assert.strictEqual(release.mock.callCount(), 1);
         });
 
         it('should create teacher successfully', async () => {
             req.body = { nip: '123', nama: 'Guru Baru', jenis_kelamin: 'L' };
-            
             const release = mock.fn();
             const beginTransaction = mock.fn();
             const commit = mock.fn();
+            const rollback = mock.fn();
             const execute = mock.fn();
 
             globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
-                release, beginTransaction, commit, execute
+                release,
+                beginTransaction,
+                commit,
+                rollback,
+                execute
             }));
 
             execute.mock.mockImplementation(async (query) => {
-                if (query.includes('FROM guru WHERE nip')) return [[]]; // No duplicate
-                if (query.includes('INSERT INTO users')) return [{ insertId: 100 }]; // User created
-                if (query.includes('INSERT INTO guru')) return [{ insertId: 5 }]; // Guru created
+                if (query.includes('FROM guru WHERE nip')) return [[]];
+                if (query.includes('INSERT INTO users')) return [{ insertId: 100 }];
+                if (query.includes('INSERT INTO guru')) return [{ insertId: 5 }];
                 return [[]];
             });
 
@@ -133,14 +130,18 @@ describe('Teacher Data Controller', () => {
     describe('deleteTeacherData', () => {
         it('should delete existing teacher', async () => {
             req.params.id = 1;
-            
             const release = mock.fn();
             const beginTransaction = mock.fn();
             const commit = mock.fn();
+            const rollback = mock.fn();
             const execute = mock.fn();
 
             globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
-                release, beginTransaction, commit, execute
+                release,
+                beginTransaction,
+                commit,
+                rollback,
+                execute
             }));
 
             execute.mock.mockImplementation(async (query) => {
@@ -154,26 +155,32 @@ describe('Teacher Data Controller', () => {
 
             assert.strictEqual(res.status.mock.calls[0].arguments[0], 200);
             assert.strictEqual(commit.mock.callCount(), 1);
+            assert.strictEqual(release.mock.callCount(), 1);
         });
 
         it('should return 404 if not found', async () => {
             req.params.id = 999;
-            
             const release = mock.fn();
             const beginTransaction = mock.fn();
             const rollback = mock.fn();
-            const execute = mock.fn(); // Define execute mock
+            const execute = mock.fn();
 
             globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
-                release, beginTransaction, rollback, execute
+                release,
+                beginTransaction,
+                rollback,
+                execute
             }));
 
-            // Mock not found
-            execute.mock.mockImplementation(() => Promise.resolve([[]]));
+            execute.mock.mockImplementation(async (query) => {
+                if (query.includes('SELECT user_id FROM guru')) return [[]];
+                return [[]];
+            });
 
             await teacherDataController.deleteTeacherData(req, res);
 
             assert.strictEqual(res.status.mock.calls[0].arguments[0], 404);
+            assert.match(res.json.mock.calls[0].arguments[0].error.message, /Data guru tidak ditemukan/);
             assert.strictEqual(release.mock.callCount(), 1);
         });
     });

@@ -24,7 +24,12 @@ class CacheSystem {
             retryDelayOnFailover: 100,
             enableReadyCheck: false,
             maxLoadingTimeout: 1000,
-            lazyConnect: true
+            lazyConnect: true,
+            // Custom retry strategy to prevent infinite loops but allow recovery
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 100, 3000);
+                return delay;
+            }
         };
 
         // Remove password if empty

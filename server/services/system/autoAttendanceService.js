@@ -1,6 +1,6 @@
 import schedule from 'node-cron';
 import { createLogger } from '../../utils/logger.js';
-import { getHariFromDate, getMySQLDateWIB, getMySQLDateTimeWIB } from '../../utils/timeUtils.js';
+import { getHariFromDate, getMySQLDateWIB, getMySQLDateTimeWIB, getWIBTime } from '../../utils/timeUtils.js';
 
 const logger = createLogger('AutoAttendance');
 
@@ -33,7 +33,8 @@ export function initAutoAttendanceScheduler() {
  */
 export async function processMissingAttendance() {
     const todayStr = getMySQLDateWIB();
-    const todayName = getHariFromDate(); // Senin, Selasa, etc.
+    const wibNow = getWIBTime();
+    const todayName = getHariFromDate(wibNow); // Senin, Selasa, etc.
     const currentTime = getMySQLDateTimeWIB();
 
     // Skip Sundays (Minggu) AND Saturdays (Sabtu) as requested
