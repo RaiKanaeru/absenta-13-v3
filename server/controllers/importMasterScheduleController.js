@@ -41,7 +41,8 @@ const parseSettingValue = (value) => {
     } catch (error) {
         // Ignore JSON parse errors, fall back to raw value.
     }
-    return raw.replace(/^"|"$/g, '');
+    // Fix: Regex precedence ambiguity S5850 - Group the alternatives
+    return raw.replace(/(^")|("$)/g, '');
 };
 
 const getActiveAcademicYear = async (conn) => {

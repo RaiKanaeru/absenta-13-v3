@@ -76,10 +76,23 @@ export const listDatabaseFiles = async (req, res) => {
  * Execute a specific SQL file
  */
 export const executeDatabaseFile = async (req, res) => {
+    // Fix: Use req.body for POST/PUT, but ensure consistency. 
+    // If this is GET, use query. Assuming POST for execution.
     const { filename, pathType } = req.body;
 
     if (!filename || !pathType) {
         return sendValidationError(res, 'Filename dan Path Type wajib diisi');
+    }
+
+    // Security Fix: Prevent Path Traversal by enforcing basename and alphanumeric+ structure
+    const safeFilename = path.basename(filename);
+    if (safeFilename !== filename) {
+        return sendValidationError(res, 'Filename mengandung karakter ilegal (path traversal detected)');
+    }
+    
+    // Whitelist check for filename characters (alphanumeric, dot, underscore, dash)
+    if (!/^[a-zA-Z0-9._-]+$/.test(safeFilename)) {
+        return sendValidationError(res, 'Filename mengandung karakter ilegal');
     }
 
     let targetDir;
@@ -87,9 +100,9 @@ export const executeDatabaseFile = async (req, res) => {
     else if (pathType === 'seeders') targetDir = SEEDER_DIR;
     else return sendValidationError(res, 'Tipe path tidak valid');
 
-    const filePath = path.join(targetDir, filename);
+    const filePath = path.join(targetDir, safeFilename);
 
-    // Security check: Ensure file is actually in the directory (prevent ../)
+    // Double Security check: Ensure file is actually in the directory (prevent ../)
     if (!filePath.startsWith(targetDir)) {
         return sendPermissionError(res, 'Akses ditolak: Path file tidak valid');
     }

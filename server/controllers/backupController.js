@@ -10,7 +10,11 @@ import AdmZip from 'adm-zip';
 import { sendDatabaseError, sendErrorResponse, sendValidationError, sendNotFoundError, sendServiceUnavailableError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { splitSqlStatements } from '../utils/sqlParser.js';
+
+const execAsync = promisify(exec);
 
 const logger = createLogger('Backup');
 
@@ -1567,10 +1571,6 @@ const createManualBackup = async (req, res) => {
 
         // Try mysqldump first, fallback to manual
         try {
-            const { exec } = require('node:child_process');
-            const { promisify } = require('node:util');
-            const execAsync = promisify(exec);
-
             await execAsync('mysqldump --version');
 
             const mysqldumpCmd = `mysqldump -h localhost -u root absenta13 > "${filepath}"`;

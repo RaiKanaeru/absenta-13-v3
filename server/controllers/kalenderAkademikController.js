@@ -5,6 +5,7 @@
 
 import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import { clearAttendanceCache } from '../utils/attendanceCalculator.js';
 
 const logger = createLogger('KalenderAkademik');
 
@@ -168,6 +169,9 @@ export const upsertKalenderAkademik = async (req, res) => {
             keterangan
         });
 
+        // Invalidate cache
+        clearAttendanceCache(tahun_pelajaran);
+
         log.success('UpsertKalenderAkademik', { affectedRows: result.affectedRows });
         res.json({ 
             message: 'Kalender akademik berhasil disimpan',
@@ -218,6 +222,9 @@ export const updateKalenderAkademik = async (req, res) => {
             return sendNotFoundError(res, 'Data kalender akademik tidak ditemukan');
         }
 
+        // Invalidate all cache since we don't know the exact year easily
+        clearAttendanceCache();
+
         log.success('UpdateKalenderAkademik', { id });
         res.json({ message: 'Kalender akademik berhasil diupdate' });
     } catch (error) {
@@ -245,6 +252,8 @@ export const deleteKalenderAkademik = async (req, res) => {
         if (result.affectedRows === 0) {
             return sendNotFoundError(res, 'Data kalender akademik tidak ditemukan');
         }
+
+        clearAttendanceCache();
 
         log.success('DeleteKalenderAkademik', { id });
         res.json({ message: 'Kalender akademik berhasil dihapus' });
@@ -297,6 +306,8 @@ export const seedKalenderAkademik = async (req, res) => {
             }
             
             await connection.commit();
+            clearAttendanceCache(tahun_pelajaran);
+            
             log.success('SeedKalenderAkademik', { tahun_pelajaran, seeded });
             res.json({ 
                 message: `Kalender akademik ${tahun_pelajaran} berhasil di-seed`,
