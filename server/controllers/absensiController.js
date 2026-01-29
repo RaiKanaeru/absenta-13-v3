@@ -27,7 +27,8 @@ import {
     getMySQLDateWIB,
     getMySQLDateTimeWIB,
     formatWIBTimeWithSeconds,
-    getWIBTime
+    getWIBTime,
+    getDaysDifferenceWIB
 } from '../utils/timeUtils.js';
 import { validateSelfAccess, validatePerwakilanAccess, validateUserContext } from '../utils/validationUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -453,12 +454,30 @@ export async function submitStudentAttendance(req, res) {
         const attendanceEntries = Object.entries(attendance);
         const currentTime = formatWIBTimeWithSeconds();
         const processedStudents = [];
+        const waktuAbsen = `${targetDate} ${currentTime}`;
 
         await connection.beginTransaction();
 
         try {
-            for (const [studentId, attendanceData] of attendanceEntries) {
+            // OPTIMIZATION: Batch processing instead of N+1 queries
+            
+            // 1. Get all existing attendance records for this teacher/schedule/date in ONE query
+            const [existingRows] = await connection.execute(
+                'SELECT id, siswa_id FROM absensi_siswa WHERE jadwal_id = ? AND guru_pengabsen_id = ? AND tanggal = ?',
+                [scheduleId, guruId, targetDate]
+            );
+            
+            const existingMap = new Map();
+            existingRows.forEach(row => existingMap.set(row.siswa_id, row.id));
+
+            const updates = [];
+            const inserts = [];
+
+            // 2. Classify actions (Insert vs Update)
+            for (const [studentIdStr, attendanceData] of attendanceEntries) {
+                const studentId = Number(studentIdStr);
                 const parsed = parseAttendanceData(attendanceData);
+                
                 if (!parsed) {
                     log.validationFail('attendance_data', studentId, 'Invalid format');
                     throw new Error(`Format data absensi tidak valid untuk siswa ${studentId}`);
@@ -468,36 +487,45 @@ export async function submitStudentAttendance(req, res) {
 
                 if (!VALID_STUDENT_STATUSES.includes(status)) {
                     log.validationFail('status', status, 'Invalid status');
-                    throw new Error(`Status tidak valid: ${status}. Status yang diperbolehkan: ${VALID_STUDENT_STATUSES.join(', ')}`);
+                    throw new Error(`Status tidak valid: ${status}`);
                 }
 
                 const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
-                const note = status === 'Hadir' ? '' : (notes[studentId] || '');
+                const note = status === 'Hadir' ? '' : (notes[studentIdStr] || '');
 
-                const [existingAttendance] = await connection.execute(
-                    SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
-                    [studentId, scheduleId, guruId, targetDate]
-                );
-
-                const waktuAbsen = `${targetDate} ${currentTime}`;
-
-                if (existingAttendance.length > 0) {
-                    await connection.execute(
-                        `UPDATE absensi_siswa 
-                         SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
-                         WHERE id = ?`,
-                        [finalStatus, note, waktuAbsen, guruId, isLate, hasTask, existingAttendance[0].id]
-                    );
+                if (existingMap.has(studentId)) {
+                    updates.push([finalStatus, note, waktuAbsen, guruId, isLate, hasTask, existingMap.get(studentId)]);
                 } else {
-                    await connection.execute(
-                        `INSERT INTO absensi_siswa 
-                         (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, guruId, guruId, isLate, hasTask]
-                    );
+                    inserts.push([studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, guruId, guruId, isLate, hasTask]);
                 }
 
                 processedStudents.push({ studentId, status: finalStatus });
+            }
+
+            // 3. Execute Updates (Parallel Promise.all)
+            if (updates.length > 0) {
+                const updatePromises = updates.map(params => 
+                    connection.execute(
+                        `UPDATE absensi_siswa 
+                         SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
+                         WHERE id = ?`,
+                        params
+                    )
+                );
+                await Promise.all(updatePromises);
+            }
+
+            // 4. Execute Inserts (Bulk Insert)
+            if (inserts.length > 0) {
+                const placeholders = inserts.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+                const flatValues = inserts.flat();
+                
+                await connection.execute(
+                    `INSERT INTO absensi_siswa 
+                     (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
+                     VALUES ${placeholders}`,
+                    flatValues
+                );
             }
 
             if (isMultiGuru) {
@@ -537,6 +565,7 @@ export async function submitStudentAttendance(req, res) {
 
 /**
  * Syncs attendance data to other teachers in multi-guru schedules
+ * Optimized to avoid N+1 queries
  * @private
  */
 async function syncMultiGuruAttendance(connection, scheduleId, primaryGuruId, attendance, notes, targetDate, currentTime) {
@@ -548,45 +577,75 @@ async function syncMultiGuruAttendance(connection, scheduleId, primaryGuruId, at
     );
 
     if (allTeachers.length === 0) return;
+    const otherGuruIds = allTeachers.map(t => t.guru_id);
 
-    logger.debug('Syncing to other teachers', { count: allTeachers.length });
+    logger.debug('Syncing to other teachers', { count: otherGuruIds.length });
 
-    for (const teacher of allTeachers) {
-        const otherGuruId = teacher.guru_id;
+    // 1. Get existing attendance records for ALL other teachers in one query
+    const placeholders = otherGuruIds.map(() => '?').join(',');
+    const [existingRows] = await connection.execute(
+        `SELECT id, guru_pengabsen_id, siswa_id 
+         FROM absensi_siswa 
+         WHERE jadwal_id = ? AND tanggal = ? AND guru_pengabsen_id IN (${placeholders})`,
+        [scheduleId, targetDate, ...otherGuruIds]
+    );
 
-        for (const [studentId, attendanceData] of Object.entries(attendance)) {
+    // Map: guruId -> studentId -> recordId
+    const existingMap = {};
+    existingRows.forEach(row => {
+        if (!existingMap[row.guru_pengabsen_id]) existingMap[row.guru_pengabsen_id] = {};
+        existingMap[row.guru_pengabsen_id][row.siswa_id] = row.id;
+    });
+
+    const updates = [];
+    const inserts = [];
+    const waktuAbsen = `${targetDate} ${currentTime}`;
+
+    // 2. Prepare operations in memory
+    for (const otherGuruId of otherGuruIds) {
+        for (const [studentIdStr, attendanceData] of Object.entries(attendance)) {
+            const studentId = Number(studentIdStr); // Ensure number
             const parsed = parseAttendanceData(attendanceData);
             if (!parsed) continue;
 
             const { status, terlambat, ada_tugas } = parsed;
             const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
-            const note = status === 'Hadir' ? '' : (notes[studentId] || '');
-            const waktuAbsen = `${targetDate} ${currentTime}`;
+            const note = status === 'Hadir' ? '' : (notes[studentIdStr] || '');
 
-            const [existing] = await connection.execute(
-                SQL_FIND_STUDENT_ATTENDANCE_BY_GURU,
-                [studentId, scheduleId, otherGuruId, targetDate]
-            );
+            const existingId = existingMap[otherGuruId]?.[studentId];
 
-            if (existing.length > 0) {
-                await connection.execute(
-                    `UPDATE absensi_siswa 
-                     SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
-                     WHERE id = ?`,
-                    [finalStatus, note, waktuAbsen, otherGuruId, isLate, hasTask, existing[0].id]
-                );
+            if (existingId) {
+                updates.push([finalStatus, note, waktuAbsen, otherGuruId, isLate, hasTask, existingId]);
             } else {
-                await connection.execute(
-                    `INSERT INTO absensi_siswa 
-                     (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, otherGuruId, otherGuruId, isLate, hasTask]
-                );
+                inserts.push([studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, otherGuruId, otherGuruId, isLate, hasTask]);
             }
         }
     }
 
-    logger.debug('Multi-guru sync completed', { syncedTeachers: allTeachers.length });
+    // 3. Execute Bulk Insert
+    if (inserts.length > 0) {
+        const valuePlaceholders = inserts.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+        const flatValues = inserts.flat();
+        await connection.execute(
+            `INSERT INTO absensi_siswa (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) VALUES ${valuePlaceholders}`,
+            flatValues
+        );
+    }
+
+    // 4. Execute Updates (Parallel Promises)
+    if (updates.length > 0) {
+        const updatePromises = updates.map(params => connection.execute(
+            `UPDATE absensi_siswa SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? WHERE id = ?`,
+            params
+        ));
+        await Promise.all(updatePromises);
+    }
+
+    logger.debug('Multi-guru sync completed', { 
+        syncedTeachers: otherGuruIds.length,
+        inserts: inserts.length,
+        updates: updates.length 
+    });
 }
 
 // ===========================
@@ -1373,5 +1432,4 @@ export async function getStudentAttendanceStatus(req, res) {
         return sendDatabaseError(res, error, 'Gagal memuat status kehadiran');
     }
 }
-
 

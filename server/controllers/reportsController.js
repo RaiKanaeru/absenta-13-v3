@@ -8,6 +8,14 @@ import { sendErrorResponse, sendDatabaseError, sendDeprecatedError, sendValidati
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { REPORT_STATUS, REPORT_MESSAGES, CSV_HEADERS, HARI_EFEKTIF_MAP } from '../config/reportConfig.js';
 import { createLogger } from '../utils/logger.js';
+import ExportService from '../services/ExportService.js';
+import { 
+    calculateEffectiveDaysForRange, 
+    calculateAttendancePercentage,
+    getEffectiveDaysMapFromDB,
+    buildTahunPelajaran,
+    DEFAULT_EFFECTIVE_DAYS
+} from '../utils/attendanceCalculator.js';
 
 const logger = createLogger('Reports');
 
@@ -167,86 +175,68 @@ function calculateDateRangeFromLegacyParams(periode, bulan, tahun) {
 // REPORTS & ANALYTICS HELPER EXTENSIONS
 // ================================================
 
-function buildTeacherReportBaseQuery(startDate, endDate, kelas_id) {
-    let query = `
-        FROM jadwal j
-        JOIN kelas k ON j.kelas_id = k.id_kelas
-        LEFT JOIN guru g ON j.guru_id = g.id_guru
-        LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-        LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
-            AND ag.tanggal BETWEEN ? AND ?
-        WHERE j.status = 'aktif'
-    `;
-
-    const params = [startDate, endDate];
-
-    if (kelas_id && kelas_id !== '') {
-        query += ' AND k.id_kelas = ?';
-        params.push(kelas_id);
-    }
-    return { query, params };
-}
-
 /**
- * Calculate total effective days based on HARI_EFEKTIF_MAP
+ * Calculate total effective days - SYNC fallback using HARI_EFEKTIF_MAP
+
+ * @deprecated Use calculateEffectiveDaysForRange from attendanceCalculator.js for DB-backed calculation
  * @param {string} startDate - YYYY-MM-DD
  * @param {string} endDate - YYYY-MM-DD
- * @returns {number} Total effective days
+ * @returns {number} Total effective days (sync fallback)
  */
-function calculateEffectiveDays(startDate, endDate) {
+function calculateEffectiveDaysSync(startDate, endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    let totalDays = 0;
     
-    // Iterate through months
-    let current = new Date(start.getFullYear(), start.getMonth(), 1);
-    
-    while (current <= end) {
-        // If range covers full month or substantial part, use map
-        // For simplicity in this logic fix, we sum up map values for months touched
-        // A more precise day-by-day calc would be better but "TimeUtils" 
-        // implies we should respect "HARI_EFEKTIF_MAP" as source of truth for "School Days"
-        const monthIndex = current.getMonth() + 1; // 1-12
-        totalDays += HARI_EFEKTIF_MAP[monthIndex] || 20; // Default 20
-        
-        current.setMonth(current.getMonth() + 1);
-    }
-    
-    // Adjustment: if range is small (e.g. 1 week), the monthly map (20 days) is too big.
-    // If range < 20 days, use business days calculation (Mon-Fri)
+    // For very short ranges (< 15 days), use business days calculation
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     
     if (diffDays < 15) {
-        // Calculate exact business days for short ranges
         let businessDays = 0;
         let d = new Date(start);
         while (d <= end) {
             const day = d.getDay();
-            if (day !== 0 && day !== 6) businessDays++; // Exclude Sun (0) and Sat (6) - assuming 5 day school for calculation safety
+            if (day !== 0 && day !== 6) businessDays++;
             d.setDate(d.getDate() + 1);
         }
-        return businessDays || 1; // Prevent zero division
+        return businessDays || 1;
     }
     
-    return totalDays;
+    // Use HARI_EFEKTIF_MAP for longer ranges (fallback)
+    let totalDays = 0;
+    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    let safetyCounter = 0;
+    const MAX_ITERATIONS = 60;
+
+    while (current <= end && safetyCounter < MAX_ITERATIONS) {
+        const monthIndex = current.getMonth() + 1;
+        totalDays += HARI_EFEKTIF_MAP[monthIndex] || DEFAULT_EFFECTIVE_DAYS[monthIndex] || 20;
+        current.setMonth(current.getMonth() + 1);
+        safetyCounter++;
+    }
+    
+    return totalDays || 1;
 }
 
-function buildStudentReportBaseQuery(startDate, endDate, kelas_id) {
-    let query = `
-        FROM absensi_siswa a
-        JOIN siswa s ON a.siswa_id = s.id_siswa
-        JOIN kelas k ON s.kelas_id = k.id_kelas
-        WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
-    `;
-
-    const params = [startDate, endDate];
-
-    if (kelas_id && kelas_id !== '') {
-        query += ' AND k.id_kelas = ?';
-        params.push(kelas_id);
+/**
+ * Calculate total effective days - ASYNC version with DB lookup
+ * Fetches from kalender_akademik for accurate data
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @param {string} [tahunPelajaran] - Optional academic year
+ * @returns {Promise<number>} Total effective days
+ */
+async function calculateEffectiveDays(startDate, endDate, tahunPelajaran = null) {
+    try {
+        return await calculateEffectiveDaysForRange(startDate, endDate, tahunPelajaran);
+    } catch (error) {
+        logger.warn('Failed to calculate effective days from DB, using sync fallback', {
+            error: error.message,
+            startDate,
+            endDate
+        });
+        return calculateEffectiveDaysSync(startDate, endDate);
     }
-    return { query, params };
 }
 
 function generateCSV(res, filename, headerInfo, rows, rowMapper) {
@@ -592,29 +582,8 @@ export const getTeacherAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED, { fields: ['startDate', 'endDate'] });
         }
 
-        const { query: baseQuery, params } = buildTeacherReportBaseQuery(startDate, endDate, kelas_id);
+        const rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
         
-        const fullQuery = `
-            SELECT 
-                DATE_FORMAT(ag.tanggal, '%Y-%m-%d') as tanggal,
-                k.nama_kelas,
-                COALESCE(g.nama, 'Sistem') as nama_guru,
-                g.nip as nip_guru,
-                m.nama_mapel,
-                CASE 
-                    WHEN ag.jam_ke IS NOT NULL THEN CONCAT('Jam ke-', ag.jam_ke)
-                    ELSE CONCAT(j.jam_mulai, ' - ', j.jam_selesai)
-                END as jam_hadir,
-                j.jam_mulai,
-                j.jam_selesai,
-                COALESCE(ag.status, '${REPORT_STATUS.TIDAK_ADA_DATA}') as status,
-                COALESCE(ag.keterangan, '-') as keterangan,
-                j.jam_ke
-            ${baseQuery}
-            ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
         log.success('GetTeacherReport', { count: rows.length, startDate, endDate });
         res.json(rows);
     } catch (error) {
@@ -636,32 +605,10 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        const { query: baseQuery, params } = buildTeacherReportBaseQuery(startDate, endDate, kelas_id);
-        
-        const fullQuery = `
-            SELECT 
-                COALESCE(DATE_FORMAT(ag.tanggal, '%d/%m/%Y'), DATE_FORMAT(DATE(NOW()), '%d/%m/%Y')) as tanggal,
-                k.nama_kelas,
-                COALESCE(g.nama, 'Sistem') as nama_guru,
-                g.nip as nip_guru,
-                m.nama_mapel,
-                CASE 
-                    WHEN ag.jam_ke IS NOT NULL THEN CONCAT('Jam ke-', ag.jam_ke)
-                    ELSE CONCAT(j.jam_mulai, ' - ', j.jam_selesai)
-                END as jam_hadir,
-                j.jam_mulai,
-                j.jam_selesai,
-                CONCAT(j.jam_mulai, ' - ', j.jam_selesai) as jadwal,
-                CONCAT(COALESCE(ag.status, '${REPORT_STATUS.TIDAK_ADA_DATA}'), CASE WHEN ag.terlambat = 1 THEN ' (Terlambat)' ELSE '' END) as status,
-                COALESCE(ag.keterangan, '-') as keterangan
-            ${baseQuery}
-            ORDER BY ag.tanggal DESC, k.nama_kelas, j.jam_ke
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
+        const rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
 
         const rowMapper = (row) => 
-            `"${row.tanggal}","${row.nama_kelas}","${row.nama_guru}","${row.nip_guru || ''}","${row.nama_mapel}","${row.jam_hadir || ''}","${row.jam_mulai}","${row.jam_selesai}","${row.jadwal}","${row.status}","${row.keterangan || ''}"`;
+            `"${row.tanggal_formatted}","${row.nama_kelas}","${row.nama_guru}","${row.nip_guru || ''}","${row.nama_mapel}","${row.jam_hadir || ''}","${row.jam_mulai}","${row.jam_selesai}","${row.jadwal}","${row.status}","${row.keterangan || ''}"`;
 
         generateCSV(res, `laporan-kehadiran-guru-${startDate}-${endDate}.csv`, CSV_HEADERS.TEACHER_REPORT, rows, rowMapper);
 
@@ -685,27 +632,8 @@ export const getStudentAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED, { fields: ['startDate', 'endDate'] });
         }
 
-        const { query: baseQuery, params } = buildStudentReportBaseQuery(startDate, endDate, kelas_id);
-
-        const fullQuery = `
-            SELECT 
-                DATE_FORMAT(a.waktu_absen, '%Y-%m-%d') as tanggal,
-                k.nama_kelas,
-                s.nama as nama_siswa,
-                s.nis as nis_siswa,
-                'Absensi Harian' as nama_mapel,
-                'Siswa Perwakilan' as nama_guru,
-                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
-                '07:00' as jam_mulai,
-                '17:00' as jam_selesai,
-                COALESCE(a.status, '${REPORT_STATUS.TIDAK_HADIR}') as status,
-                COALESCE(a.keterangan, '-') as keterangan,
-                NULL as jam_ke
-            ${baseQuery}
-            ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
+        const rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
+        
         log.success('GetStudentReport', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -727,30 +655,10 @@ export const downloadStudentAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        const { query: baseQuery, params } = buildStudentReportBaseQuery(startDate, endDate, kelas_id);
-
-        const fullQuery = `
-            SELECT 
-                DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal,
-                k.nama_kelas,
-                s.nama as nama_siswa,
-                s.nis as nis_siswa,
-                'Absensi Harian' as nama_mapel,
-                'Siswa Perwakilan' as nama_guru,
-                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
-                '07:00' as jam_mulai,
-                '17:00' as jam_selesai,
-                '07:00 - 17:00' as jadwal,
-                CONCAT(COALESCE(a.status, '${REPORT_STATUS.TIDAK_HADIR}'), CASE WHEN a.terlambat = 1 THEN ' (Terlambat)' ELSE '' END) as status,
-                COALESCE(a.keterangan, '-') as keterangan
-            ${baseQuery}
-            ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama
-        `;
-
-        const [rows] = await globalThis.dbPool.execute(fullQuery, params);
+        const rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
 
         const rowMapper = (row) => 
-            `"${row.tanggal}","${row.nama_kelas}","${row.nama_siswa}","${row.nis_siswa || ''}","${row.nama_mapel || ''}","${row.nama_guru || ''}","${row.waktu_absen || ''}","${row.jam_mulai || ''}","${row.jam_selesai || ''}","${row.jadwal || ''}","${row.status}","${row.keterangan || ''}"`;
+            `"${row.tanggal_formatted}","${row.nama_kelas}","${row.nama_siswa}","${row.nis_siswa || ''}","${row.nama_mapel || ''}","${row.nama_guru || ''}","${row.waktu_absen || ''}","${row.jam_mulai || ''}","${row.jam_selesai || ''}","${row.jadwal || ''}","${row.status}","${row.keterangan || ''}"`;
 
         generateCSV(res, `laporan-kehadiran-siswa-${startDate}-${endDate}.csv`, CSV_HEADERS.STUDENT_REPORT, rows, rowMapper);
 
@@ -775,27 +683,33 @@ export const getStudentAttendanceSummary = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        const { query, params } = buildStudentSummaryQuery(startDate, endDate, kelas_id);
-
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
         
-        // Calculate effective days for percentage
-        const effectiveDays = calculateEffectiveDays(startDate, endDate);
+        // Calculate effective days for percentage using DB-backed calculation
+        const effectiveDays = await calculateEffectiveDays(startDate, endDate);
         
-        // Post-process rows to add percentage
+        // Post-process rows to add percentage with warning for anomalies
         const processedRows = rows.map(row => {
             const hadir = Number(row.H) || 0;
             const dispen = Number(row.D) || 0;
-            // Percentage = (Hadir + Dispen) / EffectiveDays * 100
-            // Cap at 100% just in case attendance count > estimated effective days
-            let percentage = ((hadir + dispen) / effectiveDays) * 100;
-            if (percentage > 100) percentage = 100;
+            const totalPresent = hadir + dispen;
+            
+            // Use centralized calculation with warning
+            const { percentage, capped, raw } = calculateAttendancePercentage(
+                totalPresent, 
+                effectiveDays, 
+                { 
+                    logWarning: true, 
+                    context: `Student: ${row.nama || 'Unknown'} (${row.nis || 'N/A'})` 
+                }
+            );
             
             return {
                 ...row,
                 total: effectiveDays, // Show effective days as total expectation
                 actual_total: row.total, // Keep separate record count
-                presentase: percentage.toFixed(2)
+                presentase: percentage.toFixed(2),
+                _raw_percentage: capped ? raw : undefined // Include raw only if capped for debugging
             };
         });
 
@@ -832,38 +746,7 @@ function validateExportParams(startDate, endDate) {
     return { valid: true };
 }
 
-// Helper to build student summary query
-function buildStudentSummaryQuery(startDate, endDate, kelas_id) {
-    let query = `
-        SELECT 
-            s.nama,
-            s.nis,
-            k.nama_kelas,
-            COALESCE(SUM(CASE WHEN a.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.ALPA}' THEN 1 ELSE 0 END), 0) AS A,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
-            COALESCE(SUM(CASE WHEN a.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
-            COALESCE(COUNT(a.id), 0) AS total
-        FROM siswa s
-        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
-        JOIN kelas k ON s.kelas_id = k.id_kelas
-        WHERE s.status = 'aktif'
-    `;
-
-    const params = [startDate, endDate];
-    if (kelas_id && kelas_id !== '' && kelas_id !== 'all') {
-        query += ' AND k.id_kelas = ?';
-        params.push(kelas_id);
-    }
-
-    query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
-
-    return { query, params };
-}
-
-// Download student attendance summary as styled Excel
+// Download student attendance summary as styled Excel (Streamed)
 export const downloadStudentAttendanceExcel = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id } = req.query;
@@ -878,21 +761,28 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
             return sendValidationError(res, validation.error);
         }
 
-        const { query, params } = buildStudentSummaryQuery(startDate, endDate, kelas_id);
+        const rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        log.debug('Building Excel export (streaming)', { studentCount: rows.length });
 
-        log.debug('Building Excel export', { studentCount: rows.length });
+        // Calculate effective days outside the loop (DB-backed)
+        const effectiveDays = await calculateEffectiveDays(startDate, endDate);
 
-        // Build schema-aligned rows
-        // Build schema-aligned rows
-        const effectiveDays = calculateEffectiveDays(startDate, endDate);
-        
-        const exportRows = rows.map((r, idx) => {
+        // Define row mapper for streaming
+        const rowMapper = (r, idx) => {
             const hadir = Number(r.H) || 0;
             const dispen = Number(r.D) || 0;
-            let percentage = ((hadir + dispen) / effectiveDays); // Decimal for Excel
-            if (percentage > 1) percentage = 1;
+            const totalPresent = hadir + dispen;
+            
+            // Use centralized calculation with warning
+            const { percentage, capped } = calculateAttendancePercentage(
+                totalPresent, 
+                effectiveDays, 
+                { 
+                    logWarning: true, 
+                    context: `Excel Export - Student: ${r.nama || 'Unknown'}` 
+                }
+            );
 
             return {
                 no: idx + 1,
@@ -904,40 +794,28 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
                 sakit: Number(r.S) || 0,
                 alpa: Number(r.A) || 0,
                 dispen: dispen,
-                presentase: percentage
+                presentase: percentage / 100 // Convert to decimal
             };
-        });
+        };
 
-        // Dynamic imports for backend utilities
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        // Use Streaming Builder
+        const { streamExcel } = await import('../../backend/export/excelStreamingBuilder.js');
         const studentSchemaModule = await import('../../backend/export/schemas/student-summary.js');
         const studentSchema = studentSchemaModule.default;
-
-        // Load letterhead configuration
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_SISWA });
 
-        const reportPeriod = `${startDate} - ${endDate}`;
-        const workbook = await buildExcel({
+        await streamExcel(res, {
+            filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx`,
             title: studentSchema.title,
             subtitle: studentSchema.subtitle,
-            reportPeriod,
-            showLetterhead: letterhead.enabled,
-            letterhead: letterhead,
+            reportPeriod: `${startDate} - ${endDate}`,
+            letterhead: letterhead.enabled ? letterhead : {},
             columns: studentSchema.columns,
-            rows: exportRows
+            dataIterator: rows, // Array as iterator
+            rowMapper: rowMapper
         });
 
-        // Set headers
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx`);
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-
-        await workbook.xlsx.write(res);
-        res.end();
-
-        log.success('DownloadStudentExcel', { studentCount: exportRows.length, filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx` });
+        log.success('DownloadStudentExcel', { count: rows.length, effectiveDays, filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx` });
     } catch (error) {
         log.error('DownloadStudentExcel failed', { error: error.message, stack: error.stack });
 

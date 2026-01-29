@@ -7,6 +7,9 @@
  */
 
 import { formatWIBTime } from './timeUtils.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('CORS');
 
 /**
  * CORS Error Codes with detailed descriptions
@@ -103,7 +106,48 @@ export const CORS_ERROR_CODES = {
  * @returns {CORSDiagnostic} Detailed diagnostic result
  */
 export function diagnoseCORS({ origin, allowedOrigins, method, headers }) {
-    const diagnostic = {
+    const diagnostic = initializeDiagnostic({ origin, allowedOrigins, method, headers });
+
+    // 1. Check for missing origin (server-to-server)
+    if (!origin) {
+        return markAsServerToServer(diagnostic);
+    }
+
+    const cleanOrigin = origin.replace(/\/$/, '');
+
+    // 2. Check for direct matches (Exact, Clean, Wildcard)
+    const matchResult = checkOriginMatch(origin, cleanOrigin, allowedOrigins);
+    diagnostic.checks.push(...matchResult.checks);
+    
+    if (matchResult.isMatch) {
+        return markAsAllowed(diagnostic);
+    }
+
+    // Origin not allowed - determine specific reason
+    diagnostic.allowed = false;
+
+    // 3. Check for protocol mismatch (HTTP vs HTTPS)
+    const protocolCheck = checkProtocolMismatch(origin, allowedOrigins);
+    if (protocolCheck) {
+        return applyErrorToDiagnostic(diagnostic, protocolCheck);
+    }
+
+    // 4. Check for subdomain mismatch
+    const subdomainCheck = checkSubdomainMismatch(origin, allowedOrigins);
+    if (subdomainCheck) {
+        return applyErrorToDiagnostic(diagnostic, subdomainCheck);
+    }
+
+    // 5. Default block (Not Whitelisted)
+    return markAsBlocked(diagnostic, origin, allowedOrigins);
+}
+
+// ==========================================
+// HELPER FUNCTIONS FOR DIAGNOSTICS
+// ==========================================
+
+function initializeDiagnostic({ origin, allowedOrigins, method, headers }) {
+    return {
         allowed: false,
         errorCode: null,
         errorInfo: null,
@@ -120,105 +164,116 @@ export function diagnoseCORS({ origin, allowedOrigins, method, headers }) {
         suggestions: [],
         checks: []
     };
+}
 
-    // Check 1: No origin (server-to-server)
-    if (!origin) {
-        diagnostic.allowed = true;
-        diagnostic.errorCode = 'CORS_002';
-        diagnostic.errorInfo = CORS_ERROR_CODES.CORS_002;
-        diagnostic.checks.push({
-            check: 'Origin Header Present',
-            passed: false,
-            note: 'No Origin header - likely server-to-server request'
-        });
-        return diagnostic;
-    }
+function markAsServerToServer(diagnostic) {
+    diagnostic.allowed = true;
+    diagnostic.errorCode = 'CORS_002';
+    diagnostic.errorInfo = CORS_ERROR_CODES.CORS_002;
+    diagnostic.checks.push({
+        check: 'Origin Header Present',
+        passed: false,
+        note: 'No Origin header - likely server-to-server request'
+    });
+    return diagnostic;
+}
 
-    const cleanOrigin = origin.replace(/\/$/, '');
-
-    // Check 2: Exact match
+function checkOriginMatch(origin, cleanOrigin, allowedOrigins) {
     const exactMatch = allowedOrigins.includes(origin);
     const cleanMatch = allowedOrigins.includes(cleanOrigin);
     const wildcardMatch = allowedOrigins.includes('*');
 
+    const checks = [
+        {
+            check: 'Exact Origin Match',
+            passed: exactMatch,
+            note: exactMatch ? `"${origin}" found in whitelist` : `"${origin}" NOT in whitelist`
+        },
+        {
+            check: 'Clean Origin Match',
+            passed: cleanMatch,
+            note: cleanMatch ? `"${cleanOrigin}" found in whitelist` : `"${cleanOrigin}" NOT in whitelist`
+        },
+        {
+            check: 'Wildcard Match',
+            passed: wildcardMatch,
+            note: wildcardMatch ? 'Wildcard (*) is enabled' : 'Wildcard (*) not enabled'
+        }
+    ];
+
+    return { isMatch: exactMatch || cleanMatch || wildcardMatch, checks };
+}
+
+function markAsAllowed(diagnostic) {
+    diagnostic.allowed = true;
     diagnostic.checks.push({
-        check: 'Exact Origin Match',
-        passed: exactMatch,
-        note: exactMatch ? `"${origin}" found in whitelist` : `"${origin}" NOT in whitelist`
+        check: 'CORS Allowed',
+        passed: true,
+        note: 'Origin is authorized'
     });
+    return diagnostic;
+}
 
-    diagnostic.checks.push({
-        check: 'Clean Origin Match',
-        passed: cleanMatch,
-        note: cleanMatch ? `"${cleanOrigin}" found in whitelist` : `"${cleanOrigin}" NOT in whitelist`
-    });
+function applyErrorToDiagnostic(diagnostic, errorData) {
+    diagnostic.errorCode = errorData.errorCode;
+    diagnostic.errorInfo = errorData.errorInfo;
+    diagnostic.suggestions.push(...errorData.suggestions);
+    diagnostic.checks.push(errorData.check);
+    return diagnostic;
+}
 
-    diagnostic.checks.push({
-        check: 'Wildcard Match',
-        passed: wildcardMatch,
-        note: wildcardMatch ? 'Wildcard (*) is enabled' : 'Wildcard (*) not enabled'
-    });
-
-    if (exactMatch || cleanMatch || wildcardMatch) {
-        diagnostic.allowed = true;
-        diagnostic.checks.push({
-            check: 'CORS Allowed',
-            passed: true,
-            note: 'Origin is authorized'
-        });
-        return diagnostic;
-    }
-
-    // Origin not allowed - determine specific reason
-    diagnostic.allowed = false;
-
-    // Check 3: Protocol mismatch (http vs https)
+function checkProtocolMismatch(origin, allowedOrigins) {
     const originProtocol = origin.startsWith('https') ? 'https' : 'http';
     const oppositeProtocol = originProtocol === 'https' ? 'http' : 'https';
     const originWithOppositeProtocol = origin.replace(originProtocol, oppositeProtocol);
     
     if (allowedOrigins.includes(originWithOppositeProtocol)) {
-        diagnostic.errorCode = 'CORS_009';
-        diagnostic.errorInfo = CORS_ERROR_CODES.CORS_009;
-        diagnostic.suggestions.push(
-            `Origin uses ${originProtocol} but whitelist has ${oppositeProtocol}`,
-            `Change "${originWithOppositeProtocol}" to "${origin}" in ALLOWED_ORIGINS`,
-            'Or add both http and https versions'
-        );
-        diagnostic.checks.push({
-            check: 'Protocol Match',
-            passed: false,
-            note: `Protocol mismatch: request=${originProtocol}, whitelist has ${oppositeProtocol}`
-        });
-        return diagnostic;
+        return {
+            errorCode: 'CORS_009',
+            errorInfo: CORS_ERROR_CODES.CORS_009,
+            suggestions: [
+                `Origin uses ${originProtocol} but whitelist has ${oppositeProtocol}`,
+                `Change "${originWithOppositeProtocol}" to "${origin}" in ALLOWED_ORIGINS`,
+                'Or add both http and https versions'
+            ],
+            check: {
+                check: 'Protocol Match',
+                passed: false,
+                note: `Protocol mismatch: request=${originProtocol}, whitelist has ${oppositeProtocol}`
+            }
+        };
     }
+    return null;
+}
 
-    // Check 4: Subdomain mismatch
+function checkSubdomainMismatch(origin, allowedOrigins) {
     const originHost = origin.replace(/https?:\/\//, '').replace(/:\d+$/, '');
     const isSubdomainIssue = allowedOrigins.some(allowed => {
         const allowedHost = allowed.replace(/https?:\/\//, '').replace(/:\d+$/, '');
-        // Check if one is subdomain of other
         return originHost.endsWith(allowedHost.replace('www.', '')) ||
                allowedHost.endsWith(originHost.replace('www.', ''));
     });
 
     if (isSubdomainIssue) {
-        diagnostic.errorCode = 'CORS_010';
-        diagnostic.errorInfo = CORS_ERROR_CODES.CORS_010;
-        diagnostic.suggestions.push(
-            `Subdomain "${originHost}" not explicitly whitelisted`,
-            `Add "${origin}" to ALLOWED_ORIGINS in .env`,
-            'Consider adding all variations: domain.com, www.domain.com, api.domain.com'
-        );
-        diagnostic.checks.push({
-            check: 'Subdomain Check',
-            passed: false,
-            note: `Subdomain variation not whitelisted`
-        });
-        return diagnostic;
+        return {
+            errorCode: 'CORS_010',
+            errorInfo: CORS_ERROR_CODES.CORS_010,
+            suggestions: [
+                `Subdomain "${originHost}" not explicitly whitelisted`,
+                `Add "${origin}" to ALLOWED_ORIGINS in .env`,
+                'Consider adding all variations: domain.com, www.domain.com, api.domain.com'
+            ],
+            check: {
+                check: 'Subdomain Check',
+                passed: false,
+                note: `Subdomain variation not whitelisted`
+            }
+        };
     }
+    return null;
+}
 
-    // Check 5: General not whitelisted
+function markAsBlocked(diagnostic, origin, allowedOrigins) {
     diagnostic.errorCode = 'CORS_001';
     diagnostic.errorInfo = CORS_ERROR_CODES.CORS_001;
     diagnostic.suggestions.push(
@@ -227,7 +282,6 @@ export function diagnoseCORS({ origin, allowedOrigins, method, headers }) {
         'Restart server after changing .env: pm2 restart absenta'
     );
 
-    // Find similar origins (possible typos)
     const similarOrigins = findSimilarOrigins(origin, allowedOrigins);
     if (similarOrigins.length > 0) {
         diagnostic.suggestions.push(
@@ -235,7 +289,7 @@ export function diagnoseCORS({ origin, allowedOrigins, method, headers }) {
             'Check for typos in origin configuration'
         );
     }
-
+    
     return diagnostic;
 }
 
@@ -432,7 +486,7 @@ export function createCORSMiddleware({ allowedOrigins, verbose = false }) {
             // Handle preflight
             if (method === 'OPTIONS') {
                 if (verbose) {
-                    console.log(`[CORS:${requestId}] Preflight OK - Origin: ${origin}`);
+                    logger.info(`[CORS:${requestId}] Preflight OK - Origin: ${origin}`);
                 }
                 return res.status(204).end();
             }
@@ -442,10 +496,10 @@ export function createCORSMiddleware({ allowedOrigins, verbose = false }) {
 
         // CORS not allowed
         if (verbose || process.env.NODE_ENV !== 'production') {
-            console.error(formatCORSErrorLog(diagnostic));
+            logger.error(formatCORSErrorLog(diagnostic));
         } else {
             // Minimal logging in production
-            console.warn(`[CORS:${requestId}] BLOCKED - Code: ${diagnostic.errorCode}, Origin: ${origin}`);
+            logger.warn(`[CORS:${requestId}] BLOCKED - Code: ${diagnostic.errorCode}, Origin: ${origin}`);
         }
 
         // Set debug headers even for blocked requests (helps debugging)

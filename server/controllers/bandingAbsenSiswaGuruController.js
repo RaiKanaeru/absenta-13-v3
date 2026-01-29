@@ -6,8 +6,9 @@
  */
 
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
-import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse, sendPermissionError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import { validateSelfAccess, validatePerwakilanAccess, validateUserContext } from '../utils/validationUtils.js';
 
 const logger = createLogger('BandingAbsenSiswaGuru');
 
@@ -23,6 +24,18 @@ export const getSiswaBandingAbsen = async (req, res) => {
     log.requestStart('GetSiswaBanding', { siswaId });
 
     try {
+        if (!validateUserContext(req, res)) {
+            return;
+        }
+
+        if (!validateSelfAccess(req, res, siswaId, 'siswa_id')) {
+            return;
+        }
+
+        if (!validatePerwakilanAccess(req, res)) {
+            return;
+        }
+
         const query = `
             SELECT 
                 ba.id_banding,
@@ -71,6 +84,14 @@ export const submitSiswaBandingAbsen = async (req, res) => {
     log.requestStart('SubmitBanding', { siswaId, jadwal_id, tanggal_absen, status_asli, status_diajukan });
 
     try {
+        if (!validateUserContext(req, res)) {
+            return;
+        }
+
+        if (!validateSelfAccess(req, res, siswaId, 'siswa_id')) {
+            return;
+        }
+
         if (!jadwal_id || !tanggal_absen || !status_asli || !status_diajukan || !alasan_banding) {
             log.validationFail('required_fields', null, 'All fields required');
             return sendValidationError(res, 'Semua field wajib diisi', { fields: ['jadwal_id', 'tanggal_absen', 'status_asli', 'status_diajukan', 'alasan_banding'] });
@@ -90,6 +111,20 @@ export const submitSiswaBandingAbsen = async (req, res) => {
         if (!validStatuses.includes(status_asli) || !validStatuses.includes(status_diajukan)) {
             log.validationFail('status', { status_asli, status_diajukan }, 'Invalid status');
             return sendValidationError(res, `Status harus salah satu dari: ${validStatuses.join(', ')}`);
+        }
+
+        const [jadwalRows] = await globalThis.dbPool.execute(
+            `SELECT j.id_jadwal
+             FROM jadwal j
+             JOIN siswa s ON s.id_siswa = ? AND s.kelas_id = j.kelas_id
+             WHERE j.id_jadwal = ? AND j.status = 'aktif'
+             LIMIT 1`,
+            [siswaId, jadwal_id]
+        );
+
+        if (jadwalRows.length === 0) {
+            log.validationFail('jadwal_id', jadwal_id, 'Invalid schedule for student');
+            return sendValidationError(res, 'Jadwal tidak valid untuk siswa ini', { field: 'jadwal_id' });
         }
 
         const [existing] = await globalThis.dbPool.execute(
@@ -130,6 +165,18 @@ export const getDaftarSiswa = async (req, res) => {
     log.requestStart('GetDaftarSiswa', { siswaId });
 
     try {
+        if (!validateUserContext(req, res)) {
+            return;
+        }
+
+        if (!validateSelfAccess(req, res, siswaId, 'siswa_id')) {
+            return;
+        }
+
+        if (!validatePerwakilanAccess(req, res)) {
+            return;
+        }
+
         const [siswaData] = await globalThis.dbPool.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ? AND status = "aktif"',
             [siswaId]
@@ -172,6 +219,14 @@ export const getGuruBandingAbsen = async (req, res) => {
     log.requestStart('GetGuruBanding', { guruId, page, limit, filter_pending });
 
     try {
+        if (!validateUserContext(req, res)) {
+            return;
+        }
+
+        if (!validateSelfAccess(req, res, guruId, 'guru_id')) {
+            return;
+        }
+
         const offset = (Number.parseInt(page) - 1) * Number.parseInt(limit);
         const isFilterPending = filter_pending === 'true';
 
@@ -225,18 +280,45 @@ export const getGuruBandingAbsen = async (req, res) => {
 export const respondBandingAbsen = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { bandingId } = req.params;
-    const { status_banding, catatan_guru, diproses_oleh } = req.body;
-    const guruId = diproses_oleh || req.user.guru_id || req.user.id;
+    const { status_banding, catatan_guru } = req.body;
+    const guruId = req.user?.guru_id;
 
     log.requestStart('RespondBanding', { bandingId, status_banding, guruId });
 
     try {
+        if (!validateUserContext(req, res)) {
+            return;
+        }
+
+        if (!guruId) {
+            log.validationFail('guru_id', null, 'Missing guru_id in token');
+            return sendPermissionError(res, 'Data guru tidak ditemukan pada token pengguna');
+        }
+
         if (!status_banding || !['disetujui', 'ditolak'].includes(status_banding)) {
             log.validationFail('status_banding', status_banding, 'Invalid status');
             return sendValidationError(res, 'Status harus disetujui atau ditolak', { field: 'status_banding' });
         }
 
         const tanggalKeputusanWIB = getMySQLDateTimeWIB();
+
+        const [accessRows] = await globalThis.dbPool.execute(
+            `SELECT ba.id_banding
+             FROM pengajuan_banding_absen ba
+             JOIN jadwal j ON ba.jadwal_id = j.id_jadwal
+             WHERE ba.id_banding = ?
+               AND (j.guru_id = ? OR EXISTS (
+                   SELECT 1 FROM jadwal_guru jg
+                   WHERE jg.jadwal_id = j.id_jadwal AND jg.guru_id = ?
+               ))
+             LIMIT 1`,
+            [bandingId, guruId, guruId]
+        );
+
+        if (accessRows.length === 0) {
+            log.warn('RespondBanding - forbidden', { bandingId, guruId });
+            return sendPermissionError(res, 'Anda tidak diizinkan memproses banding ini');
+        }
 
         const [result] = await globalThis.dbPool.execute(
             `UPDATE pengajuan_banding_absen 
@@ -261,36 +343,84 @@ export const respondBandingAbsen = async (req, res) => {
 // Get riwayat banding absen untuk laporan
 export const getGuruBandingAbsenHistory = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { startDate, endDate, kelas_id, status } = req.query;
-    const guruId = req.user.guru_id;
+    const { startDate, endDate, kelas_id, status, guru_id } = req.query;
+    const role = req.user?.role;
+    const guruId = req.user?.guru_id;
+    const isAdmin = role === 'admin';
 
     log.requestStart('GetBandingHistory', { startDate, endDate, kelas_id, status, guruId });
 
     try {
+        if (!isAdmin && !validateUserContext(req, res)) {
+            return;
+        }
+
         if (!startDate || !endDate) {
             log.validationFail('dates', null, 'Date range required');
             return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
+        const statusMap = {
+            approved: 'disetujui',
+            rejected: 'ditolak',
+            pending: 'pending'
+        };
+
+        const normalizedStatus = status && statusMap[status] ? statusMap[status] : status;
+
         let query = `
-            SELECT ba.id, ba.tanggal_pengajuan, ba.tanggal_absen, ba.status_absen, ba.alasan_banding,
-                   ba.status, ba.tanggal_disetujui, ba.catatan, s.nama as nama_siswa, s.nis, k.nama_kelas
+            SELECT 
+                ba.id_banding as id,
+                ba.tanggal_pengajuan,
+                ba.tanggal_absen,
+                ba.status_asli as status_absen,
+                ba.alasan_banding,
+                ba.status_banding,
+                CASE ba.status_banding
+                    WHEN 'disetujui' THEN 'approved'
+                    WHEN 'ditolak' THEN 'rejected'
+                    ELSE 'pending'
+                END as status,
+                ba.tanggal_keputusan as tanggal_disetujui,
+                ba.catatan_guru as catatan,
+                s.nama as nama_siswa,
+                s.nis,
+                k.nama_kelas
             FROM pengajuan_banding_absen ba
             JOIN siswa s ON ba.siswa_id = s.id_siswa
             JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE ba.tanggal_pengajuan BETWEEN ? AND ? AND ba.guru_id = ?
+            JOIN jadwal j ON ba.jadwal_id = j.id_jadwal
+            WHERE ba.tanggal_pengajuan BETWEEN ? AND ?
         `;
 
-        const params = [startDate, endDate, guruId];
+        const params = [startDate, endDate];
+
+        if (isAdmin && guru_id) {
+            const parsedGuruId = Number(guru_id);
+            if (Number.isNaN(parsedGuruId)) {
+                return sendValidationError(res, 'guru_id tidak valid', { field: 'guru_id' });
+            }
+            query += ` AND (j.guru_id = ? OR EXISTS (
+                SELECT 1 FROM jadwal_guru jg
+                WHERE jg.jadwal_id = j.id_jadwal AND jg.guru_id = ?
+            ))`;
+            params.push(parsedGuruId, parsedGuruId);
+        } else if (!isAdmin) {
+            query += ` AND (j.guru_id = ? OR EXISTS (
+                SELECT 1 FROM jadwal_guru jg
+                WHERE jg.jadwal_id = j.id_jadwal AND jg.guru_id = ?
+            ))`;
+            params.push(guruId, guruId);
+        }
 
         if (kelas_id && kelas_id !== 'all') {
             query += ` AND s.kelas_id = ?`;
             params.push(kelas_id);
         }
 
-        if (status && status !== 'all') {
-            query += ` AND ba.status = ?`;
-            params.push(status);
+        if (normalizedStatus && normalizedStatus !== 'all') {
+            query += ` AND ba.status_banding = ?`;
+            params.push(normalizedStatus);
         }
 
         query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;

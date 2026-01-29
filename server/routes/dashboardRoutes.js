@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
 import * as dashboardController from '../controllers/dashboardController.js';
 
 const router = Router();
@@ -17,6 +17,6 @@ router.get('/stats', authenticateToken, dashboardController.getStats);
 router.get('/chart', authenticateToken, dashboardController.getChart);
 
 // Live summary data - admin only
-router.get('/live-summary', authenticateToken, dashboardController.getLiveSummary);
+router.get('/live-summary', authenticateToken, requireRole(['admin']), dashboardController.getLiveSummary);
 
 export default router;

@@ -11,7 +11,7 @@ const router = express.Router();
 
 // All routes require admin authentication
 router.use(authenticateToken);
-router.use(requireRole('admin'));
+router.use(requireRole(['admin']));
 
 // GET /api/admin/attendance-settings - Get all settings
 router.get('/', attendanceSettingsController.getAttendanceSettings);
