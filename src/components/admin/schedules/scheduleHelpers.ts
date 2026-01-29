@@ -50,7 +50,6 @@ export const validateJadwalForm = (formData: Record<string, string | number | nu
   if (!formData.jam_ke || Number.isNaN(Number.parseInt(String(formData.jam_ke)))) {
     errors.push('Jam ke- harus diisi dengan angka');
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const jamKe = Number.parseInt(String(formData.jam_ke));
     if (jamKe < 1 || jamKe > 12) {
       errors.push('Jam ke- harus antara 1-12');
@@ -88,7 +87,21 @@ export const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id 
 /**
  * Helper to build jadwal payload
  */
-export const buildJadwalPayload = (form: any, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
+type JadwalFormInput = {
+  kelas_id: string | number;
+  mapel_id?: string | number;
+  guru_ids?: number[];
+  ruang_id?: string | number | null;
+  hari: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  jam_ke: string | number;
+  jenis_aktivitas: string;
+  is_absenable?: boolean;
+  keterangan_khusus?: string | null;
+};
+
+export const buildJadwalPayload = (form: JadwalFormInput, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
   kelas_id: Number.parseInt(form.kelas_id),
   mapel_id: form.jenis_aktivitas === 'pelajaran' ? Number.parseInt(form.mapel_id) : null,
   guru_id: form.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,

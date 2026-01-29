@@ -36,11 +36,12 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
 
   const fetchSubjects = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/mapel', { onLogout }) as Subject[];
+      const data = await apiCall<Subject[]>('/api/admin/mapel', { onLogout });
       setSubjects(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching subjects:', error);
-      toast({ title: "Error memuat mata pelajaran", description: error.message || "Unknown error", variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat mata pelajaran", description: message || "Unknown error", variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -86,9 +87,10 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
       });
       setEditingId(null);
       fetchSubjects();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting subject:', error);
-      toast({ title: "Error", description: error.message || "Unknown error", variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error", description: message || "Unknown error", variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -116,9 +118,10 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
 
       toast({ title: `Mata pelajaran ${nama} berhasil dihapus` });
       fetchSubjects();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting subject:', error);
-      toast({ title: "Error menghapus mata pelajaran", description: error.message || "Unknown error", variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error menghapus mata pelajaran", description: message || "Unknown error", variant: "destructive" });
     }
   };
 

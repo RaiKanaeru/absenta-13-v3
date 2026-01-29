@@ -44,21 +44,23 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
 
   const fetchStudentsData = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/students-data', { onLogout });
+      const data = await apiCall<StudentData[]>('/api/admin/students-data', { onLogout });
       setStudentsData(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching students data:', error);
-      toast({ title: "Error memuat data siswa", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
     }
   }, [onLogout]);
 
   const fetchClasses = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/kelas', { onLogout });
+      const data = await apiCall<Kelas[]>('/api/admin/kelas', { onLogout });
       setClasses(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching classes:', error);
-      toast({ title: "Error memuat data kelas", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat data kelas", description: message, variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -137,9 +139,10 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       });
       setEditingId(null);
       fetchStudentsData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting student data:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -175,9 +178,10 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
 
       toast({ title: `Data siswa ${nama} berhasil dihapus` });
       fetchStudentsData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting student data:', error);
-      toast({ title: "Error menghapus data siswa", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
     }
   };
 

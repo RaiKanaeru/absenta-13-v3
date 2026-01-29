@@ -9,7 +9,7 @@ import { JadwalService } from '../services/jadwalService';
  * @returns Object dengan jadwal, loading state, error, dan fungsi refresh
  */
 export const useJadwalSync = (role: string, siswaId?: number, tanggal?: string) => {
-  const [jadwal, setJadwal] = useState<any[]>([]);
+  const [jadwal, setJadwal] = useState<unknown[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -43,8 +43,9 @@ export const useJadwalSync = (role: string, siswaId?: number, tanggal?: string) 
         data = await JadwalService.getJadwal(role);
         setJadwal(Array.isArray(data) ? data : []);
       }
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat jadwal');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || 'Gagal memuat jadwal');
       console.error('Error refreshing jadwal:', err);
     } finally {
       setIsLoading(false);

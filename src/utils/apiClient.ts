@@ -103,18 +103,35 @@ async function parseResponseData(response: Response, responseType?: 'json' | 'bl
  */
 function createApiErrorFromResponse(response: Response, responseData: unknown): ApiError {
     const errorInfo = (typeof responseData === 'object' && responseData !== null)
-        ? responseData as Record<string, any>
+        ? responseData as Record<string, unknown>
         : { error: responseData };
     
-    const errorObj = errorInfo.error as Record<string, any> | undefined;
-    const errorMessage = errorObj?.message || errorInfo.message || errorInfo.error || HTTP_STATUS_MESSAGES[response.status] || `Error: ${response.status}`;
+    const errorObj = (typeof errorInfo.error === 'object' && errorInfo.error !== null)
+        ? errorInfo.error as Record<string, unknown>
+        : undefined;
+
+    const errorMessage = typeof errorObj?.message === 'string'
+        ? errorObj.message
+        : typeof errorInfo.message === 'string'
+            ? errorInfo.message
+            : typeof errorInfo.error === 'string'
+                ? errorInfo.error
+                : HTTP_STATUS_MESSAGES[response.status] || `Error: ${response.status}`;
+
+    const errorCode = typeof errorObj?.code === 'number' ? errorObj.code : response.status;
+    const errorDetails = (typeof errorObj?.details === 'string' || Array.isArray(errorObj?.details))
+        ? errorObj.details
+        : (typeof errorInfo.details === 'string' || Array.isArray(errorInfo.details))
+            ? errorInfo.details
+            : undefined;
+    const requestId = typeof errorInfo.requestId === 'string' ? errorInfo.requestId : undefined;
     
     return new ApiError(
         errorMessage,
-        errorObj?.code || response.status,
+        errorCode,
         response.status,
-        errorObj?.details || errorInfo.details,
-        errorInfo.requestId
+        errorDetails,
+        requestId
     );
 }
 

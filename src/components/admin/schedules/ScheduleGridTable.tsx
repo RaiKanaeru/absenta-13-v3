@@ -113,6 +113,8 @@ const getSubjectColor = (mapel: string, defaultColor?: string): string => {
 const TINGKAT_LIST = ['X', 'XI', 'XII', 'XIII'];
 const ROW_TYPES = ['MAPEL', 'RUANG', 'GURU'] as const;
 
+const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;
+
 // Draggable Item Component
 function DraggableItem({ id, type, data, isDisabled }: {
   id: string;
@@ -131,9 +133,8 @@ function DraggableItem({ id, type, data, isDisabled }: {
   };
 
   const isGuru = type === 'guru';
-  // Use generic constraint or any casting if complex union is hard to discriminate
-  // For safety we'll cast to Any temporarily or specific union type checks
-  const itemData = data as any; 
+  const displayName = isTeacherItem(data) ? data.nama : data.nama_mapel;
+  const displayCode = isTeacherItem(data) ? (data.nip || '-') : (data.kode_mapel || '-');
 
   return (
     <div
@@ -155,10 +156,10 @@ function DraggableItem({ id, type, data, isDisabled }: {
       )}
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate">
-          {isGuru ? itemData.nama : itemData.nama_mapel}
+          {displayName}
         </p>
         <p className="text-xs text-gray-500 truncate">
-          {isGuru ? (itemData.nip || '-') : (itemData.kode_mapel || '-')}
+          {displayCode}
         </p>
       </div>
     </div>
@@ -301,7 +302,7 @@ export function ScheduleGridTable({
     const jamKe = Number.parseInt(jamKeStr);
 
     const dragType = active.data.current?.type as 'guru' | 'mapel';
-    const dragItem = active.data.current?.item;
+    const dragItem = active.data.current?.item as Teacher | Subject | undefined;
 
     if (!dragItem) return;
 
@@ -338,12 +339,16 @@ export function ScheduleGridTable({
     }
 
     // Add to pending changes
+    const dragItemId = dragType === 'guru'
+      ? ('id' in dragItem ? dragItem.id : ('id_guru' in dragItem ? dragItem.id_guru : undefined))
+      : ('id' in dragItem ? dragItem.id : ('id_mapel' in dragItem ? dragItem.id_mapel : undefined));
+
     const change: PendingChange = {
       kelas_id: kelasId,
       hari,
       jam_ke: jamKe,
       rowType,
-      [dragType === 'guru' ? 'guru_id' : 'mapel_id']: (dragItem as any).id || (dragItem as any).id_guru || (dragItem as any).id_mapel
+      [dragType === 'guru' ? 'guru_id' : 'mapel_id']: dragItemId ?? null
     };
 
     setPendingChanges(prev => {
@@ -397,9 +402,10 @@ export function ScheduleGridTable({
         return { ...prev, classes: newClasses };
     });
 
+    const itemLabel = isTeacherItem(dragItem) ? dragItem.nama : dragItem.nama_mapel;
     toast({
       title: "Jadwal Diupdate (Draft)",
-      description: `${(dragItem as any).nama || (dragItem as any).nama_mapel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
+      description: `${itemLabel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
     });
   }, [matrixData]);
 
@@ -413,7 +419,7 @@ export function ScheduleGridTable({
     setIsSaving(true);
     try {
       // Group changes by hari
-      const changesByHari: Record<string, any[]> = {};
+      const changesByHari: Record<string, PendingChange[]> = {};
       for (const change of pendingChanges) {
         if (!changesByHari[change.hari]) changesByHari[change.hari] = [];
         changesByHari[change.hari].push(change);
@@ -431,10 +437,11 @@ export function ScheduleGridTable({
       toast({ title: "Sukses", description: `${pendingChanges.length} perubahan disimpan` });
       setPendingChanges([]);
       fetchMatrix();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({ 
         title: "Error", 
-        description: error.message || "Gagal menyimpan perubahan", 
+        description: message || "Gagal menyimpan perubahan", 
         variant: "destructive" 
       });
     } finally {

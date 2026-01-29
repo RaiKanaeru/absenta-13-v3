@@ -61,16 +61,14 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
   const [reviewNote, setReviewNote] = useState('');
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
 
-  useEffect(() => {
-    fetchBandingData();
-  }, [onLogout]);
+  const handleSessionExpiredToast = (opts: { title: string; description: string; variant?: string }) => toast(opts);
 
-  const fetchBandingData = async () => {
+  const fetchBandingData = React.useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await apiCall('/api/admin/banding-absen', {
-        onLogout: createSessionExpiredHandler(onLogout, toast)
+      const data = await apiCall<BandingRequest[]>('/api/admin/banding-absen', {
+        onLogout: createSessionExpiredHandler(onLogout, handleSessionExpiredToast)
       });
       setBandingData(data);
     } catch (error: unknown) {
@@ -80,7 +78,11 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
     } finally {
       setLoading(false);
     }
-  };
+  }, [onLogout]);
+
+  useEffect(() => {
+    fetchBandingData();
+  }, [fetchBandingData]);
 
   const handleReviewBanding = async () => {
     if (!selectedBanding || !reviewAction) return;
@@ -92,7 +94,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           status: reviewAction === 'approve' ? 'disetujui' : 'ditolak',
           keterangan: reviewNote
         }),
-        onLogout: createSessionExpiredHandler(onLogout, toast)
+        onLogout: createSessionExpiredHandler(onLogout, handleSessionExpiredToast)
       });
       
       toast({

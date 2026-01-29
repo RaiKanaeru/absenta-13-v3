@@ -52,6 +52,7 @@ const ScheduleGridTable = React.lazy(() => import('./admin/schedules/ScheduleGri
 
 const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
 const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView').then(module => ({ default: module.DatabaseManagerView })));
+const AuditLogView = React.lazy(() => import('./admin/logs/AuditLogView').then(module => ({ default: module.AuditLogView })));
 
 
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
@@ -313,11 +314,12 @@ const menuItems = [
 
 
   { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
-  { id: 'database-manager', title: 'Database Manager', icon: Database, description: 'Kelola file database dan seeders', gradient: 'from-indigo-400 to-indigo-600' }
+  { id: 'database-manager', title: 'Database Manager', icon: Database, description: 'Kelola file database dan seeders', gradient: 'from-indigo-400 to-indigo-600' },
+  { id: 'audit-logs', title: 'Audit Log', icon: Activity, description: 'Riwayat aktivitas admin', gradient: 'from-orange-500 to-red-500' }
 ];
 
 
-// ManageSubjectsView Component  
+// ManageSubjectsView Component
 const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
   const [formData, setFormData] = useState({ 
     kode_mapel: '', 
@@ -5323,6 +5325,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ErrorBoundary><JamPelajaranConfig /></ErrorBoundary>;
       case 'database-manager':
         return <ErrorBoundary><DatabaseManagerView /></ErrorBoundary>;
+      case 'audit-logs':
+        return <ErrorBoundary><AuditLogView onBack={handleBack} /></ErrorBoundary>;
       default:
         return null;
     }

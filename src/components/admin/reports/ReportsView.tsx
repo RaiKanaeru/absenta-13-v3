@@ -89,8 +89,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       document.body.removeChild(a);
 
       toast({ title: "Export Berhasil", description: "File Excel Guru sedang diunduh...", variant: "default" });
-    } catch (error: any) {
-      toast({ title: "Export Gagal", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Export Gagal", description: message, variant: "destructive" });
     } finally {
       setExporting(false);
     }

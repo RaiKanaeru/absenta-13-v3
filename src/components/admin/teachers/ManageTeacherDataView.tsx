@@ -37,19 +37,20 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
 
   const fetchTeachersData = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/teachers-data', { onLogout });
+      const data = await apiCall<TeacherData[]>('/api/admin/teachers-data', { onLogout });
       setTeachersData(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching teachers data:', error);
-      toast({ title: "Error memuat data guru", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
     }
   }, [onLogout]);
 
   const fetchSubjects = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/mapel', { onLogout });
+      const data = await apiCall<Subject[]>('/api/admin/mapel', { onLogout });
       setSubjects(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching subjects:', error);
     }
   }, [onLogout]);
@@ -103,9 +104,10 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
       });
       setEditingId(null);
       fetchTeachersData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting teacher data:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -137,9 +139,10 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
 
       toast({ title: `Data guru ${nama} berhasil dihapus` });
       fetchTeachersData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting teacher data:', error);
-      toast({ title: "Error menghapus data guru", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error menghapus data guru", description: message, variant: "destructive" });
     }
   };
 

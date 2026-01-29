@@ -50,22 +50,23 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
 
   const fetchStudents = useCallback(async () => {
     try {
-      const response = await apiCall('/api/admin/students', { onLogout });
+      const response = await apiCall<Student[] | { data?: Student[] }>('/api/admin/students', { onLogout });
       // Backend returns { success, data, pagination } - extract the data array
-      const studentsArray = response?.data || response || [];
+      const studentsArray = Array.isArray(response) ? response : response?.data || [];
       setStudents(Array.isArray(studentsArray) ? studentsArray : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching students:', error);
-      toast({ title: "Error memuat data siswa", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
     }
   }, [onLogout]);
 
 
   const fetchClasses = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/classes', { onLogout });
+      const data = await apiCall<Kelas[]>('/api/admin/classes', { onLogout });
       setClasses(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching classes:', error);
       // Don't show error toast for classes as it's not critical
     }
@@ -160,13 +161,17 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       setEditingNis(null);
       setDialogOpen(false);
       fetchStudents();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting student:', error);
-      if (error.details) {
-        const errorMessage = Array.isArray(error.details) ? error.details.join(', ') : error.details;
+      const errorDetails = typeof error === 'object' && error !== null && 'details' in error
+        ? (error as { details?: unknown }).details
+        : undefined;
+      if (errorDetails) {
+        const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
         toast({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
       } else {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : String(error);
+        toast({ title: "Error", description: message, variant: "destructive" });
       }
     }
 
@@ -174,6 +179,10 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
   };
 
   const handleEdit = (student: Student) => {
+    const rawIsPerwakilan = (student as Record<string, unknown>).is_perwakilan;
+    const isPerwakilan = typeof rawIsPerwakilan === 'boolean'
+      ? rawIsPerwakilan
+      : Boolean(rawIsPerwakilan);
     setFormData({ 
       nama: student.nama, 
       nis: student.nis || '',
@@ -187,9 +196,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       password: '', // Kosongkan password saat edit
       email: student.email || '',
       jabatan: student.jabatan || 'Siswa',
-      is_perwakilan: typeof (student as any).is_perwakilan === 'boolean'
-        ? (student as any).is_perwakilan
-        : Boolean((student as any).is_perwakilan)
+      is_perwakilan: isPerwakilan
     });
     setEditingId(student.id);
     setEditingNis(student.nis || null);
@@ -209,9 +216,10 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
 
       toast({ title: `Data siswa ${nama} (NIS: ${nis}) berhasil dihapus` });
       fetchStudents();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting student:', error);
-      toast({ title: "Error menghapus data siswa", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
     }
   };
 

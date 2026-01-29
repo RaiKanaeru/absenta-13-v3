@@ -33,9 +33,10 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
     try {
       const data = await apiCall('/api/admin/kelas', { onLogout }) as Kelas[];
       setClasses(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching classes:', error);
-      toast({ title: "Error memuat kelas", description: error.message || "Unknown error", variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat kelas", description: message || "Unknown error", variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -72,9 +73,10 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
       setFormData({ nama_kelas: '' });
       setEditingId(null);
       fetchClasses();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting class:', error);
-      toast({ title: "Error", description: error.message || "Unknown error", variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error", description: message || "Unknown error", variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -97,9 +99,10 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
 
       toast({ title: `Kelas ${nama} berhasil dihapus` });
       fetchClasses();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting class:', error);
-      toast({ title: "Error menghapus kelas", description: error.message || "Unknown error", variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error menghapus kelas", description: message || "Unknown error", variant: "destructive" });
     }
   };
 

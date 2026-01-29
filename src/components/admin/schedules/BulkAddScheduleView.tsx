@@ -198,10 +198,11 @@ export function BulkAddScheduleView({
 
       onSuccess();
       onBack();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error",
-        description: error.message || "Gagal menambahkan jadwal",
+        description: message || "Gagal menambahkan jadwal",
         variant: "destructive"
       });
     } finally {

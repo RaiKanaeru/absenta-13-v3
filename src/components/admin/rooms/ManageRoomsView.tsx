@@ -52,11 +52,13 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
 
   const fetchRooms = useCallback(async () => {
     try {
-      const response = await apiCall('/api/admin/ruang', { onLogout });
-      setRooms(response);
-    } catch (error: any) {
+      const response = await apiCall<Room[] | { data?: Room[] }>('/api/admin/ruang', { onLogout });
+      const roomsData = Array.isArray(response) ? response : response.data || [];
+      setRooms(roomsData);
+    } catch (error: unknown) {
       console.error('Error fetching rooms:', error);
-      toast({ title: "Error memuat data ruang", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat data ruang", description: message, variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -133,10 +135,11 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       setEditingId(null);
       setDialogOpen(false);
       fetchRooms();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     } finally {
@@ -168,10 +171,11 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
         description: "Ruang berhasil dihapus"
       });
       fetchRooms();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     }

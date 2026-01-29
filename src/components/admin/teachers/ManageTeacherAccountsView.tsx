@@ -42,22 +42,24 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
 
   const fetchTeachers = useCallback(async () => {
     try {
-      const response = await apiCall('/api/admin/guru', { onLogout });
+      const response = await apiCall<Teacher[] | { data?: Teacher[] }>('/api/admin/guru', { onLogout });
       
       // Handle both response structures
-      const teachersData = response.data || response;
+      const teachersData = Array.isArray(response) ? response : response.data || [];
       setTeachers(Array.isArray(teachersData) ? teachersData : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching teachers:', error);
-      toast({ title: "Error memuat data guru", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
     }
   }, [onLogout]);
 
   const fetchSubjects = useCallback(async () => {
     try {
-      const response = await apiCall('/api/admin/subjects', { onLogout });
-      setSubjects(response.data || response);
-    } catch (error) {
+      const response = await apiCall<Subject[] | { data?: Subject[] }>('/api/admin/subjects', { onLogout });
+      const subjectData = Array.isArray(response) ? response : response.data || [];
+      setSubjects(subjectData);
+    } catch (error: unknown) {
       console.error('Error fetching subjects:', error);
       // Don't show error toast for subjects as it's not critical
     }
@@ -152,21 +154,25 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       setEditingId(null);
       setDialogOpen(false);
       fetchTeachers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting teacher:', error);
       
       // Tampilkan error detail dari server jika ada
-      if (error.details) {
-        const errorMessage = Array.isArray(error.details) ? error.details.join(', ') : error.details;
+      const errorDetails = typeof error === 'object' && error !== null && 'details' in error
+        ? (error as { details?: unknown }).details
+        : undefined;
+      if (errorDetails) {
+        const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
         toast({ 
           title: "Error Validasi", 
           description: errorMessage, 
           variant: "destructive" 
         });
       } else {
+        const message = error instanceof Error ? error.message : String(error);
         toast({ 
           title: "Error", 
-          description: error.message || "Gagal menyimpan data guru", 
+          description: message || "Gagal menyimpan data guru", 
           variant: "destructive" 
         });
       }
@@ -206,9 +212,10 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
 
       toast({ title: `Akun guru ${nama} berhasil dihapus` });
       fetchTeachers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting teacher:', error);
-      toast({ title: "Error menghapus akun guru", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Error menghapus akun guru", description: message, variant: "destructive" });
     }
   };
 
