@@ -14,6 +14,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import mysql from 'mysql2/promise';
 import { createLogger } from '../../utils/logger.js';
+import { buildDownloadFilename, isFilenameOwnedByUser, isSafeFilename } from '../../utils/downloadAccess.js';
 
 const logger = createLogger('Queue');
 
@@ -52,6 +53,7 @@ class DownloadQueue {
         this.queues = {};
         this.downloadDir = process.env.REPORTS_DIR || './downloads';
         this.maxConcurrentDownloads = 80;
+        this.fileAccessMap = new Map();
         this.priorityLevels = {
             admin: 1,    // Highest priority
             guru: 2,     // Medium priority
@@ -257,6 +259,15 @@ class DownloadQueue {
         
         // Determine priority based on user role
         const jobPriority = this.priorityLevels[userRole] || 3;
+        const normalizedUserId = Number.parseInt(userId, 10);
+
+        if (!type) {
+            throw new Error('Download job type is required');
+        }
+
+        if (!Number.isFinite(normalizedUserId)) {
+            throw new Error('Valid userId is required');
+        }
         
         const jobOptions = {
             priority: jobPriority,
@@ -272,7 +283,7 @@ class DownloadQueue {
             const job = await this.queues.excelDownload.add(type, {
                 ...jobData,
                 timestamp: new Date().toISOString(),
-                userId,
+                userId: normalizedUserId,
                 userRole
             }, jobOptions);
 
@@ -292,10 +303,34 @@ class DownloadQueue {
     }
 
     /**
+     * Register download file access ownership
+     */
+    registerDownloadFile(filename, userId) {
+        const normalizedUserId = Number.parseInt(userId, 10);
+        if (!filename || !Number.isFinite(normalizedUserId)) return;
+        this.fileAccessMap.set(filename, normalizedUserId);
+    }
+
+    /**
+     * Verify if user can access a download file
+     */
+    verifyFileAccess(filename, userId) {
+        if (!isSafeFilename(filename)) return false;
+        const normalizedUserId = Number.parseInt(userId, 10);
+        if (!Number.isFinite(normalizedUserId)) return false;
+
+        if (this.fileAccessMap.has(filename)) {
+            return this.fileAccessMap.get(filename) === normalizedUserId;
+        }
+
+        return isFilenameOwnedByUser(filename, normalizedUserId);
+    }
+
+    /**
      * Process student attendance download
      */
     async processStudentAttendanceDownload(job) {
-        const { filters } = job.data;
+        const { filters, userId } = job.data;
         const { tanggal_mulai, tanggal_selesai, kelas_id } = filters;
         
         logger.debug('Processing student attendance download', { jobId: job.id });
@@ -377,11 +412,17 @@ class DownloadQueue {
             
             // Generate filename
             const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
-            const filename = `absensi_siswa_${tanggal_mulai}_${tanggal_selesai}_${timestamp}.xlsx`;
+            const filename = buildDownloadFilename({
+                prefix: 'absensi_siswa',
+                userId,
+                parts: [tanggal_mulai, tanggal_selesai],
+                timestamp
+            });
             const filepath = path.join(this.downloadDir, filename);
             
             // Save Excel file
             await workbook.xlsx.writeFile(filepath);
+            this.registerDownloadFile(filename, userId);
             
             await job.progress(100);
             
@@ -405,7 +446,7 @@ class DownloadQueue {
      * Process teacher attendance download
      */
     async processTeacherAttendanceDownload(job) {
-        const { filters } = job.data;
+        const { filters, userId } = job.data;
         const { tanggal_mulai, tanggal_selesai, guru_id } = filters;
         
         logger.debug('Processing teacher attendance download', { jobId: job.id });
@@ -483,11 +524,17 @@ class DownloadQueue {
             
             // Generate filename
             const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
-            const filename = `absensi_guru_${tanggal_mulai}_${tanggal_selesai}_${timestamp}.xlsx`;
+            const filename = buildDownloadFilename({
+                prefix: 'absensi_guru',
+                userId,
+                parts: [tanggal_mulai, tanggal_selesai, guru_id || 'all'],
+                timestamp
+            });
             const filepath = path.join(this.downloadDir, filename);
             
             // Save Excel file
             await workbook.xlsx.writeFile(filepath);
+            this.registerDownloadFile(filename, userId);
             
             await job.progress(100);
             
@@ -511,7 +558,7 @@ class DownloadQueue {
      * Process analytics report download
      */
     async processAnalyticsReportDownload(job) {
-        const { filters } = job.data;
+        const { filters, userId } = job.data;
         const { semester, year } = filters;
         
         logger.debug('Processing analytics report download', { jobId: job.id });
@@ -576,11 +623,17 @@ class DownloadQueue {
             
             // Generate filename
             const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
-            const filename = `analytics_report_${semester}_${year}_${timestamp}.xlsx`;
+            const filename = buildDownloadFilename({
+                prefix: 'analytics_report',
+                userId,
+                parts: [semester, year],
+                timestamp
+            });
             const filepath = path.join(this.downloadDir, filename);
             
             // Save Excel file
             await workbook.xlsx.writeFile(filepath);
+            this.registerDownloadFile(filename, userId);
             
             await job.progress(100);
             
@@ -604,7 +657,7 @@ class DownloadQueue {
      * Process semester report generation
      */
     async processSemesterReportGeneration(job) {
-        const { semester, year } = job.data;
+        const { semester, year, userId } = job.data;
         
         logger.debug('Processing semester report generation', { jobId: job.id });
         
@@ -617,7 +670,12 @@ class DownloadQueue {
             await job.progress(50);
             
             // Generate comprehensive semester report
-            const filename = `semester_report_${semester}_${year}_${Date.now()}.xlsx`;
+            const filename = buildDownloadFilename({
+                prefix: 'semester_report',
+                userId,
+                parts: [semester, year],
+                timestamp: String(Date.now())
+            });
             const filepath = path.join(this.downloadDir, filename);
             
             // Create a simple report for now
@@ -630,6 +688,7 @@ class DownloadQueue {
             worksheet.addRow(['Generated', new Date().toISOString()]);
             
             await workbook.xlsx.writeFile(filepath);
+            this.registerDownloadFile(filename, userId);
             
             await job.progress(100);
             
@@ -651,12 +710,16 @@ class DownloadQueue {
     /**
      * Get job status
      */
-    async getJobStatus(jobId) {
+    async getJobStatus(jobId, userId = null) {
         try {
             const job = await this.queues.excelDownload.getJob(jobId);
             
             if (!job) {
                 return { status: 'not_found' };
+            }
+
+            if (userId && job?.data?.userId && Number(job.data.userId) !== Number(userId)) {
+                return null;
             }
             
             const state = await job.getState();

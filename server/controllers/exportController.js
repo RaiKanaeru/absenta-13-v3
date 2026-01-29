@@ -5,9 +5,15 @@
  */
 
 import ExcelJS from 'exceljs';
-import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendNotFoundError, sendPermissionError, sendValidationError } from '../utils/errorHandler.js';
+import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendNotFoundError, sendPermissionError, sendServiceUnavailableError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
+import {
+    getSemesterEffectiveDays,
+    getEffectiveDaysMapFromDB,
+    calculateAbsencePercentage,
+    buildTahunPelajaran
+} from '../utils/attendanceCalculator.js';
 
 
 const logger = createLogger('Export');
@@ -32,6 +38,7 @@ import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { getWIBTime } from '../utils/timeUtils.js';
+import { isSafeFilename } from '../utils/downloadAccess.js';
 
 // ================================================
 // HELPER: Common Excel setup
@@ -292,9 +299,19 @@ export const exportStudentSummary = async (req, res) => {
  */
 export const exportRiwayatBandingAbsen = async (req, res) => {
     try {
-        const { startDate, endDate, kelas_id, status } = req.query;
-        // For guru, filter by their ID. For admin, we use the logged-in user's ID or handle permissions appropriately.
-        const guruId = req.user.id; 
+        const { startDate, endDate, kelas_id, status, guru_id } = req.query;
+        const role = req.user?.role;
+        let guruId = null;
+
+        if (role === 'guru') {
+            guruId = req.user.guru_id;
+        } else if (role === 'admin' && guru_id) {
+            const parsedGuruId = Number(guru_id);
+            if (Number.isNaN(parsedGuruId)) {
+                return sendValidationError(res, 'guru_id tidak valid', { field: 'guru_id' });
+            }
+            guruId = parsedGuruId;
+        }
 
         const rows = await ExportService.getRiwayatBandingAbsen(startDate, endDate, guruId, kelas_id, status);
 
@@ -316,7 +333,15 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 
         const reportData = rows.map((row, index) => ({
             no: index + 1,
-            ...row
+            tanggal_pengajuan: row.tanggal_pengajuan,
+            tanggal_absen: row.tanggal_absen,
+            nama_siswa: row.nama_siswa,
+            nama_kelas: row.nama_kelas,
+            status_absen: row.status_absen,
+            alasan_banding: row.alasan_banding,
+            status: row.status_banding || row.status,
+            tanggal_disetujui: row.tanggal_disetujui,
+            catatan: row.catatan
         }));
 
         const workbook = await buildExcel({
@@ -953,6 +978,9 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
  * Export rekap ketidakhadiran siswa - Format SMK13
  * GET /api/export/rekap-ketidakhadiran-siswa
  * Columns: NO, NIS/NISN, NAMA, L/P, S-I-A-JML per bulan (Jul-Des), TOTAL S-I-A, JUMLAH TOTAL, % TIDAK HADIR, % HADIR
+ * 
+ * Memory optimization: Logs warning for large datasets (>500 students)
+ * Note: Full streaming not implemented due to complex merge cells requirements
  */
 export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
@@ -973,6 +1001,17 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             [kelas_id]
         );
 
+        // Memory warning for large datasets
+        const LARGE_DATASET_THRESHOLD = 500;
+        if (studentsRows.length > LARGE_DATASET_THRESHOLD) {
+            logger.warn('Large dataset detected for Excel export - may cause memory pressure', {
+                studentCount: studentsRows.length,
+                kelas_id,
+                semester,
+                tahun
+            });
+        }
+
         // Determine months based on semester
         const months = semester === 'gasal' 
             ? [7, 8, 9, 10, 11, 12] // Juli - Desember
@@ -984,8 +1023,17 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         // Get attendance data with S/I/A breakdown per month
         const presensiData = await ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester);
 
-        // Total hari efektif (configurable, default 95 for gasal)
-        const TOTAL_HARI_EFEKTIF = semester === 'gasal' ? 95 : 142;
+        // Get total hari efektif from kalender_akademik (dynamic, not hardcoded)
+        const tahunPelajaran = buildTahunPelajaran(tahun);
+        const { totalDays: TOTAL_HARI_EFEKTIF, monthlyBreakdown } = await getSemesterEffectiveDays(tahunPelajaran, semester);
+        
+        logger.info('Fetched semester effective days from DB', {
+            tahunPelajaran,
+            semester,
+            TOTAL_HARI_EFEKTIF,
+            monthlyBreakdown,
+            studentCount: studentsRows.length
+        });
 
         // Build Excel using ExcelJS directly for precise control
         const ExcelJS = (await import('exceljs')).default;
@@ -1155,11 +1203,15 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             const jumlahTotal = totalS + totalI + totalA;
             worksheet.getCell(dataRow, col + 3).value = jumlahTotal;
 
-            const persenTidakHadir = TOTAL_HARI_EFEKTIF > 0 ? ((jumlahTotal / TOTAL_HARI_EFEKTIF) * 100).toFixed(2) : '0.00';
-            const persenHadir = (100 - Number.parseFloat(persenTidakHadir)).toFixed(2);
+            // Use centralized calculation with warning logging
+            const { ketidakhadiran: persenTidakHadir, kehadiran: persenHadir, capped } = calculateAbsencePercentage(
+                jumlahTotal,
+                TOTAL_HARI_EFEKTIF,
+                { context: `Student Export: ${student.nama} (${student.nis})` }
+            );
 
-            worksheet.getCell(dataRow, col + 4).value = Number.parseFloat(persenTidakHadir);
-            worksheet.getCell(dataRow, col + 5).value = Number.parseFloat(persenHadir);
+            worksheet.getCell(dataRow, col + 4).value = persenTidakHadir;
+            worksheet.getCell(dataRow, col + 5).value = persenHadir;
 
             // Apply styles to summary columns
             for (let columnOffset = 0; columnOffset < 6; columnOffset++) {
@@ -1184,10 +1236,17 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         worksheet.getCell(`A${dataRow}`).value = 'RATA-RATA';
         Object.assign(worksheet.getCell(`A${dataRow}`), { ...dataStyle, font: { bold: true } });
 
-        // Calculate and fill RATA-RATA for % Hadir
-        const avgPersenHadir = studentsRows.length > 0 
-            ? (100 - ((totals.S + totals.I + totals.A) / studentsRows.length / TOTAL_HARI_EFEKTIF * 100)).toFixed(2)
-            : '100.00';
+        // Calculate and fill RATA-RATA for % Hadir using centralized helper
+        let avgPersenHadir = 100;
+        if (studentsRows.length > 0) {
+            const avgAbsence = (totals.S + totals.I + totals.A) / studentsRows.length;
+            const { kehadiran } = calculateAbsencePercentage(
+                avgAbsence,
+                TOTAL_HARI_EFEKTIF,
+                { context: 'Class Average Export' }
+            );
+            avgPersenHadir = kehadiran;
+        }
 
         const lastCol = col + 5;
         worksheet.getCell(dataRow, lastCol).value = Number.parseFloat(avgPersenHadir);
@@ -1786,29 +1845,59 @@ export const exportJadwalPrint = async (req, res) => {
  */
 export const requestExcelDownload = async (req, res) => {
     try {
-        const { startDate, endDate, kelas_id, mapel_id } = req.body;
+        const { type, filters, startDate, endDate, kelas_id, mapel_id, guru_id, semester, year } = req.body;
         const userId = req.user.id;
         const userRole = req.user.role;
-        const jobData = {
-            userId,
-            userRole,
-            startDate,
-            endDate,
-            kelas_id,
-            mapel_id,
-            timestamp: new Date().toISOString()
+        if (!globalThis.downloadQueue) {
+            return sendServiceUnavailableError(res, 'Download queue tidak tersedia');
+        }
+
+        const downloadType = type || 'student-attendance';
+        const normalizedFilters = {
+            ...(filters && typeof filters === 'object' ? filters : {})
         };
 
-        const job = await globalThis.downloadQueue.addDownloadJob(jobData);
+        if (!filters) {
+            if (startDate) normalizedFilters.tanggal_mulai = startDate;
+            if (endDate) normalizedFilters.tanggal_selesai = endDate;
+            if (kelas_id) normalizedFilters.kelas_id = kelas_id;
+            if (mapel_id) normalizedFilters.mapel_id = mapel_id;
+            if (guru_id) normalizedFilters.guru_id = guru_id;
+            if (semester) normalizedFilters.semester = semester;
+            if (year) normalizedFilters.year = year;
+        }
+
+        if (!['student-attendance', 'teacher-attendance', 'analytics-report'].includes(downloadType)) {
+            return sendValidationError(res, 'Jenis download tidak valid', { type: downloadType });
+        }
+
+        if (downloadType === 'student-attendance' || downloadType === 'teacher-attendance') {
+            if (!normalizedFilters.tanggal_mulai || !normalizedFilters.tanggal_selesai) {
+                return sendValidationError(res, 'Tanggal mulai dan akhir wajib diisi');
+            }
+        }
+
+        if (downloadType === 'teacher-attendance' && userRole !== 'admin') {
+            normalizedFilters.guru_id = req.user.guru_id;
+        }
+
+        if (downloadType === 'analytics-report') {
+            if (!normalizedFilters.semester || !normalizedFilters.year) {
+                return sendValidationError(res, 'Semester dan tahun wajib diisi');
+            }
+        }
+
+        const job = await globalThis.downloadQueue.addExcelDownloadJob({
+            type: downloadType,
+            userId,
+            userRole,
+            filters: normalizedFilters
+        });
 
         res.json({
             success: true,
             message: 'Download request queued successfully',
-            data: {
-                jobId: job.id,
-                status: 'queued',
-                estimatedTime: '2-5 minutes'
-            }
+            data: job
         });
 
     } catch (error) {
@@ -1825,7 +1914,19 @@ export const getDownloadStatus = async (req, res) => {
         const { jobId } = req.params;
         const userId = req.user.id;
 
+        if (!globalThis.downloadQueue) {
+            return sendServiceUnavailableError(res, 'Download queue tidak tersedia');
+        }
+
         const jobStatus = await globalThis.downloadQueue.getJobStatus(jobId, userId);
+
+        if (!jobStatus) {
+            return sendPermissionError(res, 'Akses ditolak');
+        }
+
+        if (jobStatus.status === 'not_found') {
+            return sendNotFoundError(res, 'Job tidak ditemukan');
+        }
 
         res.json({
             success: true,
@@ -1845,12 +1946,32 @@ export const downloadFile = async (req, res) => {
     try {
         const { filename } = req.params;
         const userId = req.user.id;
+
+        if (!globalThis.downloadQueue) {
+            return sendServiceUnavailableError(res, 'Download queue tidak tersedia');
+        }
+
+        if (!isSafeFilename(filename)) {
+            return sendValidationError(res, 'Nama file tidak valid');
+        }
         
         // Use path and fs imports (will need to be added to top of file)
         const path = await import('node:path');
         const fs = await import('node:fs/promises');
 
-        const filePath = path.default.join(globalThis.downloadQueue.downloadDir, filename);
+        // Verify user has access to this file
+        const hasAccess = await globalThis.downloadQueue.verifyFileAccess(filename, userId);
+        if (!hasAccess) {
+            return sendPermissionError(res, 'Akses ditolak');
+        }
+
+        const baseDir = path.default.resolve(globalThis.downloadQueue.downloadDir);
+        const filePath = path.default.resolve(baseDir, filename);
+        const relativePath = path.default.relative(baseDir, filePath);
+
+        if (relativePath.startsWith('..') || path.default.isAbsolute(relativePath)) {
+            return sendValidationError(res, 'Nama file tidak valid');
+        }
 
         // Check if file exists
         try {
@@ -1858,12 +1979,6 @@ export const downloadFile = async (req, res) => {
         } catch (error) {
              logger.debug('File not found check', { filePath, error: error.message });
             return sendErrorResponse(res, new AppError(ERROR_CODES.FILE_NOT_FOUND, 'File tidak ditemukan'));
-        }
-
-        // Verify user has access to this file
-        const hasAccess = await globalThis.downloadQueue.verifyFileAccess(filename, userId);
-        if (!hasAccess) {
-            return sendPermissionError(res, 'Akses ditolak');
         }
 
         res.download(filePath, filename);
