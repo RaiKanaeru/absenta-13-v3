@@ -548,10 +548,10 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
 
         // Get class info
         const [kelasRows] = await globalThis.dbPool.execute(
-            'SELECT nama FROM kelas WHERE id = ?',
+            'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
             [kelas_id]
         );
-        const namaKelas = kelasRows[0]?.nama || 'Unknown';
+        const namaKelas = kelasRows[0]?.nama_kelas || 'Unknown';
 
         // Determine date range based on semester
         let startMonth, endMonth, year;
@@ -575,16 +575,16 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
             SELECT 
                 s.nis,
                 s.nama,
-                COUNT(CASE WHEN a.status = 'hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status = 'sakit' THEN 1 END) as sakit,
-                COUNT(CASE WHEN a.status = 'izin' THEN 1 END) as izin,
-                COUNT(CASE WHEN a.status = 'alpha' THEN 1 END) as alpha,
+                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+                COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+                COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpha,
                 COUNT(a.id) as total_hari
             FROM siswa s
-            LEFT JOIN absensi a ON s.id = a.siswa_id 
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
                 AND a.tanggal BETWEEN ? AND ?
             WHERE s.kelas_id = ?
-            GROUP BY s.id, s.nis, s.nama
+            GROUP BY s.id_siswa, s.nis, s.nama
             ORDER BY s.nama
         `, [startDate, endDate, kelas_id]);
 
