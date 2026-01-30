@@ -438,14 +438,14 @@ export const exportRekapKetidakhadiran = async (req, res) => {
                 SELECT 
                     g.nama,
                     g.nip,
-                    COUNT(CASE WHEN ag.status = 'sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN ag.status = 'izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN ag.status = 'alpha' THEN 1 END) as alpha,
-                    COUNT(CASE WHEN ag.status != 'hadir' THEN 1 END) as total_tidak_hadir
+                    COUNT(CASE WHEN ag.status = 'Sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN ag.status = 'Izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN ag.status = 'Alpa' THEN 1 END) as alpha,
+                    COUNT(CASE WHEN ag.status != 'Hadir' THEN 1 END) as total_tidak_hadir
                 FROM guru g
-                LEFT JOIN absensi_guru ag ON g.id = ag.guru_id 
+                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                     AND ag.tanggal BETWEEN ? AND ?
-                GROUP BY g.id, g.nama, g.nip
+                GROUP BY g.id_guru, g.nama, g.nip
                 ORDER BY g.nama
             `;
             params = [startDate, endDate];
@@ -454,14 +454,14 @@ export const exportRekapKetidakhadiran = async (req, res) => {
                 SELECT 
                     s.nama,
                     s.nis,
-                    k.nama as kelas,
-                    COUNT(CASE WHEN a.status = 'sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN a.status = 'izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN a.status = 'alpha' THEN 1 END) as alpha,
-                    COUNT(CASE WHEN a.status != 'hadir' THEN 1 END) as total_tidak_hadir
+                    k.nama_kelas as kelas,
+                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpha,
+                    COUNT(CASE WHEN a.status != 'Hadir' THEN 1 END) as total_tidak_hadir
                 FROM siswa s
-                JOIN kelas k ON s.kelas_id = k.id
-                LEFT JOIN absensi a ON s.id = a.siswa_id 
+                JOIN kelas k ON s.kelas_id = k.id_kelas
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
                     AND a.tanggal BETWEEN ? AND ?
                 WHERE 1=1
             `;
@@ -472,7 +472,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
                 params.push(kelas_id);
             }
             
-            query += ' GROUP BY s.id, s.nama, s.nis, k.nama ORDER BY k.nama, s.nama';
+            query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
         }
 
         const [rows] = await globalThis.dbPool.execute(query, params);

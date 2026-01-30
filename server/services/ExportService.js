@@ -432,11 +432,11 @@ class ExportService {
             SELECT 
                 g.nama,
                 g.nip,
-                COALESCE(SUM(CASE WHEN kg.status = 'hadir' THEN 1 ELSE 0 END), 0) as H,
-                COALESCE(SUM(CASE WHEN kg.status = 'izin' THEN 1 ELSE 0 END), 0) as I,
-                COALESCE(SUM(CASE WHEN kg.status = 'sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN kg.status = 'alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN kg.status = 'hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id), 0), 0) as presentase
+                COALESCE(SUM(CASE WHEN kg.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
+                COALESCE(SUM(CASE WHEN kg.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
+                COALESCE(SUM(CASE WHEN kg.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
+                COALESCE(SUM(CASE WHEN kg.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
+                COALESCE(SUM(CASE WHEN kg.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id), 0), 0) as presentase
             FROM guru g
             LEFT JOIN kehadiran_guru kg ON g.id_guru = kg.guru_id 
                 AND kg.tanggal BETWEEN ? AND ?
