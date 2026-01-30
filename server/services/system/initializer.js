@@ -78,7 +78,7 @@ export async function initializeDatabase(ddosProtectionInstance = null) {
             inputValidation: {
                 enabled: true,
                 maxLength: 10000000, // 10MB untuk mengakomodasi base64 data
-                allowedChars: /^[a-zA-Z0-9\s\-_@.!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~+/=]+$/,
+                allowedChars: /^[a-zA-Z0-9\s\-_@.!#$%^&*()+=[\]{};':"\\|,.<>/?`~]+$/,
                 sqlInjectionPatterns: [
                     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/i,
                     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,

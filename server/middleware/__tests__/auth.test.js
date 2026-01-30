@@ -2,6 +2,9 @@ import assert from 'node:assert';
 import { describe, it, before, after } from 'node:test';
 import jwt from 'jsonwebtoken';
 
+// Test-only secret for JWT verification failure tests (not a real secret)
+const TEST_INVALID_SECRET = 'test-invalid-secret-for-unit-tests-only'; // NOSONAR
+
 let authenticateToken;
 let requireRole;
 
@@ -57,7 +60,7 @@ describe('auth middleware', () => {
     });
 
     it('returns 401 when token verification fails', async () => {
-      const token = jwt.sign({ role: 'admin' }, 'wrong-secret');
+      const token = jwt.sign({ role: 'admin' }, TEST_INVALID_SECRET);
 
       const req = {
         headers: { authorization: `Bearer ${token}` },
