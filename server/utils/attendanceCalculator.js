@@ -196,11 +196,9 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
     
     if (diffDays < 15) {
         let businessDays = 0;
-        let d = new Date(start);
-        while (d <= end) {
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const day = d.getDay();
             if (day !== 0 && day !== 6) businessDays++; // Exclude Sun (0) and Sat (6)
-            d.setDate(d.getDate() + 1);
         }
         logger.debug('Short range - using business days calculation', { 
             startDate, 
@@ -225,13 +223,14 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
     }
 
     let totalDays = 0;
-    let current = new Date(start.getFullYear(), start.getMonth(), 1);
-    
-    // Safety breaker to prevent infinite loops
-    let safetyCounter = 0;
     const MAX_ITERATIONS = 60; // Max 5 years
+    let safetyCounter = 0;
 
-    while (current <= end && safetyCounter < MAX_ITERATIONS) {
+    for (
+        let current = new Date(start.getFullYear(), start.getMonth(), 1);
+        current <= end && safetyCounter < MAX_ITERATIONS;
+        current.setMonth(current.getMonth() + 1), safetyCounter++
+    ) {
         const monthIndex = current.getMonth() + 1; // 1-12
         
         // Check if this month is fully within range
@@ -250,9 +249,6 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
             const monthEffectiveDays = hariEfektifMap[monthIndex] || DEFAULT_HARI_EFEKTIF_MAP[monthIndex] || 20;
             totalDays += Math.round(monthEffectiveDays * proportion);
         }
-        
-        current.setMonth(current.getMonth() + 1);
-        safetyCounter++;
     }
 
     if (safetyCounter >= MAX_ITERATIONS) {

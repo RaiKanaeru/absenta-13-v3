@@ -193,26 +193,24 @@ function calculateEffectiveDaysSync(startDate, endDate) {
     
     if (diffDays < 15) {
         let businessDays = 0;
-        let d = new Date(start);
-        while (d <= end) {
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const day = d.getDay();
             if (day !== 0 && day !== 6) businessDays++;
-            d.setDate(d.getDate() + 1);
         }
         return businessDays || 1;
     }
     
     // Use HARI_EFEKTIF_MAP for longer ranges (fallback)
     let totalDays = 0;
-    let current = new Date(start.getFullYear(), start.getMonth(), 1);
-    let safetyCounter = 0;
     const MAX_ITERATIONS = 60;
 
-    while (current <= end && safetyCounter < MAX_ITERATIONS) {
+    for (
+        let current = new Date(start.getFullYear(), start.getMonth(), 1), safetyCounter = 0;
+        current <= end && safetyCounter < MAX_ITERATIONS;
+        current.setMonth(current.getMonth() + 1), safetyCounter++
+    ) {
         const monthIndex = current.getMonth() + 1;
         totalDays += HARI_EFEKTIF_MAP[monthIndex] || DEFAULT_EFFECTIVE_DAYS[monthIndex] || 20;
-        current.setMonth(current.getMonth() + 1);
-        safetyCounter++;
     }
     
     return totalDays || 1;
