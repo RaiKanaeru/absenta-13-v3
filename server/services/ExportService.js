@@ -147,7 +147,7 @@ class ExportService {
         if (!guruId) {
             // Admin: return all active classes
             const [rows] = await this.pool.execute(
-                `SELECT DISTINCT k.id_kelas as id, k.nama_kelas 
+                `SELECT DISTINCT k.id_kelas as id, k.nama_kelas, k.tingkat 
                  FROM kelas k 
                  WHERE k.status = 'aktif' 
                  ORDER BY k.tingkat, k.nama_kelas`
@@ -604,7 +604,7 @@ class ExportService {
         }
 
         query += `
-            GROUP BY a.tanggal, j.hari, j.jam_mulai, j.jam_selesai, m.nama_mapel, k.nama_kelas, g.nama
+            GROUP BY a.tanggal, j.hari, j.jam_mulai, j.jam_selesai, m.nama_mapel, j.keterangan_khusus, k.nama_kelas, g.nama
             ORDER BY a.tanggal DESC, j.jam_mulai
         `;
 
