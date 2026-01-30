@@ -1,89 +1,85 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-const verifyMock = vi.fn();
-
-vi.mock('jsonwebtoken', () => ({
-  default: {
-    verify: verifyMock,
-  },
-}));
+import assert from 'node:assert';
+import { describe, it, before, after } from 'node:test';
+import jwt from 'jsonwebtoken';
 
 let authenticateToken;
 let requireRole;
 
 const createResponse = () => {
   const res = {};
-  res.status = vi.fn(() => res);
-  res.json = vi.fn(() => res);
+  res.statusCode = null;
+  res.body = null;
+  res.status = (code) => {
+    res.statusCode = code;
+    return res;
+  };
+  res.json = (payload) => {
+    res.body = payload;
+    return res;
+  };
   return res;
 };
 
-const createNext = () => vi.fn();
+const waitTick = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('auth middleware', () => {
-  beforeEach(async () => {
+  before(async () => {
     process.env.JWT_SECRET = 'test-secret';
-    verifyMock.mockReset();
-    vi.resetModules();
-
     ({ authenticateToken, requireRole } = await import('../auth.js'));
   });
 
-  afterEach(() => {
+  after(() => {
     delete process.env.JWT_SECRET;
   });
 
   describe('authenticateToken', () => {
     it('attaches user and calls next when token is valid', async () => {
-      verifyMock.mockImplementation((token, secret, callback) => {
-        callback(null, { username: 'tester', role: 'admin' });
-      });
+      const user = { username: 'tester', role: 'admin' };
+      const token = jwt.sign(user, process.env.JWT_SECRET);
 
       const req = {
-        headers: { authorization: 'Bearer valid.token' },
+        headers: { authorization: `Bearer ${token}` },
         cookies: {},
         method: 'GET',
         originalUrl: '/api/test',
       };
       const res = createResponse();
-      const next = createNext();
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
 
       authenticateToken(req, res, next);
+      await waitTick();
 
-      expect(verifyMock).toHaveBeenCalledWith('valid.token', 'test-secret', expect.any(Function));
-      expect(req.user).toEqual({ username: 'tester', role: 'admin' });
-      expect(next).toHaveBeenCalledTimes(1);
-      expect(res.status).not.toHaveBeenCalled();
+      assert.strictEqual(req.user.username, user.username);
+      assert.strictEqual(req.user.role, user.role);
+      assert.strictEqual(nextCalled, true);
+      assert.strictEqual(res.statusCode, null);
     });
 
-    it('returns 403 when token verification fails', () => {
-      verifyMock.mockImplementation((token, secret, callback) => {
-        callback(new Error('invalid token'));
-      });
+    it('returns 401 when token verification fails', async () => {
+      const token = jwt.sign({ role: 'admin' }, 'wrong-secret');
 
       const req = {
-        headers: { authorization: 'Bearer invalid.token' },
+        headers: { authorization: `Bearer ${token}` },
         cookies: {},
         method: 'GET',
         originalUrl: '/api/test',
       };
       const res = createResponse();
-      const next = createNext();
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
 
       authenticateToken(req, res, next);
+      await waitTick();
 
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          code: 3001,
-          message: 'Token tidak valid atau kadaluarsa',
-        })
-      }));
-      expect(next).not.toHaveBeenCalled();
+      assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.error.code, 3001);
+      assert.match(res.body.error.message, /Token tidak valid atau kadaluarsa/);
+      assert.strictEqual(nextCalled, false);
     });
 
-    it('returns 401 when token is missing', () => {
+    it('returns 401 when token is missing', async () => {
       const req = {
         headers: {},
         cookies: {},
@@ -91,19 +87,17 @@ describe('auth middleware', () => {
         originalUrl: '/api/test',
       };
       const res = createResponse();
-      const next = createNext();
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
 
       authenticateToken(req, res, next);
+      await waitTick();
 
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          code: 3001,
-          message: 'Token akses diperlukan',
-        })
-      }));
-      expect(next).not.toHaveBeenCalled();
+      assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.error.code, 3001);
+      assert.match(res.body.error.message, /Token akses diperlukan/);
+      assert.strictEqual(nextCalled, false);
     });
   });
 
@@ -112,50 +106,45 @@ describe('auth middleware', () => {
       const middleware = requireRole(['admin', 'manager']);
       const req = { user: { role: 'admin' } };
       const res = createResponse();
-      const next = createNext();
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
 
       middleware(req, res, next);
 
-      expect(next).toHaveBeenCalledTimes(1);
-      expect(res.status).not.toHaveBeenCalled();
+      assert.strictEqual(nextCalled, true);
+      assert.strictEqual(res.statusCode, null);
     });
 
     it('denies access when user role is missing', () => {
       const middleware = requireRole(['admin']);
       const req = { user: null };
       const res = createResponse();
-      const next = createNext();
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
 
       middleware(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          code: 3001,
-          message: 'Pengguna belum terautentikasi',
-        })
-      }));
-      expect(next).not.toHaveBeenCalled();
+      assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.error.code, 3001);
+      assert.match(res.body.error.message, /Pengguna belum terautentikasi/);
+      assert.strictEqual(nextCalled, false);
     });
 
     it('denies access when role is not permitted', () => {
       const middleware = requireRole(['admin']);
       const req = { user: { role: 'user' } };
       const res = createResponse();
-      const next = createNext();
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
 
       middleware(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          code: 3002,
-          message: 'Anda tidak memiliki izin untuk akses ini',
-        })
-      }));
-      expect(next).not.toHaveBeenCalled();
+      assert.strictEqual(res.statusCode, 403);
+      assert.strictEqual(res.body.success, false);
+      assert.strictEqual(res.body.error.code, 3002);
+      assert.match(res.body.error.message, /Anda tidak memiliki izin/);
+      assert.strictEqual(nextCalled, false);
     });
   });
 });

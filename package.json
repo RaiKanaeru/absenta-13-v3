@@ -5,7 +5,8 @@
   "type": "module",
   "description": "School Attendance Web Application - Docker Only",
   "scripts": {
-    "test": "vitest run && node --test server/config/__tests__/**/*.test.js",
+    "test": "npm run test:client && npm run test:server",
+    "test:client": "vitest run",
     "dev": "vite",
     "dev:full": "concurrently \"npm run start:modern\" \"npm run dev\"",
     "build": "vite build",
@@ -18,7 +19,7 @@
     "server": "node server_modern.js",
     "setup-db": "node setup-database-modern.js",
     "test:config": "node scripts/test-config.js",
-    "test:server": "node --test server/__tests__/*.test.js",
+    "test:server": "node --test server/**/__tests__/**/*.test.js",
     "test:cors": "bash scripts/test-cors.sh",
     "generate:secrets": "node scripts/generate-secrets.js",
     "generate:swagger": "node scripts/generate-swagger.js",
