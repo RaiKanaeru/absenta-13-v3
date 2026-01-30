@@ -4,6 +4,7 @@
  */
 
 const USER_ID_PATTERN = /_u(\d+)_/;
+const ALLOWED_EXTENSIONS = ['.xlsx'];
 
 function sanitizeSegment(value) {
     return String(value)
@@ -50,6 +51,8 @@ export function isSafeFilename(filename) {
     if (lower.includes('%2e') || lower.includes('%2f') || lower.includes('%5c')) return false;
     if (filename.includes('/') || filename.includes('\\')) return false;
     if (filename.includes('..')) return false;
+    const extension = lower.slice(lower.lastIndexOf('.'));
+    if (!ALLOWED_EXTENSIONS.includes(extension)) return false;
     return true;
 }
 

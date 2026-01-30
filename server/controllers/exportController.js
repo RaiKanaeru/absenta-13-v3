@@ -1965,7 +1965,7 @@ export const downloadFile = async (req, res) => {
             return sendPermissionError(res, 'Akses ditolak');
         }
 
-        const baseDir = path.default.resolve(globalThis.downloadQueue.downloadDir);
+        const baseDir = await fs.default.realpath(globalThis.downloadQueue.downloadDir);
         const filePath = path.default.resolve(baseDir, filename);
         const relativePath = path.default.relative(baseDir, filePath);
 
@@ -1973,15 +1973,26 @@ export const downloadFile = async (req, res) => {
             return sendValidationError(res, 'Nama file tidak valid');
         }
 
-        // Check if file exists
+        // Check if file exists and prevent symlink access
+        let fileStats;
         try {
-            await fs.default.access(filePath);
+            fileStats = await fs.default.lstat(filePath);
         } catch (error) {
              logger.debug('File not found check', { filePath, error: error.message });
             return sendErrorResponse(res, new AppError(ERROR_CODES.FILE_NOT_FOUND, 'File tidak ditemukan'));
         }
 
-        res.download(filePath, filename);
+        if (fileStats.isSymbolicLink()) {
+            return sendValidationError(res, 'Nama file tidak valid');
+        }
+
+        const realFilePath = await fs.default.realpath(filePath);
+        const relativeRealPath = path.default.relative(baseDir, realFilePath);
+        if (relativeRealPath.startsWith('..') || path.default.isAbsolute(relativeRealPath)) {
+            return sendValidationError(res, 'Nama file tidak valid');
+        }
+
+        res.download(realFilePath, filename);
 
     } catch (error) {
         return sendDatabaseError(res, error);

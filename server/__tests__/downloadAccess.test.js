@@ -42,5 +42,11 @@ describe('Download Access Utilities', () => {
         assert.strictEqual(isSafeFilename('reports/abc.xlsx'), false);
         assert.strictEqual(isSafeFilename('%2e%2e%2fsecret.xlsx'), false);
         assert.strictEqual(isSafeFilename('..%5csecret.xlsx'), false);
+        assert.strictEqual(isSafeFilename('report_u1_test.csv'), false);
+    });
+
+    it('should allow xlsx extension only', () => {
+        assert.strictEqual(isSafeFilename('report_u1_test.xlsx'), true);
+        assert.strictEqual(isSafeFilename('report_u1_test.XLSX'), true);
     });
 });

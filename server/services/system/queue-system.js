@@ -54,6 +54,7 @@ class DownloadQueue {
         this.downloadDir = process.env.REPORTS_DIR || './downloads';
         this.maxConcurrentDownloads = 80;
         this.fileAccessMap = new Map();
+        this.fileAccessTtlMs = 24 * 60 * 60 * 1000;
         this.priorityLevels = {
             admin: 1,    // Highest priority
             guru: 2,     // Medium priority
@@ -308,7 +309,8 @@ class DownloadQueue {
     registerDownloadFile(filename, userId) {
         const normalizedUserId = Number.parseInt(userId, 10);
         if (!filename || !Number.isFinite(normalizedUserId)) return;
-        this.fileAccessMap.set(filename, normalizedUserId);
+        this.purgeExpiredFileAccess();
+        this.fileAccessMap.set(filename, { userId: normalizedUserId, createdAt: Date.now() });
     }
 
     /**
@@ -319,11 +321,39 @@ class DownloadQueue {
         const normalizedUserId = Number.parseInt(userId, 10);
         if (!Number.isFinite(normalizedUserId)) return false;
 
+        this.purgeExpiredFileAccess();
+
         if (this.fileAccessMap.has(filename)) {
-            return this.fileAccessMap.get(filename) === normalizedUserId;
+            const entry = this.fileAccessMap.get(filename);
+            const storedUserId = typeof entry === 'object' && entry !== null ? entry.userId : entry;
+            return Number(storedUserId) === normalizedUserId;
         }
 
         return isFilenameOwnedByUser(filename, normalizedUserId);
+    }
+
+    /**
+     * Purge expired file access entries to prevent unbounded growth
+     */
+    purgeExpiredFileAccess() {
+        const now = Date.now();
+        for (const [filename, entry] of this.fileAccessMap.entries()) {
+            const createdAt = typeof entry === 'object' && entry !== null && entry.createdAt
+                ? entry.createdAt
+                : now;
+            if (now - createdAt > this.fileAccessTtlMs) {
+                this.fileAccessMap.delete(filename);
+            }
+        }
+    }
+
+    /**
+     * Remove sensitive fields from job result
+     */
+    sanitizeJobResult(result) {
+        if (!result || typeof result !== 'object') return result;
+        const { filepath, ...safeResult } = result;
+        return safeResult;
     }
 
     /**
@@ -730,7 +760,7 @@ class DownloadQueue {
                 status: state,
                 progress: progress,
                 data: job.data,
-                result: job.returnvalue,
+                result: this.sanitizeJobResult(job.returnvalue),
                 error: job.failedReason,
                 createdAt: new Date(job.timestamp),
                 processedAt: job.processedOn ? new Date(job.processedOn) : null,
