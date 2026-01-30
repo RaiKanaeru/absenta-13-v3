@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { AppError, ERROR_CODES, sendErrorResponse } from '../utils/errorHandler.js';
-import { adminActivityLogger } from './adminActivityLogger.js';
 
 dotenv.config();
 
@@ -28,13 +27,6 @@ export function authenticateToken(req, res, next) {
         }
 
         req.user = user;
-
-        // AUTOMATIC AUDIT LOGGING HOOK
-        // Logs Write operations (POST/PUT/DELETE) for Admin/Guru
-        if (req.method !== 'GET' && req.originalUrl.startsWith('/api/admin')) {
-            // Call the logger middleware manually, providing a dummy next function
-            adminActivityLogger(req, res, () => {});
-        }
 
         next();
     });
