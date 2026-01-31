@@ -369,9 +369,16 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 export const exportPresensiSiswaSmkn13 = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
-        const guruId = req.user.id;
+        const guruId = req.user.guru_id;
+        const isAdmin = req.user.role === 'admin';
 
-        const rows = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, guruId, kelas_id);
+        // Admin sees all data, guru sees only their classes
+        const rows = await ExportService.getPresensiSiswaSmkn13(
+            startDate, 
+            endDate, 
+            isAdmin ? null : guruId, 
+            kelas_id
+        );
 
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
