@@ -4,8 +4,12 @@
  */
 
 class ExportService {
-    constructor() {
-        this.pool = globalThis.dbPool;
+    /**
+     * Lazy getter for database pool
+     * Ensures pool is fetched at runtime, not at module load time
+     */
+    get pool() {
+        return globalThis.dbPool;
     }
 
     /**
