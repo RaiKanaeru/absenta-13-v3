@@ -435,10 +435,10 @@ class ExportService {
                 COALESCE(SUM(CASE WHEN kg.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
                 COALESCE(SUM(CASE WHEN kg.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
                 COALESCE(SUM(CASE WHEN kg.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN kg.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN kg.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id), 0), 0) as presentase
+                COALESCE(SUM(CASE WHEN kg.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as A,
+                COALESCE(SUM(CASE WHEN kg.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id_absensi), 0), 0) as presentase
             FROM guru g
-            LEFT JOIN kehadiran_guru kg ON g.id_guru = kg.guru_id 
+            LEFT JOIN absensi_guru kg ON g.id_guru = kg.guru_id 
                 AND kg.tanggal BETWEEN ? AND ?
             WHERE g.status = 'aktif'
             GROUP BY g.id_guru, g.nama, g.nip

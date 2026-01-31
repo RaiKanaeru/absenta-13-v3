@@ -60,6 +60,7 @@ describe('auth middleware', () => {
     });
 
     it('returns 401 when token verification fails', async () => {
+      // NOSONAR - test-only invalid secret to verify rejection of tampered tokens
       const token = jwt.sign({ role: 'admin' }, TEST_INVALID_SECRET);
 
       const req = {

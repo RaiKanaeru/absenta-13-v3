@@ -196,7 +196,11 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
     
     if (diffDays < 15) {
         let businessDays = 0;
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const ONE_DAY_MS = 86400000;
+        for (let ts = startMs; ts <= endMs; ts += ONE_DAY_MS) {
+            const d = new Date(ts);
             const day = d.getDay();
             if (day !== 0 && day !== 6) businessDays++; // Exclude Sun (0) and Sat (6)
         }
@@ -224,13 +228,19 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
 
     let totalDays = 0;
     const MAX_ITERATIONS = 60; // Max 5 years
-    let safetyCounter = 0;
+    
+    // Use explicit month counter to avoid SonarQube S2189 false positive
+    const startYear = start.getFullYear();
+    const startMonth = start.getMonth();
+    const endYear = end.getFullYear();
+    const endMonth = end.getMonth();
+    const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+    const iterationCount = Math.min(totalMonths, MAX_ITERATIONS);
 
-    for (
-        let current = new Date(start.getFullYear(), start.getMonth(), 1);
-        current <= end && safetyCounter < MAX_ITERATIONS;
-        current.setMonth(current.getMonth() + 1), safetyCounter++
-    ) {
+    for (let i = 0; i < iterationCount; i++) {
+        const current = new Date(startYear, startMonth + i, 1);
+        if (current > end) break;
+        
         const monthIndex = current.getMonth() + 1; // 1-12
         
         // Check if this month is fully within range
@@ -251,11 +261,11 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
         }
     }
 
-    if (safetyCounter >= MAX_ITERATIONS) {
+    if (iterationCount >= MAX_ITERATIONS) {
         logger.warn('Safety breaker triggered in calculateEffectiveDaysForRange', {
             startDate,
             endDate,
-            iterations: safetyCounter
+            iterations: iterationCount
         });
     }
 

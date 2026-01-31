@@ -440,7 +440,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
                     g.nip,
                     COUNT(CASE WHEN ag.status = 'Sakit' THEN 1 END) as sakit,
                     COUNT(CASE WHEN ag.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN ag.status = 'Alpa' THEN 1 END) as alpha,
+                    COUNT(CASE WHEN ag.status = 'Tidak Hadir' THEN 1 END) as alpha,
                     COUNT(CASE WHEN ag.status != 'Hadir' THEN 1 END) as total_tidak_hadir
                 FROM guru g
                 LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 

@@ -46,6 +46,7 @@ reports/
 *.sql
 !absenta13.sql
 !migrations/*.sql
+!database/seeds/*.sql
 
 # Temporary files
 temp/

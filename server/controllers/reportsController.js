@@ -193,7 +193,11 @@ function calculateEffectiveDaysSync(startDate, endDate) {
     
     if (diffDays < 15) {
         let businessDays = 0;
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const ONE_DAY_MS = 86400000;
+        for (let ts = startMs; ts <= endMs; ts += ONE_DAY_MS) {
+            const d = new Date(ts);
             const day = d.getDay();
             if (day !== 0 && day !== 6) businessDays++;
         }
@@ -204,11 +208,18 @@ function calculateEffectiveDaysSync(startDate, endDate) {
     let totalDays = 0;
     const MAX_ITERATIONS = 60;
 
-    for (
-        let current = new Date(start.getFullYear(), start.getMonth(), 1), safetyCounter = 0;
-        current <= end && safetyCounter < MAX_ITERATIONS;
-        current.setMonth(current.getMonth() + 1), safetyCounter++
-    ) {
+    // Use explicit month counter to avoid SonarQube S2189 false positive
+    const startYear = start.getFullYear();
+    const startMonth = start.getMonth();
+    const endYear = end.getFullYear();
+    const endMonth = end.getMonth();
+    const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+    const iterationCount = Math.min(totalMonths, MAX_ITERATIONS);
+
+    for (let i = 0; i < iterationCount; i++) {
+        const current = new Date(startYear, startMonth + i, 1);
+        if (current > end) break;
+        
         const monthIndex = current.getMonth() + 1;
         totalDays += HARI_EFEKTIF_MAP[monthIndex] || DEFAULT_EFFECTIVE_DAYS[monthIndex] || 20;
     }
