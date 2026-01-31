@@ -66,6 +66,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
     // Declarative validation rules
     const validationRules = [
       { test: !formData.nip || !formData.nama, message: "NIP dan Nama wajib diisi!" },
+      { test: !formData.jenis_kelamin, message: "Jenis kelamin wajib diisi!" },
       { test: formData.nip && !/^\d{10,20}$/.test(formData.nip), message: "NIP harus berupa angka 10-20 digit!" },
       { test: formData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email), message: "Format email tidak valid!" },
       { test: formData.telepon?.trim() && !/^[\d+]{1,20}$/.test(formData.telepon.trim()), message: "Nomor telepon harus berupa angka, maksimal 20 karakter!" }
