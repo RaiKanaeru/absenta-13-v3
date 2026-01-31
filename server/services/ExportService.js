@@ -579,19 +579,18 @@ class ExportService {
                 COALESCE(m.nama_mapel, j.keterangan_khusus) as mata_pelajaran,
                 k.nama_kelas,
                 COALESCE(g.nama, 'Sistem') as nama_guru,
-                COUNT(DISTINCT s.id_siswa) as total_siswa,
-                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-                COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen,
-                COUNT(CASE WHEN a.terlambat = 1 THEN 1 END) as terlambat_count
+                (SELECT COUNT(*) FROM siswa WHERE kelas_id = k.id_kelas AND status = 'aktif') as total_siswa,
+                SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
+                SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as izin,
+                SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as sakit,
+                SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END) as alpa,
+                SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as dispen,
+                SUM(CASE WHEN a.terlambat = 1 THEN 1 ELSE 0 END) as terlambat_count
             FROM absensi_siswa a
             JOIN jadwal j ON a.jadwal_id = j.id_jadwal
             JOIN kelas k ON j.kelas_id = k.id_kelas
             LEFT JOIN guru g ON j.guru_id = g.id_guru
             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            LEFT JOIN siswa s ON j.kelas_id = s.kelas_id AND s.status = 'aktif'
             WHERE a.tanggal BETWEEN ? AND ?
         `;
 
@@ -628,12 +627,13 @@ class ExportService {
                 SELECT 
                     DATE_FORMAT(a.tanggal, '%Y-%m') as periode,
                     k.nama_kelas,
-                    COUNT(DISTINCT s.id_siswa) as total_siswa,
-                    COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-                    COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
+                    k.id_kelas,
+                    (SELECT COUNT(*) FROM siswa WHERE kelas_id = k.id_kelas AND status = 'aktif') as total_siswa,
+                    SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
+                    SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as izin,
+                    SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as sakit,
+                    SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END) as alpa,
+                    SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as dispen
                 FROM absensi_siswa a
                 JOIN siswa s ON a.siswa_id = s.id_siswa
                 JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -645,12 +645,13 @@ class ExportService {
                 SELECT 
                     YEAR(a.tanggal) as periode,
                     k.nama_kelas,
-                    COUNT(DISTINCT s.id_siswa) as total_siswa,
-                    COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
-                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpa,
-                    COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen
+                    k.id_kelas,
+                    (SELECT COUNT(*) FROM siswa WHERE kelas_id = k.id_kelas AND status = 'aktif') as total_siswa,
+                    SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
+                    SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as izin,
+                    SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as sakit,
+                    SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END) as alpa,
+                    SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as dispen
                 FROM absensi_siswa a
                 JOIN siswa s ON a.siswa_id = s.id_siswa
                 JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -670,9 +671,9 @@ class ExportService {
         }
 
         if (reportType === 'bulanan') {
-            query += ` GROUP BY DATE_FORMAT(a.tanggal, '%Y-%m'), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
+            query += ` GROUP BY DATE_FORMAT(a.tanggal, '%Y-%m'), k.nama_kelas, k.id_kelas ORDER BY periode DESC, k.nama_kelas`;
         } else {
-            query += ` GROUP BY YEAR(a.tanggal), k.nama_kelas ORDER BY periode DESC, k.nama_kelas`;
+            query += ` GROUP BY YEAR(a.tanggal), k.nama_kelas, k.id_kelas ORDER BY periode DESC, k.nama_kelas`;
         }
 
         const [rows] = await this.pool.execute(query, params);
