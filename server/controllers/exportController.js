@@ -429,14 +429,20 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
  */
 export const exportRekapKetidakhadiran = async (req, res) => {
     try {
-        const { kelas_id, bulan, tahun, tipe = 'siswa' } = req.query;
+        const { kelas_id, bulan, tahun, tipe = 'siswa', startDate: rawStartDate, endDate: rawEndDate, reportType } = req.query;
 
-        if (!bulan || !tahun) {
-            return sendValidationError(res, 'bulan dan tahun wajib diisi');
+        let startDate, endDate;
+
+        // Support both formats: (bulan + tahun) OR (startDate + endDate)
+        if (rawStartDate && rawEndDate) {
+            startDate = rawStartDate;
+            endDate = rawEndDate;
+        } else if (bulan && tahun) {
+            startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+            endDate = new Date(tahun, bulan, 0).toISOString().split('T')[0];
+        } else {
+            return sendValidationError(res, 'Periode wajib diisi (startDate+endDate atau bulan+tahun)');
         }
-
-        const startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
-        const endDate = new Date(tahun, bulan, 0).toISOString().split('T')[0];
 
         let query, params;
         
@@ -530,8 +536,16 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
                            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
+        // Generate filename based on available params
+        let filename;
+        if (bulan && tahun) {
+            filename = `Rekap_Ketidakhadiran_${tipe}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx`;
+        } else {
+            filename = `Rekap_Ketidakhadiran_${tipe}_${startDate}_${endDate}.xlsx`;
+        }
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Rekap_Ketidakhadiran_${tipe}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
         await workbook.xlsx.write(res);
         res.end();
