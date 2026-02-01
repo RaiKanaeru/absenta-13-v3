@@ -4,6 +4,7 @@
  */
 import bcrypt from 'bcrypt';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
+import db from '../config/db.js';
 
 const SALT_ROUNDS = Number.parseInt(process.env.SALT_ROUNDS) || 10;
 
@@ -36,7 +37,7 @@ export const getAllStudents = async () => {
         LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
         ORDER BY s.nama ASC
     `;
-    const [results] = await globalThis.dbPool.execute(query);
+    const [results] = await db.execute(query);
     return results;
 };
 
@@ -45,7 +46,7 @@ export const getAllStudents = async () => {
  */
 export const createStudent = async (data) => {
     const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, nomor_telepon_siswa, status } = data;
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();
@@ -103,7 +104,7 @@ export const createStudent = async (data) => {
  */
 export const updateStudent = async (id, data) => {
     const { nis, nama, kelas_id, jenis_kelamin, alamat, telepon_orangtua, status, nomor_telepon_siswa } = data;
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();
@@ -168,7 +169,7 @@ export const updateStudent = async (id, data) => {
  * Delete student data
  */
 export const deleteStudent = async (id) => {
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
 
@@ -200,7 +201,7 @@ export const deleteStudent = async (id) => {
  * Promote students (Mass update class)
  */
 export const promoteStudents = async (fromClassId, toClassId, studentIds) => {
-     const connection = await globalThis.dbPool.getConnection();
+     const connection = await db.getConnection();
      try {
         await connection.beginTransaction();
 

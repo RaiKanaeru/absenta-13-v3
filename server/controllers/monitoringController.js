@@ -7,6 +7,7 @@ import os from 'node:os';
 import { sendDatabaseError, sendErrorResponse, sendNotFoundError, sendServiceUnavailableError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { formatBytes } from '../utils/formatUtils.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 const logger = createLogger('Monitoring');
 
@@ -820,9 +821,9 @@ export const getMonitoringDashboard = async (req, res) => {
                 idle: pool._freeConnections?.length || 0,
                 total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
             };
-        } else if (globalThis.dbPool) {
+        } else if (db) {
             // Alternative: use main dbPool
-            const pool = globalThis.dbPool.pool;
+            const pool = db.pool;
             if (pool) {
                 dbConnectionStats = {
                     active: pool._allConnections?.length || 0,

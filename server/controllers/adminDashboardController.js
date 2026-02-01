@@ -4,6 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
+import db from '../config/db.js';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import dotenv from 'dotenv';
@@ -46,7 +47,7 @@ export const getTeachers = async (req, res) => {
             ORDER BY g.nama ASC
         `;
 
-        const [results] = await globalThis.dbPool.execute(query);
+        const [results] = await db.execute(query);
         log.success('GetTeachers', { count: results.length });
         res.json(results);
     } catch (error) {
@@ -71,7 +72,7 @@ export const addTeacher = async (req, res) => {
         return sendValidationError(res, 'Nama, username, dan password wajib diisi');
     }
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // Check if username already exists
@@ -138,7 +139,7 @@ export const updateTeacher = async (req, res) => {
         return sendValidationError(res, 'Nama dan username wajib diisi');
     }
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // Check if username already exists (excluding current user)
@@ -216,7 +217,7 @@ export const deleteTeacher = async (req, res) => {
     const { id } = req.params;
     log.requestStart('DeleteTeacher', { id });
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();

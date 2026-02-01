@@ -3,6 +3,7 @@
  * Manages configurable attendance rules via admin API
  */
 
+import db from '../config/db.js';
 import { sendDatabaseError, sendValidationError, sendSuccessResponse, sendNotFoundError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -21,7 +22,7 @@ export const getAttendanceSettings = async (req, res) => {
     log.requestStart('GetAttendanceSettings');
 
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             'SELECT setting_key, setting_value, description, updated_at FROM attendance_settings ORDER BY setting_key'
         );
 
@@ -58,7 +59,7 @@ export const getSettingByKey = async (req, res) => {
     log.requestStart('GetSettingByKey', { key });
 
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             'SELECT setting_key, setting_value, description, updated_at FROM attendance_settings WHERE setting_key = ?',
             [key]
         );
@@ -137,7 +138,7 @@ export const updateSetting = async (req, res) => {
         }
 
         // Upsert
-        await globalThis.dbPool.execute(`
+        await db.execute(`
             INSERT INTO attendance_settings (setting_key, setting_value, description)
             VALUES (?, ?, ?)
             ON DUPLICATE KEY UPDATE 
@@ -168,7 +169,7 @@ export const updateMultipleSettings = async (req, res) => {
             return sendValidationError(res, 'Settings object wajib diisi');
         }
 
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
 
@@ -219,7 +220,7 @@ function getDefaultSettings() {
  */
 export async function getSettingValue(key, defaultValue = null) {
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             'SELECT setting_value FROM attendance_settings WHERE setting_key = ?',
             [key]
         );

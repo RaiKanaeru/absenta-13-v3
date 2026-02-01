@@ -3,6 +3,7 @@
  * Handles database operations for teacher data management
  */
 import bcrypt from 'bcrypt';
+import db from '../config/db.js';
 
 const SALT_ROUNDS = Number.parseInt(process.env.SALT_ROUNDS) || 10;
 
@@ -25,7 +26,7 @@ export const getAllTeachers = async () => {
         FROM guru g
         ORDER BY g.nama ASC
     `;
-    const [results] = await globalThis.dbPool.execute(query);
+    const [results] = await db.execute(query);
     return results;
 };
 
@@ -34,7 +35,7 @@ export const getAllTeachers = async () => {
  */
 export const createTeacher = async (data) => {
     const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = data;
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     
     try {
         // Check if NIP exists
@@ -82,7 +83,7 @@ export const createTeacher = async (data) => {
  */
 export const updateTeacher = async (id, data) => {
     const { nip, nama, email, mata_pelajaran, alamat, telepon, jenis_kelamin, status } = data;
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // Check duplicate NIP
@@ -136,7 +137,7 @@ export const updateTeacher = async (id, data) => {
  * Delete teacher data
  */
 export const deleteTeacher = async (id) => {
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();

@@ -3,13 +3,15 @@
  * Menangani pengambilan data (SQL Query) untuk keperluan export
  */
 
+import db from '../config/db.js';
+
 class ExportService {
     /**
      * Lazy getter for database pool
-     * Ensures pool is fetched at runtime, not at module load time
+     * Uses centralized db module for consistent access
      */
     get pool() {
-        return globalThis.dbPool;
+        return db;
     }
 
     /**

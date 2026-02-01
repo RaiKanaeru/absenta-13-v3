@@ -8,6 +8,7 @@ import ExcelJS from 'exceljs';
 
 import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 const logger = createLogger('Import');
 
@@ -90,7 +91,7 @@ const importMapel = async (req, res) => {
         }
         if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             await persistMapel(conn, valid);
@@ -145,7 +146,7 @@ const importKelas = async (req, res) => {
         }
         if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             await persistKelas(conn, valid);
@@ -200,7 +201,7 @@ const importRuang = async (req, res) => {
         }
         if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             await persistRuang(conn, valid);
@@ -363,7 +364,7 @@ const importJadwal = async (req, res) => {
         }
         if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             await persistJadwalBatch(conn, valid);
@@ -404,7 +405,7 @@ const importSiswa = async (req, res) => {
         const existingNis = new Set();
 
         try {
-            const [dbNis] = await globalThis.dbPool.execute('SELECT nis FROM siswa');
+            const [dbNis] = await db.execute('SELECT nis FROM siswa');
             dbNis.forEach(row => existingNis.add(row.nis));
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
@@ -434,7 +435,7 @@ const importSiswa = async (req, res) => {
         }
 
         // Process records with helper function
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
@@ -490,7 +491,7 @@ const importGuru = async (req, res) => {
         // Check existing NIPs
         const existingNips = new Set();
         try {
-             const [dbNips] = await globalThis.dbPool.execute('SELECT nip FROM guru');
+             const [dbNips] = await db.execute('SELECT nip FROM guru');
              dbNips.forEach(r => existingNips.add(r.nip));
         } catch (e) {
              logger.warn('Failed to fetch existing NIPs', e);
@@ -517,7 +518,7 @@ const importGuru = async (req, res) => {
             return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
         }
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             let successCount = 0;
@@ -583,7 +584,7 @@ const importStudentAccount = async (req, res) => {
 
         if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             let successCount = 0;
@@ -636,7 +637,7 @@ const importTeacherAccount = async (req, res) => {
 
         if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
 
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
             let successCount = 0;

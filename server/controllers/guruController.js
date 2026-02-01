@@ -8,6 +8,7 @@ import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicat
 import dotenv from 'dotenv';
 import { getMySQLDateTimeWIB, getWIBTime } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 dotenv.config();
 
@@ -39,7 +40,7 @@ async function validateNIPField(nip, isUpdate, excludeGuruId) {
         sql += ' AND id != ?';
         params.push(excludeGuruId);
     }
-    const [existing] = await globalThis.dbPool.execute(sql, params);
+    const [existing] = await db.execute(sql, params);
     if (existing.length > 0) {
         errors.push('NIP sudah digunakan');
     }
@@ -83,7 +84,7 @@ async function validateUsernameField(username, isUpdate, excludeUserId) {
         sql += ' AND id != ?';
         params.push(excludeUserId);
     }
-    const [existing] = await globalThis.dbPool.execute(sql, params);
+    const [existing] = await db.execute(sql, params);
     if (existing.length > 0) {
         errors.push('Username sudah digunakan');
     }
@@ -108,7 +109,7 @@ async function validateEmailField(email, isUpdate, excludeUserId) {
         sql += ' AND id != ?';
         params.push(excludeUserId);
     }
-    const [existing] = await globalThis.dbPool.execute(sql, params);
+    const [existing] = await db.execute(sql, params);
     if (existing.length > 0) {
         return ['Email sudah digunakan'];
     }
@@ -128,7 +129,7 @@ async function validateMapelField(mapel_id) {
         return ['ID mata pelajaran harus berupa angka positif'];
     }
     
-    const [existing] = await globalThis.dbPool.execute(
+    const [existing] = await db.execute(
         'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
         [mapel_id]
     );
@@ -228,8 +229,8 @@ export const getGuru = async (req, res) => {
 
         query += ` ORDER BY g.created_at DESC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
 
-        const [rows] = await globalThis.dbPool.query(query, params);
-        const [countResult] = await globalThis.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [rows] = await db.query(query, params);
+        const [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         log.success('GetGuru', { count: rows.length, total: countResult[0].total });
         return sendSuccessResponse(res, rows, 'Data guru berhasil dimuat', 200, {
@@ -277,7 +278,7 @@ export const createGuru = async (req, res) => {
     
     log.requestStart('CreateGuru', { nip, nama, username });
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // Validasi payload
@@ -385,7 +386,7 @@ export const updateGuru = async (req, res) => {
 
     log.requestStart('UpdateGuru', { id, nip, nama, username });
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // Cek apakah guru ada
@@ -468,7 +469,7 @@ export const deleteGuru = async (req, res) => {
 
     log.requestStart('DeleteGuru', { id });
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // Cek apakah guru ada
@@ -533,7 +534,7 @@ export const updateProfile = async (req, res) => {
         }
 
         // Check if username is already taken by another user
-        const [existingUser] = await globalThis.dbPool.execute(
+        const [existingUser] = await db.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
@@ -543,7 +544,7 @@ export const updateProfile = async (req, res) => {
             return sendDuplicateError(res, 'Username sudah digunakan oleh user lain');
         }
 
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
         await connection.beginTransaction();
 
         try {
@@ -562,7 +563,7 @@ export const updateProfile = async (req, res) => {
             await connection.commit();
 
             // Get updated user data
-            const [updatedUser] = await globalThis.dbPool.execute(
+            const [updatedUser] = await db.execute(
                 `SELECT u.id, u.username, u.nama, u.email, u.role, g.alamat, g.no_telp as no_telepon, 
                         g.nip, g.jenis_kelamin, g.mata_pelajaran, u.created_at, u.updated_at 
                  FROM users u LEFT JOIN guru g ON u.id = g.user_id WHERE u.id = ?`,
@@ -604,7 +605,7 @@ export const changePassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-        await globalThis.dbPool.execute(
+        await db.execute(
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
@@ -667,7 +668,7 @@ export const getGuruJadwal = async (req, res) => {
 
     try {
         const { query, params } = buildJadwalQuery('guru', guruId);
-        const [jadwal] = await globalThis.dbPool.execute(query, params);
+        const [jadwal] = await db.execute(query, params);
 
         log.success('GetGuruJadwal', { count: jadwal.length, guruId });
         return sendSuccessResponse(res, jadwal);
@@ -690,7 +691,7 @@ export const getGuruHistory = async (req, res) => {
     }
 
     try {
-        const [history] = await globalThis.dbPool.execute(`
+        const [history] = await db.execute(`
             SELECT ag.tanggal, ag.status, ag.keterangan, k.nama_kelas, 
                    COALESCE(mp.nama_mapel, j.keterangan_khusus) as nama_mapel
             FROM absensi_guru ag
@@ -737,7 +738,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             WHERE jadwal.guru_id = ? AND absensi.waktu_absen >= ?
         `;
 
-        const [countResult] = await globalThis.dbPool.execute(countQuery, [guruId, thirtyDaysAgoWIB]);
+        const [countResult] = await db.execute(countQuery, [guruId, thirtyDaysAgoWIB]);
         const totalDays = countResult[0].total_days;
         const totalPages = Math.ceil(totalDays / Number.parseInt(limit));
         const offset = (Number.parseInt(page) - 1) * Number.parseInt(limit);
@@ -750,7 +751,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             ORDER BY tanggal DESC LIMIT ? OFFSET ?
         `;
 
-        const [datesResult] = await globalThis.dbPool.execute(datesQuery, [guruId, thirtyDaysAgoWIB, Number.parseInt(limit), offset]);
+        const [datesResult] = await db.execute(datesQuery, [guruId, thirtyDaysAgoWIB, Number.parseInt(limit), offset]);
         const dates = datesResult.map(row => row.tanggal);
 
         if (dates.length === 0) {
@@ -780,7 +781,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             ORDER BY absensi.waktu_absen DESC, jadwal.jam_ke ASC
         `;
 
-        const [history] = await globalThis.dbPool.execute(query, [guruId, ...dates]);
+        const [history] = await db.execute(query, [guruId, ...dates]);
 
         log.success('GetStudentHistory', { count: history.length, totalDays, guruId });
         return sendSuccessResponse(res, history, 'Riwayat absensi siswa', 200, {
@@ -820,7 +821,7 @@ export const getGuruStudentAttendanceSimple = async (req, res) => {
     }
 
     try {
-        const [result] = await globalThis.dbPool.execute(`
+        const [result] = await db.execute(`
             SELECT COUNT(*) as total FROM jadwal j WHERE j.guru_id = ?
         `, [guruId]);
 

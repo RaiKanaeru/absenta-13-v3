@@ -4,6 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
+import db from '../config/db.js';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -42,7 +43,7 @@ export const updateAdminProfile = async (req, res) => {
         }
 
         // Check if username is already taken by another user
-        const [existingUser] = await globalThis.dbPool.execute(
+        const [existingUser] = await db.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
@@ -53,7 +54,7 @@ export const updateAdminProfile = async (req, res) => {
         }
 
         // Update profile in users table
-        const [updateResult] = await globalThis.dbPool.execute(
+        const [updateResult] = await db.execute(
             `UPDATE users SET 
                 nama = ?, 
                 username = ?, 
@@ -66,7 +67,7 @@ export const updateAdminProfile = async (req, res) => {
         log.debug('Profile update result', { affectedRows: updateResult.affectedRows });
 
         // Get updated user data
-        const [updatedUser] = await globalThis.dbPool.execute(
+        const [updatedUser] = await db.execute(
             'SELECT id, username, nama, email, role, created_at, updated_at FROM users WHERE id = ?',
             [userId]
         );
@@ -114,7 +115,7 @@ export const changeAdminPassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
         // Update password
-        await globalThis.dbPool.execute(
+        await db.execute(
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );

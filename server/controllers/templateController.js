@@ -9,6 +9,7 @@ import ExcelJS from 'exceljs';
 import { sendDatabaseError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { COLUMN_CONFIGS, SAMPLE_DATA, GUIDE_DATA } from '../config/templateConfig.js';
+import db from '../config/db.js';
 
 const logger = createLogger('Template');
 
@@ -56,7 +57,7 @@ async function addReferenceSheet(workbook, config) {
     }
 
     try {
-        const [rows] = await globalThis.dbPool.execute(query);
+        const [rows] = await db.execute(query);
         rows.forEach(row => {
             sheet.addRow(mapper(row));
         });

@@ -7,6 +7,7 @@
  */
 
 import { createLogger } from './logger.js';
+import db from '../config/db.js';
 
 const logger = createLogger('AttendanceCalculator');
 
@@ -45,7 +46,7 @@ export const getEffectiveDaysMapFromDB = async (tahunPelajaran) => {
     }
 
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             'SELECT bulan, hari_efektif FROM kalender_akademik WHERE tahun_pelajaran = ?',
             [tahunPelajaran]
         );
@@ -85,7 +86,7 @@ export const getEffectiveDaysMapFromDB = async (tahunPelajaran) => {
  */
 export const getEffectiveDaysForMonth = async (bulan, tahun) => {
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             'SELECT hari_efektif FROM kalender_akademik WHERE bulan = ? AND tahun = ?',
             [bulan, tahun]
         );

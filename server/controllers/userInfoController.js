@@ -7,6 +7,7 @@ import { getWIBTime, getMySQLDateWIB, HARI_INDONESIA } from '../utils/timeUtils.
 import { sendDatabaseError, sendNotFoundError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { validateSelfAccess, validatePerwakilanAccess, validateUserContext } from '../utils/validationUtils.js';
+import db from '../config/db.js';
 
 const logger = createLogger('UserInfo');
 
@@ -14,7 +15,7 @@ const logger = createLogger('UserInfo');
 const SQL_GET_SISWA_KELAS = 'SELECT kelas_id FROM siswa WHERE id_siswa = ?';
 
 async function executeScheduleQuery(kelasId, dateStr, dayName) {
-    const [rows] = await globalThis.dbPool.execute(`
+    const [rows] = await db.execute(`
         SELECT 
             j.id_jadwal,
             j.guru_id,
@@ -82,7 +83,7 @@ export const getSiswaPerwakilanInfo = async (req, res) => {
     }
 
     try {
-        const [siswaData] = await globalThis.dbPool.execute(
+        const [siswaData] = await db.execute(
             `SELECT u.id, u.username, u.nama, u.email, u.role, u.is_perwakilan, s.id_siswa, s.nis, s.kelas_id, 
                     k.nama_kelas, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa, s.jenis_kelamin, s.jabatan, 
                     u.created_at, u.updated_at
@@ -137,7 +138,7 @@ export const getGuruInfo = async (req, res) => {
     log.requestStart('GetGuruInfo', { userId: req.user.id });
 
     try {
-        const [guruData] = await globalThis.dbPool.execute(
+        const [guruData] = await db.execute(
             `SELECT u.id, u.username, u.nama, u.email, u.role, g.id_guru, g.nip, g.mapel_id, 
                     m.nama_mapel, g.alamat, g.no_telp, g.jenis_kelamin, g.status, 
                     u.created_at, u.updated_at
@@ -188,7 +189,7 @@ export const getAdminInfo = async (req, res) => {
     log.requestStart('GetAdminInfo', { userId: req.user.id });
 
     try {
-        const [adminData] = await globalThis.dbPool.execute(
+        const [adminData] = await db.execute(
             `SELECT id, username, nama, email, role, created_at, updated_at
              FROM users
              WHERE id = ?`,
@@ -244,7 +245,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
         log.debug('Date context', { currentDay, todayWIB });
 
         // Get siswa's class
-        const [siswaData] = await globalThis.dbPool.execute(
+        const [siswaData] = await db.execute(
             SQL_GET_SISWA_KELAS,
             [siswa_id]
         );
@@ -286,7 +287,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
 
     try {
         // Get siswa's class
-        const [siswaData] = await globalThis.dbPool.execute(
+        const [siswaData] = await db.execute(
             SQL_GET_SISWA_KELAS,
             [siswa_id]
         );

@@ -14,6 +14,7 @@ import {
     calculateAbsencePercentage,
     buildTahunPelajaran
 } from '../utils/attendanceCalculator.js';
+import db from '../config/db.js';
 
 
 const logger = createLogger('Export');
@@ -488,7 +489,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
             query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
         }
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
 
         // Build Excel
         const ExcelJS = (await import('exceljs')).default;
@@ -568,7 +569,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         }
 
         // Get class info
-        const [kelasRows] = await globalThis.dbPool.execute(
+        const [kelasRows] = await db.execute(
             'SELECT nama_kelas FROM kelas WHERE id_kelas = ?',
             [kelas_id]
         );
@@ -592,7 +593,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${new Date(year, endMonth, 0).getDate()}`;
 
         // Get students with attendance summary
-        const [rows] = await globalThis.dbPool.execute(`
+        const [rows] = await db.execute(`
             SELECT 
                 s.nis,
                 s.nama,
@@ -870,7 +871,7 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
+        const [rows] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
         const mapping = templateExportService.REKAP_GURU_MAPPING;
         const templateAvailable = await templateExportService.templateExists(mapping.templateFile);
 
@@ -1007,7 +1008,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
         const { kelas_id, tahun, semester = 'gasal' } = req.query;
         // Get class info and wali kelas
-        const [kelasRows] = await globalThis.dbPool.execute(`
+        const [kelasRows] = await db.execute(`
             SELECT k.nama_kelas, g.nama as wali_kelas 
             FROM kelas k 
             LEFT JOIN guru g ON k.id_kelas = g.id_guru 
@@ -1017,7 +1018,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         const waliKelas = kelasRows.length > 0 ? kelasRows[0].wali_kelas : '-';
 
         // Get students
-        const [studentsRows] = await globalThis.dbPool.execute(
+        const [studentsRows] = await db.execute(
             'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
             [kelas_id]
         );
@@ -1306,11 +1307,11 @@ export const exportPresensiSiswa = async (req, res) => {
     try {
         const { kelas_id, bulan, tahun } = req.query;
         // Get class name
-        const [kelasRows] = await globalThis.dbPool.execute(SQL_GET_KELAS_NAME_BY_ID, [kelas_id]);
-        const kelasName = kelasRows.length > 0 ? kelasRows[0].nama_kelas : 'Unknown';
+        const [kelasRows] = await db.execute(SQL_GET_KELAS_NAME_BY_ID, [kelas_id]);
+        const namaKelas = kelasRows[0]?.nama_kelas || 'Unknown';
 
         // Get students
-        const [studentsRows] = await globalThis.dbPool.execute(
+        const [studentsRows] = await db.execute(
             'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
             [kelas_id]
         );
@@ -1799,7 +1800,7 @@ export const exportJadwalPrint = async (req, res) => {
         if (hari && hari !== 'all') { query += ' AND j.hari = ?'; params.push(hari); }
         query += ` ORDER BY k.nama_kelas, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), j.jam_ke`;
 
-        const [schedules] = await globalThis.dbPool.execute(query, params);
+        const [schedules] = await db.execute(query, params);
 
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
@@ -2042,13 +2043,13 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         if (diffDays > 62) return sendValidationError(res, 'Rentang tanggal maksimal 62 hari');
 
         // Get mapel info
-        const [mapelInfo] = await globalThis.dbPool.execute(`
+        const [mapelInfo] = await db.execute(`
             SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
             FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
         `, [guruId]);
 
         // Get scheduled dates
-        const [jadwalData] = await globalThis.dbPool.execute(`
+        const [jadwalData] = await db.execute(`
             SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
         `, [guruId, kelas_id]);
 
@@ -2076,7 +2077,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const pertemuanDates = getScheduledDates(start, end, jadwalData);
 
         // Get actual attendance dates
-        const [actualDates] = await globalThis.dbPool.execute(`
+        const [actualDates] = await db.execute(`
             SELECT DISTINCT DATE(a.tanggal) as tanggal
             FROM absensi_siswa a
             WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
@@ -2096,7 +2097,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const finalDates = Array.from(allDates).sort();
 
         // Get student summary stats
-        const [siswaData] = await globalThis.dbPool.execute(`
+        const [siswaData] = await db.execute(`
             SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
                 COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
                 COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
@@ -2117,7 +2118,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         `, [finalDates.length, finalDates.length, startDate, endDate, guruId, kelas_id, kelas_id]);
 
         // Get detailed daily attendance
-        const [detailKehadiran] = await globalThis.dbPool.execute(`
+        const [detailKehadiran] = await db.execute(`
             SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
@@ -2262,7 +2263,7 @@ export const exportRekapJadwalGuru = async (req, res) => {
             ORDER BY g.nama, FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query);
+        const [rows] = await db.execute(query);
 
         // Transform Data
         const teachers = {};
@@ -2389,7 +2390,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
         }
 
         // Get kelas info
-        const [kelasRows] = await globalThis.dbPool.execute(
+        const [kelasRows] = await db.execute(
             SQL_GET_KELAS_NAME_BY_ID,
             [kelas_id]
         );
@@ -2433,7 +2434,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
             templateExportService.setCell(worksheet, mapping.headerCells.namaKelas, namaKelas);
             
             // Get wali kelas from DB
-            const [waliKelasResult] = await globalThis.dbPool.execute(
+            const [waliKelasResult] = await db.execute(
                 `SELECT g.nama as wali_kelas_nama
                  FROM kelas k 
                  LEFT JOIN guru g ON k.wali_kelas_id = g.id_guru 
@@ -2480,7 +2481,7 @@ export const exportRekapKetidakhadiranKelasTemplate = async (req, res) => {
             ORDER BY s.nama
         `;
 
-        const [siswaRows] = await globalThis.dbPool.execute(query, [tahun, kelas_id]);
+        const [siswaRows] = await db.execute(query, [tahun, kelas_id]);
 
         // Transform data
         const templateData = siswaRows.map((row, index) => ({

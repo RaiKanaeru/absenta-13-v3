@@ -13,6 +13,7 @@ import { randomBytes } from 'node:crypto';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { splitSqlStatements } from '../utils/sqlParser.js';
+import db from '../config/db.js';
 
 const execAsync = promisify(exec);
 
@@ -139,11 +140,11 @@ function parseBackupFilename(filename) {
 const executeSqlCommands = async (commands, options = {}) => {
     const { continueOnError = true } = options;
     
-    if (!globalThis.dbPool) {
+    if (!db) {
         throw new Error('Database connection pool is not initialized');
     }
     
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     const results = {
         total: commands.length,
         executed: 0,
@@ -419,7 +420,7 @@ async function performManualDatabaseBackup(filepath, filename) {
         for (const table of tables) {
             try {
                 // Get table structure
-                const [createResult] = await globalThis.dbPool.execute(`SHOW CREATE TABLE ${table}`);
+                const [createResult] = await db.execute(`SHOW CREATE TABLE ${table}`);
                 if (createResult.length > 0) {
                     backupContent += `\n-- Table: ${table}\n`;
                     backupContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
@@ -427,7 +428,7 @@ async function performManualDatabaseBackup(filepath, filename) {
                 }
 
                 // Get table data
-                const [rows] = await globalThis.dbPool.execute(`SELECT * FROM ${table}`);
+                const [rows] = await db.execute(`SELECT * FROM ${table}`);
                 if (rows.length > 0) {
                     for (const row of rows) {
                         const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
@@ -942,7 +943,7 @@ const restoreBackupFromFile = async (req, res) => {
             return sendValidationError(res, 'File backup harus diupload');
         }
 
-        if (!globalThis.dbPool) {
+        if (!db) {
             return sendServiceUnavailableError(res, 'Koneksi database belum siap');
         }
 
@@ -1006,7 +1007,7 @@ const createTestArchiveData = async (req, res) => {
     try {
         logger.info('Creating test archive data');
 
-        if (!globalThis.dbPool) {
+        if (!db) {
             logger.error('Database pool not initialized');
             return sendServiceUnavailableError(res, 'Koneksi database belum siap. Silakan coba lagi beberapa saat.');
         }
@@ -1021,20 +1022,20 @@ const createTestArchiveData = async (req, res) => {
         logger.debug('Creating test data with date', { oldDateStr, monthsOld: 25 });
 
         // Clean up existing test data
-        await globalThis.dbPool.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
-        await globalThis.dbPool.execute(`DELETE FROM absensi_guru WHERE keterangan = 'Test data for archive'`);
-        await globalThis.dbPool.execute(`DELETE FROM absensi_siswa_archive WHERE keterangan = 'Test data for archive'`);
-        await globalThis.dbPool.execute(`DELETE FROM absensi_guru_archive WHERE keterangan = 'Test data for archive'`);
+        await db.execute(`DELETE FROM absensi_siswa WHERE keterangan = 'Test data for archive'`);
+        await db.execute(`DELETE FROM absensi_guru WHERE keterangan = 'Test data for archive'`);
+        await db.execute(`DELETE FROM absensi_siswa_archive WHERE keterangan = 'Test data for archive'`);
+        await db.execute(`DELETE FROM absensi_guru_archive WHERE keterangan = 'Test data for archive'`);
 
         // Get valid jadwal_id and guru_id
-        const [jadwalRows] = await globalThis.dbPool.execute(`SELECT id_jadwal FROM jadwal LIMIT 1`);
-        const [guruRows] = await globalThis.dbPool.execute(`SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1`);
+        const [jadwalRows] = await db.execute(`SELECT id_jadwal FROM jadwal LIMIT 1`);
+        const [guruRows] = await db.execute(`SELECT id_guru FROM guru WHERE status = 'aktif' LIMIT 1`);
 
         const validJadwalId = jadwalRows.length > 0 ? jadwalRows[0].id_jadwal : null;
         const validGuruId = guruRows.length > 0 ? guruRows[0].id_guru : null;
 
         // Insert test student attendance records
-        const [studentResult] = await globalThis.dbPool.execute(`
+        const [studentResult] = await db.execute(`
             INSERT INTO absensi_siswa (siswa_id, jadwal_id, tanggal, status, keterangan, guru_id)
             SELECT 
                 s.id_siswa as siswa_id,
@@ -1084,7 +1085,7 @@ const archiveOldData = async (req, res) => {
             return sendServiceUnavailableError(res, 'Sistem backup belum siap. Silakan coba lagi beberapa saat.');
         }
 
-        if (!globalThis.dbPool) {
+        if (!db) {
             logger.error('Database pool not initialized');
             return sendServiceUnavailableError(res, 'Koneksi database belum siap. Silakan coba lagi beberapa saat.');
         }
@@ -1111,7 +1112,7 @@ const getArchiveStats = async (req, res) => {
     try {
         logger.info('Getting archive statistics');
 
-        if (!globalThis.dbPool) {
+        if (!db) {
             logger.error('Database pool not initialized');
             return sendServiceUnavailableError(res, 'Koneksi database belum siap. Silakan coba lagi beberapa saat.');
         }
@@ -1119,7 +1120,7 @@ const getArchiveStats = async (req, res) => {
         // Get student archive count
         let studentArchiveCount = 0;
         try {
-            const [studentArchive] = await globalThis.dbPool.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
+            const [studentArchive] = await db.execute(`SELECT COUNT(*) as count FROM absensi_siswa_archive`);
             studentArchiveCount = studentArchive[0]?.count || 0;
         } catch (error) {
             logger.warn('Student archive table not found, using 0', { error: error.message });
@@ -1128,7 +1129,7 @@ const getArchiveStats = async (req, res) => {
         // Get teacher archive count
         let teacherArchiveCount = 0;
         try {
-            const [teacherArchive] = await globalThis.dbPool.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
+            const [teacherArchive] = await db.execute(`SELECT COUNT(*) as count FROM absensi_guru_archive`);
             teacherArchiveCount = teacherArchive[0]?.count || 0;
         } catch (error) {
             logger.warn('Teacher archive table not found, using 0', { error: error.message });
@@ -1140,12 +1141,12 @@ const getArchiveStats = async (req, res) => {
         // Get last archive date
         let lastArchive = null;
         try {
-            const [lastArchiveResult] = await globalThis.dbPool.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
+            const [lastArchiveResult] = await db.execute(`SELECT MAX(archived_at) as last_archive FROM absensi_siswa_archive`);
             lastArchive = lastArchiveResult[0]?.last_archive || null;
         } catch (error) {
             logger.debug('Primary archive check failed, trying fallback', { error: error.message });
             try {
-                const [lastArchiveResult] = await globalThis.dbPool.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
+                const [lastArchiveResult] = await db.execute(`SELECT MAX(waktu_absen) as last_archive FROM absensi_siswa_archive`);
                 lastArchive = lastArchiveResult[0]?.last_archive || null;
             } catch (err) {
                 // Table doesn't exist, ignore
@@ -1182,10 +1183,10 @@ const getArchiveStats = async (req, res) => {
 const getDatabaseStatus = async (req, res) => {
     try {
         const status = {
-            dbPool: !!globalThis.dbPool,
-            dbPoolType: typeof globalThis.dbPool,
-            dbPoolPool: !!globalThis.dbPool?.pool,
-            dbPoolPoolType: typeof globalThis.dbPool?.pool,
+            dbPool: !!db,
+            dbPoolType: typeof db,
+            dbPoolPool: !!db?.pool,
+            dbPoolPoolType: typeof db?.pool,
             queryOptimizer: !!globalThis.queryOptimizer,
             backupSystem: !!globalThis.backupSystem,
             backupSystemType: typeof globalThis.backupSystem,

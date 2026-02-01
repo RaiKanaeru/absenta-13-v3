@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import { sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { mapKelasByName, mapMapelByName, mapGuruByName, mapRuangByKode } from '../utils/importHelper.js';
+import db from '../config/db.js';
 
 const logger = createLogger('ImportMaster');
 
@@ -232,7 +233,7 @@ export const importMasterSchedule = async (req, res) => {
         }
 
         // 3. Resolve & Persist
-        const conn = await globalThis.dbPool.getConnection();
+        const conn = await db.getConnection();
         const results = { success: 0, failed: 0, errors: [] };
         let transactionStarted = false;
 

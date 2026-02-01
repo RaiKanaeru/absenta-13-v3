@@ -32,6 +32,7 @@ import {
 } from '../utils/timeUtils.js';
 import { validateSelfAccess, validatePerwakilanAccess, validateUserContext } from '../utils/validationUtils.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 const logger = createLogger('Absensi');
 
@@ -255,7 +256,7 @@ export async function getStudentsForSchedule(req, res) {
     log.requestStart('GetStudentsForSchedule', { scheduleId: id });
 
     try {
-        const [scheduleData] = await globalThis.dbPool.execute(
+        const [scheduleData] = await db.execute(
             'SELECT kelas_id, is_multi_guru FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
             [id]
         );
@@ -322,7 +323,7 @@ export async function getStudentsForSchedule(req, res) {
             ? [id, currentDate, req.user.guru_id, id, currentDate, req.user.guru_id, kelasId]
             : [id, currentDate, req.user.guru_id, kelasId];
 
-        const [students] = await globalThis.dbPool.execute(query, params);
+        const [students] = await db.execute(query, params);
 
         log.success('GetStudentsForSchedule', { scheduleId: id, count: students.length, kelasId });
         res.json(students);
@@ -366,7 +367,7 @@ export async function getStudentsForScheduleByDate(req, res) {
             return sendValidationError(res, `Tidak dapat melihat absen lebih dari ${TEACHER_EDIT_DAYS_LIMIT} hari yang lalu`);
         }
 
-        const [scheduleData] = await globalThis.dbPool.execute(
+        const [scheduleData] = await db.execute(
             'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
             [id]
         );
@@ -379,7 +380,7 @@ export async function getStudentsForScheduleByDate(req, res) {
         const kelasId = scheduleData[0].kelas_id;
         // targetDateStr already defined above
 
-        const [students] = await globalThis.dbPool.execute(`
+        const [students] = await db.execute(`
             SELECT 
                 s.id_siswa as id,
                 s.nis,
@@ -418,13 +419,13 @@ export async function submitStudentAttendance(req, res) {
     const { scheduleId, attendance, notes = {}, guruId, tanggal_absen } = req.body;
     log.requestStart('SubmitStudentAttendance', { scheduleId, guruId, studentCount: Object.keys(attendance || {}).length });
 
-        if (!globalThis.dbPool) {
+        if (!db) {
             log.error('Database not available', null);
             return sendServiceUnavailableError(res, 'Koneksi database tidak tersedia');
         }
 
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         if (!scheduleId || !attendance || !guruId) {
@@ -530,7 +531,7 @@ export async function submitStudentAttendance(req, res) {
 
             if (isMultiGuru) {
                 // Pass connection to syncMultiGuruAttendance to ensure same transaction
-                // NOTE: syncMultiGuruAttendance currently uses globalThis.dbPool directly. 
+                // NOTE: syncMultiGuruAttendance currently uses db directly. 
                 // Ideally, we should refactor it to accept a connection, but for now, 
                 // since it mostly does INSERTS for OTHER teachers, keeping it outside this transaction 
                 // might be acceptable if refactoring is too risky, BUT best practice is to include it.
@@ -672,7 +673,7 @@ export async function recordTeacherAttendanceSimple(req, res) {
 
     try {
         if (req.user.kelas_id) {
-            const [jadwalRows] = await globalThis.dbPool.execute(
+            const [jadwalRows] = await db.execute(
                 'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? LIMIT 1',
                 [jadwal_id]
             );
@@ -687,7 +688,7 @@ export async function recordTeacherAttendanceSimple(req, res) {
         }
 
         const todayWIB = getMySQLDateWIB();
-        const [existing] = await globalThis.dbPool.execute(
+        const [existing] = await db.execute(
             `SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND tanggal = ? LIMIT 1`,
             [jadwal_id, todayWIB]
         );
@@ -697,7 +698,7 @@ export async function recordTeacherAttendanceSimple(req, res) {
             return sendValidationError(res, 'Absensi untuk jadwal ini sudah dicatat hari ini');
         }
 
-        const [jadwalData] = await globalThis.dbPool.execute(
+        const [jadwalData] = await db.execute(
             'SELECT id_jadwal, kelas_id, guru_id, mapel_id, jam_mulai FROM jadwal WHERE id_jadwal = ? LIMIT 1',
             [jadwal_id]
         );
@@ -719,7 +720,7 @@ export async function recordTeacherAttendanceSimple(req, res) {
             finalStatus = status;
         }
 
-        await globalThis.dbPool.execute(
+        await db.execute(
             `INSERT INTO absensi_guru (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, jam_ke, status, keterangan, terlambat, ada_tugas)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [jadwal_id, guru_id, req.user.kelas_id, req.user.siswa_id, todayWIB, jadwalData[0].jam_ke, finalStatus, keterangan, isLate, hasTask]
@@ -767,7 +768,7 @@ export async function submitTeacherAttendance(req, res) {
             const jadwalIds = Object.keys(kehadiran_data || {}).map((key) => key.split('-')[0]);
             if (jadwalIds.length > 0) {
                 const placeholders = jadwalIds.map(() => '?').join(',');
-                const [jadwalRows] = await globalThis.dbPool.execute(
+                const [jadwalRows] = await db.execute(
                     `SELECT id_jadwal FROM jadwal WHERE id_jadwal IN (${placeholders}) AND kelas_id = ?`,
                     [...jadwalIds, req.user.kelas_id]
                 );
@@ -785,12 +786,12 @@ export async function submitTeacherAttendance(req, res) {
             return sendValidationError(res, dateValidation.error);
         }
 
-        if (!globalThis.dbPool) {
+        if (!db) {
             log.error('Database not available', null);
             return sendServiceUnavailableError(res, 'Koneksi database tidak tersedia');
         }
 
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
 
         try {
             await connection.beginTransaction();
@@ -882,7 +883,7 @@ export async function getAbsensiHistory(req, res) {
         query += ' ORDER BY ag.tanggal DESC, ag.waktu_catat DESC LIMIT ?';
         params.push(Number.parseInt(limit));
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
 
         log.success('GetAbsensiHistory', { count: rows.length, role: req.user.role });
         res.json({ success: true, data: rows });
@@ -919,7 +920,7 @@ export async function getStudentsForPiketAbsen(req, res) {
 
     try {
         // Get siswa's class
-        const [siswaData] = await globalThis.dbPool.execute(
+        const [siswaData] = await db.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ?',
             [siswa_id]
         );
@@ -933,7 +934,7 @@ export async function getStudentsForPiketAbsen(req, res) {
         const targetDate = tanggal || getMySQLDateWIB();
 
         // Check if guru is marked as "Tidak Hadir" for this jadwal
-        const [guruAbsen] = await globalThis.dbPool.execute(`
+        const [guruAbsen] = await db.execute(`
             SELECT ag.status, g.nama as nama_guru
             FROM absensi_guru ag
             JOIN guru g ON ag.guru_id = g.id_guru
@@ -954,7 +955,7 @@ export async function getStudentsForPiketAbsen(req, res) {
         }
 
         // Get students in the class with existing attendance
-        const [students] = await globalThis.dbPool.execute(`
+        const [students] = await db.execute(`
             SELECT 
                 s.id_siswa,
                 s.nis,
@@ -1023,7 +1024,7 @@ export async function submitStudentAttendanceByPiket(req, res) {
         }
 
         if (req.user.kelas_id) {
-            const [jadwalRows] = await globalThis.dbPool.execute(
+            const [jadwalRows] = await db.execute(
                 'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? LIMIT 1',
                 [jadwal_id]
             );
@@ -1045,7 +1046,7 @@ export async function submitStudentAttendanceByPiket(req, res) {
         }
 
         // Step 3: Validate piket access to this jadwal
-        const accessResult = await validatePiketAccess(globalThis.dbPool, siswa_pencatat_id, jadwal_id);
+        const accessResult = await validatePiketAccess(db, siswa_pencatat_id, jadwal_id);
         if (accessResult.error) {
             return accessResult.notFound 
                 ? sendNotFoundError(res, accessResult.error)
@@ -1053,13 +1054,13 @@ export async function submitStudentAttendanceByPiket(req, res) {
         }
 
         // Step 4: Validate guru is absent (required for piket to submit)
-        const guruValidation = await validateGuruAbsentStatus(globalThis.dbPool, jadwal_id, targetDate);
+        const guruValidation = await validateGuruAbsentStatus(db, jadwal_id, targetDate);
         if (guruValidation.error) {
             return sendValidationError(res, guruValidation.error);
         }
 
         // Step 5: Process attendance records
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
         const waktuAbsen = getMySQLDateTimeWIB();
         let processed = 0;
 
@@ -1133,7 +1134,7 @@ export async function updateTeacherStatus(req, res) {
 
         // Validate jadwal belongs to user's class
         if (req.user.kelas_id) {
-            const [jadwalRows] = await globalThis.dbPool.execute(
+            const [jadwalRows] = await db.execute(
                 'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? LIMIT 1',
                 [jadwal_id]
             );
@@ -1162,14 +1163,14 @@ export async function updateTeacherStatus(req, res) {
         }
 
         // Check if record exists
-        const [existing] = await globalThis.dbPool.execute(
+        const [existing] = await db.execute(
             'SELECT id_absensi FROM absensi_guru WHERE jadwal_id = ? AND guru_id = ? AND tanggal = ? LIMIT 1',
             [jadwal_id, guru_id, targetDate]
         );
 
         if (existing.length > 0) {
             // Update existing record
-            await globalThis.dbPool.execute(
+            await db.execute(
                 `UPDATE absensi_guru 
                  SET status = ?, keterangan = ?, terlambat = ?, ada_tugas = ?, updated_at = NOW()
                  WHERE id_absensi = ?`,
@@ -1178,7 +1179,7 @@ export async function updateTeacherStatus(req, res) {
             log.success('UpdateTeacherStatus', { action: 'update', jadwal_id, guru_id, status: finalStatus });
         } else {
             // Insert new record
-            await globalThis.dbPool.execute(
+            await db.execute(
                 `INSERT INTO absensi_guru (jadwal_id, guru_id, kelas_id, siswa_pencatat_id, tanggal, status, keterangan, terlambat, ada_tugas)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [jadwal_id, guru_id, req.user.kelas_id, req.user.siswa_id, targetDate, finalStatus, keterangan || null, isLate, hasTask]
@@ -1226,7 +1227,7 @@ export async function getClassAttendanceHistory(req, res) {
 
     try {
         // Get student's class
-        const [siswaRows] = await globalThis.dbPool.execute(
+        const [siswaRows] = await db.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ? AND status = "aktif" LIMIT 1',
             [siswa_id]
         );
@@ -1251,7 +1252,7 @@ export async function getClassAttendanceHistory(req, res) {
         }
 
         // Get teacher attendance history for this class
-        const [history] = await globalThis.dbPool.execute(`
+        const [history] = await db.execute(`
             SELECT 
                 ag.tanggal,
                 ag.status,
@@ -1402,7 +1403,7 @@ export async function getStudentAttendanceStatus(req, res) {
             params = [siswaId, targetDate];
         }
 
-        const [results] = await globalThis.dbPool.execute(query, params);
+        const [results] = await db.execute(query, params);
 
         // Calculate daily statistics if getting all attendance
         let statistics = null;

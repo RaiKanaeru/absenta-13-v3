@@ -3,6 +3,7 @@
  * Mengelola operasi CRUD untuk mata pelajaran
  */
 
+import db from '../config/db.js';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -27,7 +28,7 @@ export const getMapel = async (req, res) => {
             ORDER BY nama_mapel
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query);
+        const [rows] = await db.execute(query);
         log.success('GetAll', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -58,7 +59,7 @@ export const createMapel = async (req, res) => {
         }
 
         // Check if kode_mapel already exists
-        const [existing] = await globalThis.dbPool.execute(
+        const [existing] = await db.execute(
             'SELECT id_mapel FROM mapel WHERE kode_mapel = ?',
             [kode_mapel]
         );
@@ -73,7 +74,7 @@ export const createMapel = async (req, res) => {
             VALUES (?, ?, ?, ?)
         `;
 
-        const [result] = await globalThis.dbPool.execute(insertQuery, [
+        const [result] = await db.execute(insertQuery, [
             kode_mapel,
             nama_mapel,
             deskripsi || null,
@@ -114,7 +115,7 @@ export const updateMapel = async (req, res) => {
         }
 
         // Check if kode_mapel already exists for other records
-        const [existing] = await globalThis.dbPool.execute(
+        const [existing] = await db.execute(
             'SELECT id_mapel FROM mapel WHERE kode_mapel = ? AND id_mapel != ?',
             [kode_mapel, id]
         );
@@ -130,7 +131,7 @@ export const updateMapel = async (req, res) => {
             WHERE id_mapel = ?
         `;
 
-        const [result] = await globalThis.dbPool.execute(updateQuery, [
+        const [result] = await db.execute(updateQuery, [
             kode_mapel,
             nama_mapel,
             deskripsi || null,
@@ -165,7 +166,7 @@ export const deleteMapel = async (req, res) => {
     log.requestStart('Delete', { id });
 
     try {
-        const [result] = await globalThis.dbPool.execute(
+        const [result] = await db.execute(
             'DELETE FROM mapel WHERE id_mapel = ?',
             [id]
         );

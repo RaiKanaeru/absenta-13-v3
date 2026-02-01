@@ -7,6 +7,7 @@ import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicat
 import { getDayNameWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
 import { seedDefaultJamPelajaranData } from './jamPelajaranController.js';
+import db from '../config/db.js';
 
 const logger = createLogger('Jadwal');
 
@@ -269,7 +270,7 @@ const checkAllScheduleConflicts = async ({
         return { hasConflict: true, error: 'Hari tidak valid' };
     }
 
-    const db = connection || globalThis.dbPool;
+    const database = connection || db;
     const excludeId = normalizeId(excludeJadwalId);
     // Overlap: (start1 < end2) AND (end1 > start2)
     // SQL: j.jam_mulai < ? (newEnd) AND j.jam_selesai > ? (newStart)
@@ -281,7 +282,7 @@ const checkAllScheduleConflicts = async ({
     // 1. Cek Konflik Guru
     if (guruIds && guruIds.length > 0) {
         const qParams = [normalizedHari, jam_selesai, jam_mulai, ...guruIds, ...guruIds];
-        const conflict = await checkGuruConflict(db, { guruIds, hari: normalizedHari, sqlTime, qParams, excludeJadwalId: excludeId });
+        const conflict = await checkGuruConflict(database, { guruIds, hari: normalizedHari, sqlTime, qParams, excludeJadwalId: excludeId });
         if (conflict) {
             if (!collectConflicts) return conflict;
             conflicts.push({ type: 'guru', message: conflict.error });
@@ -289,14 +290,14 @@ const checkAllScheduleConflicts = async ({
     }
 
     // 2. Cek Konflik Ruang
-    const roomConflict = await checkRoomConflict(db, { ruang_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
+    const roomConflict = await checkRoomConflict(database, { ruang_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
     if (roomConflict) {
         if (!collectConflicts) return roomConflict;
         conflicts.push({ type: 'ruang', message: roomConflict.error });
     }
 
     // 3. Cek Konflik Kelas
-    const classConflict = await checkClassConflict(db, { kelas_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
+    const classConflict = await checkClassConflict(database, { kelas_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
     if (classConflict) {
         if (!collectConflicts) return classConflict;
         conflicts.push({ type: 'kelas', message: classConflict.error });
@@ -315,7 +316,7 @@ const checkAllScheduleConflicts = async ({
 
 const fetchJamSlotsByDay = async () => {
     const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const [allJamSlots] = await globalThis.dbPool.execute(
+    const [allJamSlots] = await db.execute(
         `SELECT hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
          FROM jam_pelajaran 
          ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`
@@ -336,20 +337,19 @@ const fetchClassesByTingkat = async (tingkat) => {
         kelasParams.push(`${tingkat}%`);
     }
     kelasQuery += ' ORDER BY nama_kelas';
-    const [classes] = await globalThis.dbPool.execute(kelasQuery, kelasParams);
+    const [classes] = await db.execute(kelasQuery, kelasParams);
     return classes;
 };
 
 const fetchAllSchedules = async () => {
-    const [allSchedules] = await globalThis.dbPool.execute(
+    const [allSchedules] = await db.execute(
         `SELECT 
             j.id_jadwal, j.kelas_id, j.hari, j.jam_ke, 
             j.mapel_id, j.guru_id, j.ruang_id,
             j.jenis_aktivitas, j.keterangan_khusus,
             COALESCE(m.kode_mapel, LEFT(j.keterangan_khusus, 6)) as kode_mapel,
             COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
-            m.warna as mapel_color,
-            COALESCE(g.kode_guru, 'SYS') as kode_guru,
+            COALESCE(g.nip, 'SYS') as kode_guru,
             COALESCE(g.nama, 'Sistem') as nama_guru,
             COALESCE(rk.kode_ruang, '') as kode_ruang,
             rk.nama_ruang
@@ -363,8 +363,8 @@ const fetchAllSchedules = async () => {
 };
 
 const fetchMultiGuruMap = async () => {
-    const [multiGuruData] = await globalThis.dbPool.execute(
-        `SELECT jg.jadwal_id, jg.guru_id, g.nama as nama_guru, g.kode_guru
+    const [multiGuruData] = await db.execute(
+        `SELECT jg.jadwal_id, jg.guru_id, g.nama as nama_guru, g.nip as kode_guru
          FROM jadwal_guru jg
          JOIN guru g ON jg.guru_id = g.id_guru
          WHERE jg.is_primary = 0`
@@ -576,7 +576,7 @@ const normalizeGuruIds = (payload) => {
     return { primaryGuruId, guruIds: uniqueIds };
 };
 
-const validateKelasExists = async (kelasId, connection = globalThis.dbPool) => {
+const validateKelasExists = async (kelasId, connection = db) => {
     const [rows] = await connection.execute(
         'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif"',
         [kelasId]
@@ -584,7 +584,7 @@ const validateKelasExists = async (kelasId, connection = globalThis.dbPool) => {
     return rows.length > 0;
 };
 
-const validateMapelExists = async (mapelId, connection = globalThis.dbPool) => {
+const validateMapelExists = async (mapelId, connection = db) => {
     const [rows] = await connection.execute(
         'SELECT id_mapel FROM mapel WHERE id_mapel = ? AND status = "aktif"',
         [mapelId]
@@ -592,7 +592,7 @@ const validateMapelExists = async (mapelId, connection = globalThis.dbPool) => {
     return rows.length > 0;
 };
 
-const validateRuangExists = async (ruangId, connection = globalThis.dbPool) => {
+const validateRuangExists = async (ruangId, connection = db) => {
     const [rows] = await connection.execute(
         'SELECT id_ruang FROM ruang_kelas WHERE id_ruang = ? AND status = "aktif"',
         [ruangId]
@@ -600,7 +600,7 @@ const validateRuangExists = async (ruangId, connection = globalThis.dbPool) => {
     return rows.length > 0;
 };
 
-const validateGuruIdsExist = async (guruIds, connection = globalThis.dbPool) => {
+const validateGuruIdsExist = async (guruIds, connection = db) => {
     if (!guruIds || guruIds.length === 0) {
         return { valid: true };
     }
@@ -621,7 +621,7 @@ const validateGuruIdsExist = async (guruIds, connection = globalThis.dbPool) => 
     return { valid: true };
 };
 
-const validateJamSlotExists = async (hari, jamKe, connection = globalThis.dbPool) => {
+const validateJamSlotExists = async (hari, jamKe, connection = db) => {
     const normalizedHari = normalizeHariName(hari);
     const normalizedJamKe = Number(jamKe);
 
@@ -767,7 +767,7 @@ const processJadwalData = async (payload, log, options = {}) => {
     };
 };
 
-const insertJadwalGuru = async (jadwalId, guruIds, connection = globalThis.dbPool) => {
+const insertJadwalGuru = async (jadwalId, guruIds, connection = db) => {
     const uniqueIds = Array.from(new Set(guruIds || []))
         .map(id => normalizeId(id))
         .filter(Boolean);
@@ -888,7 +888,7 @@ export const batchUpdateMatrix = async (req, res) => {
         return sendValidationError(res, 'Tidak ada perubahan jadwal yang valid');
     }
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     
     try {
         await connection.beginTransaction();
@@ -1034,7 +1034,7 @@ export const checkScheduleConflicts = async (req, res) => {
         }
 
         const placeholders = classIds.map(() => '?').join(',');
-        const [kelasRows] = await globalThis.dbPool.execute(
+        const [kelasRows] = await db.execute(
             `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${placeholders})`,
             classIds
         );
@@ -1058,7 +1058,8 @@ export const checkScheduleConflicts = async (req, res) => {
                 ruang_id: finalRuangId,
                 guruIds,
                 collectConflicts: true,
-                tahun_ajaran: tahun_ajaran || DEFAULT_TAHUN_AJARAN
+                tahun_ajaran: tahun_ajaran || DEFAULT_TAHUN_AJARAN,
+                connection: db // Pass the DB connection explicitly if needed
             });
 
             if (conflictCheck.conflicts?.length) {
@@ -1174,7 +1175,7 @@ export const bulkCreateJadwal = async (req, res) => {
         }
 
         const placeholders = kelasIds.map(() => '?').join(',');
-        const [kelasRows] = await globalThis.dbPool.execute(
+        const [kelasRows] = await db.execute(
             `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${placeholders}) AND status = "aktif"`,
             kelasIds
         );
@@ -1185,7 +1186,7 @@ export const bulkCreateJadwal = async (req, res) => {
             return sendValidationError(res, 'Kelas tidak ditemukan', { missing: missingIds });
         }
 
-        connection = await globalThis.dbPool.getConnection();
+        connection = await db.getConnection();
         await connection.beginTransaction();
 
         let created = 0;
@@ -1270,7 +1271,7 @@ export const cloneJadwal = async (req, res) => {
             return sendValidationError(res, 'Kelas target tidak valid');
         }
 
-        const [sourceSchedules] = await globalThis.dbPool.execute(
+        const [sourceSchedules] = await db.execute(
             `SELECT id_jadwal, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
                     jenis_aktivitas, is_absenable, keterangan_khusus
              FROM jadwal
@@ -1287,7 +1288,7 @@ export const cloneJadwal = async (req, res) => {
         const guruMap = new Map();
         if (scheduleIds.length > 0) {
             const placeholders = scheduleIds.map(() => '?').join(',');
-            const [guruRows] = await globalThis.dbPool.execute(
+            const [guruRows] = await db.execute(
                 `SELECT jadwal_id, guru_id, is_primary
                  FROM jadwal_guru
                  WHERE jadwal_id IN (${placeholders})
@@ -1304,7 +1305,7 @@ export const cloneJadwal = async (req, res) => {
         }
 
         const targetPlaceholders = targetIds.map(() => '?').join(',');
-        const [targetRows] = await globalThis.dbPool.execute(
+        const [targetRows] = await db.execute(
             `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${targetPlaceholders}) AND status = "aktif"`,
             targetIds
         );
@@ -1315,7 +1316,7 @@ export const cloneJadwal = async (req, res) => {
             return sendValidationError(res, 'Kelas target tidak ditemukan', { missing: missingTargets });
         }
 
-        connection = await globalThis.dbPool.getConnection();
+        connection = await db.getConnection();
         await connection.beginTransaction();
 
         let created = 0;
@@ -1424,7 +1425,7 @@ export const getGuruAvailability = async (req, res) => {
     log.requestStart('GetGuruAvailability', { tahun_ajaran });
 
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             `SELECT guru_id as id_guru, hari, is_available, keterangan
              FROM guru_availability
              WHERE tahun_ajaran = ?`,
@@ -1486,7 +1487,7 @@ export const bulkUpsertGuruAvailability = async (req, res) => {
             return sendValidationError(res, guruValidation.error);
         }
 
-        connection = await globalThis.dbPool.getConnection();
+        connection = await db.getConnection();
         await connection.beginTransaction();
 
         let upserted = 0;
@@ -1527,7 +1528,7 @@ export const getJamPelajaran = async (req, res) => {
     log.requestStart('GetJamPelajaran', { tahun_ajaran });
 
     try {
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             `SELECT id, hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
              FROM jam_pelajaran 
              WHERE tahun_ajaran = ?
@@ -1570,7 +1571,7 @@ export const getJadwal = async (req, res) => {
 
     try {
         const { query, params } = buildJadwalQuery('admin');
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
 
         log.success('GetJadwal', { count: rows.length });
         res.json(rows);
@@ -1614,7 +1615,7 @@ export const createJadwal = async (req, res) => {
             keterangan_khusus: keteranganKhusus
         } = normalized;
 
-        const [insertResult] = await globalThis.dbPool.execute(
+        const [insertResult] = await db.execute(
             `INSERT INTO jadwal (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
             [kelasId, finalMapelId, primaryGuruId, ruangId || null, normalizedHari, jamKe, jamMulai, jamSelesai, jenisAktivitas, isAbsenable ? 1 : 0, keteranganKhusus, isMultiGuru ? 1 : 0]
@@ -1670,7 +1671,7 @@ export const updateJadwal = async (req, res) => {
             keterangan_khusus: keteranganKhusus
         } = normalized;
 
-        const [updateResult] = await globalThis.dbPool.execute(
+        const [updateResult] = await db.execute(
             `UPDATE jadwal 
              SET kelas_id = ?, mapel_id = ?, guru_id = ?, ruang_id = ?, hari = ?, jam_ke = ?, jam_mulai = ?, jam_selesai = ?, jenis_aktivitas = ?, is_absenable = ?, keterangan_khusus = ?, is_multi_guru = ?
              WHERE id_jadwal = ?`,
@@ -1683,13 +1684,13 @@ export const updateJadwal = async (req, res) => {
         }
 
         if (jenisAktivitas === 'pelajaran' && finalGuruIds.length > 0) {
-            await globalThis.dbPool.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
+            await db.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
             
             // Using batch insert logic from helper logic used in createJadwal (manual implementation here for consistency with original or use insertJadwalGuru)
             // Original code used a specific block. Let's reuse insertJadwalGuru which handles validation inside.
             await insertJadwalGuru(id, finalGuruIds);
         } else {
-            await globalThis.dbPool.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
+            await db.execute('DELETE FROM jadwal_guru WHERE jadwal_id = ?', [id]);
         }
 
         log.success('UpdateJadwal', { id, hari, jam_ke });
@@ -1713,7 +1714,7 @@ export const deleteJadwal = async (req, res) => {
     log.requestStart('DeleteJadwal', { id });
 
     try {
-        const [result] = await globalThis.dbPool.execute(
+        const [result] = await db.execute(
             'DELETE FROM jadwal WHERE id_jadwal = ?',
             [id]
         );
@@ -1748,7 +1749,7 @@ export const getJadwalGuru = async (req, res) => {
     log.requestStart('GetJadwalGuru', { id });
 
     try {
-        const [rows] = await globalThis.dbPool.execute(`
+        const [rows] = await db.execute(`
             SELECT jg.id, jg.guru_id, jg.is_primary, g.nama, g.nip, g.mata_pelajaran
             FROM jadwal_guru jg
             JOIN guru g ON jg.guru_id = g.id_guru
@@ -1780,7 +1781,7 @@ export const addJadwalGuru = async (req, res) => {
 
     try {
         // Check if guru already in jadwal
-        const [exists] = await globalThis.dbPool.execute(
+        const [exists] = await db.execute(
             'SELECT id FROM jadwal_guru WHERE jadwal_id = ? AND guru_id = ?',
             [jadwal_id, guru_id]
         );
@@ -1791,19 +1792,19 @@ export const addJadwalGuru = async (req, res) => {
         }
 
         // Insert guru
-        await globalThis.dbPool.execute(
+        await db.execute(
             'INSERT INTO jadwal_guru (jadwal_id, guru_id, is_primary) VALUES (?, ?, 0)',
             [jadwal_id, guru_id]
         );
 
         // Update is_multi_guru flag
-        const [guruCount] = await globalThis.dbPool.execute(
+        const [guruCount] = await db.execute(
             'SELECT COUNT(*) as count FROM jadwal_guru WHERE jadwal_id = ?',
             [jadwal_id]
         );
 
         if (guruCount[0].count > 1) {
-            await globalThis.dbPool.execute(
+            await db.execute(
                 'UPDATE jadwal SET is_multi_guru = 1 WHERE id_jadwal = ?',
                 [jadwal_id]
             );
@@ -1832,13 +1833,13 @@ export const removeJadwalGuru = async (req, res) => {
 
     try {
         // Check if primary guru
-        const [guru] = await globalThis.dbPool.execute(
+        const [guru] = await db.execute(
             'SELECT is_primary FROM jadwal_guru WHERE jadwal_id = ? AND guru_id = ?',
             [jadwal_id, guruId]
         );
 
         if (guru.length > 0 && guru[0].is_primary === 1) {
-            const [count] = await globalThis.dbPool.execute(
+            const [count] = await db.execute(
                 'SELECT COUNT(*) as count FROM jadwal_guru WHERE jadwal_id = ?',
                 [jadwal_id]
             );
@@ -1850,19 +1851,19 @@ export const removeJadwalGuru = async (req, res) => {
         }
 
         // Delete guru
-        await globalThis.dbPool.execute(
+        await db.execute(
             'DELETE FROM jadwal_guru WHERE jadwal_id = ? AND guru_id = ?',
             [jadwal_id, guruId]
         );
 
         // Update is_multi_guru flag
-        const [guruCount] = await globalThis.dbPool.execute(
+        const [guruCount] = await db.execute(
             'SELECT COUNT(*) as count FROM jadwal_guru WHERE jadwal_id = ?',
             [jadwal_id]
         );
 
         if (guruCount[0].count <= 1) {
-            await globalThis.dbPool.execute(
+            await db.execute(
                 'UPDATE jadwal SET is_multi_guru = 0 WHERE id_jadwal = ?',
                 [jadwal_id]
             );
@@ -1927,7 +1928,7 @@ export const getJadwalToday = async (req, res) => {
             params = [req.user.kelas_id, todayDayName];
         }
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
 
         log.success('GetJadwalToday', { count: rows.length, role: req.user.role, day: todayDayName });
         return sendSuccessResponse(res, rows);

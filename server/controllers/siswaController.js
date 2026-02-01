@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -36,7 +37,7 @@ function registerNISValidation(nis, isUpdate, excludeStudentId, errors, promises
         : 'SELECT id FROM siswa WHERE nis = ? LIMIT 1';
     const params = isUpdate && excludeStudentId ? [nis, excludeStudentId] : [nis];
     
-    promises.push(globalThis.dbPool.execute(sql, params));
+    promises.push(db.execute(sql, params));
     checks.push({ type: 'nis', errorMsg: 'NIS sudah digunakan' });
 }
 
@@ -62,7 +63,7 @@ function registerUsernameValidation(username, isUpdate, excludeUserId, errors, p
         : 'SELECT id FROM users WHERE username = ? LIMIT 1';
     const params = isUpdate && excludeUserId ? [username, excludeUserId] : [username];
     
-    promises.push(globalThis.dbPool.execute(sql, params));
+    promises.push(db.execute(sql, params));
     checks.push({ type: 'username', errorMsg: 'Username sudah digunakan' });
 }
 
@@ -83,7 +84,7 @@ function registerEmailValidation(email, isUpdate, excludeUserId, errors, promise
         : 'SELECT id FROM users WHERE email = ? LIMIT 1';
     const params = isUpdate && excludeUserId ? [email, excludeUserId] : [email];
     
-    promises.push(globalThis.dbPool.execute(sql, params));
+    promises.push(db.execute(sql, params));
     checks.push({ type: 'email', errorMsg: 'Email sudah digunakan' });
 }
 
@@ -99,7 +100,7 @@ function registerKelasValidation(kelas_id, isUpdate, errors, promises, checks) {
         return;
     }
     
-    promises.push(globalThis.dbPool.execute(
+    promises.push(db.execute(
         'SELECT id_kelas FROM kelas WHERE id_kelas = ? AND status = "aktif" LIMIT 1',
         [kelas_id]
     ));
@@ -151,7 +152,7 @@ function registerPhoneValidation(phone, isUpdate, excludeStudentId, promises, ch
         ? 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ? LIMIT 1'
         : 'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? LIMIT 1';
     
-    promises.push(globalThis.dbPool.execute(sql, useExclude ? [phone, excludeStudentId] : [phone]));
+    promises.push(db.execute(sql, useExclude ? [phone, excludeStudentId] : [phone]));
     checks.push({ type: 'phone', errorMsg: 'Nomor telepon siswa sudah digunakan' });
 }
 
@@ -264,8 +265,8 @@ export const getSiswa = async (req, res) => {
         query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
         params.push(Number(limit), Number(offset));
 
-        const [rows] = await globalThis.dbPool.query(query, params);
-        const [countResult] = await globalThis.dbPool.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+        const [rows] = await db.query(query, params);
+        const [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         log.success('GetAll', { count: rows.length, total: countResult[0].total, page });
 
@@ -309,7 +310,7 @@ export const createSiswa = async (req, res) => {
         return sendValidationError(res, message);
     }
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
 
     try {
         // 2. Business Logic Validation (Database checks)
@@ -540,7 +541,7 @@ export const updateSiswa = async (req, res) => {
 
     log.requestStart('Update', { nis: paramNis, nama, username });
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     try {
         // Cek apakah siswa ada
         const siswa = await fetchSiswaByNis(connection, paramNis);
@@ -596,7 +597,7 @@ export const deleteSiswa = async (req, res) => {
 
     log.requestStart('Delete', { nis: paramNis });
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
@@ -660,7 +661,7 @@ export const updateProfile = async (req, res) => {
         }
 
         // Check if username is already taken by another user
-        const [existingUser] = await globalThis.dbPool.execute(
+        const [existingUser] = await db.execute(
             'SELECT id FROM users WHERE username = ? AND id != ?',
             [username, userId]
         );
@@ -672,7 +673,7 @@ export const updateProfile = async (req, res) => {
 
         // Check if nomor_telepon_siswa is already taken
         if (nomor_telepon_siswa && nomor_telepon_siswa.trim()) {
-            const [existingPhone] = await globalThis.dbPool.execute(
+            const [existingPhone] = await db.execute(
                 'SELECT user_id FROM siswa WHERE nomor_telepon_siswa = ? AND user_id != ?',
                 [nomor_telepon_siswa.trim(), userId]
             );
@@ -684,7 +685,7 @@ export const updateProfile = async (req, res) => {
         }
 
         // Start transaction
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
         await connection.beginTransaction();
 
         try {
@@ -715,7 +716,7 @@ export const updateProfile = async (req, res) => {
             await connection.commit();
 
             // Get updated user data
-            const [updatedUser] = await globalThis.dbPool.execute(
+            const [updatedUser] = await db.execute(
                 `SELECT u.id, u.username, u.nama, u.email, u.role, s.alamat, s.telepon_orangtua, s.nomor_telepon_siswa,
                         s.nis, k.nama_kelas as kelas, s.jenis_kelamin, u.created_at, u.updated_at
                  FROM users u
@@ -763,7 +764,7 @@ export const changePassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
         // Update password in users table
-        await globalThis.dbPool.execute(
+        await db.execute(
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );

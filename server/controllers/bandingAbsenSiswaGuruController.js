@@ -9,6 +9,7 @@ import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse, sendPermissionError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { validateSelfAccess, validatePerwakilanAccess, validateUserContext } from '../utils/validationUtils.js';
+import db from '../config/db.js';
 
 const logger = createLogger('BandingAbsenSiswaGuru');
 
@@ -66,7 +67,7 @@ export const getSiswaBandingAbsen = async (req, res) => {
             ORDER BY ba.tanggal_pengajuan DESC
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [siswaId]);
+        const [rows] = await db.execute(query, [siswaId]);
         log.success('GetSiswaBanding', { count: rows.length, siswaId });
         res.json(rows);
     } catch (error) {
@@ -113,7 +114,7 @@ export const submitSiswaBandingAbsen = async (req, res) => {
             return sendValidationError(res, `Status harus salah satu dari: ${validStatuses.join(', ')}`);
         }
 
-        const [jadwalRows] = await globalThis.dbPool.execute(
+        const [jadwalRows] = await db.execute(
             `SELECT j.id_jadwal
              FROM jadwal j
              JOIN siswa s ON s.id_siswa = ? AND s.kelas_id = j.kelas_id
@@ -127,7 +128,7 @@ export const submitSiswaBandingAbsen = async (req, res) => {
             return sendValidationError(res, 'Jadwal tidak valid untuk siswa ini', { field: 'jadwal_id' });
         }
 
-        const [existing] = await globalThis.dbPool.execute(
+        const [existing] = await db.execute(
             'SELECT id_banding, status_banding FROM pengajuan_banding_absen WHERE siswa_id = ? AND jadwal_id = ? AND tanggal_absen = ?',
             [siswaId, jadwal_id, tanggal_absen]
         );
@@ -142,7 +143,7 @@ export const submitSiswaBandingAbsen = async (req, res) => {
             }
         }
 
-        const [result] = await globalThis.dbPool.execute(
+        const [result] = await db.execute(
             `INSERT INTO pengajuan_banding_absen 
             (siswa_id, jadwal_id, tanggal_absen, status_asli, status_diajukan, alasan_banding, jenis_banding)
              VALUES (?, ?, ?, ?, ?, ?, 'individual')`,
@@ -177,7 +178,7 @@ export const getDaftarSiswa = async (req, res) => {
             return;
         }
 
-        const [siswaData] = await globalThis.dbPool.execute(
+        const [siswaData] = await db.execute(
             'SELECT kelas_id FROM siswa WHERE id_siswa = ? AND status = "aktif"',
             [siswaId]
         );
@@ -189,7 +190,7 @@ export const getDaftarSiswa = async (req, res) => {
 
         const kelasId = siswaData[0].kelas_id;
 
-        const [rows] = await globalThis.dbPool.execute(`
+        const [rows] = await db.execute(`
             SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin, k.nama_kelas, u.username, u.status as user_status
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -244,11 +245,11 @@ export const getGuruBandingAbsen = async (req, res) => {
         }
 
         const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
-        const [countResult] = await globalThis.dbPool.execute(countQuery, [guruId]);
+        const [countResult] = await db.execute(countQuery, [guruId]);
         const totalRecords = countResult[0].total;
 
         const pendingCountQuery = `SELECT COUNT(*) as total ${baseQuery} AND ba.status_banding = 'pending'`;
-        const [pendingCountResult] = await globalThis.dbPool.execute(pendingCountQuery, [guruId]);
+        const [pendingCountResult] = await db.execute(pendingCountQuery, [guruId]);
         const totalPending = pendingCountResult[0].total;
 
         const mainQuery = `
@@ -261,7 +262,7 @@ export const getGuruBandingAbsen = async (req, res) => {
             LIMIT ? OFFSET ?
         `;
 
-        const [rows] = await globalThis.dbPool.execute(mainQuery, [guruId, Number.parseInt(limit), offset]);
+        const [rows] = await db.execute(mainQuery, [guruId, Number.parseInt(limit), offset]);
         const totalPages = Math.ceil(totalRecords / Number.parseInt(limit));
 
         log.success('GetGuruBanding', { count: rows.length, totalRecords, totalPending, guruId });
@@ -302,7 +303,7 @@ export const respondBandingAbsen = async (req, res) => {
 
         const tanggalKeputusanWIB = getMySQLDateTimeWIB();
 
-        const [accessRows] = await globalThis.dbPool.execute(
+        const [accessRows] = await db.execute(
             `SELECT ba.id_banding
              FROM pengajuan_banding_absen ba
              JOIN jadwal j ON ba.jadwal_id = j.id_jadwal
@@ -320,7 +321,7 @@ export const respondBandingAbsen = async (req, res) => {
             return sendPermissionError(res, 'Anda tidak diizinkan memproses banding ini');
         }
 
-        const [result] = await globalThis.dbPool.execute(
+        const [result] = await db.execute(
             `UPDATE pengajuan_banding_absen 
              SET status_banding = ?, catatan_guru = ?, tanggal_keputusan = ?, diproses_oleh = ?
              WHERE id_banding = ?`,
@@ -425,7 +426,7 @@ export const getGuruBandingAbsenHistory = async (req, res) => {
 
         query += ` ORDER BY ba.tanggal_pengajuan DESC, s.nama`;
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
         log.success('GetBandingHistory', { count: rows.length, guruId });
         res.json(rows);
     } catch (error) {

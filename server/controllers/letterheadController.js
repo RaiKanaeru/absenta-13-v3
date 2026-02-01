@@ -4,6 +4,7 @@
  */
 
 import path from 'node:path';
+import db from '../config/db.js';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { promises as fs } from 'node:fs';
 import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
@@ -389,7 +390,7 @@ export const initializeDefaults = async (req, res) => {
 
     try {
         // Check if letterhead already exists
-        const [existingRows] = await globalThis.dbPool.execute(
+        const [existingRows] = await db.execute(
             'SELECT id FROM kop_laporan WHERE cakupan = "global" AND kode_laporan IS NULL AND aktif = 1 LIMIT 1'
         );
 
@@ -419,7 +420,7 @@ export const initializeDefaults = async (req, res) => {
             DEFAULT_LOGO_RIGHT
         ];
 
-        await globalThis.dbPool.execute(query, params);
+        await db.execute(query, params);
 
         log.success('InitDefaults', {});
         return sendSuccessResponse(res, null, 'Letterhead default berhasil diinisialisasi');

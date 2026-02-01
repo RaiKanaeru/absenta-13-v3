@@ -18,6 +18,7 @@ import {
     sendSuccessResponse
 } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 // Create module logger
 const logger = createLogger('JamPelajaran');
@@ -47,17 +48,15 @@ async function executeJamPelajaranUpsert(kelasId, jam) {
     const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis']; // Default to Mon-Thu if generic
     
     // We execute insert for each day to ensure schedule exists for lookup
-    for (const hari of daysToInsert) {
-        await globalThis.dbPool.execute(`
-            INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
-            VALUES (?, ?, ?, ?, ?, ?)
+                await db.execute(`
+            INSERT INTO jam_pelajaran (hari, jam_ke, jam_mulai, jam_selesai, label)
+            VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 jam_mulai = VALUES(jam_mulai),
                 jam_selesai = VALUES(jam_selesai),
                 label = VALUES(label),
                 updated_at = CURRENT_TIMESTAMP
-        `, [kelasId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
-    }
+        `, [hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
 }
 
 /**
@@ -167,7 +166,7 @@ export const getJamPelajaranByKelas = async (req, res) => {
             return sendValidationError(res, 'ID kelas tidak valid', { field: 'kelasId', value: kelasId });
         }
         
-        const [rows] = await globalThis.dbPool.execute(`
+        const [rows] = await db.execute(`
             SELECT jp.*, k.nama_kelas
             FROM jam_pelajaran jp
             JOIN kelas k ON jp.kelas_id = k.id_kelas
@@ -201,7 +200,7 @@ export const getAllJamPelajaran = async (req, res) => {
     log.requestStart('GetAll');
     
     try {
-        const [rows] = await globalThis.dbPool.execute(`
+        const [rows] = await db.execute(`
             SELECT jp.*, k.nama_kelas, k.tingkat
             FROM jam_pelajaran jp
             JOIN kelas k ON jp.kelas_id = k.id_kelas
@@ -287,7 +286,7 @@ export const upsertJamPelajaran = async (req, res) => {
         }
         
         // Verify kelas exists
-        const [kelas] = await globalThis.dbPool.execute(
+        const [kelas] = await db.execute(
             'SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas = ?',
             [kelasId]
         );
@@ -316,7 +315,7 @@ export const upsertJamPelajaran = async (req, res) => {
         // === DATABASE UPSERT ===
         log.debug('Starting upsert operation', { count: jam_pelajaran.length });
         
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
         await connection.beginTransaction();
         
         try {
@@ -377,13 +376,13 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
         }
         
         // Get kelas name for logging
-        const [kelas] = await globalThis.dbPool.execute(
+        const [kelas] = await db.execute(
             SQL_GET_KELAS_NAME,
             [kelasId]
         );
         const kelasName = kelas.length > 0 ? kelas[0].nama_kelas : `ID ${kelasId}`;
         
-        const [result] = await globalThis.dbPool.execute(
+        const [result] = await db.execute(
             'DELETE FROM jam_pelajaran WHERE kelas_id = ?',
             [kelasId]
         );
@@ -457,7 +456,7 @@ export const copyJamPelajaran = async (req, res) => {
         }
         
         // Check if source kelas has jam pelajaran
-        const [sourceJam] = await globalThis.dbPool.execute(
+        const [sourceJam] = await db.execute(
             'SELECT jam_ke, jam_mulai, jam_selesai, keterangan FROM jam_pelajaran WHERE kelas_id = ? ORDER BY jam_ke',
             [sourceKelasId]
         );
@@ -468,13 +467,13 @@ export const copyJamPelajaran = async (req, res) => {
         }
         
         // Get source kelas name
-        const [sourceKelas] = await globalThis.dbPool.execute(SQL_GET_KELAS_NAME, [sourceKelasId]);
+        const [sourceKelas] = await db.execute(SQL_GET_KELAS_NAME, [sourceKelasId]);
         const sourceKelasName = sourceKelas.length > 0 ? sourceKelas[0].nama_kelas : `ID ${sourceKelasId}`;
         
         // === COPY OPERATION ===
         log.debug('Starting copy operation', { source: sourceKelasName, jamCount: sourceJam.length, targetCount: targetKelasIds.length });
         
-        const connection = await globalThis.dbPool.getConnection();
+        const connection = await db.getConnection();
         await connection.beginTransaction();
         
         try {
@@ -567,10 +566,14 @@ export const seedDefaultJamPelajaranData = async () => {
     ];
 
     let count = 0;
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     await connection.beginTransaction();
     
     try {
+        // Find a valid class ID to seed against (since 0 might violate FK)
+        const [classes] = await connection.execute('SELECT id_kelas FROM kelas WHERE status = "aktif" LIMIT 1');
+        const defaultKelasId = classes.length > 0 ? classes[0].id_kelas : 0; // Fallback to 0 if no classes
+
         // We seed global templates (where kelas_id is null/0 if possible, but schema says NOT NULL)
         // Given the schema shown in migration for jam_pelajaran, it REQUIRES kelas_id.
         // However, the seed function here seems to be seeding a 'template' table or similar.
@@ -592,7 +595,7 @@ export const seedDefaultJamPelajaranData = async () => {
                         jam_mulai = VALUES(jam_mulai),
                         jam_selesai = VALUES(jam_selesai),
                         label = VALUES(label)`,
-                    [0, hari, slot.jam_ke, slot.mulai, slot.selesai, slot.label || null]
+                    [defaultKelasId, hari, slot.jam_ke, slot.mulai, slot.selesai, slot.label || null]
                 );
                 count++;
             }

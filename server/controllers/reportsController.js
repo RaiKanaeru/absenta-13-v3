@@ -16,6 +16,7 @@ import {
     buildTahunPelajaran,
     DEFAULT_EFFECTIVE_DAYS
 } from '../utils/attendanceCalculator.js';
+import db from '../config/db.js';
 
 const logger = createLogger('Reports');
 
@@ -431,13 +432,13 @@ export const getAnalyticsDashboard = async (req, res) => {
 
         // Execute all queries in parallel
         const results = await Promise.all([
-            globalThis.dbPool.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
-            globalThis.dbPool.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
-            globalThis.dbPool.execute(queries.studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            globalThis.dbPool.execute(queries.teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            globalThis.dbPool.execute(queries.topAbsentStudentsQuery),
-            globalThis.dbPool.execute(queries.topAbsentTeachersQuery),
-            globalThis.dbPool.execute(queries.notificationsQuery)
+            db.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
+            db.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
+            db.execute(queries.studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            db.execute(queries.teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+            db.execute(queries.topAbsentStudentsQuery),
+            db.execute(queries.topAbsentTeachersQuery),
+            db.execute(queries.notificationsQuery)
         ]);
 
         const analyticsData = formatAnalyticsData(results);
@@ -510,7 +511,7 @@ export const getLiveTeacherAttendance = async (req, res) => {
                 g.nama
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [todayWIB, currentDayWIB]);
+        const [rows] = await db.execute(query, [todayWIB, currentDayWIB]);
         log.success('GetLiveTeacherAttendance', { count: rows.length, day: currentDayWIB });
         res.json(rows);
     } catch (error) {
@@ -569,7 +570,7 @@ export const getLiveStudentAttendance = async (req, res) => {
                 s.nama
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [todayWIB]);
+        const [rows] = await db.execute(query, [todayWIB]);
         log.success('GetLiveStudentAttendance', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -880,7 +881,7 @@ export const getTeacherAttendanceSummary = async (req, res) => {
         const params = [startDate, endDate];
         query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
         
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
         log.success('GetTeacherSummary', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -968,7 +969,7 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
 
         const { query, params } = buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate);
 
-        const [rows] = await globalThis.dbPool.execute(query, params);
+        const [rows] = await db.execute(query, params);
 
         // Fetch hari efektif from kalender_akademik for accurate calculation
         const tahunPelajaran = `${selectedYear}/${selectedYear + 1}`;
@@ -1066,7 +1067,7 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
             ORDER BY a.siswa_id, YEAR(a.tanggal), MONTH(a.tanggal)
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [kelas_id, startDate, endDate]);
+        const [rows] = await db.execute(query, [kelas_id, startDate, endDate]);
 
         // Map rows to result objects using helper function
         const result = rows.map(mapAttendanceRow);
@@ -1118,7 +1119,7 @@ export const getStudentsByClass = async (req, res) => {
             WHERE kelas_id = ? AND status = 'aktif'
             ORDER BY nama ASC
         `;
-        const [rows] = await globalThis.dbPool.execute(query, [kelasId]);
+        const [rows] = await db.execute(query, [kelasId]);
         
         log.success('GetStudentsByClass', { count: rows.length });
         res.json(rows);
@@ -1174,7 +1175,7 @@ export const getPresensiSiswa = async (req, res) => {
             ORDER BY a.tanggal ASC
         `;
 
-        const [rows] = await globalThis.dbPool.execute(query, [kelas_id, startDate, endDate]);
+        const [rows] = await db.execute(query, [kelas_id, startDate, endDate]);
 
         log.success('GetPresensiSiswa', { count: rows.length });
         res.json(rows);

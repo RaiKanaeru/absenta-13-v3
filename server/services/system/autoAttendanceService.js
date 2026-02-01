@@ -1,6 +1,7 @@
 import schedule from 'node-cron';
 import { createLogger } from '../../utils/logger.js';
 import { getHariFromDate, getMySQLDateWIB, getMySQLDateTimeWIB, getWIBTime } from '../../utils/timeUtils.js';
+import db from '../../config/db.js';
 
 const logger = createLogger('AutoAttendance');
 
@@ -43,7 +44,7 @@ export async function processMissingAttendance() {
         return;
     }
 
-    const connection = await globalThis.dbPool.getConnection();
+    const connection = await db.getConnection();
     
     try {
         await connection.beginTransaction();

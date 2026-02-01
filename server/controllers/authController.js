@@ -17,6 +17,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { AppError, ERROR_CODES, sendErrorResponse, sendRateLimitError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
+import db from '../config/db.js';
 
 dotenv.config();
 
@@ -159,7 +160,7 @@ export const login = async (req, res) => {
         // Select 'id' (real column) AND 'id as id_user' (alias) because:
         // 1. 'user.id' is used in token generation (fixes 500 error)
         // 2. 'id_user' is expected by some parts of the backend
-        const [rows] = await globalThis.dbPool.execute(
+        const [rows] = await db.execute(
             'SELECT id, id as id_user, username, password, nama, role, email, status, is_perwakilan FROM users WHERE username = ? AND status = "aktif" LIMIT 1',
             [username]
         );
@@ -209,7 +210,7 @@ export const login = async (req, res) => {
         let additionalData = {};
 
         if (user.role === 'guru') {
-            const [guruData] = await globalThis.dbPool.execute(
+            const [guruData] = await db.execute(
                 `SELECT g.*, m.nama_mapel 
                  FROM guru g 
                  LEFT JOIN mapel m ON g.mapel_id = m.id_mapel 
@@ -224,7 +225,7 @@ export const login = async (req, res) => {
                 };
             }
         } else if (user.role === 'siswa') {
-            const [siswaData] = await globalThis.dbPool.execute(
+            const [siswaData] = await db.execute(
                 `SELECT s.*, k.nama_kelas 
                  FROM siswa s 
                  JOIN kelas k ON s.kelas_id = k.id_kelas 
