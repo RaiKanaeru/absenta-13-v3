@@ -61,9 +61,9 @@ router.get('/presensi-siswa', authenticateToken, requireRole(['admin']), exportC
 // ADMIN EXPORT ROUTES (mounted at /api/admin/export)
 // ================================================
 router.get('/attendance', authenticateToken, requireRole(['admin']), exportController.exportAdminAttendance);
-// NOTE: jadwal-matrix and jadwal-grid moved to templateExportRoutes.js for complex format
-// router.get('/jadwal-matrix', authenticateToken, requireRole(['admin']), exportController.exportJadwalMatrix);
-// router.get('/jadwal-grid', authenticateToken, requireRole(['admin']), exportController.exportJadwalGrid);
+// Jadwal Matrix and Grid exports - uses distinct handlers for different formats
+router.get('/jadwal-matrix', authenticateToken, requireRole(['admin']), exportController.exportJadwalMatrix);
+router.get('/jadwal-grid', authenticateToken, requireRole(['admin']), exportController.exportJadwalGrid);
 router.get('/jadwal-print', authenticateToken, requireRole(['admin']), exportController.exportJadwalPrint);
 router.get('/rekap-jadwal-guru', authenticateToken, requireRole(['admin']), exportController.exportRekapJadwalGuru);
 

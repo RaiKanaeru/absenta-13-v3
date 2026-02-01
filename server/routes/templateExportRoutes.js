@@ -61,23 +61,10 @@ router.get('/rekap-guru-mingguan', downloadRekapGuruMingguan);
  */
 router.get('/jadwal-pelajaran', downloadJadwalPelajaran);
 
-/**
- * @route   GET /api/admin/export/jadwal-matrix
- * @desc    Export jadwal pelajaran format matrix (3 baris per kelas)
- * @access  Admin
- * @query   kelas_id (optional) - Filter by kelas
- * @query   hari (optional) - Filter by hari
- */
-router.get('/jadwal-matrix', downloadJadwalPelajaran);
-
-/**
- * @route   GET /api/admin/export/jadwal-grid
- * @desc    Export jadwal pelajaran format grid (sama dengan matrix)
- * @access  Admin
- * @query   kelas_id (optional) - Filter by kelas
- * @query   hari (optional) - Filter by hari
- */
-router.get('/jadwal-grid', downloadJadwalPelajaran);
+// NOTE: jadwal-matrix and jadwal-grid routes moved back to exportRoutes.js
+// They use distinct handlers (exportJadwalMatrix, exportJadwalGrid) for different formats
+// router.get('/jadwal-matrix', downloadJadwalPelajaran);
+// router.get('/jadwal-grid', downloadJadwalPelajaran);
 
 export default router;
 
