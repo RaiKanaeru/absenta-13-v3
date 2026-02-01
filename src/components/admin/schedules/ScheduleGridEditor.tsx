@@ -582,11 +582,12 @@ export function ScheduleGridEditor({
             
             <div>
               <label htmlFor="edit-mapel" className="text-sm font-medium">Mapel *</label>
-              <Select value={editMapelId?.toString() || ''} onValueChange={(v) => setEditMapelId(Number(v))}>
+              <Select value={editMapelId ? editMapelId.toString() : "0"} onValueChange={(v) => setEditMapelId(v === "0" ? null : Number(v))}>
                 <SelectTrigger id="edit-mapel">
                   <SelectValue placeholder="Pilih Mapel" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="0">Pilih Mapel...</SelectItem>
                   {subjects.filter(s => s.status === 'aktif').map(s => (
                     <SelectItem key={s.id} value={s.id.toString()}>{s.nama_mapel}</SelectItem>
                   ))}
@@ -596,11 +597,12 @@ export function ScheduleGridEditor({
 
             <div>
               <label htmlFor="edit-guru" className="text-sm font-medium">Guru *</label>
-              <Select value={editGuruId?.toString() || ''} onValueChange={(v) => setEditGuruId(Number(v))}>
+              <Select value={editGuruId ? editGuruId.toString() : "0"} onValueChange={(v) => setEditGuruId(v === "0" ? null : Number(v))}>
                 <SelectTrigger id="edit-guru">
                   <SelectValue placeholder="Pilih Guru" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="0">Pilih Guru...</SelectItem>
                   {teachers.filter(t => t.status === 'aktif').map(t => (
                     <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>
                   ))}

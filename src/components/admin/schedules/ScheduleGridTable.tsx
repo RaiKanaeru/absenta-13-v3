@@ -907,11 +907,12 @@ export function ScheduleGridTable({
                {/* Mapel Select */}
                <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="mapel" className="text-right">Mapel</Label>
-                <Select value={editMapelId?.toString() || ''} onValueChange={(v) => setEditMapelId(Number(v))}>
+                <Select value={editMapelId ? editMapelId.toString() : "0"} onValueChange={(v) => setEditMapelId(v === "0" ? null : Number(v))}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Pilih Mapel" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">Pilih Mapel...</SelectItem>
                     {subjects.filter(s => s.status === 'aktif').map(s => (
                       <SelectItem key={s.id} value={s.id.toString()}>{s.nama_mapel}</SelectItem>
                     ))}
@@ -921,11 +922,12 @@ export function ScheduleGridTable({
               {/* Guru Select */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="guru" className="text-right">Guru</Label>
-                <Select value={editGuruId?.toString() || ''} onValueChange={(v) => setEditGuruId(Number(v))}>
+                <Select value={editGuruId ? editGuruId.toString() : "0"} onValueChange={(v) => setEditGuruId(v === "0" ? null : Number(v))}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Pilih Guru" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">Pilih Guru...</SelectItem>
                      {teachers.filter(t => t.status === 'aktif').map(t => (
                         <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>
                      ))}

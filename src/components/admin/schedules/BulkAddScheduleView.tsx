@@ -310,11 +310,12 @@ export function BulkAddScheduleView({
                     ) : null;
                   })}
                 </div>
-                <Select value="" onValueChange={handleAddGuru}>
+                <Select value="__placeholder__" onValueChange={handleAddGuru}>
                   <SelectTrigger>
                     <SelectValue placeholder="Tambah guru..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__placeholder__" disabled>Tambah guru...</SelectItem>
                     {teachers.filter(t => t.id && t.status === 'aktif' && !formData.guru_ids.includes(t.id)).map((teacher) => (
                       <SelectItem key={teacher.id} value={teacher.id.toString()}>
                         {teacher.nama}

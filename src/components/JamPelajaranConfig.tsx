@@ -258,13 +258,14 @@ const JamPelajaranConfig: React.FC = () => {
                 
                 <div className="flex items-center gap-2">
                     <Select 
-                        value={selectedKelasId?.toString() || ''} 
-                        onValueChange={(v) => setSelectedKelasId(Number.parseInt(v))}
+                        value={selectedKelasId ? selectedKelasId.toString() : "0"} 
+                        onValueChange={(v) => setSelectedKelasId(v === "0" ? null : Number.parseInt(v))}
                     >
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Pilih Kelas" />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="0">Pilih Kelas...</SelectItem>
                             {kelasList.map(kelas => (
                                 <SelectItem key={kelas.id_kelas} value={kelas.id_kelas.toString()}>
                                     {kelas.nama_kelas}
