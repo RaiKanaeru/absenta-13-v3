@@ -913,7 +913,7 @@ export function ScheduleGridTable({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Pilih Mapel...</SelectItem>
-                    {subjects.filter(s => s.status === 'aktif').map(s => (
+                    {subjects.filter(s => s.status === 'aktif' && s.id).map(s => (
                       <SelectItem key={s.id} value={s.id.toString()}>{s.nama_mapel}</SelectItem>
                     ))}
                   </SelectContent>
@@ -928,7 +928,7 @@ export function ScheduleGridTable({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Pilih Guru...</SelectItem>
-                     {teachers.filter(t => t.status === 'aktif').map(t => (
+                     {teachers.filter(t => t.status === 'aktif' && t.id).map(t => (
                         <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>
                      ))}
                   </SelectContent>
@@ -943,7 +943,7 @@ export function ScheduleGridTable({
                    </SelectTrigger>
                    <SelectContent>
                      <SelectItem value="0">Default</SelectItem>
-                    {rooms.filter(r => r.status === 'aktif').map(r => (
+                    {rooms.filter(r => r.status === 'aktif' && r.id).map(r => (
                       <SelectItem key={r.id} value={r.id.toString()}>{r.kode_ruang}</SelectItem>
                     ))}
                   </SelectContent>
