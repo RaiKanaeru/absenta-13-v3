@@ -33,6 +33,7 @@ export const AttendanceSettingsView: React.FC<Readonly<AttendanceSettingsViewPro
 
   useEffect(() => {
     fetchSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: load only on mount
   }, []);
 
   const fetchSettings = async () => {

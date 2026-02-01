@@ -44,6 +44,7 @@ export const DatabaseManagerView: React.FC = () => {
 
     useEffect(() => {
         loadFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: load only on mount
     }, []);
 
     const handleExecute = async (file: DatabaseFile) => {

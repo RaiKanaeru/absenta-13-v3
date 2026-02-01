@@ -11,7 +11,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { formatDateWIB, getCurrentDateWIB } from "@/lib/time-utils";
-import { createSessionExpiredHandler, generatePageNumbers } from '../utils/dashboardHelpers';
+import { createSessionExpiredHandler, generatePageNumbers } from '../utils/dashboardUtils';
 
 interface BandingAbsenReportViewProps {
   onBack: () => void;

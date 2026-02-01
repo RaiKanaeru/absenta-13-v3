@@ -244,6 +244,7 @@ const BackupManagementView: React.FC = () => {
         loadArchiveStats();
         loadBackupSettings();
         loadCustomSchedules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: Load only on component mount
     }, []); // Intentional: Load only on component mount, no dependencies needed.
 
     // Auto-refresh custom schedules every minute to update countdown
@@ -253,6 +254,7 @@ const BackupManagementView: React.FC = () => {
         }, 60000); // Refresh every minute
 
         return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: set up interval only on mount
     }, []);
 
     const loadBackups = async () => {

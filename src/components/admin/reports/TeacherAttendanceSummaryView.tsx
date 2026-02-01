@@ -9,7 +9,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { getCurrentDateWIB } from "@/lib/time-utils";
-import { createSessionExpiredHandler, generatePageNumbers } from '../utils/dashboardHelpers';
+import { createSessionExpiredHandler, generatePageNumbers } from '../utils/dashboardUtils';
 import { ReportDataRow } from '@/types/dashboard';
 
 interface TeacherAttendanceSummaryViewProps {
@@ -32,6 +32,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
 
     useEffect(() => {
         fetchReportData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportData uses periode, bulan, tahun which are already in deps
     }, [periode, bulan, tahun, onLogout]);
 
     const fetchReportData = async () => {

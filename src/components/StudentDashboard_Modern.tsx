@@ -551,7 +551,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     };
 
     getSiswaInfo();
-  }, [onLogout, apiRequest]);
+  }, [onLogout, apiRequest, userData.id]);
 
   // Load jadwal hari ini
   const loadJadwalHariIni = useCallback(async () => {

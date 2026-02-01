@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { apiCall } from '@/utils/apiClient';
 import { Room } from '@/types/dashboard';
-import { getSubmitButtonLabel } from '../utils/dashboardHelpers';
+import { getSubmitButtonLabel } from '../utils/dashboardUtils';
 
 const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));
 

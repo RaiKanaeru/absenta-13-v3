@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { Kelas } from '@/types/dashboard';
 import { ArrowLeft, Download, Home, Search, Edit, Trash2 } from "lucide-react";
-import { getSubmitButtonLabel } from '../utils/dashboardHelpers';
+import { getSubmitButtonLabel } from '../utils/dashboardUtils';
 
 // Lazy load ExcelImportView
 const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));

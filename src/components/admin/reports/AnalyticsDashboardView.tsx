@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { formatTime24WithSeconds, getCurrentDateWIB } from "@/lib/time-utils";
 import { enterFullscreen, exitFullscreen, isFullscreen } from '@/utils/fullscreenHelper';
-import { createSessionExpiredHandler } from '../utils/dashboardHelpers';
+import { createSessionExpiredHandler } from '../utils/dashboardUtils';
 
 interface AnalyticsDashboardViewProps {
   onBack: () => void;

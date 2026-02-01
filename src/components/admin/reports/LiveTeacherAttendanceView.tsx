@@ -15,7 +15,7 @@ import {
   getAttendanceStatusColor, 
   getTimeStatusColor, 
   getPeriodColor 
-} from '../utils/dashboardHelpers';
+} from '../utils/dashboardUtils';
 import { LiveTeacherRow } from '@/types/dashboard';
 
 interface LiveTeacherAttendanceViewProps {
