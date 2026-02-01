@@ -47,7 +47,7 @@ export const getStats = async (req, res) => {
                 db.execute('SELECT COUNT(*) as count FROM mapel WHERE status = "aktif"'),
                 db.execute('SELECT COUNT(*) as count FROM absensi_guru WHERE tanggal = ?', [todayWIB]),
                 db.execute(
-                    `SELECT ROUND((SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) as persentase
+                    `SELECT ROUND((COUNT(DISTINCT CASE WHEN status IN ('Hadir', 'Dispen') THEN guru_id END) * 100.0 / NULLIF(COUNT(DISTINCT guru_id), 0)), 2) as persentase
                      FROM absensi_guru WHERE tanggal >= ?`,
                     [sevenDaysAgoWIB]
                 )
@@ -250,12 +250,12 @@ export const getLiveSummary = async (req, res) => {
             ORDER BY k.nama_kelas, j.jam_ke
         `, [todayWIB, currentDayWIB, currentTimeWIB, currentTimeWIB]);
 
-        // Get overall attendance percentage for today
+        // Get overall attendance percentage for today - based on UNIQUE teachers, not slots
         const [attendanceStats] = await db.execute(`
             SELECT 
                 ROUND(
-                    (SUM(CASE WHEN status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0) / 
-                    NULLIF(COUNT(*), 0)
+                    (COUNT(DISTINCT CASE WHEN status IN ('Hadir', 'Dispen') THEN guru_id END) * 100.0) / 
+                    NULLIF(COUNT(DISTINCT guru_id), 0)
                 , 1) as percentage
             FROM absensi_guru
             WHERE tanggal = ?

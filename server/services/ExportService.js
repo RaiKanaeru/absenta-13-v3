@@ -195,12 +195,12 @@ class ExportService {
                 s.nama,
                 s.nis,
                 k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) as D,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(a.id), 0), 0) as presentase
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Hadir' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as H,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Izin' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as I,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as S,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as A,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as D,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Hadir' THEN CONCAT(a.tanggal, '#', a.siswa_id) END) * 100.0 / NULLIF(COUNT(DISTINCT CONCAT(a.tanggal, '#', a.siswa_id)), 0), 0) as presentase
             FROM siswa s
             LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
@@ -230,12 +230,12 @@ class ExportService {
                 s.nama,
                 s.nis,
                 k.nama_kelas,
-                COALESCE(SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
-                COALESCE(COUNT(a.id), 0) AS total
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status IN ('Hadir', 'Dispen') THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS H,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Izin' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS I,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS S,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS A,
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS D,
+                COALESCE(COUNT(DISTINCT CONCAT(DATE(a.waktu_absen), '#', a.siswa_id)), 0) AS total
             FROM siswa s
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
             JOIN kelas k ON s.kelas_id = k.id_kelas

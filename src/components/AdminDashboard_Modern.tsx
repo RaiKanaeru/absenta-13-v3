@@ -1073,6 +1073,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
 // Live Summary View Component
 const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
   const [liveData, setLiveData] = useState<LiveData>({ ongoing_classes: [] });
+  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(getWIBTime());
 
   const fetchLiveData = useCallback(async () => {
@@ -1081,6 +1082,8 @@ const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
       setLiveData(data);
     } catch (error) {
       console.error('Error fetching live data:', error);
+    } finally {
+      setLoading(false);
     }
   }, [onLogout]);
 
@@ -1121,7 +1124,13 @@ const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-sm font-medium">Kelas Berlangsung</p>
-                <p className="text-3xl font-bold">{liveData.ongoing_classes.length}</p>
+                <p className="text-3xl font-bold">
+                  {loading ? (
+                    <span className="animate-pulse text-2xl">...</span>
+                  ) : (
+                    liveData.ongoing_classes.length
+                  )}
+                </p>
                 <p className="text-green-100 text-sm">Kelas aktif saat ini</p>
               </div>
               <BookOpen className="w-12 h-12 text-green-200" />
@@ -1134,7 +1143,13 @@ const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Tingkat Kehadiran</p>
-                <p className="text-3xl font-bold">{liveData.overall_attendance_percentage || '0'}%</p>
+                <p className="text-3xl font-bold">
+                  {loading ? (
+                    <span className="animate-pulse text-2xl">...</span>
+                  ) : (
+                    `${liveData.overall_attendance_percentage || '0'}%`
+                  )}
+                </p>
                 <p className="text-purple-100 text-sm">Kehadiran hari ini</p>
               </div>
               <TrendingUp className="w-12 h-12 text-purple-200" />
@@ -5370,7 +5385,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             <Button
               key={item.id}
               variant={activeView === item.id ? "default" : "ghost"}
-              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
+              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${activeView !== item.id ? 'text-gray-700 hover:text-gray-900 font-medium' : ''}`}
               onClick={() => {
                 setActiveView(item.id);
                 setSidebarOpen(false);
