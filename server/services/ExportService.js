@@ -625,17 +625,19 @@ class ExportService {
         let params = [startDate, endDate];
 
         if (reportType === 'bulanan') {
+            // FIX: Use COUNT DISTINCT to count unique student-date combinations
+            // instead of counting every jadwal slot (which inflated counts by ~90x)
             query = `
                 SELECT 
                     DATE_FORMAT(a.tanggal, '%Y-%m') as periode,
                     k.nama_kelas,
                     k.id_kelas,
                     (SELECT COUNT(*) FROM siswa WHERE kelas_id = k.id_kelas AND status = 'aktif') as total_siswa,
-                    SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-                    SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as izin,
-                    SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as sakit,
-                    SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END) as alpa,
-                    SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as dispen
+                    COUNT(DISTINCT CASE WHEN a.status = 'Hadir' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as hadir,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Izin' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as izin,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as sakit,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as alpa,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as dispen
                 FROM absensi_siswa a
                 JOIN siswa s ON a.siswa_id = s.id_siswa
                 JOIN kelas k ON s.kelas_id = k.id_kelas
@@ -643,17 +645,18 @@ class ExportService {
                 WHERE a.tanggal BETWEEN ? AND ?
             `;
         } else {
+            // FIX: Use COUNT DISTINCT for tahunan as well
             query = `
                 SELECT 
                     YEAR(a.tanggal) as periode,
                     k.nama_kelas,
                     k.id_kelas,
                     (SELECT COUNT(*) FROM siswa WHERE kelas_id = k.id_kelas AND status = 'aktif') as total_siswa,
-                    SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-                    SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as izin,
-                    SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as sakit,
-                    SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END) as alpa,
-                    SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as dispen
+                    COUNT(DISTINCT CASE WHEN a.status = 'Hadir' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as hadir,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Izin' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as izin,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as sakit,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as alpa,
+                    COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(a.siswa_id, '-', DATE(a.tanggal)) END) as dispen
                 FROM absensi_siswa a
                 JOIN siswa s ON a.siswa_id = s.id_siswa
                 JOIN kelas k ON s.kelas_id = k.id_kelas
