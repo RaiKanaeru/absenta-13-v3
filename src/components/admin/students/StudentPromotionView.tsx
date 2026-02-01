@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { 
   ArrowLeft, RefreshCw, CheckCircle, Users, ArrowUpCircle, 
   ArrowRight, Home, Eye
@@ -157,7 +157,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       setClasses(data);
     } catch (error) {
       console.error('Error fetching classes:', error);
-      toast({ title: "Error memuat data kelas", description: error instanceof Error ? error.message : "Gagal memuat kelas", variant: "destructive" });
+      toast({ title: "Error memuat data kelas", description: getErrorMessage(error), variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -181,7 +181,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       setSelectedStudents(new Set()); // Reset selection
     } catch (error) {
       console.error('Error fetching students:', error);
-      toast({ title: "Error memuat data siswa", description: error instanceof Error ? error.message : "Gagal memuat siswa", variant: "destructive" });
+      toast({ title: "Error memuat data siswa", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -417,16 +417,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       console.error('Error promoting students:', error);
       
       // Error handling yang lebih spesifik
-      let errorMessage = 'Terjadi kesalahan saat memproses promosi siswa';
-      
-      if (error instanceof Error) {
-          try {
-            const errorData = JSON.parse(error.message);
-            errorMessage = errorData.error || error.message;
-          } catch {
-            errorMessage = error.message;
-          }
-      }
+      const errorMessage = getErrorMessage(error);
       
       toast({ 
         title: "Error", 

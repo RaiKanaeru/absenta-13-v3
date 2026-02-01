@@ -16,6 +16,7 @@ import { formatTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBT
 import { ArrowLeft, Users, Calendar, Edit, XCircle } from "lucide-react";
 import { Schedule, Student, AttendanceStatus, TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
+import { getErrorMessage } from "@/utils/apiClient";
 
 interface AttendanceViewProps {
   schedule: Schedule;
@@ -93,16 +94,15 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         setNotes(initialNotes);
       } catch (error) {
         console.error('Error fetching students:', error);
+        const errMsg = getErrorMessage(error);
         let errorMessage = "Gagal memuat daftar siswa";
         
-        if (error instanceof Error) {
-          if (error.message.includes('404')) {
-            errorMessage = "Jadwal tidak ditemukan atau tidak ada siswa dalam kelas ini";
-          } else if (error.message.includes('500')) {
-            errorMessage = "Terjadi kesalahan server. Silakan coba lagi";
-          } else if (error.message.includes('Failed to fetch')) {
-            errorMessage = "Tidak dapat terhubung ke server. Pastikan server backend sedang berjalan";
-          }
+        if (errMsg.includes('404')) {
+          errorMessage = "Jadwal tidak ditemukan atau tidak ada siswa dalam kelas ini";
+        } else if (errMsg.includes('500')) {
+          errorMessage = "Terjadi kesalahan server. Silakan coba lagi";
+        } else if (errMsg.includes('Failed to fetch')) {
+          errorMessage = "Tidak dapat terhubung ke server. Pastikan server backend sedang berjalan";
         }
         
         toast({ 

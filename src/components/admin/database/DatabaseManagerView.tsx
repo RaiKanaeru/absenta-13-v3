@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Database, Play, FileText, FolderOpen, RefreshCw, Loader2 } from 'lucide-react';
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { formatDateTime24 } from '@/lib/time-utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -69,7 +69,7 @@ export const DatabaseManagerView: React.FC = () => {
             console.error('Error executing file:', error);
             toast({
                 title: "Gagal Eksekusi",
-                description: error.message || "Terjadi kesalahan saat mengeksekusi file SQL",
+                description: getErrorMessage(error) || "Terjadi kesalahan saat mengeksekusi file SQL",
                 variant: "destructive"
             });
         } finally {

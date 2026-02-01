@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Settings, Clock, AlertTriangle, Save, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { apiCall } from "@/utils/apiClient";
+import { apiCall, getErrorMessage } from "@/utils/apiClient";
 
 interface AttendanceSettingsViewProps {
   onLogout: () => void;
@@ -51,7 +51,7 @@ export const AttendanceSettingsView: React.FC<Readonly<AttendanceSettingsViewPro
       console.error('Failed to fetch settings:', error);
       toast({
         title: "Gagal memuat pengaturan",
-        description: error.message || "Terjadi kesalahan saat mengambil data",
+        description: getErrorMessage(error) || "Terjadi kesalahan saat mengambil data",
         variant: "destructive"
       });
     } finally {
@@ -89,7 +89,7 @@ export const AttendanceSettingsView: React.FC<Readonly<AttendanceSettingsViewPro
       console.error('Failed to save settings:', error);
       toast({
         title: "Gagal menyimpang",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     } finally {

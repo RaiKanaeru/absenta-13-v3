@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar, Download, Archive, Trash2, RefreshCw, CheckCircle, Clock, Database, FileSpreadsheet, Settings, Play, Pause, RotateCcw, Info, Zap } from 'lucide-react';
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { getApiUrl } from '@/config/api';
 import { useToast } from '../hooks/use-toast';
 
@@ -269,7 +269,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error loading backups:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal memuat daftar backup",
+                description: getErrorMessage(error) || "Gagal memuat daftar backup",
                 variant: "destructive"
             });
         } finally {
@@ -292,7 +292,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error loading archive stats:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal memuat statistik arsip",
+                description: getErrorMessage(error) || "Gagal memuat statistik arsip",
                 variant: "destructive"
             });
         } finally {
@@ -310,7 +310,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error loading backup settings:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal memuat pengaturan backup",
+                description: getErrorMessage(error) || "Gagal memuat pengaturan backup",
                 variant: "destructive"
             });
         } finally {
@@ -328,7 +328,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error loading custom schedules:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal memuat jadwal custom",
+                description: getErrorMessage(error) || "Gagal memuat jadwal custom",
                 variant: "destructive"
             });
         } finally {
@@ -368,7 +368,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error creating custom schedule:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal membuat jadwal backup custom",
+                description: getErrorMessage(error) || "Gagal membuat jadwal backup custom",
                 variant: "destructive"
             });
         }
@@ -393,7 +393,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error deleting custom schedule:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal menghapus jadwal backup",
+                description: getErrorMessage(error) || "Gagal menghapus jadwal backup",
                 variant: "destructive"
             });
         }
@@ -415,7 +415,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error toggling custom schedule:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal mengubah status jadwal backup",
+                description: getErrorMessage(error) || "Gagal mengubah status jadwal backup",
                 variant: "destructive"
             });
         }
@@ -437,7 +437,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error running custom schedule:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal menjalankan jadwal backup",
+                description: getErrorMessage(error) || "Gagal menjalankan jadwal backup",
                 variant: "destructive"
             });
         }
@@ -528,7 +528,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error downloading backup:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal mengunduh backup",
+                description: getErrorMessage(error) || "Gagal mengunduh backup",
                 variant: "destructive"
             });
         }
@@ -557,7 +557,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error deleting backup:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal menghapus backup",
+                description: getErrorMessage(error) || "Gagal menghapus backup",
                 variant: "destructive"
             });
         }
@@ -581,7 +581,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error restoring backup:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal memulihkan backup",
+                description: getErrorMessage(error) || "Gagal memulihkan backup",
                 variant: "destructive"
             });
         }
@@ -606,7 +606,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error archiving old data:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal mengarsipkan data lama",
+                description: getErrorMessage(error) || "Gagal mengarsipkan data lama",
                 variant: "destructive"
             });
         } finally {
@@ -630,7 +630,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error creating test archive data:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal membuat data test",
+                description: getErrorMessage(error) || "Gagal membuat data test",
                 variant: "destructive",
             });
         } finally {
@@ -654,7 +654,7 @@ const BackupManagementView: React.FC = () => {
             console.error('Error saving backup settings:', error);
             toast({
                 title: "Error",
-                description: error.message || "Gagal menyimpan pengaturan backup",
+                description: getErrorMessage(error) || "Gagal menyimpan pengaturan backup",
                 variant: "destructive"
             });
         } finally {

@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Copy, CheckCircle2, ArrowRight } from "lucide-react";
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { Schedule, Teacher, Kelas } from '@/types/dashboard';
 
 interface CloneScheduleViewProps {
@@ -143,10 +143,10 @@ export function CloneScheduleView({
       onSuccess();
       onBack();
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Gagal menyalin jadwal';
+      const errorMessage = getErrorMessage(error);
       toast({
         title: "Error",
-        description: error.message || "Gagal menyalin jadwal",
+        description: errorMessage || "Gagal menyalin jadwal",
         variant: "destructive"
       });
     } finally {
