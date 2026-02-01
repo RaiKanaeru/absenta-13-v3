@@ -416,9 +416,9 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
 
       toast({ title: `Mata pelajaran ${nama} berhasil dihapus` });
       fetchSubjects();
-    } catch (error) {
+} catch (error) {
       console.error('Error deleting subject:', error);
-      toast({ title: "Error menghapus mata pelajaran", description: error.message, variant: "destructive" });
+      toast({ title: "Error menghapus mata pelajaran", description: getErrorMessage(error), variant: "destructive" });
     }
   };
 
@@ -791,9 +791,9 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
       setFormData({ nama_kelas: '' });
       setEditingId(null);
       fetchClasses();
-    } catch (error) {
+} catch (error) {
       console.error('Error submitting class:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -816,9 +816,9 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
 
       toast({ title: `Kelas ${nama} berhasil dihapus` });
       fetchClasses();
-    } catch (error) {
+} catch (error) {
       console.error('Error deleting class:', error);
-      toast({ title: "Error menghapus kelas", description: error.message, variant: "destructive" });
+      toast({ title: "Error menghapus kelas", description: getErrorMessage(error), variant: "destructive" });
     }
   };
 
@@ -2304,9 +2304,9 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
     try {
       const response = await apiCall('/api/admin/ruang', { onLogout });
       setRooms(response);
-    } catch (error) {
+} catch (error) {
       console.error('Error fetching rooms:', error);
-      toast({ title: "Error memuat data ruang", description: error.message, variant: "destructive" });
+      toast({ title: "Error memuat data ruang", description: getErrorMessage(error), variant: "destructive" });
     }
   }, [onLogout]);
 
@@ -2382,11 +2382,11 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       });
       setEditingId(null);
       setDialogOpen(false);
-      fetchRooms();
+fetchRooms();
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     } finally {
@@ -2419,12 +2419,12 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       toast({
         title: "Berhasil",
         description: "Ruang berhasil dihapus"
-      });
+});
       fetchRooms();
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     }
