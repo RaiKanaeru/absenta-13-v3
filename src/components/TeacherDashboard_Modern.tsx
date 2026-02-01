@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { FontSizeControl } from "@/components/ui/font-size-control";
+import { ModeToggle } from "@/components/mode-toggle";
 import { 
   Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings
 } from "lucide-react";
@@ -406,10 +407,11 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
 
         {/* User Info */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-          {/* Font Size Control - Above Profile */}
+{/* Font Size Control - Above Profile */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <FontSizeControl variant="compact" />
+              <ModeToggle />
             </div>
           )}
           
@@ -505,8 +507,11 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
         </div>
       </div>
       
-      {/* Floating Font Size Control for Mobile */}
-      <FontSizeControl variant="floating" className="lg:hidden" />
+{/* Floating Font Size Control for Mobile */}
+      <div className="fixed bottom-4 right-4 flex items-center gap-2 lg:hidden z-50">
+        <FontSizeControl variant="floating" />
+        <ModeToggle />
+      </div>
       
       {/* Edit Profile Modal */}
       {showEditProfile && (

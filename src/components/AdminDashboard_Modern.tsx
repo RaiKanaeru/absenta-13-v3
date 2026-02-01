@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatTime24WithSeconds, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from "@/lib/time-utils";
 import { JadwalService } from "@/services/jadwalService";
 import { FontSizeControl } from "@/components/ui/font-size-control";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Textarea } from "@/components/ui/textarea";
 
 import ErrorBoundary from "./ErrorBoundary";
@@ -5384,10 +5385,11 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
         {/* User Info - shrink-0 to keep at bottom */}
         <div className="p-4 border-t border-gray-200 bg-white shrink-0">
-          {/* Font Size Control - Above Profile Buttons */}
+{/* Font Size Control - Above Profile Buttons */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <FontSizeControl variant="compact" />
+              <ModeToggle />
             </div>
           )}
           
@@ -5502,8 +5504,11 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         </div>
       </div>
       
-      {/* Floating Font Size Control for Mobile */}
-      <FontSizeControl variant="floating" className="lg:hidden" />
+{/* Floating Font Size Control for Mobile */}
+      <div className="fixed bottom-4 right-4 flex items-center gap-2 lg:hidden z-50">
+        <FontSizeControl variant="floating" />
+        <ModeToggle />
+      </div>
       
       {/* Edit Profile Modal */}
       {showEditProfile && userData && (

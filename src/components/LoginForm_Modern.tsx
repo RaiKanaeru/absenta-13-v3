@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Sparkles, Shield, Zap, AlertTriangle, Clock, User, Lock, Eye, EyeOff } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface LoginFormProps {
   onLogin: (credentials: { username: string; password: string }) => Promise<void>;
@@ -232,7 +233,12 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const isFormReady = credentials.username.trim() && credentials.password.trim() && (!showCaptcha || captchaToken) && !isLockedOut;
 
   return (
-    <div className="min-h-screen w-full flex bg-slate-50">
+    <div className="min-h-screen w-full flex bg-slate-50 dark:bg-slate-900 relative">
+      {/* Theme Toggle - Top Right */}
+      <div className="absolute top-4 right-4 z-50">
+        <ModeToggle />
+      </div>
+      
       {/* Left Side - Branding Panel (Desktop Only) */}
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-800 via-blue-900 to-slate-900 relative overflow-hidden items-center justify-center p-12">
         {/* Animated Background Elements */}

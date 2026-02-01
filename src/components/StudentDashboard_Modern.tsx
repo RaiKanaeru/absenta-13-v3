@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { formatDateTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from '@/lib/time-utils';
 import { FontSizeControl } from '@/components/ui/font-size-control';
+import { ModeToggle } from '@/components/mode-toggle';
 import { EditProfile } from './EditProfile';
 import { GuruAttendanceCard } from './student';
 import { EmptyScheduleCard, StudentStatusBadge, BandingList, BandingAbsen, Pagination } from './student/StudentDashboardComponents';
@@ -2771,10 +2772,11 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
 
         {/* User Info */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-          {/* Font Size Control - Above Profile */}
+{/* Font Size Control - Above Profile */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <FontSizeControl variant="compact" />
+              <ModeToggle />
             </div>
           )}
           
@@ -2862,8 +2864,11 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
         </div>
       </div>
       
-      {/* Floating Font Size Control for Mobile */}
-      <FontSizeControl variant="floating" className="lg:hidden" />
+{/* Floating Font Size Control for Mobile */}
+      <div className="fixed bottom-4 right-4 flex items-center gap-2 lg:hidden z-50">
+        <FontSizeControl variant="floating" />
+        <ModeToggle />
+      </div>
       
       {/* Absen Kelas Modal (Piket mengabsen siswa ketika guru tidak hadir) */}
       {showAbsenKelasModal && (
