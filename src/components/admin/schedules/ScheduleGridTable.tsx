@@ -935,12 +935,12 @@ export function ScheduleGridTable({
               {/* Ruang Select */}
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="ruang" className="text-right">Ruang</Label>
-                <Select value={editRuangId?.toString() || ''} onValueChange={(v) => setEditRuangId(v ? Number(v) : null)}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Default" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Default</SelectItem>
+<Select value={editRuangId ? editRuangId.toString() : "0"} onValueChange={(v) => setEditRuangId(v === "0" ? null : Number(v))}>
+                   <SelectTrigger className="col-span-3">
+                     <SelectValue placeholder="Default" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="0">Default</SelectItem>
                     {rooms.filter(r => r.status === 'aktif').map(r => (
                       <SelectItem key={r.id} value={r.id.toString()}>{r.kode_ruang}</SelectItem>
                     ))}

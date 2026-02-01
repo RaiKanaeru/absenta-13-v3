@@ -610,12 +610,12 @@ export function ScheduleGridEditor({
 
             <div>
               <label htmlFor="edit-ruang" className="text-sm font-medium">Ruang</label>
-              <Select value={editRuangId?.toString() || ''} onValueChange={(v) => setEditRuangId(v ? Number(v) : null)}>
-                <SelectTrigger id="edit-ruang">
-                  <SelectValue placeholder="Ruang Kelas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Default</SelectItem>
+<Select value={editRuangId ? editRuangId.toString() : "0"} onValueChange={(v) => setEditRuangId(v === "0" ? null : Number(v))}>
+                 <SelectTrigger id="edit-ruang">
+                   <SelectValue placeholder="Ruang Kelas" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="0">Default</SelectItem>
                   {rooms.filter(r => r.status === 'aktif').map(r => (
                     <SelectItem key={r.id} value={r.id.toString()}>{r.kode_ruang}</SelectItem>
                   ))}
