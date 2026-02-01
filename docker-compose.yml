@@ -79,8 +79,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "3306:3306"
     networks:
       - absenta-network
 
@@ -99,8 +97,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "6379:6379"
     networks:
       - absenta-network
 
