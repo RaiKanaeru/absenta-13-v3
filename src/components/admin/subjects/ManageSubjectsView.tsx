@@ -152,7 +152,7 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
             Kembali
           </Button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
               Kelola Mata Pelajaran
             </h1>
             <p className="text-sm text-muted-foreground">Tambah dan kelola mata pelajaran sekolah</p>
@@ -227,7 +227,7 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
             </div>
             
             <div className="flex flex-col sm:flex-row gap-2 w-full">
-              <Button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-sm">
+              <Button type="submit" disabled={isLoading} variant={editingId ? "default" : "default"} className="text-sm">
                 {getSubmitButtonLabel(isLoading, editingId)}
               </Button>
               {editingId !== null && (
@@ -303,18 +303,24 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
                   <TableBody>
                     {filteredSubjects.map((subject, index) => (
                       <TableRow key={subject.id}>
-                        <TableCell className="text-gray-500 text-xs">{index + 1}</TableCell>
-                        <TableCell className="font-mono text-xs bg-gray-50 rounded px-2 py-1 max-w-20">
-                          {subject.kode_mapel}
+                        <TableCell className="text-muted-foreground text-xs">{index + 1}</TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs bg-muted text-muted-foreground rounded px-2 py-1 max-w-20 inline-block border border-border/50">
+                            {subject.kode_mapel}
+                          </span>
                         </TableCell>
-                        <TableCell className="font-medium text-xs">{subject.nama_mapel}</TableCell>
-                        <TableCell className="text-xs max-w-40 truncate" title={subject.deskripsi}>
+                        <TableCell className="font-medium text-xs text-foreground">{subject.nama_mapel}</TableCell>
+                        <TableCell className="text-xs max-w-40 truncate text-muted-foreground" title={subject.deskripsi}>
                           {subject.deskripsi || '-'}
                         </TableCell>
                         <TableCell>
                           <Badge 
-                            variant={subject.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs ${subject.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            variant="outline"
+                            className={`text-xs border-0 ${
+                              subject.status === 'aktif' 
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' 
+                                : 'bg-muted text-muted-foreground'
+                            }`}
                           >
                             {subject.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
                           </Badge>
@@ -322,17 +328,17 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(subject)}
-                              className="h-7 w-7 p-0"
+                              className="h-8 w-8 p-0 hover:bg-muted"
                             >
-                              <Edit className="w-3 h-3" />
+                              <Edit className="w-4 h-4 text-muted-foreground" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 h-7 w-7 p-0">
-                                  <Trash2 className="w-3 h-3" />
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-destructive/10 text-destructive hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
@@ -365,28 +371,28 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
               {/* Mobile & Tablet Card View */}
               <div className="lg:hidden space-y-3">
                 {filteredSubjects.map((subject, index) => (
-                  <Card key={subject.id} className="p-4">
+                  <Card key={subject.id} className="p-4 bg-card border-border">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium text-sm">{subject.nama_mapel}</h3>
-                          <p className="text-xs text-gray-500 font-mono bg-gray-50 rounded px-2 py-1 inline-block mt-1">
+                          <h3 className="font-medium text-sm text-foreground">{subject.nama_mapel}</h3>
+                          <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-2 py-1 inline-block mt-1">
                             {subject.kode_mapel}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(subject)}
-                            className="h-7 w-7 p-0"
+                            className="h-8 w-8 p-0"
                           >
-                            <Edit className="w-3 h-3" />
+                            <Edit className="w-4 h-4 text-muted-foreground" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 h-7 w-7 p-0">
-                                <Trash2 className="w-3 h-3" />
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10">
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -413,24 +419,28 @@ const ManageSubjectsView: React.FC<ManageSubjectsViewProps> = ({ onBack, onLogou
                       
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-gray-500">Status:</span>
+                          <span className="text-muted-foreground">Status:</span>
                           <Badge 
-                            variant={subject.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs mt-1 ${subject.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            variant="outline"
+                            className={`text-xs mt-1 border-0 ${
+                              subject.status === 'aktif' 
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' 
+                                : 'bg-muted text-muted-foreground'
+                            }`}
                           >
                             {subject.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
                           </Badge>
                         </div>
                         <div>
-                          <span className="text-gray-500">No:</span>
-                          <p className="font-medium">#{index + 1}</p>
+                          <span className="text-muted-foreground">No:</span>
+                          <p className="font-medium text-foreground">#{index + 1}</p>
                         </div>
                       </div>
                       
                       {subject.deskripsi && (
                         <div>
-                          <span className="text-gray-500 text-xs">Deskripsi:</span>
-                          <p className="text-xs mt-1">{subject.deskripsi}</p>
+                          <span className="text-muted-foreground text-xs">Deskripsi:</span>
+                          <p className="text-xs mt-1 text-foreground">{subject.deskripsi}</p>
                         </div>
                       )}
                     </div>

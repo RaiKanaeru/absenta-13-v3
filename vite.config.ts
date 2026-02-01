@@ -14,8 +14,10 @@ export default defineConfig(({ mode }) => {
       // Namun, biarkan untuk build (jika diperlukan)
       host: true, 
       port: Number.parseInt(env.VITE_FRONTEND_PORT) || 8080,
+      allowedHosts: ['host.docker.internal', 'localhost', '127.0.0.1'],
 
       // AllowedHosts/Proxy TIDAK dibutuhkan untuk production build
+      
       // (Nginx yang akan melayani)
       
       // HAPUS TOTAL BAGIAN PROXY INI

@@ -318,15 +318,15 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     <div className="container mx-auto p-4 max-w-5xl">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Button variant="ghost" className="mb-2 pl-0 hover:bg-transparent" onClick={onBack}>
+          <Button variant="ghost" className="mb-2 pl-0 hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={onBack}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Kembali ke Dashboard
           </Button>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Shield className="h-6 w-6 text-amber-600" />
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+            <Shield className="h-6 w-6 text-primary" />
             Restore Database
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Pulihkan database dari file backup atau upload file manual.
           </p>
         </div>
@@ -345,7 +345,9 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
             <div className="flex flex-col gap-4">
               <div 
                 className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
-                  selectedFile ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:border-gray-400'
+                  selectedFile 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
                 }`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -374,9 +376,9 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                 
                 {selectedFile ? (
                   <div className="flex flex-col items-center gap-2">
-                    <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-amber-600" />
-                    <p className="font-medium text-lg">{selectedFile.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
+                    <p className="font-medium text-lg text-foreground">{selectedFile.name}</p>
+                    <p className="text-sm text-muted-foreground">
                       {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                     <Button 
@@ -386,7 +388,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                         setSelectedFile(null);
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       disabled={uploading}
                     >
                       Batal
@@ -394,9 +396,9 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
-                    <p className="font-medium sm:text-lg">Klik untuk upload file backup</p>
-                    <p className="text-sm text-gray-500">atau drag & drop file .sql / .zip disini</p>
+                    <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground/50" />
+                    <p className="font-medium sm:text-lg text-foreground">Klik untuk upload file backup</p>
+                    <p className="text-sm text-muted-foreground">atau drag & drop file .sql / .zip disini</p>
                   </div>
                 )}
               </div>
@@ -417,7 +419,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                 <Button
                   onClick={handleUpload}
                   disabled={!selectedFile || uploading}
-                  className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto"
+                  className="w-full sm:w-auto"
                 >
                   {uploading ? (
                     <>
@@ -561,13 +563,17 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
           <CardContent>
             {loadingBackups ? (
               <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-amber-600 border-t-transparent mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Memuat daftar backup...</p>
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Memuat daftar backup...</p>
               </div>
             ) : availableBackups.length > 0 ? (
               <div className="space-y-3">
                 {availableBackups.map((backup) => (
-                  <div key={backup?.id || Math.random()} className={`border rounded-lg p-3 sm:p-4 transition-colors ${selectedBackups.has(backup.id!) ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                  <div key={backup?.id || Math.random()} className={`border rounded-lg p-3 sm:p-4 transition-colors ${
+                    selectedBackups.has(backup.id!) 
+                      ? 'bg-accent/50 border-primary/50' 
+                      : 'bg-card hover:bg-muted/50 border-border'
+                  }`}>
                     <div className="flex items-start gap-3">
                       <div className="pt-1">
                          <Checkbox 
@@ -579,8 +585,8 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                       <div className="flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 min-w-0">
                         <div className="flex-1 min-w-0">
                           <label htmlFor={`backup-${backup.id}`} className="cursor-pointer">
-                             <h4 className="font-medium text-gray-900 break-words">{backup.name && backup.name !== 'Unknown Backup' ? backup.name : (backup.filename || 'Unknown Backup')}</h4>
-                             <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                             <h4 className="font-medium text-foreground break-words">{backup.name && backup.name !== 'Unknown Backup' ? backup.name : (backup.filename || 'Unknown Backup')}</h4>
+                             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                                {backup.date ? new Date(backup.date).toLocaleDateString('id-ID', {
                                  year: 'numeric',
                                  month: 'long',
@@ -589,42 +595,30 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                                  minute: '2-digit'
                                }) : 'Unknown Date'}
                              </p>
-                             <p className="text-xs text-gray-500">
+                             <p className="text-xs text-muted-foreground">
                                Ukuran: {backup.size ? (backup.size / 1024 / 1024).toFixed(2) : '0'} MB
                              </p>
-                             <div className="hidden sm:block text-xs text-gray-400 mt-1 truncate max-w-xs">
+                             <div className="hidden sm:block text-xs text-muted-foreground/60 mt-1 truncate max-w-xs">
                                ID: {backup.id}
                              </div>
                           </label>
                           <div className="flex flex-wrap gap-1 sm:gap-2 mt-2">
                           {backup.files?.sql?.length > 0 && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                               {backup.files.sql.length} SQL
                             </span>
                           )}
 
                           {backup.files?.zip?.length > 0 && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                               {backup.files.zip.length} ZIP
                             </span>
                           )}
-                          <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                          <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded border border-border">
                             {backup?.type === 'scheduled' ? 'Scheduled' : 'Manual'}
                           </span>
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">
                             Available
-                          </span>
-                          <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">
-                            Ready to Restore
-                          </span>
-                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                            {backup?.size && backup.size > 1024 * 1024 ? 'Large Backup' : 'Small Backup'}
-                          </span>
-                          <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
-                            {backup?.name?.includes('backup') ? 'Backup File' : 'Custom File'}
-                          </span>
-                          <span className="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded">
-                            {backup?.name?.includes('test') ? 'Test File' : 'Production File'}
                           </span>
                         </div>
                       </div>
@@ -633,7 +627,8 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                           onClick={() => backup?.id && restoreFromBackup(backup.id)}
                           disabled={uploading || !backup?.id}
                           size="sm"
-                          className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+                          variant="secondary"
+                          className="w-full sm:w-auto"
                         >
                           {uploading && restoreStatus === 'restoring' ? (
                             <>
@@ -654,8 +649,8 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Database className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <div className="text-center py-8 text-muted-foreground">
+                <Database className="w-12 h-12 mx-auto mb-2 text-muted-foreground/30" />
                 <p>Tidak ada backup yang tersedia</p>
                 <p className="text-sm">Buat backup terlebih dahulu di menu Backup & Archive</p>
               </div>
