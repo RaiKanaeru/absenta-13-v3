@@ -220,46 +220,120 @@ const getBandingStatusLabel = (status: string): string => {
 
 /** Banding status badge color map */
 const BANDING_STATUS_COLORS: Record<string, string> = {
-  'pending': 'bg-yellow-100 text-yellow-800',
-  'disetujui': 'bg-green-100 text-green-800',
-  'ditolak': 'bg-red-100 text-red-800'
+  'pending': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'disetujui': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'ditolak': 'bg-destructive/15 text-destructive border-0'
 };
 
 /** Get banding status badge color */
 const getBandingStatusColor = (status: string): string => {
-  return BANDING_STATUS_COLORS[status] || 'bg-gray-100 text-gray-800';
+  return BANDING_STATUS_COLORS[status] || 'bg-muted text-muted-foreground';
 };
 
 /** Get button class for attendance status selection (S2004 compliance) */
 const getStatusButtonClass = (status: string, isSelected: boolean): string => {
-  if (!isSelected) return 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100';
+  if (!isSelected) return 'bg-background text-foreground border-input hover:bg-accent';
   const colorMap: Record<string, string> = {
-    'Hadir': 'bg-green-500 text-white border-green-500',
-    'hadir': 'bg-green-500 text-white border-green-500',
-    'Alpa': 'bg-red-500 text-white border-red-500',
-    'alpa': 'bg-red-500 text-white border-red-500'
+    'Hadir': 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+    'hadir': 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+    'Alpa': 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90',
+    'alpa': 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90'
   };
-  return colorMap[status] || 'bg-yellow-500 text-white border-yellow-500';
+  return colorMap[status] || 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600';
 };
 
 /** Attendance status badge color map (used in multiple places, S3776 compliance) */
 const ATTENDANCE_STATUS_BADGE_COLORS: Record<string, string> = {
-  'Hadir': 'bg-green-100 text-green-800',
-  'hadir': 'bg-green-100 text-green-800',
-  'Tidak Hadir': 'bg-red-100 text-red-800',
-  'Alpa': 'bg-red-100 text-red-800',
-  'alpa': 'bg-red-100 text-red-800',
-  'Izin': 'bg-yellow-100 text-yellow-800',
-  'izin': 'bg-yellow-100 text-yellow-800',
-  'Sakit': 'bg-blue-100 text-blue-800',
-  'sakit': 'bg-blue-100 text-blue-800',
-  'Dispen': 'bg-purple-100 text-purple-800',
-  'dispen': 'bg-purple-100 text-purple-800'
+  'Hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'Tidak Hadir': 'bg-destructive/15 text-destructive border-0',
+  'Alpa': 'bg-destructive/15 text-destructive border-0',
+  'alpa': 'bg-destructive/15 text-destructive border-0',
+  'Izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'Sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+  'sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+  'Dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-0',
+  'dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-0'
 };
 
 /** Get attendance status badge class */
 const getAttendanceStatusBadgeClass = (status: string): string => {
-  return ATTENDANCE_STATUS_BADGE_COLORS[status] || 'bg-gray-100 text-gray-800';
+  return ATTENDANCE_STATUS_BADGE_COLORS[status] || 'bg-muted text-muted-foreground';
+};
+
+/** Get banding status badge color */
+const getBandingStatusColor = (status: string): string => {
+  return BANDING_STATUS_COLORS[status] || 'bg-muted text-muted-foreground';
+};
+
+/** Get button class for attendance status selection (S2004 compliance) */
+const getStatusButtonClass = (status: string, isSelected: boolean): string => {
+  if (!isSelected) return 'bg-background text-foreground border-input hover:bg-accent';
+  const colorMap: Record<string, string> = {
+    'Hadir': 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+    'hadir': 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+    'Alpa': 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90',
+    'alpa': 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90'
+  };
+  return colorMap[status] || 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600';
+};
+
+/** Attendance status badge color map (used in multiple places, S3776 compliance) */
+const ATTENDANCE_STATUS_BADGE_COLORS: Record<string, string> = {
+  'Hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'Tidak Hadir': 'bg-destructive/15 text-destructive border-0',
+  'Alpa': 'bg-destructive/15 text-destructive border-0',
+  'alpa': 'bg-destructive/15 text-destructive border-0',
+  'Izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'Sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+  'sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+  'Dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-0',
+  'dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-0'
+};
+
+/** Get attendance status badge class */
+const getAttendanceStatusBadgeClass = (status: string): string => {
+  return ATTENDANCE_STATUS_BADGE_COLORS[status] || 'bg-muted text-muted-foreground';
+};
+
+/** Get banding status badge color */
+const getBandingStatusColor = (status: string): string => {
+  return BANDING_STATUS_COLORS[status] || 'bg-muted text-muted-foreground';
+};
+
+/** Get button class for attendance status selection (S2004 compliance) */
+const getStatusButtonClass = (status: string, isSelected: boolean): string => {
+  if (!isSelected) return 'bg-background text-foreground border-input hover:bg-accent';
+  const colorMap: Record<string, string> = {
+    'Hadir': 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+    'hadir': 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+    'Alpa': 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90',
+    'alpa': 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90'
+  };
+  return colorMap[status] || 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600';
+};
+
+/** Attendance status badge color map (used in multiple places, S3776 compliance) */
+const ATTENDANCE_STATUS_BADGE_COLORS: Record<string, string> = {
+  'Hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+  'Tidak Hadir': 'bg-destructive/15 text-destructive border-0',
+  'Alpa': 'bg-destructive/15 text-destructive border-0',
+  'alpa': 'bg-destructive/15 text-destructive border-0',
+  'Izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+  'Sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+  'sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+  'Dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-0',
+  'dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-0'
+};
+
+/** Get attendance status badge class */
+const getAttendanceStatusBadgeClass = (status: string): string => {
+  return ATTENDANCE_STATUS_BADGE_COLORS[status] || 'bg-muted text-muted-foreground';
 };
 
 
@@ -1302,13 +1376,13 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
 
   const getStatusBadgeColor = (status: string) => {
     const colorMap: Record<string, string> = {
-      hadir: 'bg-green-100 text-green-800',
-      'tidak hadir': 'bg-red-100 text-red-800',
-      izin: 'bg-yellow-100 text-yellow-800',
-      sakit: 'bg-blue-100 text-blue-800',
-      belum_diambil: 'bg-gray-100 text-gray-800'
+      hadir: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0',
+      'tidak hadir': 'bg-destructive/15 text-destructive border-0',
+      izin: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0',
+      sakit: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0',
+      belum_diambil: 'bg-muted text-muted-foreground border-0'
     };
-    return colorMap[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
+    return colorMap[status.toLowerCase()] || 'bg-muted text-muted-foreground';
   };
 
   const renderKehadiranContent = () => {
@@ -1318,7 +1392,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
           <CardContent className="p-3 sm:p-6">
             <div className="space-y-3 sm:space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="animate-pulse bg-gray-200 h-20 sm:h-24 rounded"></div>
+                <div key={i} className="animate-pulse bg-muted h-20 sm:h-24 rounded"></div>
               ))}
             </div>
           </CardContent>
@@ -1326,78 +1400,9 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       );
     }
 
-    if (jadwalHariIni.length === 0) {
-      return (
-        <div className="space-y-4 sm:space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  {isEditMode ? 'Edit Absen Guru' : 'Jadwal Hari Ini'} - {kelasInfo}
-                </CardTitle>
-                
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {isEditMode && (
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="date-picker" className="text-sm font-medium">
-                        Pilih Tanggal:
-                      </Label>
-                      <input
-                        id="date-picker"
-                        type="date"
-                        value={selectedDate}
-                        min={minDate}
-                        max={maxDate}
-                        onChange={(e) => handleDateChange(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  )}
-                  
-                  <Button
-                    onClick={toggleEditMode}
-                    variant={isEditMode ? "destructive" : "default"}
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    {isEditMode ? (
-                      <>
-                        <XCircle className="w-4 h-4" />
-                        Keluar Edit Mode
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="w-4 h-4" />
-                        Edit Absen (7 Hari)
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-              
-              {isEditMode && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <div className="w-5 h-5 text-blue-600 mt-0.5">
-                      <svg fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium">Mode Edit Absen Aktif</p>
-                      <p>Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardHeader>
-          </Card>
 
-          <EmptyScheduleCard isEditMode={isEditMode} onRefresh={() => globalThis.location.reload()} />
-        </div>
-      );
-    }
+
+
 
     return (
       <div className="space-y-4 sm:space-y-6">
@@ -1425,7 +1430,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                       min={minDate}
                       max={maxDate}
                       onChange={(e) => handleDateChange(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-auto"
+                      className="px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-auto"
                     />
                   </div>
                 )}
@@ -1452,16 +1457,90 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
             </div>
             
             {isEditMode && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <div className="w-5 h-5 text-blue-600 mt-0.5">
+                  <div className="w-5 h-5 text-primary mt-0.5">
                     <svg fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="text-sm text-blue-800">
+                  <div className="text-sm text-foreground">
                     <p className="font-medium">Mode Edit Absen Aktif</p>
-                    <p>Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
+                    <p className="text-muted-foreground">Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardHeader>
+        </Card>
+      );
+    }
+
+
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Edit Mode Toggle and Date Picker */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="truncate">
+                  {isEditMode ? 'Edit Absen Guru' : 'Jadwal Hari Ini'} - {kelasInfo}
+                </span>
+              </CardTitle>
+              
+              <div className="flex flex-col gap-3">
+                {isEditMode && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <Label htmlFor="date-picker" className="text-sm font-medium">
+                      Pilih Tanggal:
+                    </Label>
+                    <input
+                      id="date-picker"
+                      type="date"
+                      value={selectedDate}
+                      min={minDate}
+                      max={maxDate}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      className="px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-auto"
+                    />
+                  </div>
+                )}
+                
+                <Button
+                  onClick={toggleEditMode}
+                  variant={isEditMode ? "destructive" : "default"}
+                  size="sm"
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                >
+                  {isEditMode ? (
+                    <>
+                      <XCircle className="w-4 h-4" />
+                      Keluar Edit Mode
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      Edit Absen (30 Hari)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            {isEditMode && (
+              <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 text-primary mt-0.5">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm text-foreground">
+                    <p className="font-medium">Mode Edit Absen Aktif</p>
+                    <p className="text-muted-foreground">Anda dapat mengubah absen guru untuk tanggal yang dipilih (maksimal 7 hari yang lalu).</p>
                   </div>
                 </div>
               </div>
@@ -1870,6 +1949,8 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
         </Card>
       );
     }
+
+
 
     return (
       <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
@@ -2712,22 +2793,19 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 bg-white shadow-xl transition-transform duration-300 z-40 w-64 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0 lg:w-64`}>
+      <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
+        sidebarOpen ? 'w-64' : 'w-16'
+      } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className={`flex items-center space-x-3`}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center'}`}>
             <div className="p-2 rounded-lg">
               <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
             </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent hidden lg:block">
-              ABSENTA
-            </span>
-            {sidebarOpen && (
-              <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent block lg:hidden">
+            {(sidebarOpen || window.innerWidth >= 1024) && (
+              <span className="font-bold text-xl text-foreground">
                 ABSENTA
               </span>
             )}
@@ -2746,32 +2824,32 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
         <nav className="p-4 space-y-2">
           <Button
             variant={activeTab === 'kehadiran' ? "default" : "ghost"}
-            className={`w-full justify-start`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeTab !== 'kehadiran' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveTab('kehadiran'); setSidebarOpen(false);}}
           >
             <Clock className="h-4 w-4" />
-            <span className="ml-2">Menu Kehadiran</span>
-          </Button>
-          <Button
-            variant={activeTab === 'riwayat' ? "default" : "ghost"}
-            className={`w-full justify-start`}
-            onClick={() => {setActiveTab('riwayat'); setSidebarOpen(false);}}
-          >
-            <Calendar className="h-4 w-4" />
-            <span className="ml-2">Riwayat</span>
+            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Kehadiran</span>}
           </Button>
           <Button
             variant={activeTab === 'banding-absen' ? "default" : "ghost"}
-            className={`w-full justify-start`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeTab !== 'banding-absen' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveTab('banding-absen'); setSidebarOpen(false);}}
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="ml-2">Banding Absen</span>
+            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Banding Absen</span>}
+          </Button>
+          <Button
+            variant={activeTab === 'riwayat' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeTab !== 'riwayat' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => {setActiveTab('riwayat'); setSidebarOpen(false);}}
+          >
+            <History className="h-4 w-4" />
+            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat</span>}
           </Button>
         </nav>
 
         {/* User Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
 {/* Font Size Control - Above Profile */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
             <div className="mb-4 flex items-center gap-2">
@@ -2780,14 +2858,16 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
             </div>
           )}
           
-          <div className={`flex items-center space-x-3 mb-3`}>
-            <div className="bg-emerald-100 p-2 rounded-full">
-              <Settings className="h-4 w-4 text-emerald-600" />
+          <div className={`flex items-center space-x-3 mb-3 ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'justify-center'}`}>
+            <div className="bg-primary/10 p-2 rounded-full">
+              <User className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">{currentUserData.nama}</p>
-              <p className="text-xs text-gray-500">Siswa Perwakilan</p>
-            </div>
+            {(sidebarOpen || window.innerWidth >= 1024) && (
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">{user.nama}</p>
+                <p className="text-xs text-muted-foreground">Perwakilan Kelas</p>
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -2795,37 +2875,28 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
               onClick={() => setShowEditProfile(true)}
               variant="outline"
               size="sm"
-              className="w-full"
+              className={`w-full ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
             >
               <Settings className="h-4 w-4" />
-              <span className="ml-2">Edit Profil</span>
+              {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Edit Profil</span>}
             </Button>
             
             <Button
               onClick={onLogout}
               variant="outline"
               size="sm"
-              className="w-full"
+              className={`w-full ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
             >
               <LogOut className="h-4 w-4" />
-              <span className="ml-2">Keluar</span>
+              {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Keluar</span>}
             </Button>
           </div>
         </div>
       </div>
- 
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
 
       {/* Main Content */}
-      <div className="lg:ml-64 overflow-x-hidden">
-        <div className="p-4 lg:p-6 min-w-0">
+      <div className="lg:ml-64">
+        <div className="p-4 lg:p-6">
           {/* Mobile Header */}
           <div className="flex items-center justify-between mb-6 lg:hidden">
             <Button
@@ -2840,18 +2911,15 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
           </div>
 
           {/* Desktop Header */}
-          <div className="hidden lg:flex justify-between items-center mb-8 min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent truncate">
+          <div className="hidden lg:flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl font-bold text-foreground">
                 Dashboard Siswa
               </h1>
-              <p className="text-gray-600 mt-2 truncate">Selamat datang, {currentUserData.nama}!</p>
-              {kelasInfo && (
-                <p className="text-sm text-gray-500 truncate">Perwakilan Kelas {kelasInfo}</p>
-              )}
+              <p className="text-muted-foreground mt-2">Selamat datang, {user.nama}!</p>
             </div>
             <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
                 {formatDateOnly(getWIBTime())}
               </Badge>
             </div>
@@ -2873,7 +2941,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
       {/* Absen Kelas Modal (Piket mengabsen siswa ketika guru tidak hadir) */}
       {showAbsenKelasModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+          <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
             {/* Header */}
             <div className="bg-orange-600 text-white p-4">
               <div className="flex items-center justify-between">
@@ -2905,13 +2973,13 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                   <span className="ml-2">Memuat daftar siswa...</span>
                 </div>
               ) : daftarSiswaKelas.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                   <p>Tidak ada siswa ditemukan</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
                     <span>Total: {daftarSiswaKelas.length} siswa</span>
                     <div className="flex gap-2">
                       <Button
@@ -2932,19 +3000,19 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                   </div>
                   
                   {daftarSiswaKelas.map((siswa, index) => (
-                    <div key={siswa.id_siswa} className="border rounded-lg p-3 bg-gray-50">
+                    <div key={siswa.id_siswa} className="border border-border rounded-lg p-3 bg-muted/20">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <span className="text-xs text-gray-500 mr-2">{index + 1}.</span>
-                          <span className="font-medium">{siswa.nama}</span>
-                          <span className="text-xs text-gray-500 ml-2">({siswa.nis})</span>
+                          <span className="text-xs text-muted-foreground mr-2">{index + 1}.</span>
+                          <span className="font-medium text-foreground">{siswa.nama}</span>
+                          <span className="text-xs text-muted-foreground ml-2">({siswa.nis})</span>
                           {siswa.jabatan && (
                             <Badge variant="secondary" className="ml-2 text-xs">{siswa.jabatan}</Badge>
                           )}
                         </div>
                         <Badge className={`text-xs ${
-                          siswa.jenis_kelamin === 'L' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
-                        }`}>
+                          siswa.jenis_kelamin === 'L' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' : 'bg-pink-500/15 text-pink-700 dark:text-pink-400'
+                        } border-0`}>
                           {siswa.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
                         </Badge>
                       </div>
@@ -2970,7 +3038,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
             </div>
             
             {/* Footer */}
-            <div className="border-t p-4 bg-gray-50">
+            <div className="border-t p-4 bg-muted/20">
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
@@ -3018,3 +3086,4 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
     </div>
   );
 };
+

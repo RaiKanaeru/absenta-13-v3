@@ -19,16 +19,12 @@ const getBaseUrl = (): string => {
     }
     
     // Check if we're in mobile/network environment
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(globalThis.navigator?.userAgent || '');
     const isLocalhost = globalThis.location.hostname === 'localhost' || globalThis.location.hostname === '127.0.0.1';
     
-    // If mobile and not localhost, use network IP
-    if (isMobile && !isLocalhost) {
-        // Extract IP from current location
+    // If not localhost (e.g. accessing via Network IP), use that IP for backend
+    if (!isLocalhost) {
         const currentHost = globalThis.location.hostname;
-        if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-            return `http://${currentHost}:3001`;
-        }
+        return `http://${currentHost}:3001`;
     }
     
     // Fallback to localhost for development

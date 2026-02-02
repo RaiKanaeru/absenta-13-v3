@@ -1170,39 +1170,39 @@ const LiveSummaryView = ({ onLogout }: { onLogout: () => void }) => {
         <CardContent>
           {liveData.ongoing_classes.length === 0 ? (
             <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Tidak Ada Kelas Berlangsung</h3>
-              <p className="text-gray-600">Saat ini tidak ada kelas yang sedang berlangsung.</p>
+              <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+              <h3 className="text-xl font-semibold text-foreground mb-2">Tidak Ada Kelas Berlangsung</h3>
+              <p className="text-muted-foreground">Saat ini tidak ada kelas yang sedang berlangsung.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {liveData.ongoing_classes.map((kelas, index) => (
-                <Card key={`live-class-${kelas.id_kelas || index}`} className="border-l-4 border-l-blue-500">
+                <Card key={`live-class-${kelas.id_kelas || index}`} className="border-l-4 border-l-primary bg-card">
                   <CardContent className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                        <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
                           {kelas.nama_kelas || kelas.kelas}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
                           {kelas.jam_mulai} - {kelas.jam_selesai}
                         </Badge>
                       </div>
-                      <h4 className="font-semibold text-gray-900">
+                      <h4 className="font-semibold text-card-foreground">
                         {kelas.nama_mapel || kelas.mapel}
                       </h4>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         Guru: {kelas.nama_guru || kelas.guru}
                       </p>
                       {kelas.absensi_diambil !== undefined && (
                         <div className="flex items-center gap-2">
                           {kelas.absensi_diambil > 0 ? (
-                            <Badge className="bg-green-100 text-green-700">
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 border-0">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Absensi Diambil
                             </Badge>
                           ) : (
-                            <Badge className="bg-yellow-100 text-yellow-700">
+                            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 border-0">
                               <AlertTriangle className="w-3 h-3 mr-1" />
                               Menunggu Absensi
                             </Badge>
@@ -5349,23 +5349,23 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-background">
       {/* Sidebar - with proper visibility handling */}
-      <div className={`fixed left-0 top-0 h-full bg-white shadow-xl transition-all duration-300 z-40 flex flex-col ${
+      <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 flex flex-col ${
         sidebarOpen ? 'w-64' : 'w-16'
       } lg:w-64 lg:translate-x-0 lg:visible ${sidebarOpen ? 'translate-x-0 visible' : '-translate-x-full invisible lg:visible lg:translate-x-0'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center lg:justify-start'}`}>
             <div className="p-2 rounded-lg">
               <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
             </div>
             {sidebarOpen && (
-              <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent block lg:hidden">
+              <span className="font-bold text-xl text-foreground block lg:hidden">
                 ABSENTA
               </span>
             )}
-            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent hidden lg:block">
+            <span className="font-bold text-xl text-foreground hidden lg:block">
               ABSENTA
             </span>
           </div>
@@ -5385,7 +5385,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             <Button
               key={item.id}
               variant={activeView === item.id ? "default" : "ghost"}
-              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${activeView !== item.id ? 'text-gray-700 hover:text-gray-900 font-medium' : ''}`}
+              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${activeView !== item.id ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
               onClick={() => {
                 setActiveView(item.id);
                 setSidebarOpen(false);
@@ -5399,7 +5399,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         </nav>
 
         {/* User Info - shrink-0 to keep at bottom */}
-        <div className="p-4 border-t border-gray-200 bg-white shrink-0">
+        <div className="p-4 border-t border-border bg-card shrink-0">
 {/* Font Size Control - Above Profile Buttons */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
             <div className="mb-4 flex items-center gap-2">
@@ -5410,15 +5410,15 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           
           {/* User Profile Info */}
           {userData && (
-            <div className="mb-3 p-2 bg-gray-50 rounded-lg">
+            <div className="mb-3 p-2 bg-muted/50 rounded-lg">
               <div className={`flex items-center ${sidebarOpen || window.innerWidth >= 1024 ? 'space-x-2' : 'justify-center'}`}>
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-blue-600" />
+                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-primary" />
                 </div>
                 {(sidebarOpen || window.innerWidth >= 1024) && (
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{userData.nama}</p>
-                    <p className="text-xs text-gray-500">Administrator</p>
+                    <p className="text-sm font-medium text-foreground truncate">{userData.nama}</p>
+                    <p className="text-xs text-muted-foreground">Administrator</p>
                   </div>
                 )}
               </div>
@@ -5452,7 +5452,7 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       </div>
 
       {/* Main Content - with background to prevent sidebar text bleeding */}
-      <div className="lg:ml-64 relative z-10 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+      <div className="lg:ml-64 relative z-10 bg-background min-h-screen">
         <div className="p-4 lg:p-6">
           {/* Mobile Header */}
           <div className="flex items-center justify-between mb-6 lg:hidden">
@@ -5483,22 +5483,22 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             <div className="space-y-8">
               {/* Desktop Header */}
               <div className="hidden lg:block">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold text-foreground">
                   Dashboard Admin
                 </h1>
-                <p className="text-gray-600 mt-2">ABSENTA - Sistem Absensi Sekolah</p>
+                <p className="text-muted-foreground mt-2">ABSENTA - Sistem Absensi Sekolah</p>
               </div>
 
               <LiveSummaryView onLogout={onLogout} />
               
               {/* Menu Grid */}
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Menu Administrasi</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-6">Menu Administrasi</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {menuItems.map((item) => (
                     <Card
                       key={item.id}
-                      className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-0 bg-gradient-to-br from-white to-gray-50"
+                      className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-border bg-card"
                       onClick={() => setActiveView(item.id)}
                     >
                       <CardContent className="p-6 text-center space-y-4">
@@ -5506,8 +5506,8 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                           <item.icon className="w-8 h-8 text-white" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
-                          <p className="text-sm text-gray-600">{item.description}</p>
+                          <h3 className="font-semibold text-card-foreground mb-1">{item.title}</h3>
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
                         </div>
                       </CardContent>
                     </Card>

@@ -848,7 +848,6 @@ class ExportService {
                 k.nama_kelas, k.id_kelas,
                 COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
                 COALESCE(g.nama, 'Sistem') as nama_guru, 
-                g.kode_guru,
                 rk.kode_ruang
             FROM jadwal j
             JOIN kelas k ON j.kelas_id = k.id_kelas

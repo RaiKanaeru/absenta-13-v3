@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { FontSizeControl } from "@/components/ui/font-size-control";
 import { ModeToggle } from "@/components/mode-toggle";
+import { Badge } from "@/components/ui/badge";
 import { 
   Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings
 } from "lucide-react";
@@ -334,19 +335,19 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
   }, [fetchSchedules]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-white shadow-xl transition-all duration-300 z-40 ${
+      <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
         sidebarOpen ? 'w-64' : 'w-16'
       } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center'}`}>
             <div className="p-2 rounded-lg">
               <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
             </div>
             {(sidebarOpen || window.innerWidth >= 1024) && (
-              <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+              <span className="font-bold text-xl text-foreground">
                 ABSENTA
               </span>
             )}
@@ -365,7 +366,7 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
         <nav className="p-4 space-y-2">
           <Button
             variant={activeView === 'schedule' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'schedule' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveView('schedule'); setSidebarOpen(false);}}
           >
             <Clock className="h-4 w-4" />
@@ -373,7 +374,7 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           </Button>
           <Button
             variant={activeView === 'banding-absen' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'banding-absen' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveView('banding-absen'); setSidebarOpen(false);}}
           >
             <MessageCircle className="h-4 w-4" />
@@ -381,7 +382,7 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           </Button>
           <Button
             variant={activeView === 'history-banding' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'history-banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveView('history-banding'); setSidebarOpen(false);}}
           >
             <History className="h-4 w-4" />
@@ -389,7 +390,7 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           </Button>
           <Button
             variant={activeView === 'history' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'ml-2'}`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'ml-2'} ${activeView !== 'history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveView('history'); setSidebarOpen(false);}}
           >
             <History className="h-4 w-4" />
@@ -397,7 +398,7 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           </Button>
           <Button
             variant={activeView === 'reports' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'reports' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
             onClick={() => {setActiveView('reports'); setSidebarOpen(false);}}
           >
             <ClipboardList className="h-4 w-4" />
@@ -406,7 +407,7 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
         </nav>
 
         {/* User Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
 {/* Font Size Control - Above Profile */}
           {(sidebarOpen || window.innerWidth >= 1024) && (
             <div className="mb-4 flex items-center gap-2">
@@ -416,13 +417,13 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           )}
           
           <div className={`flex items-center space-x-3 mb-3 ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'justify-center'}`}>
-            <div className="bg-emerald-100 p-2 rounded-full">
-              <Settings className="h-4 w-4 text-emerald-600" />
+            <div className="bg-primary/10 p-2 rounded-full">
+              <Settings className="h-4 w-4 text-primary" />
             </div>
             {(sidebarOpen || window.innerWidth >= 1024) && (
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{user.nama}</p>
-                <p className="text-xs text-gray-500">Guru</p>
+                <p className="text-sm font-medium text-foreground">{user.nama}</p>
+                <p className="text-xs text-muted-foreground">Guru</p>
               </div>
             )}
           </div>
@@ -470,13 +471,13 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
           {/* Desktop Header */}
           <div className="hidden lg:flex justify-between items-center mb-8">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold text-foreground">
                 Dashboard Guru
               </h1>
-              <p className="text-gray-600 mt-2">Selamat datang, {user.nama}!</p>
+              <p className="text-muted-foreground mt-2">Selamat datang, {user.nama}!</p>
             </div>
             <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
                 {formatDateOnly(getWIBTime())}
               </Badge>
             </div>

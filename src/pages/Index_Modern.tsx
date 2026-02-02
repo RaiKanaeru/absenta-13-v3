@@ -31,10 +31,10 @@ interface UserData {
 
 // Loading Fallback Component
 const LoadingFallback = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+  <div className="flex h-screen w-full items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-2">
-      <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
-      <p className="text-gray-500 font-medium">Memuat Dashboard...</p>
+      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-muted-foreground font-medium">Memuat Dashboard...</p>
     </div>
   </div>
 );

@@ -38,7 +38,9 @@ import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
 
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
-import { getWIBTime } from '../utils/timeUtils.js';
+import { addLetterheadToWorksheet, addReportTitle } from '../utils/excelLetterhead.js';
+import { getWIBTime, formatWIBDate } from '../utils/timeUtils.js';
+import { excelStyles, applyStyle, borders } from '../utils/excelStyles.js';
 import { isSafeFilename } from '../utils/downloadAccess.js';
 
 // ================================================
@@ -1562,6 +1564,13 @@ export const exportJadwalMatrix = async (req, res) => {
 export const exportJadwalGrid = async (req, res) => {
     try {
         const { kelas_id, hari } = req.query;
+
+        // Helper function to format time
+        const formatTime = (time) => {
+            if (!time) return '';
+            const parts = time.toString().split(':');
+            return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+        };
 
         // Use getLetterhead from top-level import
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
