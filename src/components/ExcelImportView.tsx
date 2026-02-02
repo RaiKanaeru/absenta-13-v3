@@ -365,8 +365,8 @@ CATATAN PENTING:
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Import {entityName} via Excel</h2>
-          <p className="text-gray-600">Upload file Excel untuk menambah data {entityName} secara massal</p>
+          <h2 className="text-2xl font-bold text-foreground">Import {entityName} via Excel</h2>
+          <p className="text-muted-foreground">Upload file Excel untuk menambah data {entityName} secara massal</p>
         </div>
         <Button onClick={onBack} variant="outline">
           ← Kembali
@@ -385,7 +385,7 @@ CATATAN PENTING:
         <CardContent>
           <div className="space-y-2">
             <p className="text-sm font-medium">Contoh format:</p>
-            <code className="block p-2 bg-gray-100 rounded text-sm">{instructions.example}</code>
+            <code className="block p-2 bg-muted rounded text-sm">{instructions.example}</code>
           </div>
         </CardContent>
       </Card>
@@ -476,7 +476,7 @@ CATATAN PENTING:
               className="cursor-pointer"
             />
             {selectedFile && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <FileSpreadsheet className="w-4 h-4" />
                 {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
               </div>
@@ -519,16 +519,16 @@ CATATAN PENTING:
           <CardContent>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{validationResult.total}</div>
-                <div className="text-sm text-gray-600">Total Baris</div>
+                <div className="text-2xl font-bold text-foreground">{validationResult.total}</div>
+                <div className="text-sm text-muted-foreground">Total Baris</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{validationResult.valid}</div>
-                <div className="text-sm text-gray-600">Valid</div>
+                <div className="text-sm text-muted-foreground">Valid</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{validationResult.invalid}</div>
-                <div className="text-sm text-gray-600">Invalid</div>
+                <div className="text-sm text-muted-foreground">Invalid</div>
               </div>
             </div>
 
@@ -559,7 +559,7 @@ CATATAN PENTING:
                       {validationResult.errors.map((error) => (
                         <TableRow key={error.index}>
                           <TableCell className="font-medium">{error.index}</TableCell>
-                          <TableCell className="text-xs text-gray-600">
+                          <TableCell className="text-xs text-muted-foreground">
                             {error.data ? (
                               <div className="space-y-0.5">
                                 {error.data.nis && <div><span className="font-medium">NIS:</span> {error.data.nis}</div>}
@@ -567,7 +567,7 @@ CATATAN PENTING:
                                 {error.data.kelas && <div><span className="font-medium">Kelas:</span> {error.data.kelas}</div>}
                               </div>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -617,7 +617,7 @@ CATATAN PENTING:
                     </TableBody>
                   </Table>
                   {previewData.length > 10 && (
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-muted-foreground mt-2">
                       Menampilkan 10 dari {previewData.length} data. Semua data akan diimport.
                     </p>
                   )}
@@ -669,10 +669,10 @@ CATATAN PENTING:
                 <span className="font-medium">
                   {isValidating ? "Memvalidasi file..." : "Mengimpor data..."}
                 </span>
-                <span className="text-gray-500">Mohon tunggu...</span>
+                <span className="text-muted-foreground">Mohon tunggu...</span>
               </div>
               <Progress value={undefined} className="w-full" />
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 {(() => {
                   if (isValidating) return "Memeriksa format data dan validasi...";
                   if (entityType === 'jadwal') return "Menyimpan jadwal ke database dengan validasi jenis aktivitas...";

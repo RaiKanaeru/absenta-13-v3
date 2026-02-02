@@ -17,7 +17,7 @@ export class ServiceError extends Error {
 }
 
 /**
- * Get all students
+ * Get all students (without pagination - for backwards compatibility)
  */
 export const getAllStudents = async () => {
     const query = `
@@ -39,6 +39,57 @@ export const getAllStudents = async () => {
     `;
     const [results] = await db.execute(query);
     return results;
+};
+
+/**
+ * Get students with pagination and search
+ * @param {number} page - Page number (starts from 1)
+ * @param {number} limit - Number of items per page
+ * @param {string} search - Search term for filtering by name, NIS, or class
+ * @returns {Promise<{data: Array, pagination: Object}>} Paginated student data
+ */
+export const getStudentsPaginated = async (page = 1, limit = 15, search = '') => {
+    const offset = (page - 1) * limit;
+    
+    let query = `
+        SELECT 
+            s.id_siswa as id_siswa,
+            s.id,
+            s.nis, 
+            s.nama, 
+            s.kelas_id, 
+            k.nama_kelas,
+            s.jenis_kelamin,
+            s.alamat,
+            s.telepon_orangtua,
+            s.nomor_telepon_siswa,
+            COALESCE(s.status, 'aktif') as status
+        FROM siswa s
+        LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
+    `;
+    let countQuery = 'SELECT COUNT(*) as total FROM siswa s LEFT JOIN kelas k ON s.kelas_id = k.id_kelas';
+    let params = [];
+    
+    if (search) {
+        query += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+        countQuery += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+        params = [`%${search}%`, `%${search}%`, `%${search}%`];
+    }
+    
+    query += ` ORDER BY s.nama ASC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+    
+    const [rows] = await db.execute(query, params);
+    const [countResult] = await db.execute(countQuery, params);
+    
+    return {
+        data: rows,
+        pagination: {
+            current_page: Number.parseInt(page),
+            per_page: Number.parseInt(limit),
+            total: countResult[0].total,
+            total_pages: Math.ceil(countResult[0].total / limit)
+        }
+    };
 };
 
 /**

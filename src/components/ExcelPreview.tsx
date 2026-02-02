@@ -54,7 +54,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
   };
 
   const getCellStyle = (format?: string, value?: string | number | null, columnKey?: string, align?: string) => {
-    const baseStyle = "px-1 sm:px-2 py-1 text-xs border-r border-b border-gray-400 overflow-hidden";
+    const baseStyle = "px-1 sm:px-2 py-1 text-xs border-r border-b border-border overflow-hidden";
     
     // Explicit alignment from column config takes precedence, otherwise use default based on format
     const formatAlignMap: Record<string, string> = {
@@ -70,23 +70,23 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
     // Special styling for attendance columns (with type guard)
     const numValue = typeof value === 'number' ? value : 0;
     if (columnKey === 'hadir' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-emerald-50 text-emerald-700`;
+      return `${baseStyle} text-center font-semibold bg-emerald-500/20 text-emerald-700 dark:text-emerald-400`;
     }
     if (columnKey === 'izin' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-blue-50 text-blue-700`;
+      return `${baseStyle} text-center font-semibold bg-blue-500/20 text-blue-700 dark:text-blue-400`;
     }
     if (columnKey === 'sakit' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-red-50 text-red-700`;
+      return `${baseStyle} text-center font-semibold bg-red-500/20 text-red-700 dark:text-red-400`;
     }
     if (columnKey === 'alpa' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-yellow-50 text-yellow-700`;
+      return `${baseStyle} text-center font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400`;
     }
     
-    return `${baseStyle} ${alignStyle} bg-white`;
+    return `${baseStyle} ${alignStyle} bg-card`;
   };
 
   const getHeaderStyle = (align?: string) => {
-    const baseStyle = "px-1 sm:px-2 py-1 text-xs font-semibold bg-gray-200 border-r border-b border-gray-500 text-gray-800 overflow-hidden";
+    const baseStyle = "px-1 sm:px-2 py-1 text-xs font-semibold bg-muted border-r border-b border-border text-foreground overflow-hidden";
     const alignMap: Record<string, string> = {
       center: 'text-center',
       right: 'text-right'
@@ -104,7 +104,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 shrink-0" />
-            <CardTitle className="text-base sm:text-lg font-semibold text-gray-800 break-words">
+            <CardTitle className="text-base sm:text-lg font-semibold text-foreground break-words">
               {title} ({data.length} record)
             </CardTitle>
           </div>
@@ -140,7 +140,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
         {/* Letterhead */}
         {showLetterhead && (
           letterhead.enabled && letterhead.lines && letterhead.lines.length > 0 ? (
-          <div className="px-2 sm:px-4 py-3 bg-white border-b border-gray-300">
+          <div className="px-2 sm:px-4 py-3 bg-card border-b border-border">
             <div className="flex items-center justify-between mb-3 gap-3">
               {letterhead.logoLeftUrl ? (
                 <img 
@@ -153,8 +153,8 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                   }}
                 />
               ) : (
-                <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-gray-100 border-2 border-dashed border-gray-300 rounded flex-shrink-0">
-                  <span className="text-xs text-gray-500">LOGO KIRI</span>
+                <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-muted border-2 border-dashed border-border rounded flex-shrink-0">
+                  <span className="text-xs text-muted-foreground">LOGO KIRI</span>
                 </div>
               )}
               <div className="flex-1"></div>
@@ -169,8 +169,8 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                   }}
                 />
               ) : (
-                <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-gray-100 border-2 border-dashed border-gray-300 rounded flex-shrink-0">
-                  <span className="text-xs text-gray-500">LOGO KANAN</span>
+                <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-muted border-2 border-dashed border-border rounded flex-shrink-0">
+                  <span className="text-xs text-muted-foreground">LOGO KANAN</span>
                 </div>
               )}
             </div>
@@ -193,14 +193,14 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
           </div>
           ) : (
             // Fallback letterhead jika belum ada konfigurasi
-            <div className="px-2 sm:px-4 py-3 bg-white border-b border-gray-300">
+            <div className="px-2 sm:px-4 py-3 bg-card border-b border-border">
             <div className="flex items-center justify-between mb-3 gap-3">
-              <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-gray-100 border-2 border-dashed border-gray-300 rounded flex-shrink-0">
-                <span className="text-xs text-gray-500">LOGO KIRI</span>
+              <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-muted border-2 border-dashed border-border rounded flex-shrink-0">
+                <span className="text-xs text-muted-foreground">LOGO KIRI</span>
               </div>
               <div className="flex-1"></div>
-              <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-gray-100 border-2 border-dashed border-gray-300 rounded flex-shrink-0">
-                <span className="text-xs text-gray-500">LOGO KANAN</span>
+              <div className="h-12 sm:h-16 lg:h-20 w-12 sm:w-16 lg:w-20 flex items-center justify-center bg-muted border-2 border-dashed border-border rounded flex-shrink-0">
+                <span className="text-xs text-muted-foreground">LOGO KANAN</span>
               </div>
             </div>
               <div className="text-center space-y-1">
@@ -215,37 +215,37 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
         
         {/* Teacher and Subject Information */}
         {(teacherName || subjectName || reportPeriod) && (
-          <div className="px-2 sm:px-4 py-3 bg-gray-50 border-b border-gray-300">
+          <div className="px-2 sm:px-4 py-3 bg-muted border-b border-border">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
               {teacherName && (
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2">
-                  <span className="font-medium text-gray-700">Nama Guru:</span>
-                  <span className="text-gray-600 break-words">{teacherName}</span>
+                  <span className="font-medium text-foreground">Nama Guru:</span>
+                  <span className="text-muted-foreground break-words">{teacherName}</span>
                 </div>
               )}
               {subjectName && (
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2">
-                  <span className="font-medium text-gray-700">Mata Pelajaran:</span>
-                  <span className="text-gray-600 break-words">{subjectName}</span>
+                  <span className="font-medium text-foreground">Mata Pelajaran:</span>
+                  <span className="text-muted-foreground break-words">{subjectName}</span>
                 </div>
               )}
               {reportPeriod && (
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2 sm:col-span-2 lg:col-span-1">
-                  <span className="font-medium text-gray-700">Periode:</span>
-                  <span className="text-gray-600 break-words">{reportPeriod}</span>
+                  <span className="font-medium text-foreground">Periode:</span>
+                  <span className="text-muted-foreground break-words">{reportPeriod}</span>
                 </div>
               )}
             </div>
           </div>
         )}
         
-        <div className="overflow-x-auto border border-gray-400">
+        <div className="overflow-x-auto border border-border">
           <div className="min-w-full">
             
             {/* Excel-like Table */}
             <table className="w-full text-xs min-w-max table-fixed">
               <thead>
-                <tr className="bg-gray-200 border-b border-gray-500">
+                <tr className="bg-muted border-b border-border">
                   {columns.map((column, index) => (
                     <th
                       key={column.key}
@@ -266,8 +266,8 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                   <tr
                     key={rowIndex}
                     className={`${
-                      rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    } hover:bg-blue-50 transition-colors`}
+                      rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted'
+                    } hover:bg-muted transition-colors`}
                   >
                     {columns.map((column, colIndex) => {
                       const cellValue = row[column.key];
@@ -297,7 +297,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
         </div>
         
         {/* Excel-like Footer Info */}
-        <div className="px-2 sm:px-4 py-2 bg-gray-50 border-t border-gray-300 text-xs text-gray-600">
+        <div className="px-2 sm:px-4 py-2 bg-muted border-t border-border text-xs text-muted-foreground">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
             <span>Total: {data.length} record</span>
             <span className="hidden sm:inline">Preview Excel Format</span>

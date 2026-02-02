@@ -143,9 +143,9 @@ export const FontSizeControl: React.FC<FontSizeControlProps> = ({
 
   // Full variant (default)
   return (
-    <div className={`flex flex-col gap-3 p-4 bg-gray-50 rounded-lg border ${className}`}>
+    <div className={`flex flex-col gap-3 p-4 bg-muted rounded-lg border ${className}`}>
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+        <h3 className="font-medium text-foreground flex items-center gap-2">
           <Type className="h-4 w-4" />
           Ukuran Font
         </h3>
@@ -205,7 +205,7 @@ export const FontSizeControl: React.FC<FontSizeControlProps> = ({
         ))}
       </div>
       
-      <div className="text-xs text-gray-500 text-center">
+      <div className="text-xs text-muted-foreground text-center">
         Pengaturan akan disimpan otomatis
       </div>
     </div>

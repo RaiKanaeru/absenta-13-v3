@@ -147,15 +147,15 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">Laporan Kehadiran Siswa</h1>
-          <p className="text-sm sm:text-base text-gray-600 break-words">Laporan kehadiran siswa berdasarkan jadwal pertemuan</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground break-words">Laporan Kehadiran Siswa</h1>
+          <p className="text-sm sm:text-base text-muted-foreground break-words">Laporan kehadiran siswa berdasarkan jadwal pertemuan</p>
         </div>
       </div>
 
       {/* Error Display */}
       {error && (
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-2 text-red-700">
+        <Card className="p-4 border-destructive/20 bg-destructive/10">
+          <div className="flex items-center gap-2 text-destructive">
             <XCircle className="w-5 h-5" />
             <p className="font-medium">{error}</p>
           </div>
@@ -330,9 +330,9 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
       {!loading && reportData.length === 0 && !error && selectedKelas && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
-            <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mb-4" />
-            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 text-center">Belum ada data laporan</h3>
-            <p className="text-sm sm:text-base text-gray-600 text-center max-w-md">Pilih kelas dan klik "Tampilkan Laporan" untuk melihat laporan kehadiran siswa</p>
+            <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50 mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-foreground mb-2 text-center">Belum ada data laporan</h3>
+            <p className="text-sm sm:text-base text-muted-foreground text-center max-w-md">Pilih kelas dan klik "Tampilkan Laporan" untuk melihat laporan kehadiran siswa</p>
           </CardContent>
         </Card>
       )}

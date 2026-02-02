@@ -163,5 +163,5 @@ export interface BandingAbsenTeacher {
 export const STATUS_COLORS = {
   current: 'bg-green-100 text-green-800',
   upcoming: 'bg-blue-100 text-blue-800',
-  completed: 'bg-gray-100 text-gray-800',
+  completed: 'bg-muted text-muted-foreground',
 } as const;

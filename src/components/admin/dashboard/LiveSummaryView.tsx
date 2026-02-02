@@ -100,39 +100,39 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
         <CardContent>
           {liveData.ongoing_classes.length === 0 ? (
             <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Tidak Ada Kelas Berlangsung</h3>
-              <p className="text-gray-600">Saat ini tidak ada kelas yang sedang berlangsung.</p>
+              <BookOpen className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+              <h3 className="text-xl font-semibold text-foreground mb-2">Tidak Ada Kelas Berlangsung</h3>
+              <p className="text-muted-foreground">Saat ini tidak ada kelas yang sedang berlangsung.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {liveData.ongoing_classes.map((kelas, index) => (
-                <Card key={`live-class-${kelas.id_kelas || index}`} className="border-l-4 border-l-blue-500">
+                <Card key={`live-class-${kelas.id_kelas || index}`} className="border-l-4 border-l-primary bg-card">
                   <CardContent className="p-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                        <Badge variant="secondary" className="bg-primary/10 text-primary">
                           {kelas.nama_kelas || kelas.kelas}
                         </Badge>
                         <Badge variant="outline" className="text-xs">
                           {kelas.jam_mulai} - {kelas.jam_selesai}
                         </Badge>
                       </div>
-                      <h4 className="font-semibold text-gray-900">
+                      <h4 className="font-semibold text-foreground">
                         {kelas.nama_mapel || kelas.mapel}
                       </h4>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         Guru: {kelas.nama_guru || kelas.guru}
                       </p>
                       {kelas.absensi_diambil !== undefined && (
                         <div className="flex items-center gap-2">
                           {kelas.absensi_diambil > 0 ? (
-                            <Badge className="bg-green-100 text-green-700">
+                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Absensi Diambil
                             </Badge>
                           ) : (
-                            <Badge className="bg-yellow-100 text-yellow-700">
+                            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0">
                               <AlertCircle className="w-3 h-3 mr-1" />
                               Menunggu Absensi
                             </Badge>

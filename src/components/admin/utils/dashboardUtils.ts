@@ -76,49 +76,55 @@ export const generatePageNumbers = (
 };
 
 /**
- * Status color mappings for attendance badges (extracted to reduce nested ternaries)
+ * Status color mappings for attendance badges (dark mode compatible)
+ * Uses subtle opacity backgrounds with semantic text colors
  */
 export const ATTENDANCE_STATUS_COLORS: Record<string, string> = {
-  'Hadir': 'bg-green-100 text-green-800',
-  'Sakit': 'bg-yellow-100 text-yellow-800',
-  'Izin': 'bg-yellow-100 text-yellow-800',
-  'Dispen': 'bg-purple-100 text-purple-800',
-  'Belum Absen': 'bg-gray-100 text-gray-800',
-  'Alpa': 'bg-red-100 text-red-800',
-  'Tidak Hadir': 'bg-red-100 text-red-800',
+  'Hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  'hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  'Sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  'sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  'Izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'Dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  'dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  'Belum Absen': 'bg-muted text-muted-foreground',
+  'Alpa': 'bg-destructive/15 text-destructive',
+  'alpa': 'bg-destructive/15 text-destructive',
+  'Tidak Hadir': 'bg-destructive/15 text-destructive',
 };
 
 export const getAttendanceStatusColor = (status: string): string => {
-  return ATTENDANCE_STATUS_COLORS[status] || 'bg-red-100 text-red-800';
+  return ATTENDANCE_STATUS_COLORS[status] || 'bg-destructive/15 text-destructive';
 };
 
 /**
- * Time status color mappings
+ * Time status color mappings (dark mode compatible)
  */
 export const TIME_STATUS_COLORS: Record<string, string> = {
-  'Tepat Waktu': 'bg-green-100 text-green-800',
-  'Terlambat Ringan': 'bg-yellow-100 text-yellow-800',
-  'Terlambat': 'bg-orange-100 text-orange-800',
-  'Terlambat Berat': 'bg-red-100 text-red-800',
+  'Tepat Waktu': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  'Terlambat Ringan': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'Terlambat': 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+  'Terlambat Berat': 'bg-destructive/15 text-destructive',
 };
 
 export const getTimeStatusColor = (status: string | undefined): string => {
-  if (!status) return 'bg-gray-100 text-gray-600';
-  return TIME_STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
+  if (!status) return 'bg-muted text-muted-foreground';
+  return TIME_STATUS_COLORS[status] || 'bg-muted text-muted-foreground';
 };
 
 /**
- * Period color mappings
+ * Period color mappings (dark mode compatible)
  */
 export const PERIOD_COLORS: Record<string, string> = {
-  'Pagi': 'bg-blue-100 text-blue-800',
-  'Siang': 'bg-yellow-100 text-yellow-800',
-  'Sore': 'bg-orange-100 text-orange-800',
+  'Pagi': 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  'Siang': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'Sore': 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
 };
 
 export const getPeriodColor = (period: string | undefined): string => {
-  if (!period) return 'bg-gray-100 text-gray-600';
-  return PERIOD_COLORS[period] || 'bg-gray-100 text-gray-600';
+  if (!period) return 'bg-muted text-muted-foreground';
+  return PERIOD_COLORS[period] || 'bg-muted text-muted-foreground';
 };
 
 /**

@@ -230,10 +230,10 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         
         <div className="space-y-2">
           <h2 className="text-xl sm:text-2xl font-bold">{isEditMode ? 'Edit Absensi Siswa' : 'Ambil Absensi'}</h2>
-          <p className="text-sm sm:text-base text-gray-600 break-words">{schedule.nama_mapel} - {schedule.nama_kelas}</p>
+          <p className="text-sm sm:text-base text-muted-foreground break-words">{schedule.nama_mapel} - {schedule.nama_kelas}</p>
           
           {schedule.kode_ruang && (
-            <div className="text-sm text-blue-600">
+            <div className="text-sm text-blue-600 dark:text-blue-400">
               <Badge variant="outline" className="text-xs">
                 {schedule.kode_ruang}
                 {schedule.nama_ruang && ` - ${schedule.nama_ruang}`}
@@ -241,10 +241,10 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
             </div>
           )}
           
-          <p className="text-xs sm:text-sm text-gray-500">{schedule.jam_mulai} - {schedule.jam_selesai}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">{schedule.jam_mulai} - {schedule.jam_selesai}</p>
           
           {isEditMode && (
-            <p className="text-xs sm:text-sm text-blue-600">
+            <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
               Mengedit absensi untuk tanggal: {formatDateOnly(selectedDate)}
             </p>
           )}
@@ -321,9 +321,9 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                 min={minDate}
                 max={maxDate}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-auto"
+                className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-full sm:w-auto bg-background"
               />
-              <div className="text-xs sm:text-sm text-gray-600">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 (Maksimal 30 hari yang lalu)
               </div>
             </div>
@@ -339,27 +339,27 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
           {loading ? (
             <div className="space-y-3 sm:space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="animate-pulse bg-gray-200 h-14 sm:h-16 rounded"></div>
+                <div key={i} className="animate-pulse bg-muted h-14 sm:h-16 rounded"></div>
               ))}
             </div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
-              <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-400 mb-3 sm:mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Tidak ada siswa dalam kelas ini</h3>
-              <p className="text-sm sm:text-base text-gray-600">Belum ada siswa yang terdaftar di kelas {schedule.nama_kelas}</p>
+              <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Tidak ada siswa dalam kelas ini</h3>
+              <p className="text-sm sm:text-base text-muted-foreground">Belum ada siswa yang terdaftar di kelas {schedule.nama_kelas}</p>
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
               {students.map((student, index) => (
-                <div key={student.id} className="border rounded-lg p-3 sm:p-4">
+                <div key={student.id} className="border border-border rounded-lg p-3 sm:p-4 bg-card">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm sm:text-base truncate">{student.nama}</p>
                       {student.nis && (
-                        <p className="text-xs sm:text-sm text-gray-600">NIS: {student.nis}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">NIS: {student.nis}</p>
                       )}
                       {student.waktu_absen && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           Absen terakhir: {formatTime24(student.waktu_absen)}
                         </p>
                       )}
@@ -419,7 +419,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                             onChange={(e) => 
                               setTerlambat(prev => ({ ...prev, [student.id]: e.target.checked }))
                             }
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                            className="rounded border-border text-orange-600 focus:ring-orange-500"
                           />
                           <Label htmlFor={`terlambat-${student.id}`} className="text-xs sm:text-sm text-orange-600">
                             Terlambat
@@ -436,9 +436,9 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                             onChange={(e) => 
                               setAdaTugas(prev => ({ ...prev, [student.id]: e.target.checked }))
                             }
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-border text-blue-600 focus:ring-blue-500"
                           />
-                          <Label htmlFor={`ada-tugas-${student.id}`} className="text-xs sm:text-sm text-blue-600">
+                        <Label htmlFor={`ada-tugas-${student.id}`} className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
                             Ada Tugas
                           </Label>
                         </div>
@@ -447,7 +447,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                     
                     {attendance[student.id] !== 'Hadir' && (
                       <div className="mt-3">
-                        <Label htmlFor={`keterangan-${student.id}`} className="text-xs sm:text-sm font-medium text-gray-700">
+                        <Label htmlFor={`keterangan-${student.id}`} className="text-xs sm:text-sm font-medium text-foreground">
                           Keterangan:
                         </Label>
                         <Textarea
@@ -464,21 +464,21 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                     )}
 
                     {schedule.is_multi_guru && student.other_teachers_attendance && student.other_teachers_attendance !== '' && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 className="text-sm font-medium text-blue-800 mb-2">Catatan dari Guru Lain:</h4>
+                      <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                        <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Catatan dari Guru Lain:</h4>
                         <div className="space-y-1">
                           {student.other_teachers_attendance.split('||').map((teacherData, idx) => {
                             const [guruNama, status, keterangan, waktu] = teacherData.split(':');
                             if (guruNama === 'Unknown' || guruNama === '') return null;
                             
                             return (
-                              <div key={idx} className="text-xs text-blue-700">
+                              <div key={idx} className="text-xs text-blue-700 dark:text-blue-400">
                                 <span className="font-medium">{guruNama}:</span> {status}
                                 {keterangan && keterangan !== '' && (
-                                  <span className="ml-2 text-gray-600">- {keterangan}</span>
+                                  <span className="ml-2 text-muted-foreground">- {keterangan}</span>
                                 )}
                                 {waktu && waktu !== '' && (
-                                  <span className="ml-2 text-gray-500">({waktu})</span>
+                                  <span className="ml-2 text-muted-foreground">({waktu})</span>
                                 )}
                               </div>
                             );
@@ -492,7 +492,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
               
               {students.length > 0 && (
                 <div className="pt-4 border-t space-y-3">
-                  <div className="bg-gray-50 p-3 rounded-lg">
+                  <div className="bg-muted p-3 rounded-lg">
                     <h4 className="font-medium text-sm mb-2">Preview Data Absensi:</h4>
                     <div className="text-xs space-y-1">
                       {students.map(student => (
@@ -502,26 +502,28 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                             <div className="flex items-center gap-2">
                               <span className={`font-medium ${(() => {
                                 const colorMap: Record<string, string> = {
-                                  'Hadir': 'text-green-600', 'Izin': 'text-yellow-600', 'Sakit': 'text-blue-600'
+                                  'Hadir': 'text-emerald-600 dark:text-emerald-400', 
+                                  'Izin': 'text-amber-600 dark:text-amber-400', 
+                                  'Sakit': 'text-blue-600 dark:text-blue-400'
                                 };
-                                return colorMap[attendance[student.id]] || 'text-red-600';
+                                return colorMap[attendance[student.id]] || 'text-destructive';
                               })()}`}>
                                 {attendance[student.id]}
                               </span>
                               {terlambat[student.id] && (
-                                <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
+                                <span className="px-2 py-1 text-xs bg-orange-500/15 text-orange-700 dark:text-orange-400 rounded-full">
                                   Terlambat
                                 </span>
                               )}
                               {adaTugas[student.id] && (
-                                <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                <span className="px-2 py-1 text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-full">
                                   Ada Tugas
                                 </span>
                               )}
                             </div>
                           </div>
                           {notes[student.id] && notes[student.id].trim() !== '' && (
-                            <div className="text-gray-600 text-xs pl-2">
+                            <div className="text-muted-foreground text-xs pl-2">
                               <span className="font-medium">Keterangan:</span> {notes[student.id]}
                             </div>
                           )}

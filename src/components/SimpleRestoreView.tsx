@@ -406,7 +406,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
               <div className="space-y-2">
                 {uploading && (
                   <div className="space-y-1">
-                    <div className="flex justify-between text-sm text-gray-600">
+                    <div className="flex justify-between text-sm text-muted-foreground">
                       <span>{restoreStatus === 'uploading' ? 'Mengupload...' : 'Memulihkan database...'}</span>
                       <span>{uploadProgress}%</span>
                     </div>

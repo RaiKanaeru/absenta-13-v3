@@ -501,7 +501,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       <img src={logoRightSrc} alt="Logo Kanan" className="h-20 object-contain float-right ml-5" /> : null;
 
     return (
-      <div className="border rounded-lg p-6 bg-white mt-4">
+      <div className="border rounded-lg p-6 bg-card mt-4">
         <div className="overflow-hidden pt-4">
           {logoLeftElement}
           {logoRightElement}
@@ -517,7 +517,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         <hr className="my-4" />
         <div className="text-center">
           <div className="font-bold text-lg">CONTOH JUDUL LAPORAN</div>
-          <div className="text-sm text-gray-600">Periode: 01 Januari 2025 - 31 Januari 2025</div>
+          <div className="text-sm text-muted-foreground">Periode: 01 Januari 2025 - 31 Januari 2025</div>
         </div>
       </div>
     );
@@ -525,19 +525,19 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Memuat konfigurasi...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Memuat konfigurasi...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-card shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
@@ -546,8 +546,8 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                 Kembali
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Pengaturan Kop Laporan</h1>
-                <p className="text-sm text-gray-600">Kelola header/kop untuk semua laporan sistem</p>
+                <h1 className="text-2xl font-bold text-foreground">Pengaturan Kop Laporan</h1>
+                <p className="text-sm text-muted-foreground">Kelola header/kop untuk semua laporan sistem</p>
               </div>
             </div>
           </div>
@@ -570,7 +570,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="scope">Cakupan KOP</Label>
-                    <p className="text-sm text-gray-600">Pilih apakah KOP berlaku global atau per jenis laporan</p>
+                    <p className="text-sm text-muted-foreground">Pilih apakah KOP berlaku global atau per jenis laporan</p>
                   </div>
                   <Select value={scope} onValueChange={(value: ScopeType) => setScope(value)}>
                     <SelectTrigger>
@@ -588,7 +588,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="reportKey">Jenis Laporan</Label>
-                      <p className="text-sm text-gray-600">Pilih jenis laporan yang akan dikonfigurasi</p>
+                      <p className="text-sm text-muted-foreground">Pilih jenis laporan yang akan dikonfigurasi</p>
                     </div>
                     <Select value={selectedReportKey} onValueChange={setSelectedReportKey}>
                       <SelectTrigger>
@@ -609,7 +609,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="enabled">Aktifkan Kop Laporan</Label>
-                    <p className="text-sm text-gray-600">Tampilkan kop di semua laporan</p>
+                    <p className="text-sm text-muted-foreground">Tampilkan kop di semua laporan</p>
                   </div>
                   <Switch
                     id="enabled"
@@ -697,7 +697,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500">Format: JPG, PNG, GIF. Maksimal 2MB per file</p>
+                  <p className="text-xs text-muted-foreground">Format: JPG, PNG, GIF. Maksimal 2MB per file</p>
                 </div>
 
                 {/* Alignment */}
@@ -748,7 +748,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                         </Button>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Label className="text-sm text-gray-600">Font Weight:</Label>
+                        <Label className="text-sm text-muted-foreground">Font Weight:</Label>
                         <Select
                           value={line.fontWeight}
                           onValueChange={(value: 'normal' | 'bold') => updateLineFontWeight(index, value)}
@@ -765,7 +765,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                     </div>
                   ))}
                   
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Baris pertama biasanya nama instansi (akan ditampilkan tebal)
                   </p>
                 </div>
@@ -817,7 +817,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                 {previewMode ? (
                   renderPreview()
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     Klik "Tampilkan" untuk melihat preview
                   </div>
                 )}
@@ -825,18 +825,18 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                 {/* Logo Previews */}
                 {(config.logo || logoPreview || config.logoLeftUrl || logoLeftPreview || config.logoRightUrl || logoRightPreview) && (
                   <div className="mt-6 space-y-4">
-                    <h4 className="text-sm font-medium text-gray-700">Logo yang Terupload:</h4>
+                    <h4 className="text-sm font-medium text-foreground">Logo yang Terupload:</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {(config.logo || logoPreview) && (
                         <div className="text-center">
-                          <p className="text-xs text-gray-500 mb-2">Logo Tengah</p>
+                          <p className="text-xs text-muted-foreground mb-2">Logo Tengah</p>
                           <img 
                             src={getImageSrc(config.logo || logoPreview)} 
                             alt="Logo Tengah" 
                             className="h-16 object-contain mx-auto border rounded"
                           />
                           {config.logo && (
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               File: {config.logo.split('/').pop()}
                             </p>
                           )}
@@ -844,14 +844,14 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                       )}
                       {(config.logoLeftUrl || logoLeftPreview) && (
                         <div className="text-center">
-                          <p className="text-xs text-gray-500 mb-2">Logo Kiri</p>
+                          <p className="text-xs text-muted-foreground mb-2">Logo Kiri</p>
                           <img 
                             src={getImageSrc(config.logoLeftUrl || logoLeftPreview)} 
                             alt="Logo Kiri" 
                             className="h-16 object-contain mx-auto border rounded"
                           />
                           {config.logoLeftUrl && (
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               File: {config.logoLeftUrl.split('/').pop()}
                             </p>
                           )}
@@ -859,14 +859,14 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                       )}
                       {(config.logoRightUrl || logoRightPreview) && (
                         <div className="text-center">
-                          <p className="text-xs text-gray-500 mb-2">Logo Kanan</p>
+                          <p className="text-xs text-muted-foreground mb-2">Logo Kanan</p>
                           <img 
                             src={getImageSrc(config.logoRightUrl || logoRightPreview)} 
                             alt="Logo Kanan" 
                             className="h-16 object-contain mx-auto border rounded"
                           />
                           {config.logoRightUrl && (
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               File: {config.logoRightUrl.split('/').pop()}
                             </p>
                           )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,18 @@ import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search, Che
 import { apiCall } from '@/utils/apiClient';
 import ExcelImportView from '../../ExcelImportView';
 import { Student, Kelas } from '@/types/dashboard';
+
+interface PaginationMeta {
+  current_page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationMeta;
+}
 
 interface ManageStudentsViewProps {
   onBack: () => void;
@@ -43,23 +55,73 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
   const [editingNis, setEditingNis] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset to page 1 when search or pageSize changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, pageSize]);
 
   const fetchStudents = useCallback(async () => {
+    // Abort previous request if still running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setIsLoading(true);
     try {
-      const response = await apiCall<Student[] | { data?: Student[] }>('/api/admin/students', { onLogout });
-      // Backend returns { success, data, pagination } - extract the data array
-      const studentsArray = Array.isArray(response) ? response : response?.data || [];
-      setStudents(Array.isArray(studentsArray) ? studentsArray : []);
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+        search: debouncedSearchTerm || ''
+      });
+
+      const response = await apiCall<Student[] | PaginatedResponse<Student>>(
+        `/api/admin/students?${queryParams.toString()}`,
+        { onLogout, signal: controller.signal }
+      );
+
+      // Handle both array and paginated response formats
+      if (Array.isArray(response)) {
+        setStudents(response);
+        setTotalItems(response.length);
+      } else {
+        setStudents(response.data || []);
+        setTotalItems(response.pagination?.total || 0);
+      }
     } catch (error: unknown) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching students:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
+    } finally {
+      // Only unset loading if this is the current request
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+      }
     }
-  }, [onLogout]);
+  }, [currentPage, pageSize, debouncedSearchTerm, onLogout]);
 
 
   const fetchClasses = useCallback(async () => {
@@ -99,9 +161,12 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
   };
 
   useEffect(() => {
-    fetchStudents();
     fetchClasses();
-  }, [fetchStudents, fetchClasses]);
+  }, [fetchClasses]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,28 +288,10 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     }
   };
 
-  const filteredStudents = students.filter(student => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (student.nama && student.nama.toLowerCase().includes(searchLower)) ||
-      (student.nis && student.nis.toLowerCase().includes(searchLower)) ||
-      (student.nama_kelas && student.nama_kelas.toLowerCase().includes(searchLower))
-    );
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  // Server-side pagination - no client-side filtering
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
-  const pagedStudents = filteredStudents.slice(startIndex, startIndex + pageSize);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, pageSize]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const pagedStudents = students; // Server already returns paginated data
 
   if (showImport) {
     return <ExcelImportView entityType="siswa" entityName="Data Siswa" onBack={() => setShowImport(false)} />;
@@ -315,10 +362,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
               maxWidth: '42rem',
               margin: '0',
               padding: '1rem',
-              backgroundColor: 'white',
               borderRadius: '0.5rem',
               boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-              border: '1px solid #e5e7eb',
               boxSizing: 'border-box'
             }}
           >
@@ -528,7 +573,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3">
               <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Cari berdasarkan nama, NIS..."
                 value={searchTerm}
@@ -537,7 +582,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
               />
             </div>
             <Badge variant="secondary" className="px-2 py-1 text-xs whitespace-nowrap">
-              {filteredStudents.length} siswa ditemukan
+              {totalItems} siswa ditemukan
             </Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -598,12 +643,12 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredStudents.length === 0 ? (
+          {students.length === 0 ? (
             <div className="text-center py-8">
               <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
               <p className="text-sm text-gray-600">
-                {searchTerm ? 'Tidak ada siswa yang cocok dengan pencarian' : 'Belum ada akun siswa yang ditambahkan'}
+                {debouncedSearchTerm ? 'Tidak ada siswa yang cocok dengan pencarian' : 'Belum ada akun siswa yang ditambahkan'}
               </p>
             </div>
           ) : (
@@ -631,7 +676,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                         <TableCell>
                           <Badge 
                             variant={student.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs ${student.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            className={`text-xs ${student.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                           >
                             {student.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
                           </Badge>
@@ -728,11 +773,11 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                       
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-gray-500 block">Kelas:</span>
+                          <span className="text-muted-foreground block">Kelas:</span>
                           <span className="font-medium">{student.nama_kelas}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500 block">Jabatan:</span>
+                          <span className="text-muted-foreground block">Jabatan:</span>
                           <span className="font-medium">{student.jabatan || 'Siswa'}</span>
                         </div>
                       </div>
@@ -740,7 +785,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                       <div>
                         <Badge 
                           variant={student.status === 'aktif' ? 'default' : 'secondary'}
-                          className={`text-xs ${student.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                          className={`text-xs ${student.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                         >
                           {student.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
                         </Badge>

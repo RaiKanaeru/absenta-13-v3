@@ -20,14 +20,14 @@ interface PreviewJadwalViewProps {
  * Helper component for displaying multi-guru list (S2004 - extracted to reduce nesting)
  */
 const MultiGuruDisplay = ({ guruList }: { guruList: string }) => (
-  <div className="text-xs text-green-600 mt-1">
+  <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
     <div className="font-medium">Multi-Guru:</div>
     {guruList.split('||').map((guru) => {
       const parts = guru.split(':');
       // Handle potential malformed strings
       const guruName = parts.length > 1 ? parts[1] : parts[0];
       return (
-        <div key={`guru-${guru}`} className="text-xs text-green-700 truncate">• {guruName}</div>
+        <div key={`guru-${guru}`} className="text-xs text-emerald-700 dark:text-emerald-300 truncate">• {guruName}</div>
       );
     })}
   </div>
@@ -233,32 +233,32 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Preview Jadwal Pelajaran</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-foreground">Preview Jadwal Pelajaran</h1>
             <div className="flex flex-wrap gap-1 lg:gap-2 text-xs lg:text-sm mt-2">
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md font-medium">
+              <span className="px-2 py-1 bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-md font-medium">
                 Format: {displayMode === 'matrix' ? 'Matrix' : 'Grid'}
               </span>
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md font-medium">
+              <span className="px-2 py-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 rounded-md font-medium">
                 Total: {filteredSchedules.length} jadwal
               </span>
-              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-md font-medium">
+              <span className="px-2 py-1 bg-purple-500/15 text-purple-700 dark:text-purple-400 rounded-md font-medium">
                 Kelas: {filter.kelas === 'all' ? 'Semua' : filter.kelas}
               </span>
-              <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-md font-medium">
+              <span className="px-2 py-1 bg-orange-500/15 text-orange-700 dark:text-orange-400 rounded-md font-medium">
                 Hari: {filter.hari === 'all' ? 'Semua' : filter.hari}
               </span>
               {filteredSchedules.length > 0 && (
                 <>
-                  <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-md font-medium">
+                  <span className="px-2 py-1 bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 rounded-md font-medium">
                     Guru: {new Set(filteredSchedules.map(s => s.nama_guru)).size} orang
                   </span>
-                  <span className="px-2 py-1 bg-pink-100 text-pink-800 rounded-md font-medium">
+                  <span className="px-2 py-1 bg-pink-500/15 text-pink-700 dark:text-pink-400 rounded-md font-medium">
                     Ruang: {new Set(filteredSchedules.map(s => s.kode_ruang).filter(Boolean)).size} ruang
                   </span>
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-md font-medium">
+                  <span className="px-2 py-1 bg-amber-500/15 text-amber-700 dark:text-amber-400 rounded-md font-medium">
                     Mapel: {new Set(filteredSchedules.map(s => s.nama_mapel).filter(Boolean)).size} mapel
                   </span>
-                  <span className="px-2 py-1 bg-teal-100 text-teal-800 rounded-md font-medium">
+                  <span className="px-2 py-1 bg-teal-500/15 text-teal-700 dark:text-teal-400 rounded-md font-medium">
                     Absen: {filteredSchedules.filter(s => s.is_absenable).length} dapat diabsen
                   </span>
                 </>
@@ -275,7 +275,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
             className="w-full sm:w-auto"
           >
             {isExporting ? (
-              <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+<div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-border border-t-blue-600"></div>
             ) : (
             <Download className="w-4 h-4 mr-2" />
             )}
@@ -290,7 +290,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
             className="w-full sm:w-auto"
           >
             {isExporting ? (
-              <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+              <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-border border-t-blue-600"></div>
             ) : (
             <Download className="w-4 h-4 mr-2" />
             )}
@@ -376,7 +376,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
       <Card className="p-4 lg:p-6">
         {/* Letterhead Preview */}
         {letterhead && letterhead.enabled && letterhead.lines && letterhead.lines.length > 0 && (
-          <div className="text-center mb-4 lg:mb-6 p-3 lg:p-4 bg-white border-2 border-gray-300">
+          <div className="text-center mb-4 lg:mb-6 p-3 lg:p-4 bg-card border-2 border-border">
             {/* Logo kiri dan kanan jika tersedia */}
             {(letterhead.logoLeftUrl || letterhead.logoRightUrl) && (
               <div className="flex justify-between items-center mb-3 lg:mb-4">
@@ -432,16 +432,16 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
               {displayMode === 'matrix' ? 'Jadwal Matrix' : 'Jadwal Grid'}
             </span>
           </h3>
-          <span className="text-xs lg:text-sm text-gray-500">
+          <span className="text-xs lg:text-sm text-muted-foreground">
             {filteredSchedules.length} jadwal dari {uniqueClassesForDisplay.length} kelas
           </span>
         </div>
         
         {filteredSchedules.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">—</div>
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">Tidak Ada Jadwal</h3>
-            <p className="text-gray-500 mb-4">
+            <div className="text-muted-foreground text-6xl mb-4">—</div>
+            <h3 className="text-lg font-semibold text-muted-foreground mb-2">Tidak Ada Jadwal</h3>
+            <p className="text-muted-foreground mb-4">
               {schedules.length === 0 
                 ? 'Belum ada jadwal yang tersedia. Silakan tambahkan jadwal terlebih dahulu.'
                 : filter.kelas === 'all' && filter.hari === 'all' 
@@ -451,7 +451,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
             </p>
             {schedules.length === 0 && (
               <div className="space-y-2">
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Total jadwal tersedia: {schedules.length}
                 </p>
                 <Button 
@@ -468,12 +468,12 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
         ) : displayMode === 'matrix' ? (
           <div className="overflow-x-auto -mx-4 lg:mx-0">
             <div className="min-w-full px-4 lg:px-0">
-              <table className="w-full border-collapse border border-gray-300 text-xs lg:text-sm">
+              <table className="w-full border-collapse border border-border text-xs lg:text-sm">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="border border-gray-300 px-2 lg:px-4 py-2 text-left font-semibold sticky left-0 bg-gray-50 z-10 min-w-[80px] lg:min-w-[120px]">KELAS</th>
+                  <tr className="bg-muted">
+                    <th className="border border-border px-2 lg:px-4 py-2 text-left font-semibold sticky left-0 bg-muted z-10 min-w-[80px] lg:min-w-[120px]">KELAS</th>
                     {daysOfWeek.map((day, index) => (
-                      <th key={`day-header-${day}-${index}`} className="border border-gray-300 px-1 lg:px-4 py-2 text-center font-semibold min-w-[100px] lg:min-w-[150px]">
+                      <th key={`day-header-${day}-${index}`} className="border border-border px-1 lg:px-4 py-2 text-center font-semibold min-w-[100px] lg:min-w-[150px]">
                         <span className="hidden sm:inline">{day}</span>
                         <span className="sm:hidden">{day.substring(0, 3)}</span>
                       </th>
@@ -483,7 +483,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                 <tbody>
                   {uniqueClassesForDisplay.map((kelasName, index) => (
                     <tr key={`schedule-class-${kelasName}-${index}`}>
-                      <td className="border border-gray-300 px-2 lg:px-4 py-2 font-medium sticky left-0 bg-white z-10 min-w-[80px] lg:min-w-[120px]">
+                      <td className="border border-border px-2 lg:px-4 py-2 font-medium sticky left-0 bg-card z-10 min-w-[80px] lg:min-w-[120px]">
                         <span className="hidden sm:inline">{kelasName}</span>
                         <span className="sm:hidden text-xs">{kelasName.length > 8 ? kelasName.substring(0, 8) + '...' : kelasName}</span>
                       </td>
@@ -492,19 +492,19 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                           .filter(s => s.nama_kelas === kelasName && s.hari === day)
                           .sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
                         return (
-                          <td key={`day-cell-${day}-${dayIndex}`} className="border border-gray-300 px-1 lg:px-2 py-1 text-xs min-w-[100px] lg:min-w-[150px]">
+                          <td key={`day-cell-${day}-${dayIndex}`} className="border border-border px-1 lg:px-2 py-1 text-xs min-w-[100px] lg:min-w-[150px]">
                             {daySchedules.map((schedule, idx) => (
-                              <div key={`schedule-${schedule.id}-${idx}`} className="mb-1 p-1 bg-blue-50 rounded border border-blue-200">
-                                <div className="font-semibold text-xs text-blue-800 truncate">
+                              <div key={`schedule-${schedule.id}-${idx}`} className="mb-1 p-1 bg-primary/10 rounded border border-primary/20">
+                                <div className="font-semibold text-xs text-primary truncate">
                                   {schedule.nama_guru || 'Sistem'}
                                 </div>
-                                <div className="text-xs font-medium text-gray-700 truncate">
+                                <div className="text-xs font-medium text-foreground truncate">
                                   {schedule.nama_mapel || schedule.keterangan_khusus}
                                 </div>
-                                <div className="text-gray-500 text-xs truncate">
+                                <div className="text-muted-foreground text-xs truncate">
                                   {schedule.kode_ruang || schedule.nama_ruang || 'Ruang TBD'}
                                 </div>
-                                <div className="text-gray-400 text-xs font-mono">
+                                <div className="text-muted-foreground text-xs font-mono">
                                   {schedule.jam_mulai} - {schedule.jam_selesai}
                                 </div>
                                 {schedule.guru_list && schedule.guru_list.includes('||') && (
@@ -524,44 +524,44 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
         ) : (
           <div className="space-y-4">
             {filteredSchedules.map((schedule) => (
-              <div key={schedule.id} className="border rounded-lg p-3 lg:p-4 hover:bg-gray-50 transition-colors">
+              <div key={schedule.id} className="border rounded-lg p-3 lg:p-4 hover:bg-muted transition-colors">
                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-3">
                   <div className="flex-1">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                       <h4 className="font-semibold text-base lg:text-lg">{schedule.nama_kelas}</h4>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full w-fit">
+                      <span className="px-2 py-1 bg-blue-500/15 text-blue-700 dark:text-blue-400 text-xs rounded-full w-fit">
                         Jam ke-{schedule.jam_ke || 'N/A'}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">
+                    <p className="text-sm font-medium text-foreground mb-1">
                       {schedule.nama_mapel || schedule.keterangan_khusus}
                     </p>
-                    <p className="text-sm text-gray-600 mb-1">
+                    <p className="text-sm text-muted-foreground mb-1">
                       Guru: {schedule.nama_guru || 'Sistem'}
                     </p>
                     {schedule.guru_list && schedule.guru_list.includes('||') && (
-                      <div className="text-xs text-green-600 mb-1">
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1">
                         <div className="font-medium">Multi-Guru:</div>
                         {schedule.guru_list.split('||').map((guru, guruIdx) => (
-                          <div key={`guru-list-${guru.split(':')[0]}-${guruIdx}`} className="text-xs text-green-700">
+                          <div key={`guru-list-${guru.split(':')[0]}-${guruIdx}`} className="text-xs text-emerald-700 dark:text-emerald-300">
                             • {guru.split(':')[1]}
                           </div>
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Ruang: {schedule.kode_ruang || schedule.nama_ruang || 'Ruang TBD'}
                     </p>
                   </div>
                   <div className="flex flex-row lg:flex-col lg:text-right gap-3 lg:gap-0 lg:ml-4">
                     <div>
                       <p className="font-medium text-base lg:text-lg">{schedule.hari}</p>
-                      <p className="text-sm text-gray-600 font-mono">
+                      <p className="text-sm text-muted-foreground font-mono">
                         {schedule.jam_mulai} - {schedule.jam_selesai}
                       </p>
                     </div>
                     <div className="lg:mt-1">
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {{
                           pelajaran: 'Pelajaran',
                           upacara: 'Upacara', 
@@ -571,7 +571,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                         }[schedule.jenis_aktivitas] || 'Lainnya'}
                       </p>
                       {schedule.is_absenable && (
-                        <p className="text-xs text-green-600 mt-1">Dapat diabsen</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Dapat diabsen</p>
                       )}
                     </div>
                   </div>

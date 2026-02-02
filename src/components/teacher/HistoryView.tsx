@@ -135,7 +135,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
             Riwayat Absensi
           </CardTitle>
           {!loading && totalDays > 0 && (
-            <div className="text-xs sm:text-sm text-gray-600">
+            <div className="text-xs sm:text-sm text-muted-foreground">
               <div className="sm:hidden">
                 {totalDays} hari | {currentPage}/{totalPages}
               </div>
@@ -150,27 +150,27 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse bg-gray-200 h-32 rounded"></div>
+              <div key={i} className="animate-pulse bg-muted h-32 rounded"></div>
             ))}
           </div>
         ) : Object.keys(historyData).length === 0 ? (
           <div className="text-center py-12">
-            <History className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada riwayat</h3>
-            <p className="text-gray-600">Riwayat absensi akan muncul setelah Anda mengambil absensi</p>
+            <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Belum ada riwayat</h3>
+            <p className="text-muted-foreground">Riwayat absensi akan muncul setelah Anda mengambil absensi</p>
           </div>
         ) : (
           <div className="space-y-6">
             {Object.entries(historyData)
               .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
               .map(([date, classes]) => (
-              <div key={date} className="border-b pb-4 last:border-b-0">
+              <div key={date} className="border-b border-border pb-4 last:border-b-0">
                 <h4 className="font-medium mb-3">
                   {formatDateOnly(date)}
                 </h4>
                 <div className="space-y-3">
                   {Object.entries(classes).map(([classKey, classData]) => (
-                    <div key={classKey} className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                    <div key={classKey} className="bg-muted/50 rounded-lg p-3 sm:p-4">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
@@ -179,19 +179,19 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                               Jam ke-{classData.jam_ke}
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600">{classData.kelas}</p>
-                          <p className="text-xs text-gray-500">{classData.jam}</p>
+                          <p className="text-sm text-muted-foreground">{classData.kelas}</p>
+                          <p className="text-xs text-muted-foreground">{classData.jam}</p>
                           
                           {classData.nama_ruang && (
-                            <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-1 text-xs text-gray-600">
+                            <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-1 text-xs text-muted-foreground">
                               <span className="font-medium">Ruang:</span>
                               <div className="flex flex-wrap items-center gap-1">
                                 <span>{classData.nama_ruang}</span>
                                 {classData.kode_ruang && (
-                                  <span className="text-gray-500">({classData.kode_ruang})</span>
+                                  <span className="text-muted-foreground">({classData.kode_ruang})</span>
                                 )}
                                 {classData.lokasi && (
-                                  <span className="text-gray-500">- {classData.lokasi}</span>
+                                  <span className="text-muted-foreground">- {classData.lokasi}</span>
                                 )}
                               </div>
                             </div>
@@ -199,7 +199,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                           
                           {classData.status_guru && (
                             <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-1 text-xs">
-                              <span className="font-medium text-gray-600">Status Guru:</span>
+                              <span className="font-medium text-muted-foreground">Status Guru:</span>
                               <div className="flex flex-wrap items-center gap-1">
                                 <Badge
                                   variant={
@@ -212,7 +212,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                   {classData.status_guru.charAt(0).toUpperCase() + classData.status_guru.slice(1)}
                                 </Badge>
                                 {classData.keterangan_guru && (
-                                  <span className="text-gray-500">- {classData.keterangan_guru}</span>
+                                  <span className="text-muted-foreground">- {classData.keterangan_guru}</span>
                                 )}
                               </div>
                             </div>
@@ -254,7 +254,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <span className="text-sm text-gray-600">{siswa.nis || '-'}</span>
+                                      <span className="text-sm text-muted-foreground">{siswa.nis || '-'}</span>
                                     </TableCell>
                                     <TableCell>
                                       <Badge
@@ -265,7 +265,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                           'destructive'
                                         }
                                         className={
-                                          siswa.status === 'Dispen' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''
+                                          siswa.status === 'Dispen' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-200' : ''
                                         }
                                       >
                                         {siswa.status}
@@ -277,14 +277,14 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                           {formatTime24(siswa.waktu_absen)}
                                         </span>
                                       ) : (
-                                        <span className="text-sm text-gray-400">-</span>
+                                        <span className="text-sm text-muted-foreground">-</span>
                                       )}
                                     </TableCell>
                                     <TableCell>
                                       {siswa.alasan ? (
-                                        <span className="text-sm text-gray-600">{siswa.alasan}</span>
+                                        <span className="text-sm text-muted-foreground">{siswa.alasan}</span>
                                       ) : (
-                                        <span className="text-sm text-gray-400">-</span>
+                                        <span className="text-sm text-muted-foreground">-</span>
                                       )}
                                     </TableCell>
                                   </TableRow>
@@ -296,11 +296,11 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                           {/* Mobile Card View */}
                           <div className="sm:hidden space-y-2">
                             {classData.siswa.map((siswa, siswaIndex) => (
-                              <div key={siswaIndex} className="bg-white border rounded-lg p-3">
+                              <div key={siswaIndex} className="bg-card border border-border rounded-lg p-3">
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <p className="font-medium text-sm">{siswa.nama || 'Nama tidak tersedia'}</p>
-                                    <p className="text-xs text-gray-600">NIS: {siswa.nis || '-'}</p>
+                                    <p className="text-xs text-muted-foreground">NIS: {siswa.nis || '-'}</p>
                                   </div>
                                   <Badge
                                     variant={
@@ -310,7 +310,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                       'destructive'
                                     }
                                     className={`text-xs ${
-                                      siswa.status === 'Dispen' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''
+                                      siswa.status === 'Dispen' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-200' : ''
                                     }`}
                                   >
                                     {siswa.status}
@@ -318,13 +318,13 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                 </div>
                                 <div className="space-y-1">
                                   {siswa.waktu_absen && (
-                                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                       <span className="font-medium">Waktu:</span>
                                       <span>{formatTime24(siswa.waktu_absen)}</span>
                                     </div>
                                   )}
                                   {siswa.alasan && (
-                                    <div className="flex items-start gap-2 text-xs text-gray-600">
+                                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
                                       <span className="font-medium">Keterangan:</span>
                                       <span className="flex-1">{siswa.alasan}</span>
                                     </div>
@@ -345,9 +345,9 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
         
         {/* Pagination */}
         {!loading && Object.keys(historyData).length > 0 && totalPages > 1 && (
-          <div className="mt-6 pt-4 border-t">
+          <div className="mt-6 pt-4 border-t border-border">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+              <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                 Menampilkan {Object.keys(historyData).length} hari dari {totalDays} total
               </div>
               

@@ -517,19 +517,19 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
               </Select>
             </div>
             {toClassId && (
-              <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border-2 border-blue-200">
+              <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-500/10 to-emerald-500/10 rounded-lg border-2 border-primary/20">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <div className="flex-shrink-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                       <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">
                       Kelas Tujuan Terdeteksi
                     </p>
-                    <p className="text-sm sm:text-lg font-bold text-gray-900 break-words">
-                      {fromClass?.nama_kelas} → <span className="text-green-700">{toClass?.nama_kelas}</span>
+                    <p className="text-sm sm:text-lg font-bold text-foreground break-words">
+                      {fromClass?.nama_kelas} → <span className="text-emerald-600 dark:text-emerald-400">{toClass?.nama_kelas}</span>
                     </p>
                   </div>
                 </div>
@@ -544,10 +544,10 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
-              <Home className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Sistem Promosi Otomatis</h3>
-              <p className="text-sm sm:text-base text-gray-500 mb-2 px-2">Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan</p>
-              <p className="text-xs sm:text-sm text-gray-400 break-words">Contoh: X IPA 1 → XI IPA 1</p>
+              <Home className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Sistem Promosi Otomatis</h3>
+              <p className="text-sm sm:text-base text-muted-foreground mb-2 px-2">Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan</p>
+              <p className="text-xs sm:text-sm text-muted-foreground/70 break-words">Contoh: X IPA 1 → XI IPA 1</p>
             </div>
           </CardContent>
         </Card>
@@ -558,9 +558,9 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak Ada Siswa</h3>
-              <p className="text-gray-500">Tidak ada siswa ditemukan di kelas yang dipilih</p>
+              <Users className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">Tidak Ada Siswa</h3>
+              <p className="text-muted-foreground">Tidak ada siswa ditemukan di kelas yang dipilih</p>
             </div>
           </CardContent>
         </Card>
@@ -570,14 +570,14 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       {fromClassId && (
         <Card>
           <CardContent className="pt-4">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               <p><strong>Status:</strong></p>
               <p>Kelas Asal: {fromClass?.nama_kelas || 'Tidak dipilih'}</p>
               <p>Kelas Tujuan: {toClass?.nama_kelas || 'Belum terdeteksi'}</p>
               <p>Siswa Tersedia: {students.length} siswa</p>
               <p>Siswa Terpilih: {selectedStudents.size} siswa</p>
               {process.env.NODE_ENV === 'development' && (
-                <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <p><strong>Debug Info:</strong></p>
                   <p>fromClassId: {fromClassId}</p>
                   <p>toClassId: {toClassId}</p>
@@ -639,7 +639,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
                   <div
                     key={student.id_siswa}
                     className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-3 ${
-                      selectedStudents.has(student.id_siswa) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
+                      selectedStudents.has(student.id_siswa) ? 'bg-primary/10 border-primary/30' : 'bg-card border-border'
                     }`}
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -650,8 +650,8 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-gray-900 truncate">{student.nama}</p>
-                        <p className="text-sm text-gray-500">NIS: {student.nis}</p>
+                        <p className="font-medium text-foreground truncate">{student.nama}</p>
+                        <p className="text-sm text-muted-foreground">NIS: {student.nis}</p>
                       </div>
                     </div>
                     <div className="flex justify-end sm:justify-start">
@@ -680,21 +680,21 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 sm:p-4 bg-gradient-to-r from-blue-500/10 to-emerald-500/10 rounded-lg border">
               <div className="text-center">
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Dari Kelas</p>
-                <p className="text-sm sm:text-lg font-semibold text-blue-700 break-words">{fromClass?.nama_kelas}</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Dari Kelas</p>
+                <p className="text-sm sm:text-lg font-semibold text-blue-600 dark:text-blue-400 break-words">{fromClass?.nama_kelas}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Ke Kelas</p>
-                <p className="text-sm sm:text-lg font-semibold text-green-700 break-words">{toClass?.nama_kelas}</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Ke Kelas</p>
+                <p className="text-sm sm:text-lg font-semibold text-emerald-600 dark:text-emerald-400 break-words">{toClass?.nama_kelas}</p>
               </div>
             </div>
             
-            <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <div className="p-3 sm:p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-gray-500" />
-                <p className="text-xs sm:text-sm font-medium text-gray-500">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Siswa yang akan dinaikkan ({selectedStudents.size} siswa):
                 </p>
               </div>
@@ -702,7 +702,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
                 {students
                   .filter(student => selectedStudents.has(student.id_siswa))
                   .map((student) => (
-                    <div key={student.id_siswa} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-white border rounded-lg hover:bg-gray-50 gap-2">
+                    <div key={student.id_siswa} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-card border rounded-lg hover:bg-muted/50 gap-2">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-xs sm:text-sm font-medium text-blue-700">
@@ -710,8 +710,8 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
                           </span>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <span className="font-medium text-gray-900 text-sm sm:text-base truncate block">{student.nama}</span>
-                          <p className="text-xs sm:text-sm text-gray-500">NIS: {student.nis}</p>
+                          <span className="font-medium text-foreground text-sm sm:text-base truncate block">{student.nama}</span>
+                          <p className="text-xs sm:text-sm text-muted-foreground">NIS: {student.nis}</p>
                         </div>
                       </div>
                       <div className="flex justify-end sm:justify-start">

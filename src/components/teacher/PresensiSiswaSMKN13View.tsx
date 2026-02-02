@@ -154,8 +154,8 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       </Card>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600">{error}</p>
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+          <p className="text-destructive">{error}</p>
         </div>
       )}
 
@@ -233,7 +233,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                             <Badge variant="outline" className="bg-orange-400 text-white border-orange-500">{item.terlambat_count || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="bg-blue-100">
+                            <Badge variant="outline" className="bg-blue-500/15 text-blue-700 dark:text-blue-400">
                               {presentase}%
                             </Badge>
                           </TableCell>

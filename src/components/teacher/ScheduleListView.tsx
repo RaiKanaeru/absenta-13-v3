@@ -27,14 +27,14 @@ export const ScheduleListView = ({ schedules, onSelectSchedule, isLoading }: Sch
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse bg-gray-200 h-16 sm:h-20 rounded"></div>
+            <div key={i} className="animate-pulse bg-muted h-16 sm:h-20 rounded"></div>
           ))}
         </div>
       ) : schedules.length === 0 ? (
         <div className="text-center py-8 sm:py-12">
-          <Calendar className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-400 mb-3 sm:mb-4" />
-          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Tidak ada jadwal hari ini</h3>
-          <p className="text-sm sm:text-base text-gray-600">Selamat beristirahat!</p>
+<Calendar className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+          <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Tidak ada jadwal hari ini</h3>
+          <p className="text-sm sm:text-base text-muted-foreground">Selamat beristirahat!</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -60,7 +60,7 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
       return (
         <div
           key={schedule.id}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50"
+          className="border-2 border-dashed border-border rounded-lg p-3 sm:p-4 bg-muted"
         >
           <div className="flex flex-col gap-3">
             <div className="flex-1 min-w-0">
@@ -79,10 +79,10 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
                 </Badge>
               </div>
               
-              <h4 className="font-medium text-gray-700 text-sm sm:text-base truncate">
+<h4 className="font-medium text-muted-foreground text-sm sm:text-base truncate">
                 {schedule.keterangan_khusus || schedule.nama_mapel}
               </h4>
-              <p className="text-xs sm:text-sm text-gray-600 truncate">{schedule.nama_kelas}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">{schedule.nama_kelas}</p>
               
               <div className="mt-2">
                 <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
@@ -99,7 +99,7 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
     return (
       <button
         key={schedule.id}
-        className="w-full text-left border rounded-lg p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full text-left border rounded-lg p-3 sm:p-4 hover:bg-muted cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
         onClick={() => onSelectSchedule(schedule)}
         type="button"
       >
@@ -115,15 +115,15 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
               </Badge>
             </div>
             
-            <h4 className="font-medium text-gray-900 text-sm sm:text-base truncate">{schedule.nama_mapel}</h4>
-            <p className="text-xs sm:text-sm text-gray-600 truncate">{schedule.nama_kelas}</p>
+<h4 className="font-medium text-foreground text-sm sm:text-base truncate">{schedule.nama_mapel}</h4>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{schedule.nama_kelas}</p>
             
             {schedule.is_multi_guru && schedule.other_teachers && (
               <div className="mt-2">
                 <Badge variant="secondary" className="text-xs mb-1">
                   Team Teaching
                 </Badge>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {schedule.other_teachers.split('||').map(teacher => teacher.split(':')[1]).join(', ')}
                 </p>
               </div>

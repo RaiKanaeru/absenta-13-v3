@@ -142,14 +142,14 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
         { label: 'Total', value: total, color: 'indigo', icon: GraduationCap, pct: presentase, pctLabel: '% Hadir' },
       ];
 
-      const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-        emerald: { bg: 'bg-emerald-50', border: 'border-l-emerald-500', text: 'text-emerald-700', icon: 'text-emerald-500' },
-        rose: { bg: 'bg-rose-50', border: 'border-l-rose-500', text: 'text-rose-700', icon: 'text-rose-500' },
-        sky: { bg: 'bg-sky-50', border: 'border-l-sky-500', text: 'text-sky-700', icon: 'text-sky-500' },
-        amber: { bg: 'bg-amber-50', border: 'border-l-amber-500', text: 'text-amber-700', icon: 'text-amber-500' },
-        violet: { bg: 'bg-violet-50', border: 'border-l-violet-500', text: 'text-violet-700', icon: 'text-violet-500' },
-        slate: { bg: 'bg-slate-50', border: 'border-l-slate-500', text: 'text-slate-700', icon: 'text-slate-500' },
-        indigo: { bg: 'bg-indigo-50', border: 'border-l-indigo-500', text: 'text-indigo-700', icon: 'text-indigo-500' },
+const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+        emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-500' },
+        rose: { bg: 'bg-rose-500/10 dark:bg-rose-500/20', border: 'border-l-rose-500', text: 'text-rose-700 dark:text-rose-400', icon: 'text-rose-500' },
+        sky: { bg: 'bg-sky-500/10 dark:bg-sky-500/20', border: 'border-l-sky-500', text: 'text-sky-700 dark:text-sky-400', icon: 'text-sky-500' },
+        amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-500' },
+        violet: { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-l-violet-500', text: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-500' },
+        slate: { bg: 'bg-muted', border: 'border-l-slate-500 dark:border-l-slate-400', text: 'text-foreground', icon: 'text-muted-foreground' },
+        indigo: { bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', border: 'border-l-indigo-500', text: 'text-indigo-700 dark:text-indigo-400', icon: 'text-indigo-500' },
       };
       
       return (
@@ -190,7 +190,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
       const strokeDashoffset = circumference - (presentase / 100) * circumference;
       
       return (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6 border border-indigo-100">
+        <div className="bg-indigo-500/10 dark:bg-indigo-500/20 rounded-xl p-6 mb-6 border border-indigo-500/20">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="relative">
               <svg className="w-32 h-32 transform -rotate-90">
@@ -218,25 +218,25 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
             </div>
             
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-slate-800 mb-1">Tingkat Kehadiran Guru Hari Ini</h3>
-              <p className="text-slate-600 text-sm mb-4">{hadir} dari {total} guru hadir</p>
+<h3 className="text-lg font-semibold text-foreground mb-1">Tingkat Kehadiran Guru Hari Ini</h3>
+              <p className="text-muted-foreground text-sm mb-4">{hadir} dari {total} guru hadir</p>
               
               <div className="grid grid-cols-4 gap-3">
                 <div className="text-center">
                   <p className="text-lg font-bold text-indigo-600">{hadir}</p>
-                  <p className="text-xs text-slate-500">Hadir</p>
+<p className="text-xs text-muted-foreground">Hadir</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-amber-600">{izin}</p>
-                  <p className="text-xs text-slate-500">Izin</p>
+                  <p className="text-xs text-muted-foreground">Izin</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-sky-600">{sakit}</p>
-                  <p className="text-xs text-slate-500">Sakit</p>
+                  <p className="text-xs text-muted-foreground">Sakit</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-rose-600">{tidakHadir}</p>
-                  <p className="text-xs text-slate-500">Tidak Hadir</p>
+                  <p className="text-xs text-muted-foreground">Tidak Hadir</p>
                 </div>
               </div>
             </div>
@@ -254,7 +254,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
 
       return (
         <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredData.length)} dari {filteredData.length} data
         </div>
           <div className="flex items-center space-x-2">
@@ -385,7 +385,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Memuat data pemantauan guru...</p>
+              <p className="mt-2 text-muted-foreground">Memuat data pemantauan guru...</p>
             </div>
           </div>
         </div>
@@ -400,32 +400,32 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
         </Button>
 
         {/* Info Hari dan Waktu */}
-        <Card className="border-indigo-200 bg-indigo-50">
+<Card className="border-indigo-500/20 bg-indigo-500/10 dark:bg-indigo-500/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Clock className="w-5 h-5 text-indigo-600" />
+                <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <div>
-                  <p className="font-semibold text-indigo-800">
+                  <p className="font-semibold text-indigo-800 dark:text-indigo-300">
                     {formatDateOnly(currentTime)}
                   </p>
-                  <p className="text-sm text-indigo-600">
+<p className="text-sm text-indigo-600 dark:text-indigo-400">
                     Jam: {formatTime24WithSeconds(currentTime)}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-indigo-600">Data Real-time</p>
-                <p className="text-xs text-indigo-500">Update setiap 30 detik</p>
+                <p className="text-sm text-indigo-600 dark:text-indigo-400">Data Real-time</p>
+                <p className="text-xs text-indigo-500 dark:text-indigo-300">Update setiap 30 detik</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {error && (
-          <Card className="border-red-200 bg-red-50">
+<Card className="border-destructive/20 bg-destructive/10">
             <CardContent className="p-4">
-              <div className="flex items-center text-red-800">
+              <div className="flex items-center text-destructive">
                 <AlertTriangle className="w-5 h-5 mr-2" />
                 <p>{error}</p>
               </div>
@@ -447,11 +447,11 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
                   <GraduationCap className="w-5 h-5 mr-2" />
                   Pemantauan Guru Langsung
                   {searchQuery === '' ? (
-                    <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800">
+<Badge variant="secondary" className="ml-2 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                       Mode: Hanya yang Sudah Absen
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
+                    <Badge variant="secondary" className="ml-2 bg-blue-500/15 text-blue-700 dark:text-blue-400">
                       Mode: Pencarian (Semua Data)
                     </Badge>
                   )}
@@ -481,9 +481,9 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
             {/* Filter and Search Controls */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+<label className="block text-sm font-medium text-foreground mb-2">
                   Pencarian (Nama, NIP, atau Mata Pelajaran){' '}
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-xs text-muted-foreground ml-2">
                     (Menampilkan semua guru yang sesuai kriteria pencarian)
                   </span>
                 </label>
@@ -492,17 +492,17 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
                   placeholder="Cari berdasarkan nama, NIP, atau mata pelajaran..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
                 />
               </div>
               <div className="sm:w-48">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+<label className="block text-sm font-medium text-foreground mb-2">
                   Filter Mata Pelajaran
                 </label>
                 <select
                   value={selectedMapel}
                   onChange={(e) => setSelectedMapel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
                 >
                   <option value="all">Semua Mata Pelajaran</option>
                   {mapelList.map((mapel, index) => (
@@ -547,11 +547,11 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
                           </TableCell>
                           <TableCell>
                             {teacher.waktu_absen ? (
-                              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                              <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
                                 {teacher.waktu_absen}
                               </span>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -574,7 +574,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
                 <TeacherPagination />
               </>
             ) : (
-              <div className="text-center py-12 text-gray-500">
+<div className="text-center py-12 text-muted-foreground">
                 <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>{filteredData.length === 0 && attendanceData.length > 0 ? 'Tidak ada data yang sesuai dengan filter' : 'Belum ada data absensi guru hari ini'}</p>
                 <p className="text-sm">{filteredData.length === 0 && attendanceData.length > 0 ? 'Coba ubah filter atau pencarian' : 'Data akan muncul saat guru melakukan absensi'}</p>

@@ -675,10 +675,10 @@ const BackupManagementView: React.FC = () => {
             {/* Header Section - Mobile Responsive */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                    <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Backup & Archive Management</h2>
-                    <p className="text-sm lg:text-base text-muted-foreground mt-1">
-                        Kelola backup database dan operasi arsip
-                    </p>
+            <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Backup & Archive Management</h2>
+            <p className="text-sm lg:text-base text-muted-foreground mt-1">
+                Kelola backup database dan operasi arsip
+            </p>
                     
                     {/* Status Information - Mobile Optimized */}
                     <div className="mt-3 space-y-1">
@@ -699,7 +699,7 @@ const BackupManagementView: React.FC = () => {
                             </div>
                         )}
                         {customSchedules.length === 0 && (
-                            <div className="text-xs lg:text-sm text-gray-500 flex items-center">
+                            <div className="text-xs lg:text-sm text-muted-foreground flex items-center">
                                 <Calendar className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">Belum ada jadwal backup custom yang dikonfigurasi</span>
                             </div>
@@ -1117,7 +1117,7 @@ const BackupManagementView: React.FC = () => {
                                 </Button>
                             </div>
                             
-                            <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded-lg">
+                            <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
                                 <p><strong>Catatan:</strong></p>
                                 <ul className="list-disc list-inside space-y-1 mt-2">
                                     <li>Data yang berusia lebih dari {backupSettings.archiveAge} bulan akan dipindahkan ke tabel arsip</li>
@@ -1215,8 +1215,8 @@ const BackupManagementView: React.FC = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-xs sm:text-sm font-medium text-blue-800">Backup Terakhir</Label>
-                                        <div className="p-3 bg-white border border-blue-200 rounded-lg">
-                                            <p className="text-xs sm:text-sm text-gray-600">
+                                        <div className="p-3 bg-card border border-blue-200 rounded-lg">
+                                            <p className="text-xs sm:text-sm text-muted-foreground">
                                                 {backupSettings.lastBackupDate 
                                                     ? new Date(backupSettings.lastBackupDate).toLocaleDateString('id-ID', {
                                                         weekday: 'long',
@@ -1233,8 +1233,8 @@ const BackupManagementView: React.FC = () => {
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs sm:text-sm font-medium text-blue-800">Backup Berikutnya</Label>
-                                        <div className="p-3 bg-white border border-blue-200 rounded-lg">
-                                            <p className="text-xs sm:text-sm text-gray-600">
+                                        <div className="p-3 bg-card border border-blue-200 rounded-lg">
+                                            <p className="text-xs sm:text-sm text-muted-foreground">
                                                 {backupSettings.nextBackupDate 
                                                     ? new Date(backupSettings.nextBackupDate).toLocaleDateString('id-ID', {
                                                         weekday: 'long',
@@ -1525,8 +1525,8 @@ const BackupManagementView: React.FC = () => {
 
                             {/* Jadwal yang Sudah Dijalankan */}
                             {customSchedules.some(s => s.lastRun) && (
-                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <div className="bg-muted border border-border rounded-lg p-4">
+                                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                                         <CheckCircle className="w-4 h-4" />
                                         Jadwal yang Sudah Dijalankan
                                     </h4>
@@ -1536,10 +1536,10 @@ const BackupManagementView: React.FC = () => {
                                             .sort((a, b) => new Date(b.lastRun).getTime() - new Date(a.lastRun).getTime())
                                             .slice(0, 3)
                                             .map((schedule) => (
-                                                <div key={schedule.id} className="flex justify-between items-center p-2 bg-white rounded border">
+                                                <div key={schedule.id} className="flex justify-between items-center p-2 bg-card rounded border">
                                                     <div>
                                                         <span className="font-medium">{schedule.name}</span>
-                                                        <span className="text-sm text-gray-600 ml-2">
+                                                        <span className="text-sm text-muted-foreground ml-2">
                                                             Dijalankan: {new Date(schedule.lastRun).toLocaleDateString('id-ID', {
                                                                 year: 'numeric',
                                                                 month: 'short',
@@ -1571,10 +1571,10 @@ const BackupManagementView: React.FC = () => {
                                             .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())
                                             .slice(0, 3)
                                             .map((schedule) => (
-                                                <div key={schedule.id} className="flex justify-between items-center p-2 bg-white rounded border">
+                                                <div key={schedule.id} className="flex justify-between items-center p-2 bg-card rounded border">
                                                     <div>
                                                         <span className="font-medium">{schedule.name}</span>
-                                                        <span className="text-sm text-gray-600 ml-2">
+                                                        <span className="text-sm text-muted-foreground ml-2">
                                                             {new Date(`${schedule.date}T${schedule.time}`).toLocaleDateString('id-ID', {
                                                                 weekday: 'long',
                                                                 year: 'numeric',
@@ -1584,7 +1584,7 @@ const BackupManagementView: React.FC = () => {
                                                                 minute: '2-digit'
                                                             })}
                                                         </span>
-                                                        <div className="text-xs text-gray-500 mt-1">
+                                                        <div className="text-xs text-muted-foreground mt-1">
                                                             {(() => {
                                                                 const now = new Date();
                                                                 const scheduleTime = new Date(`${schedule.date}T${schedule.time}`);

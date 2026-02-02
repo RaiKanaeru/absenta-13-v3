@@ -422,9 +422,9 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                 id="nip"
                 value={userData.nip || ''}
                 disabled
-                className="bg-gray-50"
+                className="bg-muted"
               />
-              <p className="text-xs text-gray-500 mt-1">NIP tidak dapat diubah</p>
+              <p className="text-xs text-muted-foreground mt-1">NIP tidak dapat diubah</p>
             </div>
             <div>
               <Label htmlFor="mata_pelajaran">Mata Pelajaran</Label>
@@ -446,9 +446,9 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                 id="nis"
                 value={userData.nis || ''}
                 disabled
-                className="bg-gray-50"
+                className="bg-muted"
               />
-              <p className="text-xs text-gray-500 mt-1">NIS tidak dapat diubah</p>
+              <p className="text-xs text-muted-foreground mt-1">NIS tidak dapat diubah</p>
             </div>
             <div>
               <Label htmlFor="kelas">Kelas</Label>
@@ -456,9 +456,9 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                 id="kelas"
                 value={userData.kelas || ''}
                 disabled
-                className="bg-gray-50"
+                className="bg-muted"
               />
-              <p className="text-xs text-gray-500 mt-1">Kelas tidak dapat diubah</p>
+              <p className="text-xs text-muted-foreground mt-1">Kelas tidak dapat diubah</p>
             </div>
           </div>
         );
@@ -469,7 +469,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <Card className="border-0 shadow-none">
           <CardHeader className="border-b">
             <div className="flex items-center justify-between">
@@ -602,7 +602,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                             id="jenis_kelamin"
                             value={formData.jenis_kelamin}
                             onChange={(e) => handleInputChange('jenis_kelamin', e.target.value)}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-md ${errors.jenis_kelamin ? 'border-red-500' : ''}`}
+                            className={`w-full px-3 py-2 border border-border rounded-md bg-background text-foreground ${errors.jenis_kelamin ? 'border-red-500' : ''}`}
                           >
                             <option value="">Pilih jenis kelamin (opsional)</option>
                             <option value="L">Laki-laki</option>
@@ -655,7 +655,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                             id="jenis_kelamin"
                             value={formData.jenis_kelamin}
                             onChange={(e) => handleInputChange('jenis_kelamin', e.target.value)}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-md ${errors.jenis_kelamin ? 'border-red-500' : ''}`}
+                            className={`w-full px-3 py-2 border border-border rounded-md bg-background text-foreground ${errors.jenis_kelamin ? 'border-red-500' : ''}`}
                           >
                             <option value="">Pilih jenis kelamin (opsional)</option>
                             <option value="L">Laki-laki</option>

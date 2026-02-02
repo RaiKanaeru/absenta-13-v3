@@ -198,16 +198,16 @@ const MonitoringDashboard: React.FC = () => {
             warning: 'bg-yellow-500',
             critical: 'bg-red-500'
         };
-        return colorMap[status] || 'bg-gray-500';
+        return colorMap[status] || 'bg-muted-foreground';
     };
 
     const getSeverityColor = (severity: string) => {
         const colorMap: Record<string, string> = {
-            warning: 'bg-yellow-100 text-yellow-800',
-            critical: 'bg-orange-100 text-orange-800',
-            emergency: 'bg-red-100 text-red-800'
+            warning: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+            critical: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+            emergency: 'bg-destructive/15 text-destructive'
         };
-        return colorMap[severity] || 'bg-gray-100 text-gray-800';
+        return colorMap[severity] || 'bg-muted text-muted-foreground';
     };
 
     if (loading) {
@@ -334,7 +334,7 @@ const DashboardHeader = ({ autoRefresh, setAutoRefresh, onRefresh }) => (
     <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div className="min-w-0 flex-1">
             <h2 className="text-xl sm:text-2xl font-bold truncate">System Monitoring Dashboard</h2>
-            <p className="text-sm sm:text-base text-gray-600">Real-time system monitoring and alerting</p>
+            <p className="text-sm sm:text-base text-muted-foreground">Real-time system monitoring and alerting</p>
         </div>
         <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
             <Button
@@ -370,15 +370,15 @@ const SystemHealthCard = ({ health, system, getStatusColor, formatUptime }) => (
         <CardContent>
             <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                 <div className="min-w-0 flex-1">
-                    <Badge variant="outline" className={health?.status === 'healthy' ? 'bg-green-100 text-green-800' : health?.status === 'warning' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}>
+                    <Badge variant="outline" className={health?.status === 'healthy' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : health?.status === 'warning' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-destructive/15 text-destructive'}>
                         {(health?.status || 'unknown').toUpperCase()}
                     </Badge>
                     {health?.issues && health.issues.length > 0 && (
-                        <p className="text-xs sm:text-sm text-gray-600 mt-2 break-words">Issues: {health.issues.join(', ')}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-2 break-words">Issues: {health.issues.join(', ')}</p>
                     )}
                 </div>
                 <div className="text-left sm:text-right">
-                    <p className="text-xs sm:text-sm text-gray-600">System Uptime</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">System Uptime</p>
                     <p className="font-semibold text-sm sm:text-base">{formatUptime((system.uptime as number) || 0)}</p>
                 </div>
             </div>
@@ -510,7 +510,7 @@ const OverviewTabContent = ({ metrics, loadBalancer }) => (
             <CardContent className="space-y-4">
                 <div className="flex justify-between"><span>Active Requests:</span><Badge variant="outline">{(loadBalancer?.activeRequests as number) ?? 0}</Badge></div>
                 <div className="flex justify-between"><span>Queue Size:</span><Badge variant="outline">{(loadBalancer?.totalQueueSize as number) ?? 0}</Badge></div>
-                <div className="flex justify-between"><span>Circuit Breaker:</span><Badge variant="outline" className={(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>{(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'OPEN' : 'CLOSED'}</Badge></div>
+                <div className="flex justify-between"><span>Circuit Breaker:</span><Badge variant="outline" className={(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'bg-destructive/15 text-destructive' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'}>{(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'OPEN' : 'CLOSED'}</Badge></div>
             </CardContent>
         </Card>
     </div>
@@ -566,7 +566,7 @@ const AlertsTabContent = ({ alertStats, alerts, getSeverityColor, onViewDetails,
             </CardHeader>
             <CardContent>
                 {(alerts || []).length === 0 ? (
-                    <div className="text-center py-6 sm:py-8 text-gray-500">
+                    <div className="text-center py-6 sm:py-8 text-muted-foreground">
                         <CheckCircle className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4 text-green-500" />
                         <p className="text-sm sm:text-base">No active alerts</p>
                     </div>
@@ -581,8 +581,8 @@ const AlertsTabContent = ({ alertStats, alerts, getSeverityColor, onViewDetails,
                                         </Badge>
                                         <div className="min-w-0 flex-1">
                                             <h4 className="font-medium text-sm sm:text-base truncate">{alert.type}</h4>
-                                            <p className="text-xs sm:text-sm text-gray-600 break-words">{alert.message}</p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs sm:text-sm text-muted-foreground break-words">{alert.message}</p>
+                                            <p className="text-xs text-muted-foreground/70">
                                                 {new Date(alert.timestamp).toLocaleString()}
                                             </p>
                                         </div>
@@ -654,13 +654,13 @@ const PerformanceTabContent = ({ metrics }) => (
                 </div>
                 <div className="flex justify-between">
                     <span>Slow Queries:</span>
-                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                    <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
                         {metrics?.database?.queries?.slow || 0}
                     </Badge>
                 </div>
                 <div className="flex justify-between">
                     <span>Failed Queries:</span>
-                    <Badge variant="outline" className="bg-red-100 text-red-800">
+                    <Badge variant="outline" className="bg-destructive/15 text-destructive">
                         {metrics?.database?.queries?.failed || 0}
                     </Badge>
                 </div>
@@ -681,19 +681,19 @@ const DatabaseTabContent = ({ metrics }) => (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="text-center">
                     <div className="text-lg sm:text-2xl font-bold">{metrics?.database?.connections?.active || 0}</div>
-                    <p className="text-xs sm:text-sm text-gray-600">Active Connections</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Active Connections</p>
                 </div>
                 <div className="text-center">
                     <div className="text-lg sm:text-2xl font-bold">{metrics?.database?.connections?.idle || 0}</div>
-                    <p className="text-xs sm:text-sm text-gray-600">Idle Connections</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Idle Connections</p>
                 </div>
                 <div className="text-center">
                     <div className="text-lg sm:text-2xl font-bold">{metrics?.database?.queries?.total || 0}</div>
-                    <p className="text-xs sm:text-sm text-gray-600">Total Queries</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Total Queries</p>
                 </div>
                 <div className="text-center">
                     <div className="text-lg sm:text-2xl font-bold">{(metrics?.database?.responseTime?.average || 0).toFixed(2)}ms</div>
-                    <p className="text-xs sm:text-sm text-gray-600">Avg Query Time</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Avg Query Time</p>
                 </div>
             </div>
         </CardContent>
@@ -715,15 +715,15 @@ const AlertDetailsDialog = ({ alert, onClose, onResolve, getSeverityColor }) => 
                     </div>
                     <div>
                         <h4 className="font-medium text-sm sm:text-base">Message:</h4>
-                        <p className="text-xs sm:text-sm text-gray-600 break-words">{alert.message}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground break-words">{alert.message}</p>
                     </div>
                     <div>
                         <h4 className="font-medium text-sm sm:text-base">Timestamp:</h4>
-                        <p className="text-xs sm:text-sm text-gray-600">{new Date(alert.timestamp).toLocaleString()}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{new Date(alert.timestamp).toLocaleString()}</p>
                     </div>
                     <div>
                         <h4 className="font-medium text-sm sm:text-base">Data:</h4>
-                        <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">{JSON.stringify(alert.data, null, 2)}</pre>
+                        <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-40">{JSON.stringify(alert.data, null, 2)}</pre>
                     </div>
                     <div className="flex flex-col space-y-2 sm:flex-row sm:justify-end sm:space-y-0 sm:space-x-2">
                         <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>

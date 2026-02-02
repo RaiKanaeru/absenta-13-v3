@@ -11,16 +11,30 @@ const logger = createLogger('TeacherData');
 
 /**
  * Mengambil data semua guru untuk dashboard admin
- * GET /api/admin/teachers/data
+ * GET /api/admin/teachers-data
+ * @query {number} page - Page number (default: 1)
+ * @query {number} limit - Items per page (default: 15)
+ * @query {string} search - Search term for filtering
  */
 export const getTeachersData = async (req, res) => {
     const log = logger.withRequest(req, res);
-    log.requestStart('GetAll');
+    const { page = 1, limit = 15, search = '' } = req.query;
+    
+    log.requestStart('GetAll', { page, limit, search: search ? '***' : '' });
 
     try {
-        const results = await teacherService.getAllTeachers();
-        log.success('GetAll', { count: results.length });
-        res.json(results);
+        const result = await teacherService.getTeachersPaginated(page, limit, search);
+        
+        log.success('GetAll', { 
+            count: result.data.length, 
+            total: result.pagination.total,
+            page: result.pagination.current_page 
+        });
+        
+        res.json({
+            data: result.data,
+            pagination: result.pagination
+        });
     } catch (error) {
         log.dbError('query', error);
         return sendDatabaseError(res, error, 'Gagal mengambil data guru');

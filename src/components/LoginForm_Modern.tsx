@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Sparkles, Shield, Zap, AlertTriangle, Clock, User, Lock, Eye, EyeOff } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useTheme } from "@/components/theme-provider";
 
 interface LoginFormProps {
   onLogin: (credentials: { username: string; password: string }) => Promise<void>;
@@ -128,6 +129,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [lockoutRemaining, setLockoutRemaining] = useState<number>(0);
   const captchaRef = useRef<HCaptcha>(null);
+  const { theme } = useTheme();
 
   // Load initial state from storage on mount
   useEffect(() => {
@@ -411,7 +413,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                       sitekey="6ad030ba-63dc-4238-9bf4-0b2eeee81af8"
                       onVerify={onCaptchaVerify}
                       ref={captchaRef}
-                      theme="light"
+                      theme={theme === 'dark' ? 'dark' : 'light'}
                     />
                   </div>
                 </div>

@@ -36,11 +36,11 @@ interface BandingRequest {
 const StatusBandingBadge = ({ status }: { status: string }) => {
   switch (status) {
     case 'disetujui':
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-200"><CheckCircle className="w-3 h-3 mr-1" /> Disetujui</Badge>;
+      return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25"><CheckCircle className="w-3 h-3 mr-1" /> Disetujui</Badge>;
     case 'ditolak':
-      return <Badge className="bg-red-100 text-red-800 hover:bg-red-200"><XCircle className="w-3 h-3 mr-1" /> Ditolak</Badge>;
+      return <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/25"><XCircle className="w-3 h-3 mr-1" /> Ditolak</Badge>;
     default:
-      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200"><AlertTriangle className="w-3 h-3 mr-1" /> Menunggu</Badge>;
+      return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25"><AlertTriangle className="w-3 h-3 mr-1" /> Menunggu</Badge>;
   }
 };
 
@@ -198,7 +198,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali
           </Button>
-          <h2 className="text-2xl font-bold text-gray-800">Laporan Banding Absen</h2>
+          <h2 className="text-2xl font-bold text-foreground">Laporan Banding Absen</h2>
         </div>
         <Button onClick={handleExport} variant="outline">
           <Download className="w-4 h-4 mr-2" />
@@ -220,19 +220,19 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           {/* Filters */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <input
                 type="text"
                 placeholder="Cari nama siswa atau kelas..."
-                className="pl-10 pr-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="pl-10 pr-4 py-2 border border-border rounded-lg w-full focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
+<div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
               <select
-                className="border rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -245,7 +245,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 flex items-center">
+            <div className="bg-destructive/10 text-destructive p-4 rounded-lg mb-6 flex items-center">
               <AlertTriangle className="w-5 h-5 mr-2" />
               {error}
             </div>
@@ -273,7 +273,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                       <TableCell className="font-medium">{item.nama_siswa}</TableCell>
                       <TableCell>{item.kelas}</TableCell>
                       <TableCell>
-                        <div className="flex items-center text-sm text-gray-600">
+                        <div className="flex items-center text-sm text-muted-foreground">
                           <Calendar className="w-3 h-3 mr-1" />
                           {formatDateWIB(item.tanggal || item.tanggal_absen)}
                         </div>
@@ -292,7 +292,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                             Listing Bukti 
                           </a>
                         ) : (
-                          <span className="text-gray-400 text-sm">-</span>
+                          <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -323,7 +323,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Tidak ada data banding ditemukan
                     </TableCell>
                   </TableRow>
@@ -335,7 +335,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Halaman {currentPage} dari {totalPages}
               </div>
               <div className="flex gap-1">
@@ -407,18 +407,18 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <p className="text-sm font-medium">Detail Pengajuan:</p>
-              <div className="bg-gray-50 p-3 rounded-md text-sm">
+<div className="bg-muted p-3 rounded-md text-sm">
                 <div className="grid grid-cols-3 gap-1">
-                  <span className="text-gray-500">Siswa:</span>
+                  <span className="text-muted-foreground">Siswa:</span>
                   <span className="col-span-2 font-medium">{selectedBanding?.nama_siswa}</span>
                   
-                  <span className="text-gray-500">Kelas:</span>
+                  <span className="text-muted-foreground">Kelas:</span>
                   <span className="col-span-2">{selectedBanding?.kelas}</span>
                   
-                  <span className="text-gray-500">Tanggal:</span>
+                  <span className="text-muted-foreground">Tanggal:</span>
                   <span className="col-span-2">{selectedBanding && formatDateWIB(selectedBanding.tanggal || selectedBanding.tanggal_absen)}</span>
                   
-                  <span className="text-gray-500">Alasan:</span>
+                  <span className="text-muted-foreground">Alasan:</span>
                   <span className="col-span-2">{selectedBanding?.keterangan}</span>
                 </div>
               </div>

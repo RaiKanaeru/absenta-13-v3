@@ -43,16 +43,30 @@ function validatePromoteInput(fromClassId, toClassId, studentIds, log) {
 
 /**
  * Mengambil data semua siswa untuk dashboard admin
- * GET /api/admin/students/data
+ * GET /api/admin/students-data
+ * @query {number} page - Page number (default: 1)
+ * @query {number} limit - Items per page (default: 15)
+ * @query {string} search - Search term for filtering
  */
 export const getStudentsData = async (req, res) => {
     const log = logger.withRequest(req, res);
-    log.requestStart('GetAll');
+    const { page = 1, limit = 15, search = '' } = req.query;
+    
+    log.requestStart('GetAll', { page, limit, search: search ? '***' : '' });
 
     try {
-        const results = await studentService.getAllStudents();
-        log.success('GetAll', { count: results.length });
-        res.json(results);
+        const result = await studentService.getStudentsPaginated(page, limit, search);
+        
+        log.success('GetAll', { 
+            count: result.data.length, 
+            total: result.pagination.total,
+            page: result.pagination.current_page 
+        });
+        
+        res.json({
+            data: result.data,
+            pagination: result.pagination
+        });
     } catch (error) {
         log.dbError('query', error);
         return sendDatabaseError(res, error, 'Gagal mengambil data siswa');

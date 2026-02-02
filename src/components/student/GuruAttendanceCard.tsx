@@ -49,11 +49,11 @@ export const GuruAttendanceCard: React.FC<GuruAttendanceCardProps> = ({
   const isSubmitted = guru.status_kehadiran && guru.status_kehadiran !== 'belum_diambil';
 
   return (
-    <div className={`border rounded-lg p-3 sm:p-4 ${isSubmitted ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+    <div className={`border rounded-lg p-3 sm:p-4 ${isSubmitted ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
       {/* Header: Guru name and status */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 sm:mb-3">
         <div className="flex items-center gap-2">
-          <h5 className="font-medium text-gray-800 text-sm sm:text-base">{guru.nama_guru}</h5>
+          <h5 className="font-medium text-foreground text-sm sm:text-base">{guru.nama_guru}</h5>
           {isSubmitted ? (
             <CheckCircle2 className="w-4 h-4 text-green-600" />
           ) : (
@@ -73,11 +73,11 @@ export const GuruAttendanceCard: React.FC<GuruAttendanceCardProps> = ({
       </div>
 
       {/* NIP */}
-      <p className="text-xs sm:text-sm text-gray-600 mb-2">NIP: {guru.nip}</p>
+      <p className="text-xs sm:text-sm text-muted-foreground mb-2">NIP: {guru.nip}</p>
 
       {/* Waktu absen if exists */}
       {guru.waktu_absen && (
-        <p className="text-xs text-gray-500 mb-2 sm:mb-3">
+        <p className="text-xs text-muted-foreground mb-2 sm:mb-3">
           Waktu absen: {formatDateTime24(guru.waktu_absen, true)}
         </p>
       )}
@@ -129,7 +129,7 @@ export const GuruAttendanceCard: React.FC<GuruAttendanceCardProps> = ({
       {/* Keterangan textarea - only show for non-Hadir status */}
       {kehadiranStatus && kehadiranStatus !== 'Hadir' && (
         <div className="mt-2 sm:mt-3">
-          <Label htmlFor={`keterangan-${guruKey}`} className="text-xs sm:text-sm font-medium text-gray-700">
+          <Label htmlFor={`keterangan-${guruKey}`} className="text-xs sm:text-sm font-medium text-foreground">
             Keterangan untuk {guru.nama_guru}:
           </Label>
           <Textarea

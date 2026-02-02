@@ -256,7 +256,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
         <div>
           <button
             onClick={onBack}
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali
@@ -266,8 +266,8 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
               <BarChart3 className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Rekap Ketidakhadiran Siswa</h1>
-              <p className="text-gray-600">Format rekap ketidakhadiran sesuai standar SMKN 13</p>
+<h1 className="text-2xl font-bold text-foreground">Rekap Ketidakhadiran Siswa</h1>
+              <p className="text-muted-foreground">Format rekap ketidakhadiran sesuai standar SMKN 13</p>
             </div>
           </div>
         </div>
@@ -505,9 +505,9 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       {!loading && (!selectedKelas || !selectedTahun) && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Calendar className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Pilih Filter</h3>
-            <p className="text-gray-500 text-center">Pilih kelas dan tahun untuk melihat rekap ketidakhadiran</p>
+<Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Pilih Filter</h3>
+            <p className="text-muted-foreground text-center">Pilih kelas dan tahun untuk melihat rekap ketidakhadiran</p>
           </CardContent>
         </Card>
       )}
@@ -515,9 +515,9 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       {!loading && selectedKelas && selectedTahun && students.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada siswa</h3>
-            <p className="text-gray-500 text-center">Tidak ada siswa ditemukan untuk kelas yang dipilih</p>
+<Users className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada siswa</h3>
+            <p className="text-muted-foreground text-center">Tidak ada siswa ditemukan untuk kelas yang dipilih</p>
           </CardContent>
         </Card>
       )}
@@ -525,9 +525,9 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       {!loading && selectedKelas && selectedTahun && students.length > 0 && presensiData.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Calendar className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada data presensi</h3>
-            <p className="text-gray-500 text-center">Tidak ada data presensi untuk periode yang dipilih. Pastikan ada data absensi siswa untuk kelas dan periode yang dipilih.</p>
+<Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada data presensi</h3>
+            <p className="text-muted-foreground text-center">Tidak ada data presensi untuk periode yang dipilih. Pastikan ada data absensi siswa untuk kelas dan periode yang dipilih.</p>
           </CardContent>
         </Card>
       )}

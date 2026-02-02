@@ -116,9 +116,9 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
 
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'disetujui': return <Badge className="bg-green-100 text-green-800">Disetujui</Badge>;
-      case 'ditolak': return <Badge className="bg-red-100 text-red-800">Ditolak</Badge>;
-      default: return <Badge className="bg-yellow-100 text-yellow-800">Menunggu</Badge>;
+      case 'disetujui': return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">Disetujui</Badge>;
+      case 'ditolak': return <Badge className="bg-destructive/15 text-destructive border-0">Ditolak</Badge>;
+      default: return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0">Menunggu</Badge>;
     }
   };
 
@@ -135,12 +135,12 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
             <FileText className="w-6 h-6" />
             Laporan Banding Absen
           </h2>
-          <p className="text-gray-500">Monitoring pengajuan banding absensi siswa (read-only)</p>
+          <p className="text-muted-foreground">Monitoring pengajuan banding absensi siswa (read-only)</p>
         </div>
         
         <div className="flex flex-wrap gap-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Cari Siswa / Kelas..."
               className="pl-9 w-[200px]"
@@ -201,13 +201,13 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       Memuat data...
                     </TableCell>
                   </TableRow>
                 ) : filteredRequests.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       Tidak ada data banding ditemukan
                     </TableCell>
                   </TableRow>

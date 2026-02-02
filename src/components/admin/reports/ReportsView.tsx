@@ -196,7 +196,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Menu Laporan</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Menu Laporan</h1>
             <p className="text-muted-foreground text-sm">Pilih jenis laporan yang ingin Anda lihat</p>
           </div>
         </div>
@@ -214,7 +214,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
                   <item.icon className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1 leading-tight">{item.title}</h3>
+                  <h3 className="font-semibold text-foreground mb-1 leading-tight">{item.title}</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
                 </div>
               </CardContent>
@@ -254,11 +254,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
             <Card className="border-l-4 border-l-orange-600 shadow-sm max-w-3xl mx-auto">
             <CardContent className="p-6 space-y-6">
                 <div className="border-b pb-4">
-                <h2 className="text-xl font-semibold text-orange-700 flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
                     <GraduationCap className="w-5 h-5" />
                     Rekap Ketidakhadiran Guru (Tahunan)
                 </h2>
-                <p className="text-gray-500 text-sm mt-1">Download rekap kehadiran guru 1 tahun penuh.</p>
+                <p className="text-muted-foreground text-sm mt-1">Download rekap kehadiran guru 1 tahun penuh.</p>
                 </div>
 
                 <div className="space-y-2 max-w-xs">

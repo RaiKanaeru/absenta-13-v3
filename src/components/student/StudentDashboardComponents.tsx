@@ -14,9 +14,9 @@ export interface EmptyScheduleViewProps {
 
 const getBandingStatusClass = (status: string) => {
   switch (status) {
-    case 'disetujui': return 'bg-green-100 text-green-800 hover:bg-green-200';
-    case 'ditolak': return 'bg-red-100 text-red-800 hover:bg-red-200';
-    default: return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+    case 'disetujui': return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0 hover:bg-emerald-500/25';
+    case 'ditolak': return 'bg-destructive/15 text-destructive border-0 hover:bg-destructive/25';
+    default: return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0 hover:bg-amber-500/25';
   }
 };
 
@@ -32,13 +32,13 @@ const getBandingStatusLabel = (status: string) => {
 export const EmptyScheduleCard: React.FC<{ isEditMode: boolean; onRefresh: () => void }> = ({ isEditMode, onRefresh }) => (
   <Card>
     <CardContent className="p-6 sm:p-12 text-center">
-      <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
-      <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Tidak Ada Jadwal Hari Ini</h3>
-      <p className="text-sm sm:text-base text-gray-600 mb-4">
+      <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground mb-4" />
+      <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">Tidak Ada Jadwal Hari Ini</h3>
+      <p className="text-sm sm:text-base text-muted-foreground mb-4">
         Selamat beristirahat! Tidak ada mata pelajaran yang terjadwal untuk hari ini.
       </p>
       {!isEditMode && (
-        <p className="text-xs sm:text-sm text-gray-500 mb-4">
+        <p className="text-xs sm:text-sm text-muted-foreground mb-4">
           Gunakan tombol "Edit Absen (30 Hari)" di atas untuk melihat jadwal hari lain.
         </p>
       )}
@@ -132,10 +132,10 @@ export const BandingCardItem: React.FC<BandingItemProps> = ({ banding, isExpande
         {/* Header dengan tanggal */}
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium text-gray-900">
+            <div className="text-sm font-medium text-foreground">
               {formatDateWIB(banding.tanggal_pengajuan)}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               {formatTime24(banding.tanggal_pengajuan)}
             </div>
           </div>
@@ -145,23 +145,23 @@ export const BandingCardItem: React.FC<BandingItemProps> = ({ banding, isExpande
         </div>
 
         {/* Informasi jadwal (Mobile View) */}
-        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+        <div className="bg-muted rounded-lg p-3 space-y-2">
             <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
+            <Calendar className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium">{formatDateWIB(banding.tanggal_absen || '')}</span>
-            <span className="text-xs text-gray-500">({banding.jam_mulai}-{banding.jam_selesai})</span>
+            <span className="text-xs text-muted-foreground">({banding.jam_mulai}-{banding.jam_selesai})</span>
             </div>
             <div className="text-sm">
             <div className="font-medium">{banding.nama_mapel}</div>
-            <div className="text-gray-600">{banding.nama_guru}</div>
-            <div className="text-xs text-gray-500">{banding.nama_kelas}</div>
+            <div className="text-muted-foreground">{banding.nama_guru}</div>
+            <div className="text-xs text-muted-foreground">{banding.nama_kelas}</div>
             </div>
         </div>
 
         {/* Detail Siswa & Toggle */}
         <div className="space-y-2">
             <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-foreground">
                 {banding.nama_siswa || 'Siswa Individual'}
             </span>
             <Button
@@ -189,38 +189,38 @@ export const BandingCardItem: React.FC<BandingItemProps> = ({ banding, isExpande
 
         {/* Respon guru */}
         {banding.catatan_guru && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="text-xs font-medium text-blue-700 mb-1">Respon Guru:</div>
-            <div className="text-xs text-blue-600 break-words">{banding.catatan_guru}</div>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+            <div className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-1">Respon Guru:</div>
+            <div className="text-xs text-blue-600 dark:text-blue-300 break-words">{banding.catatan_guru}</div>
             </div>
         )}
 
         {/* Expanded Detail */}
         {isExpanded && (
             <div className="border-t pt-3 space-y-3">
-            <div className="bg-white rounded-lg border p-3">
-                <h4 className="font-semibold text-gray-800 mb-3 text-sm">Detail Siswa Banding</h4>
+            <div className="bg-card rounded-lg border p-3">
+                <h4 className="font-semibold text-foreground mb-3 text-sm">Detail Siswa Banding</h4>
                 
                 <div className="grid grid-cols-1 gap-3">
                 <div>
-                    <div className="text-xs font-medium text-gray-600 mb-1">Nama Siswa</div>
-                    <div className="text-sm text-gray-800">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Nama Siswa</div>
+                    <div className="text-sm text-foreground">
                     {banding.nama_siswa || 'Siswa Individual'}
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                    <div className="text-xs font-medium text-gray-600 mb-1">Status Tercatat</div>
-                    <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Status Tercatat</div>
+                    <div className="text-sm text-foreground capitalize">{banding.status_asli}</div>
                     </div>
                     <div>
-                    <div className="text-xs font-medium text-gray-600 mb-1">Status Diajukan</div>
-                    <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Status Diajukan</div>
+                    <div className="text-sm text-foreground capitalize">{banding.status_diajukan}</div>
                     </div>
                 </div>
                 <div>
-                    <div className="text-xs font-medium text-gray-600 mb-1">Alasan</div>
-                    <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Alasan</div>
+                    <div className="text-sm text-foreground">{banding.alasan_banding}</div>
                 </div>
                 </div>
             </div>
@@ -306,7 +306,7 @@ export const Pagination = React.memo(({ currentPage, totalPages, onPageChange }:
             </Button>
             
             <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-xs text-gray-600 whitespace-nowrap">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {currentPage}/{totalPages}
             </span>
             </div>
@@ -427,17 +427,17 @@ export const BandingList: React.FC<{
                  <TableRow>
                     <TableCell>
                       <div className="font-medium">{formatDateWIB(banding.tanggal_pengajuan)}</div>
-                      <div className="text-xs text-gray-500">{formatTime24(banding.tanggal_pengajuan)}</div>
+                      <div className="text-xs text-muted-foreground">{formatTime24(banding.tanggal_pengajuan)}</div>
                     </TableCell>
                     <TableCell>
                        <div>{formatDateWIB(banding.tanggal_absen)}</div>
-                       <div className="text-xs text-gray-500">{banding.jam_mulai}-{banding.jam_selesai}</div>
+                       <div className="text-xs text-muted-foreground">{banding.jam_mulai}-{banding.jam_selesai}</div>
                     </TableCell>
                     <TableCell>
                         <div className="text-sm">
                         <div className="font-medium">{banding.nama_mapel}</div>
-                        <div className="text-gray-600">{banding.nama_guru}</div>
-                        <div className="text-xs text-gray-500">{banding.nama_kelas}</div>
+                        <div className="text-muted-foreground">{banding.nama_guru}</div>
+                        <div className="text-xs text-muted-foreground">{banding.nama_kelas}</div>
                         </div>
                     </TableCell>
                     <TableCell>
@@ -448,7 +448,7 @@ export const BandingList: React.FC<{
                             <span>→</span>
                             <Badge variant="outline" className="px-1 py-0">{banding.status_diajukan}</Badge>
                         </div>
-                        <p className="text-xs text-gray-500 italic truncate max-w-[200px]" title={banding.alasan_banding}>
+                        <p className="text-xs text-muted-foreground italic truncate max-w-[200px]" title={banding.alasan_banding}>
                             "{banding.alasan_banding}"
                         </p>
                         </div>
@@ -458,7 +458,7 @@ export const BandingList: React.FC<{
                               {getBandingStatusLabel(banding.status_banding)}
                         </Badge>
                         {banding.tanggal_keputusan && (
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs text-muted-foreground mt-1">
                             {formatDateWIB(banding.tanggal_keputusan)}
                             </div>
                         )}
@@ -466,12 +466,12 @@ export const BandingList: React.FC<{
                     <TableCell>
                         <div className="max-w-xs">
                         {banding.catatan_guru ? (
-                            <div className="text-sm bg-gray-50 p-2 rounded border-l-2 border-gray-300">
-                            <div className="font-medium text-gray-700 mb-1">Respon Guru:</div>
-                            <div className="text-gray-600 break-words">{banding.catatan_guru}</div>
+                            <div className="text-sm bg-muted p-2 rounded border-l-2 border-border">
+                            <div className="font-medium text-foreground mb-1">Respon Guru:</div>
+                            <div className="text-muted-foreground break-words">{banding.catatan_guru}</div>
                             </div>
                         ) : (
-                            <span className="text-gray-400 text-sm">Belum ada respon</span>
+                            <span className="text-muted-foreground text-sm">Belum ada respon</span>
                         )}
                         </div>
                     </TableCell>
@@ -488,31 +488,31 @@ export const BandingList: React.FC<{
                         </Button>
                     </TableCell>
                  </TableRow>
-                 {expandedBanding === banding.id_banding && (
+                  {expandedBanding === banding.id_banding && (
                     <TableRow>
-                      <TableCell colSpan={7} className="bg-gray-50 p-0">
+                      <TableCell colSpan={7} className="bg-muted/50 p-0">
                         <div className="p-4">
-                          <div className="bg-white rounded-lg border p-4">
-                            <h4 className="font-semibold text-gray-800 mb-3">Detail Siswa Banding</h4>
+                          <div className="bg-card rounded-lg border p-4">
+                            <h4 className="font-semibold text-foreground mb-3">Detail Siswa Banding</h4>
                             <div className="border rounded-lg p-3">
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                 <div>
-                                  <div className="text-sm font-medium text-gray-600 mb-1">Nama Siswa</div>
-                                  <div className="text-sm text-gray-800">
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">Nama Siswa</div>
+                                  <div className="text-sm text-foreground">
                                     {banding.nama_siswa || 'Siswa Individual'}
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-sm font-medium text-gray-600 mb-1">Status Tercatat</div>
-                                  <div className="text-sm text-gray-800 capitalize">{banding.status_asli}</div>
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">Status Tercatat</div>
+                                  <div className="text-sm text-foreground capitalize">{banding.status_asli}</div>
                                 </div>
                                 <div>
-                                  <div className="text-sm font-medium text-gray-600 mb-1">Status Diajukan</div>
-                                  <div className="text-sm text-gray-800 capitalize">{banding.status_diajukan}</div>
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">Status Diajukan</div>
+                                  <div className="text-sm text-foreground capitalize">{banding.status_diajukan}</div>
                                 </div>
                                 <div>
-                                  <div className="text-sm font-medium text-gray-600 mb-1">Alasan</div>
-                                  <div className="text-sm text-gray-800">{banding.alasan_banding}</div>
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">Alasan</div>
+                                  <div className="text-sm text-foreground">{banding.alasan_banding}</div>
                                 </div>
                               </div>
                             </div>

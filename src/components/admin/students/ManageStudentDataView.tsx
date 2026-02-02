@@ -390,7 +390,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3">
               <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
                   placeholder="Cari berdasarkan nama, NIS, atau kelas..."
                   value={searchTerm}
@@ -462,9 +462,9 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
         <CardContent>
           {filteredStudents.length === 0 ? (
             <div className="text-center py-8">
-              <Users className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
+<Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
                 {searchTerm ? 'Tidak ada siswa yang cocok dengan pencarian' : 'Belum ada data siswa yang ditambahkan'}
               </p>
             </div>
@@ -490,7 +490,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                 <TableBody>
                   {pagedStudents.map((student, index) => (
                     <TableRow key={student.id_siswa}>
-                      <TableCell className="text-gray-500 text-sm">{startIndex + index + 1}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{startIndex + index + 1}</TableCell>
                       <TableCell className="font-mono text-sm">{student.nis}</TableCell>
                       <TableCell className="font-medium">{student.nama}</TableCell>
                       <TableCell>
@@ -499,7 +499,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                             {student.nama_kelas}
                           </Badge>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -519,7 +519,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                       <TableCell>
                         <Badge 
                           variant={student.status === 'aktif' ? 'default' : 'secondary'}
-                          className={student.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+                          className={student.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}
                         >
                           {student.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
                         </Badge>
@@ -574,7 +574,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{student.nama}</h3>
-                        <p className="text-xs text-gray-500 font-mono">NIS: {student.nis}</p>
+                        <p className="text-xs text-muted-foreground font-mono">NIS: {student.nis}</p>
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -615,14 +615,14 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500">Jenis Kelamin:</span>
+                        <span className="text-muted-foreground">Jenis Kelamin:</span>
                         <p>{student.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Status:</span>
+                        <span className="text-muted-foreground">Status:</span>
                         <Badge 
                           variant={student.status === 'aktif' ? 'default' : 'secondary'}
-                          className={`text-xs ${student.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                          className={`text-xs ${student.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                         >
                           {student.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
                         </Badge>
@@ -631,7 +631,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                     
                     {student.nama_kelas && (
                       <div>
-                        <span className="text-gray-500 text-xs">Kelas:</span>
+                        <span className="text-muted-foreground text-xs">Kelas:</span>
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs ml-1">
                           {student.nama_kelas}
                         </Badge>
@@ -640,18 +640,18 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500">Telepon Ortu:</span>
+                        <span className="text-muted-foreground">Telepon Ortu:</span>
                         <p className="font-mono">{student.telepon_orangtua || '-'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Telepon Siswa:</span>
+                        <span className="text-muted-foreground">Telepon Siswa:</span>
                         <p className="font-mono">{student.nomor_telepon_siswa || '-'}</p>
                       </div>
                     </div>
                     
                     {student.alamat && (
                       <div>
-                        <span className="text-gray-500 text-xs">Alamat:</span>
+                        <span className="text-muted-foreground text-xs">Alamat:</span>
                         <p className="text-xs mt-1">{student.alamat}</p>
                       </div>
                     )}

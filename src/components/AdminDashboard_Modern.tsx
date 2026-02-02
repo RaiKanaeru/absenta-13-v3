@@ -113,7 +113,7 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
         {guruList.split('||').map((guru) => {
           const guruId = guru.split(':')[0];
           return (
-            <Badge key={`guru-${guruId}`} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+            <Badge key={`guru-${guruId}`} variant="outline" className="text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0">
               {guru.split(':')[1]}
             </Badge>
           );
@@ -128,7 +128,7 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
         {namaGuru.split(',').map((guru) => {
           const trimmedName = guru.trim();
           return (
-            <Badge key={`name-${trimmedName}`} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+            <Badge key={`name-${trimmedName}`} variant="outline" className="text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0">
               {trimmedName}
             </Badge>
           );
@@ -139,7 +139,30 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
   // Case 3: Single teacher
   if (namaGuru) {
     return (
-      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+      <Badge variant="outline" className="text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0">
+        {namaGuru}
+      </Badge>
+    );
+  }
+  // Case 2: Multiple teachers comma-separated
+  if (namaGuru?.includes(',')) {
+    return (
+      <>
+        {namaGuru.split(',').map((guru) => {
+          const trimmedName = guru.trim();
+          return (
+            <Badge key={`name-${trimmedName}`} variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+              {trimmedName}
+            </Badge>
+          );
+        })}
+      </>
+    );
+  }
+  // Case 3: Single teacher
+  if (namaGuru) {
+    return (
+      <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
         {namaGuru}
       </Badge>
     );
@@ -229,47 +252,48 @@ const generatePageNumbers = (
  * Status color mappings for attendance badges (extracted to reduce nested ternaries)
  */
 const ATTENDANCE_STATUS_COLORS: Record<string, string> = {
-  'Hadir': 'bg-green-100 text-green-800',
-  'Sakit': 'bg-yellow-100 text-yellow-800',
-  'Izin': 'bg-yellow-100 text-yellow-800',
-  'Dispen': 'bg-purple-100 text-purple-800',
-  'Belum Absen': 'bg-gray-100 text-gray-800',
-  'Alpa': 'bg-red-100 text-red-800',
-  'Tidak Hadir': 'bg-red-100 text-red-800',
+  'Hadir': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  'Sakit': 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  'Izin': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'Dispen': 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  'Belum Absen': 'bg-muted text-muted-foreground',
+  'Alpa': 'bg-destructive/15 text-destructive',
+  'Tidak Hadir': 'bg-destructive/15 text-destructive',
 };
 
 const getAttendanceStatusColor = (status: string): string => {
-  return ATTENDANCE_STATUS_COLORS[status] || 'bg-red-100 text-red-800';
+  return ATTENDANCE_STATUS_COLORS[status] || 'bg-destructive/15 text-destructive';
 };
 
 /**
  * Time status color mappings
  */
 const TIME_STATUS_COLORS: Record<string, string> = {
-  'Tepat Waktu': 'bg-green-100 text-green-800',
-  'Terlambat Ringan': 'bg-yellow-100 text-yellow-800',
-  'Terlambat': 'bg-orange-100 text-orange-800',
-  'Terlambat Berat': 'bg-red-100 text-red-800',
+  'Tepat Waktu': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  'Terlambat Ringan': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'Terlambat': 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+  'Terlambat Berat': 'bg-destructive/15 text-destructive',
 };
 
 const getTimeStatusColor = (status: string | undefined): string => {
-  if (!status) return 'bg-gray-100 text-gray-600';
-  return TIME_STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
+  if (!status) return 'bg-muted text-muted-foreground';
+  return TIME_STATUS_COLORS[status] || 'bg-muted text-muted-foreground';
 };
 
 /**
  * Period color mappings
  */
 const PERIOD_COLORS: Record<string, string> = {
-  'Pagi': 'bg-blue-100 text-blue-800',
-  'Siang': 'bg-yellow-100 text-yellow-800',
-  'Sore': 'bg-orange-100 text-orange-800',
+  'Pagi': 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  'Siang': 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  'Sore': 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
 };
 
 const getPeriodColor = (period: string | undefined): string => {
-  if (!period) return 'bg-gray-100 text-gray-600';
-  return PERIOD_COLORS[period] || 'bg-gray-100 text-gray-600';
+  if (!period) return 'bg-muted text-muted-foreground';
+  return PERIOD_COLORS[period] || 'bg-muted text-muted-foreground';
 };
+
 
 /**
  * Activity type display mapping for schedules
@@ -546,7 +570,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
         <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Cari berdasarkan nama, kode, atau deskripsi mata pelajaran..."
                 value={searchTerm}
@@ -572,9 +596,9 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
         <CardContent>
           {filteredSubjects.length === 0 ? (
             <div className="text-center py-8">
-              <BookOpen className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
+              <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
                 {searchTerm ? 'Tidak ada mata pelajaran yang cocok dengan pencarian' : 'Belum ada mata pelajaran yang ditambahkan'}
               </p>
             </div>
@@ -596,8 +620,8 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                   <TableBody>
                     {filteredSubjects.map((subject, index) => (
                       <TableRow key={subject.id}>
-                        <TableCell className="text-gray-500 text-xs">{index + 1}</TableCell>
-                        <TableCell className="font-mono text-xs bg-gray-50 rounded px-2 py-1 max-w-20">
+                        <TableCell className="text-muted-foreground text-xs">{index + 1}</TableCell>
+                        <TableCell className="font-mono text-xs bg-muted rounded px-2 py-1 max-w-20">
                           {subject.kode_mapel}
                         </TableCell>
                         <TableCell className="font-medium text-xs">{subject.nama_mapel}</TableCell>
@@ -607,7 +631,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                         <TableCell>
                           <Badge 
                             variant={subject.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs ${subject.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            className={`text-xs ${subject.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                           >
                             {subject.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
                           </Badge>
@@ -663,7 +687,7 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{subject.nama_mapel}</h3>
-                          <p className="text-xs text-gray-500 font-mono bg-gray-50 rounded px-2 py-1 inline-block mt-1">
+                          <p className="text-xs text-muted-foreground font-mono bg-muted rounded px-2 py-1 inline-block mt-1">
                             {subject.kode_mapel}
                           </p>
                         </div>
@@ -706,23 +730,23 @@ const ManageSubjectsView = ({ onBack, onLogout }: { onBack: () => void; onLogout
                       
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-gray-500">Status:</span>
+                          <span className="text-muted-foreground">Status:</span>
                           <Badge 
                             variant={subject.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs mt-1 ${subject.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            className={`text-xs mt-1 ${subject.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                           >
                             {subject.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
                           </Badge>
                         </div>
                         <div>
-                          <span className="text-gray-500">No:</span>
+                          <span className="text-muted-foreground">No:</span>
                           <p className="font-medium">#{index + 1}</p>
                         </div>
                       </div>
                       
                       {subject.deskripsi && (
                         <div>
-                          <span className="text-gray-500">Deskripsi:</span>
+                          <span className="text-muted-foreground">Deskripsi:</span>
                           <p className="text-xs mt-1">{subject.deskripsi}</p>
                         </div>
                       )}
@@ -903,7 +927,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
         <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Cari berdasarkan nama kelas..."
                 value={searchTerm}
@@ -929,9 +953,9 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
         <CardContent>
           {filteredClasses.length === 0 ? (
             <div className="text-center py-8">
-              <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
+              <Home className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
                 {searchTerm ? 'Tidak ada kelas yang cocok dengan pencarian' : 'Belum ada kelas yang ditambahkan'}
               </p>
             </div>
@@ -951,7 +975,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
                   <TableBody>
                     {filteredClasses.map((kelas, index) => (
                       <TableRow key={kelas.id}>
-                        <TableCell className="text-gray-500 text-xs">{index + 1}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{index + 1}</TableCell>
                         <TableCell className="font-medium text-xs">{kelas.nama_kelas}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
@@ -1009,7 +1033,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{kelas.nama_kelas}</h3>
-                          <p className="text-xs text-gray-500">#{index + 1}</p>
+                          <p className="text-xs text-muted-foreground">#{index + 1}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -1049,7 +1073,7 @@ const ManageClassesView = ({ onBack, onLogout }: { onBack: () => void; onLogout:
                       </div>
                       
                       <div>
-                        <span className="text-gray-500 text-xs">Tingkat:</span>
+                        <span className="text-muted-foreground text-xs">Tingkat:</span>
                         <Badge variant="outline" className="text-xs mt-1">
                           {kelas.tingkat || 'Belum diatur'}
                         </Badge>
@@ -1652,20 +1676,22 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             Kembali
           </Button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Kelola Jadwal</h1>
-            <p className="text-sm text-gray-600">Atur jadwal pelajaran untuk setiap kelas</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kelola Jadwal</h1>
+            <p className="text-sm text-muted-foreground">Atur jadwal pelajaran untuk setiap kelas</p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            onClick={() => setViewMode('grid')} 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
-          >
-            <LayoutGrid className="w-3 h-3 mr-1" />
-            Grid Editor
-          </Button>
+                        <Button
+                          key={item.id}
+                          variant="outline"
+                          className="h-auto py-4 flex flex-col items-center justify-center gap-2 hover:bg-muted border-border"
+                          onClick={() => handleMenuClick(item.id)}
+                        >
+                          <div className={`p-2 rounded-full bg-gradient-to-br ${item.gradient} text-white`}>
+                            <item.icon className="h-4 w-4" />
+                          </div>
+                          <span className="text-xs text-center font-medium text-foreground">{item.title}</span>
+                        </Button>
           <Button onClick={() => setShowPreview(true)} variant="default" size="sm" className="text-xs">
             <Eye className="w-3 h-3 mr-1" />
             Preview Jadwal
@@ -1818,7 +1844,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                         })()}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Pilih satu atau lebih guru. Guru pertama menjadi guru utama.
                     </p>
                   </div>
@@ -1874,7 +1900,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                   placeholder="08:30"
                   required 
                 />
-                <p className="text-xs text-gray-500 mt-1">Format: HH:MM (24 jam) - Contoh: 08:30, 14:15</p>
+                <p className="text-xs text-muted-foreground mt-1">Format: HH:MM (24 jam) - Contoh: 08:30, 14:15</p>
               </div>
               <div>
                 <Label htmlFor="jam-selesai" className="text-sm font-medium">Jam Selesai (Format 24 Jam)</Label>
@@ -1885,7 +1911,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                   required={editingId !== null || consecutiveHours === 1}
                   disabled={!editingId && consecutiveHours > 1}
                 />
-                <p className="text-xs text-gray-500 mt-1">Format: HH:MM (24 jam) - Contoh: 08:30, 14:15</p>
+                <p className="text-xs text-muted-foreground mt-1">Format: HH:MM (24 jam) - Contoh: 08:30, 14:15</p>
               </div>
             </div>
             
@@ -1968,7 +1994,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             <div className="flex flex-col gap-3 w-full lg:w-auto">
               {/* Search Input */}
               <div className="relative flex-1 lg:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Cari jadwal..."
                   value={searchTerm}
@@ -2040,7 +2066,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
           </div>
           
           {/* Results Count */}
-          <div className="mb-3 text-sm text-gray-600">
+          <div className="mb-3 text-sm text-muted-foreground">
             Menampilkan {filteredSchedules.length} dari {schedules.length} jadwal
             {(searchTerm || searchFilter.kelas !== 'all' || searchFilter.hari !== 'all' || searchFilter.jenis !== 'all' || searchFilter.guru !== 'all') && (
               <Button 
@@ -2059,13 +2085,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
           
           {schedules.length === 0 ? (
             <div className="text-center py-6">
-              <Calendar className="w-10 h-10 mx-auto text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600">Belum ada jadwal</p>
+              <Calendar className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Belum ada jadwal</p>
             </div>
           ) : filteredSchedules.length === 0 ? (
             <div className="text-center py-6">
-              <Search className="w-10 h-10 mx-auto text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600">Tidak ada jadwal yang sesuai dengan filter</p>
+              <Search className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Tidak ada jadwal yang sesuai dengan filter</p>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -2217,7 +2243,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{schedule.nama_kelas}</h3>
-                        <p className="text-xs text-gray-500">{schedule.hari} - {schedule.jam_mulai} - {schedule.jam_selesai}</p>
+                        <p className="text-xs text-muted-foreground">{schedule.hari} - {schedule.jam_mulai} - {schedule.jam_selesai}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(schedule)} className="h-7 w-7 p-0">
@@ -2231,7 +2257,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500">Jenis:</span>
+                        <span className="text-muted-foreground">Jenis:</span>
                         <div className="mt-1">
                           <Badge 
                             variant={schedule.jenis_aktivitas === 'pelajaran' ? 'default' : 'secondary'} 
@@ -2242,11 +2268,11 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                         </div>
                       </div>
                       <div>
-                        <span className="text-gray-500">Status:</span>
+                        <span className="text-muted-foreground">Status:</span>
                         <div className="mt-1">
                           <Badge 
                             variant={schedule.is_absenable ? 'default' : 'secondary'}
-                            className={`text-xs ${schedule.is_absenable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            className={`text-xs ${schedule.is_absenable ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                           >
                             {schedule.is_absenable ? 'Aktif' : 'Non-aktif'}
                           </Badge>
@@ -2255,7 +2281,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     </div>
                     
                     <div className="text-xs">
-                      <span className="text-gray-500">Mata Pelajaran/Guru:</span>
+                      <span className="text-muted-foreground">Mata Pelajaran/Guru:</span>
                       <div className="mt-1">
                         {schedule.jenis_aktivitas === 'pelajaran' ? (
                           <div className="space-y-1">
@@ -2283,7 +2309,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     
                     {schedule.nama_ruang && (
                       <div className="text-xs">
-                        <span className="text-gray-500">Ruang:</span>
+                        <span className="text-muted-foreground">Ruang:</span>
                         <p className="mt-1 font-medium">{schedule.nama_ruang}</p>
                       </div>
                     )}
@@ -2459,8 +2485,8 @@ fetchRooms();
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Kelola Ruang Kelas</h2>
-          <p className="text-sm text-gray-600">Tambah, edit, dan hapus data ruang kelas</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Kelola Ruang Kelas</h2>
+          <p className="text-sm text-muted-foreground">Tambah, edit, dan hapus data ruang kelas</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button onClick={onBack} variant="outline" size="sm" className="text-xs">
@@ -2483,7 +2509,7 @@ fetchRooms();
         <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Cari ruang kelas..."
                 value={searchTerm}
@@ -2509,9 +2535,9 @@ fetchRooms();
         <CardContent>
           {filteredRooms.length === 0 ? (
             <div className="text-center py-8">
-              <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
+              <Home className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
                 {searchTerm ? 'Tidak ada ruang yang cocok dengan pencarian' : 'Belum ada ruang kelas yang ditambahkan'}
               </p>
             </div>
@@ -2590,7 +2616,7 @@ fetchRooms();
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{room.kode_ruang}</h3>
-                          <p className="text-xs text-gray-500">{room.nama_ruang || 'Tidak ada nama'}</p>
+                          <p className="text-xs text-muted-foreground">{room.nama_ruang || 'Tidak ada nama'}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -2628,15 +2654,15 @@ fetchRooms();
                       
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-gray-500">Lokasi:</span>
+                          <span className="text-muted-foreground">Lokasi:</span>
                           <p className="font-medium">{room.lokasi || '-'}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Kapasitas:</span>
+                          <span className="text-muted-foreground">Kapasitas:</span>
                           <p className="font-medium">{room.kapasitas || '-'}</p>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-gray-500">Status:</span>
+                          <span className="text-muted-foreground">Status:</span>
                           <div className="mt-1">
                             <Badge variant={room.status === 'aktif' ? 'default' : 'secondary'} className="text-xs">
                               {room.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
@@ -3019,7 +3045,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
 
     return (
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredData.length)} dari {filteredData.length} data
         </div>
         <div className="flex items-center space-x-2">
@@ -3137,7 +3163,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Memuat data pemantauan siswa...</p>
+          <p className="mt-2 text-muted-foreground">Memuat data pemantauan siswa...</p>
         </div>
       </div>
     );
@@ -3232,10 +3258,10 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           {/* Filter and Search Controls */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Pencarian (Nama atau NIS)
                 {searchQuery === '' && (
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-xs text-muted-foreground ml-2">
                     (Kosongkan untuk melihat hanya yang sudah absen)
                   </span>
                 )}
@@ -3250,17 +3276,17 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                 placeholder="Cari berdasarkan nama atau NIS..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="sm:w-48">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Filter Kelas
               </label>
               <select
                 value={selectedKelas}
                 onChange={(e) => setSelectedKelas(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Semua Kelas</option>
                 {classes.map((kelas, index) => (
@@ -3301,11 +3327,11 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                         </TableCell>
                         <TableCell>
                           {student.waktu_absen ? (
-                            <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                            <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
                               {student.waktu_absen}
                             </span>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -3328,7 +3354,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
               <Pagination />
             </>
             ) : (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>{filteredData.length === 0 && attendanceData.length > 0 ? 'Tidak ada data yang sesuai dengan filter' : 'Belum ada data absensi siswa'}</p>
                 <p className="text-sm">{filteredData.length === 0 && attendanceData.length > 0 ? 'Coba ubah filter atau pencarian' : 'Data akan muncul saat siswa melakukan absensi'}</p>
@@ -3581,8 +3607,8 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Riwayat Pengajuan Banding Absen</h1>
-            <p className="text-gray-600">Laporan dan history pengajuan banding absensi</p>
+            <h1 className="text-2xl font-bold text-foreground">Riwayat Pengajuan Banding Absen</h1>
+            <p className="text-muted-foreground">Laporan dan history pengajuan banding absensi</p>
           </div>
         </div>
 
@@ -3661,7 +3687,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
           <Card>
             <CardContent className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Sedang memuat data laporan...</p>
+              <p className="text-muted-foreground">Sedang memuat data laporan...</p>
             </CardContent>
           </Card>
         )}
@@ -3669,10 +3695,10 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
         {!loading && reportData.length === 0 && !error && (
           <Card>
             <CardContent className="p-12 text-center">
-              <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-600">Belum ada data banding absen untuk ditampilkan</p>
-              <p className="text-sm text-gray-500">Pilih filter dan klik "Tampilkan Laporan" untuk melihat data</p>
-              <p className="text-xs text-gray-400 mt-2">Pastikan ada pengajuan banding absen dalam periode yang dipilih</p>
+              <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Belum ada data banding absen untuk ditampilkan</p>
+              <p className="text-sm text-muted-foreground">Pilih filter dan klik "Tampilkan Laporan" untuk melihat data</p>
+              <p className="text-xs text-muted-foreground mt-2">Pastikan ada pengajuan banding absen dalam periode yang dipilih</p>
             </CardContent>
           </Card>
         )}
@@ -3971,7 +3997,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
 
       return (
         <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredData.length)} dari {filteredData.length} data
         </div>
           <div className="flex items-center space-x-2">
@@ -4102,7 +4128,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Memuat data pemantauan guru...</p>
+              <p className="mt-2 text-muted-foreground">Memuat data pemantauan guru...</p>
             </div>
           </div>
         </div>
@@ -4198,9 +4224,9 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
             {/* Filter and Search Controls */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Pencarian (Nama, NIP, atau Mata Pelajaran){' '}
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-xs text-muted-foreground ml-2">
                     (Menampilkan semua guru yang sesuai kriteria pencarian)
                   </span>
                 </label>
@@ -4209,17 +4235,17 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                   placeholder="Cari berdasarkan nama, NIP, atau mata pelajaran..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="sm:w-48">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Filter Mata Pelajaran
                 </label>
                 <select
                   value={selectedMapel}
                   onChange={(e) => setSelectedMapel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Semua Mata Pelajaran</option>
                   {mapelList.map((mapel, index) => (
@@ -4264,11 +4290,11 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                           </TableCell>
                           <TableCell>
                             {teacher.waktu_absen ? (
-                              <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                              <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
                                 {teacher.waktu_absen}
                               </span>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -4291,7 +4317,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                 <TeacherPagination />
               </>
             ) : (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-muted-foreground">
                 <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>{filteredData.length === 0 && attendanceData.length > 0 ? 'Tidak ada data yang sesuai dengan filter' : 'Belum ada data absensi guru hari ini'}</p>
                 <p className="text-sm">{filteredData.length === 0 && attendanceData.length > 0 ? 'Coba ubah filter atau pencarian' : 'Data akan muncul saat guru melakukan absensi'}</p>
@@ -4408,14 +4434,14 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
               Kembali ke Menu Laporan
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dasbor Analitik</h1>
-              <p className="text-gray-600">Memuat data analitik...</p>
+              <h1 className="text-2xl font-bold text-foreground">Dasbor Analitik</h1>
+              <p className="text-muted-foreground">Memuat data analitik...</p>
             </div>
           </div>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Memuat data analitik...</p>
+              <p className="mt-2 text-muted-foreground">Memuat data analitik...</p>
             </div>
           </div>
         </div>
@@ -4448,7 +4474,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali ke Menu Laporan
           </Button>
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             <AlertTriangle className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Gagal memuat data analitik</p>
           </div>
@@ -4463,7 +4489,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
         {/* Header - Modern */}
         <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
           <div className="flex items-center gap-4">
-            <Button onClick={onBack} variant="outline" className="bg-white">
+            <Button onClick={onBack} variant="outline" className="bg-background">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Kembali
             </Button>
@@ -4479,7 +4505,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                 <p className="text-sm text-slate-500">Tanggal</p>
                 <p className="font-mono text-slate-700">{getCurrentDateWIB()}</p>
               </div>
-              <Button onClick={toggleFullscreen} variant="outline" size="sm" className="bg-white">
+              <Button onClick={toggleFullscreen} variant="outline" size="sm" className="bg-background">
                 {isFullscreen ? <Minimize2 className="w-4 h-4 mr-1" /> : <Maximize2 className="w-4 h-4 mr-1" />}
                 {isFullscreen ? 'Keluar' : 'Fullscreen'}
               </Button>
@@ -4532,7 +4558,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Belum ada data kehadiran siswa</p>
                 </div>
@@ -4542,48 +4568,49 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
 
           {/* Quick Stats Card - Modern */}
           <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-50 to-slate-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-slate-700 flex items-center text-lg">
-                <Activity className="w-5 h-5 mr-2 text-slate-500" />
-                Ringkasan
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-white rounded-lg border border-emerald-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="text-xs font-medium text-emerald-700">Sistem</span>
-                    </div>
-                    <p className="text-lg font-bold text-emerald-600">Aktif</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-lg border border-sky-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 bg-sky-500 rounded-full animate-pulse" />
-                      <span className="text-xs font-medium text-sky-700">Database</span>
-                    </div>
-                    <p className="text-lg font-bold text-sky-600">OK</p>
-                  </div>
-                </div>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" />
+                      Total Guru
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">{teachers.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {teachers.filter(t => t.status === 'aktif').length} Aktif
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Total Siswa
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">{students.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {students.filter(s => s.status === 'aktif').length} Aktif
+                    </p>
+                  </CardContent>
+                </Card>
 
-                <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-500">Total Siswa</span>
-                    <span className="text-sm font-semibold text-slate-700">{analyticsData?.totalStudents || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-500">Total Guru</span>
-                    <span className="text-sm font-semibold text-slate-700">{analyticsData?.totalTeachers || 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-500">Server Time</span>
-                    <span className="text-xs font-mono text-slate-600">{formatTime24WithSeconds(new Date())}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Home className="h-4 w-4" />
+                      Total Kelas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">{classes.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {classes.filter(c => (c as Record<string, string | boolean>).status === 'aktif').length} Aktif
+                    </p>
+                  </CardContent>
+                </Card>
 
           {/* Teacher Attendance Chart - Modern */}
           <Card className="lg:col-span-3 border-0 shadow-sm">
@@ -4627,7 +4654,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Belum ada data kehadiran guru</p>
                 </div>
@@ -4665,7 +4692,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-gray-500">
+                <div className="text-center py-6 text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">Tidak ada data siswa alpa</p>
                 </div>
@@ -4702,7 +4729,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-gray-500">
+                <div className="text-center py-6 text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">Tidak ada data guru tidak hadir</p>
                 </div>
@@ -4884,8 +4911,8 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ringkasan Kehadiran Siswa</h1>
-          <p className="text-gray-600">Download ringkasan kehadiran siswa dalam format CSV</p>
+          <h1 className="text-2xl font-bold text-foreground">Ringkasan Kehadiran Siswa</h1>
+          <p className="text-muted-foreground">Download ringkasan kehadiran siswa dalam format CSV</p>
         </div>
       </div>
 
@@ -4960,7 +4987,7 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         <Card>
           <CardContent className="p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Sedang memuat data laporan...</p>
+            <p className="text-muted-foreground">Sedang memuat data laporan...</p>
           </CardContent>
         </Card>
       )}
@@ -4968,9 +4995,9 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
       {!loading && reportData.length === 0 && !error && (
         <Card>
           <CardContent className="p-12 text-center">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-600">Belum ada data untuk ditampilkan</p>
-            <p className="text-sm text-gray-500">Pilih tanggal dan klik "Tampilkan Laporan" untuk melihat data</p>
+            <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Belum ada data untuk ditampilkan</p>
+            <p className="text-sm text-muted-foreground">Pilih tanggal dan klik "Tampilkan Laporan" untuk melihat data</p>
           </CardContent>
         </Card>
       )}
@@ -5108,7 +5135,7 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
         <div>
           <button
             onClick={onBack}
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali
@@ -5118,8 +5145,8 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
               <FileText className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Ringkasan Kehadiran Guru</h1>
-              <p className="text-gray-600">Download ringkasan kehadiran guru dalam format CSV</p>
+              <h1 className="text-2xl font-bold text-foreground">Ringkasan Kehadiran Guru</h1>
+              <p className="text-muted-foreground">Download ringkasan kehadiran guru dalam format CSV</p>
             </div>
           </div>
         </div>
@@ -5227,9 +5254,9 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
       {!loading && reportData.length === 0 && !error && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada data</h3>
-            <p className="text-gray-500 text-center">Klik "Tampilkan Data" untuk melihat ringkasan kehadiran guru</p>
+            <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Belum ada data</h3>
+            <p className="text-muted-foreground text-center">Klik "Tampilkan Data" untuk melihat ringkasan kehadiran guru</p>
           </CardContent>
         </Card>
       )}

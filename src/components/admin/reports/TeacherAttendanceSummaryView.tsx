@@ -171,7 +171,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Kembali
                     </Button>
-                    <h2 className="text-2xl font-bold text-gray-800">Rekapitulasi Absensi Guru</h2>
+                    <h2 className="text-2xl font-bold text-foreground">Rekapitulasi Absensi Guru</h2>
                 </div>
                 <Button onClick={handleExportReport} variant="outline" disabled={!reportData.length}>
                     <Download className="w-4 h-4 mr-2" />
@@ -194,7 +194,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         <div className="w-full md:w-48">
                             <label className="text-sm font-medium mb-1 block">Periode</label>
                             <select
-                                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                                className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
                                 value={periode}
                                 onChange={(e) => {
                                     setPeriode(e.target.value);
@@ -212,7 +212,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                             <div className="w-full md:w-48">
                                 <label className="text-sm font-medium mb-1 block">Bulan</label>
                                 <select
-                                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                                    className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
                                     value={bulan}
                                     onChange={(e) => setBulan(parseInt(e.target.value))}
                                 >
@@ -228,7 +228,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         <div className="w-full md:w-48">
                             <label className="text-sm font-medium mb-1 block">Tahun</label>
                             <select
-                                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                                className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
                                 value={tahun}
                                 onChange={(e) => setTahun(parseInt(e.target.value))}
                             >
@@ -241,11 +241,11 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         <div className="w-full md:w-64">
                              <label className="text-sm font-medium mb-1 block">Cari Guru</label>
                              <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <input 
                                     type="text" 
                                     placeholder="Nama atau NIP..." 
-                                    className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                                    className="w-full pl-10 pr-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground placeholder:text-muted-foreground"
                                     value={searchValues}
                                     onChange={(e) => setSearchValues(e.target.value)}
                                 />
@@ -264,17 +264,17 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-[50px]">No</TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('nama')}>
+                                            <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('nama')}>
                                                 Nama {sortConfig?.key === 'nama' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                             </TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('nip')}>
+                                            <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('nip')}>
                                                 NIP {sortConfig?.key === 'nip' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                             </TableHead>
                                             <TableHead>Hadir</TableHead>
                                             <TableHead>Izin</TableHead>
                                             <TableHead>Sakit</TableHead>
                                             <TableHead>Tidak Hadir</TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort('presentase')}>
+                                            <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort('presentase')}>
                                                 % Kehadiran {sortConfig?.key === 'presentase' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                             </TableHead>
                                         </TableRow>
@@ -285,10 +285,10 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                                 <TableCell>{(currentPage - 1) * itemsPerPage + idx + 1}</TableCell>
                                                 <TableCell className="font-medium">{row.nama}</TableCell>
                                                 <TableCell>{row.nip}</TableCell>
-                                                <TableCell className="text-green-600 font-medium">{row.hadir}</TableCell>
-                                                <TableCell className="text-blue-600">{row.izin}</TableCell>
-                                                <TableCell className="text-yellow-600">{row.sakit}</TableCell>
-                                                <TableCell className="text-red-600 font-bold">{row.alpa}</TableCell>
+                                <TableCell className="text-emerald-600 dark:text-emerald-400 font-medium">{row.hadir}</TableCell>
+                                                <TableCell className="text-blue-600 dark:text-blue-400">{row.izin}</TableCell>
+                                                <TableCell className="text-amber-600 dark:text-amber-400">{row.sakit}</TableCell>
+                                                <TableCell className="text-destructive font-bold">{row.alpa}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={
                                                         parseFloat(String(row.presentase).replace('%', '')) >= 85 ? 'default' : 
@@ -306,7 +306,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                             {/* Pagination using helper */}
                             {totalPages > 1 && (
                                 <div className="flex items-center justify-between mt-4">
-                                    <div className="text-sm text-gray-600">
+                                    <div className="text-sm text-muted-foreground">
                                         Halaman {currentPage} dari {totalPages}
                                     </div>
                                     <div className="flex gap-1">
@@ -342,7 +342,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                             )}
                         </>
                     ) : (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-muted-foreground">
                             <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                             <p>Tidak ada data laporan untuk periode ini</p>
                         </div>

@@ -146,7 +146,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
             </div>
             
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Atau Pilih Rentang Tanggal Manual</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Atau Pilih Rentang Tanggal Manual</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                 <div>
                   <Label className="text-sm font-medium">Periode Mulai</Label>
@@ -203,8 +203,8 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       </Card>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600">{error}</p>
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+          <p className="text-destructive">{error}</p>
         </div>
       )}
 
@@ -274,15 +274,15 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                             <Badge variant="secondary" className="bg-purple-500">{item.dispen || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="bg-red-100">{totalAbsen}</Badge>
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive">{totalAbsen}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="bg-green-100">
+                            <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                               {presentaseHadir}%
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="bg-red-100">
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive">
                               {presentaseAbsen}%
                             </Badge>
                           </TableCell>

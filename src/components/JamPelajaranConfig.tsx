@@ -253,7 +253,7 @@ const JamPelajaranConfig: React.FC = () => {
                         <Clock className="h-6 w-6" />
                         Konfigurasi Jam Pelajaran
                     </h2>
-                    <p className="text-gray-600">Atur jam pelajaran untuk setiap kelas</p>
+                    <p className="text-muted-foreground">Atur jam pelajaran untuk setiap kelas</p>
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -306,12 +306,12 @@ const JamPelajaranConfig: React.FC = () => {
                                             <DialogTitle>Salin Jam Pelajaran</DialogTitle>
                                         </DialogHeader>
                                         <div className="space-y-4">
-                                            <p className="text-sm text-gray-600">
+<p className="text-sm text-muted-foreground">
                                                 Salin konfigurasi jam dari <strong>{selectedKelas.nama_kelas}</strong> ke:
                                             </p>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {kelasList.filter(k => k.id_kelas !== selectedKelasId).map(kelas => (
-                                                    <label key={kelas.id_kelas} className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-gray-50">
+                                                    <label key={kelas.id_kelas} className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-muted">
                                                         <input 
                                                             type="checkbox" 
                                                             checked={copyTargets.includes(kelas.id_kelas)}
@@ -352,7 +352,7 @@ const JamPelajaranConfig: React.FC = () => {
                         ) : (
                             <div className="space-y-3">
                                 {/* Header Row */}
-                                <div className="grid grid-cols-12 gap-2 text-sm font-medium text-gray-600 pb-2 border-b">
+                                <div className="grid grid-cols-12 gap-2 text-sm font-medium text-muted-foreground pb-2 border-b">
                                     <div className="col-span-1">Jam</div>
                                     <div className="col-span-3">Mulai</div>
                                     <div className="col-span-3">Selesai</div>

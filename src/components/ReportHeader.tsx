@@ -18,7 +18,7 @@ const ReportHeader: React.FC<ReportHeaderProps> = ({
     <Card className={`mb-6 ${className}`}>
       <CardContent className="p-6">
         {/* SMKN 13 Letterhead */}
-        <div className="text-center mb-6 p-4 bg-white border-2 border-gray-300">
+        <div className="text-center mb-6 p-4 bg-card border-2 border-border">
           <div className="text-sm font-bold">
             PEMERINTAH DAERAH PROVINSI JAWA BARAT<br />
             DINAS PENDIDIKAN<br />

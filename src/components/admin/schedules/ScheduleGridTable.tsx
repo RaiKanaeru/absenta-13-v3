@@ -143,12 +143,12 @@ function DraggableItem({ id, type, data, isDisabled }: {
       {...listeners}
       {...attributes}
       className={`
-        flex items-center gap-2 p-2 rounded-lg border bg-white
-        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab hover:border-blue-400 hover:bg-blue-50'}
+        flex items-center gap-2 p-2 rounded-lg border bg-background
+        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab hover:border-blue-400 hover:bg-blue-500/10'}
         ${isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''}
       `}
     >
-      <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+      <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       {isGuru ? (
         <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
       ) : (
@@ -158,9 +158,11 @@ function DraggableItem({ id, type, data, isDisabled }: {
         <p className="text-xs font-medium truncate">
           {displayName}
         </p>
-        <p className="text-xs text-gray-500 truncate">
-          {displayCode}
-        </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {activeDragItem.type === 'guru' 
+                  ? ((activeDragItem.item as Teacher).nip || '-') 
+                  : ((activeDragItem.item as Subject).kode_mapel || '-')}
+              </p>
       </div>
     </div>
   );
@@ -641,7 +643,7 @@ export function ScheduleGridTable({
           <ChevronLeft className="w-4 h-4 mr-2" /> Kembali
         </Button>
         <Card className="p-8 text-center">
-          <p className="text-gray-500">
+          <p className="text-muted-foreground">
             {matrixData?.message || 'Tidak ada data jadwal. Silakan seed tabel jam_pelajaran terlebih dahulu.'}
           </p>
           <Button onClick={fetchMatrix} className="mt-4">
@@ -658,7 +660,7 @@ export function ScheduleGridTable({
         {/* Main Grid Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b bg-white">
+          <div className="flex items-center justify-between p-3 border-b bg-background">
             <div className="flex items-center gap-4">
               <Button onClick={onBack} variant="ghost" size="sm">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Kembali
@@ -694,7 +696,7 @@ export function ScheduleGridTable({
           {/* Grid Table */}
           <div className="flex-1 overflow-auto">
             <table className="border-collapse text-xs min-w-max">
-              <thead className="sticky top-0 z-20 bg-white">
+              <thead className="sticky top-0 z-20 bg-background">
                 {/* Day headers */}
                 <tr>
                   <th className="sticky left-0 z-30 bg-slate-800 text-white p-2 border min-w-[80px]" rowSpan={2}>KELAS</th>
@@ -735,7 +737,7 @@ export function ScheduleGridTable({
                         {/* Class name - only show on first row */}
                         {rowIdx === 0 && (
                           <td 
-                            className="sticky left-0 z-10 bg-yellow-100 font-bold p-1 border text-center cursor-context-menu"
+                            className="sticky left-0 z-10 bg-amber-500/15 font-bold p-1 border text-center cursor-context-menu"
                             rowSpan={3}
                             onContextMenu={(e) => handleRowContextMenu(e, kelas.kelas_id)}
                           >
@@ -743,7 +745,7 @@ export function ScheduleGridTable({
                           </td>
                         )}
                         {/* Row type label */}
-                        <td className="sticky left-[80px] z-10 bg-gray-100 p-1 border text-center font-medium">
+                        <td className="sticky left-[80px] z-10 bg-muted p-1 border text-center font-medium">
                           {rowType}
                         </td>
                         {/* Schedule cells for each day */}
@@ -771,7 +773,7 @@ export function ScheduleGridTable({
                                     rowSpan={3}
                                     className="border p-0 h-full text-center align-middle font-bold text-xs"
                                     style={{ 
-                                      backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : (isSlotSpecial ? '#FFA500' : 'white') 
+                                      backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : (isSlotSpecial ? 'hsl(var(--primary) / 0.18)' : undefined) 
                                       // Default orange for breaks if no specific color
                                     }}
                                   >
@@ -792,7 +794,7 @@ export function ScheduleGridTable({
                               <td 
                                 key={cellId}
                                 className="border p-0 h-6"
-                                style={{ backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : 'white' }}
+                                style={{ backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : undefined }}
                                 role="gridcell"
                                 tabIndex={0}
                                 onKeyDown={(e) => {
@@ -831,7 +833,7 @@ export function ScheduleGridTable({
               Palette (Drag ke Grid)
             </h3>
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Cari..."
                 value={searchTerm}
@@ -856,7 +858,7 @@ export function ScheduleGridTable({
             <ScrollArea className="flex-1">
               <TabsContent value="guru" className="p-2 space-y-1 m-0">
                 {filteredTeachers.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center py-4">Tidak ada guru ditemukan</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">Tidak ada guru ditemukan</p>
                 ) : (
                   filteredTeachers.map(teacher => (
                     <DraggableItem
@@ -871,7 +873,7 @@ export function ScheduleGridTable({
 
               <TabsContent value="mapel" className="p-2 space-y-1 m-0">
                 {filteredSubjects.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center py-4">Tidak ada mapel ditemukan</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">Tidak ada mapel ditemukan</p>
                 ) : (
                   filteredSubjects.map(subject => (
                     <DraggableItem
@@ -886,7 +888,7 @@ export function ScheduleGridTable({
             </ScrollArea>
           </Tabs>
 
-          <div className="p-2 border-t bg-gray-50">
+          <div className="p-2 border-t bg-muted">
             {pendingChanges.length > 0 && (
               <Badge variant="secondary" className="w-full justify-center">
                 {pendingChanges.length} perubahan tertunda
@@ -961,18 +963,18 @@ export function ScheduleGridTable({
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-white border rounded-lg shadow-lg py-1 z-50"
+          className="fixed bg-background border rounded-lg shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
             onClick={() => handleCopyRow(contextMenu.kelasId)}
           >
             Copy Jadwal
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+            className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 disabled:opacity-50"
             onClick={() => handlePasteRow(contextMenu.kelasId)}
             disabled={!copiedRow}
           >
@@ -982,8 +984,8 @@ export function ScheduleGridTable({
       )}
       <DragOverlay>
         {activeDragItem ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg border bg-white shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-blue-500">
-            <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 p-2 rounded-lg border bg-background/90 shadow-xl w-48 pointer-events-none ring-2 ring-blue-500">
+      <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
             {activeDragItem.type === 'guru' ? (
               <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
             ) : (
@@ -995,7 +997,7 @@ export function ScheduleGridTable({
                   ? (activeDragItem.item as Teacher).nama 
                   : (activeDragItem.item as Subject).nama_mapel}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {activeDragItem.type === 'guru' 
                   ? ((activeDragItem.item as Teacher).nip || '-') 
                   : ((activeDragItem.item as Subject).kode_mapel || '-')}

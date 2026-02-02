@@ -347,7 +347,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3">
               <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
                   placeholder="Cari berdasarkan nama, NIP, atau mata pelajaran..."
                   value={searchTerm}
@@ -419,9 +419,9 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
         <CardContent>
           {filteredTeachers.length === 0 ? (
             <div className="text-center py-8">
-              <GraduationCap className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
+<GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
                 {searchTerm ? 'Tidak ada guru yang cocok dengan pencarian' : 'Belum ada data guru yang ditambahkan'}
               </p>
             </div>
@@ -447,7 +447,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                   <TableBody>
                     {pagedTeachers.map((teacher, index) => (
                       <TableRow key={teacher.id}>
-                        <TableCell className="text-gray-500 text-xs">{startIndex + index + 1}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{startIndex + index + 1}</TableCell>
                         <TableCell className="font-mono text-xs">{teacher.nip}</TableCell>
                         <TableCell className="font-medium text-xs">{teacher.nama}</TableCell>
                         <TableCell className="text-xs">{teacher.email || '-'}</TableCell>
@@ -461,7 +461,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                               {teacher.mata_pelajaran}
                             </Badge>
                           ) : (
-                            <span className="text-gray-400 text-xs">-</span>
+                            <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -472,7 +472,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                         <TableCell>
                           <Badge 
                             variant={teacher.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs ${teacher.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                            className={`text-xs ${teacher.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                           >
                             {teacher.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
                           </Badge>
@@ -528,7 +528,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{teacher.nama}</h3>
-                        <p className="text-xs text-gray-500 font-mono">{teacher.nip}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{teacher.nip}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button
@@ -569,22 +569,22 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500">Email:</span>
+                        <span className="text-muted-foreground">Email:</span>
                         <p className="font-medium">{teacher.email || '-'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Telepon:</span>
+                        <span className="text-muted-foreground">Telepon:</span>
                         <p className="font-medium">{teacher.telepon || '-'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Jenis Kelamin:</span>
+                        <span className="text-muted-foreground">Jenis Kelamin:</span>
                         <p className="font-medium">{teacher.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Status:</span>
+                        <span className="text-muted-foreground">Status:</span>
                         <Badge 
                           variant={teacher.status === 'aktif' ? 'default' : 'secondary'}
-                          className={`text-xs ${teacher.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                          className={`text-xs ${teacher.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
                         >
                           {teacher.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
                         </Badge>
@@ -593,7 +593,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                     
                     {teacher.mata_pelajaran && (
                       <div>
-                        <span className="text-gray-500 text-xs">Mata Pelajaran:</span>
+                        <span className="text-muted-foreground text-xs">Mata Pelajaran:</span>
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs mt-1">
                           {teacher.mata_pelajaran}
                         </Badge>
@@ -602,7 +602,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                     
                     {teacher.alamat && (
                       <div>
-                        <span className="text-gray-500 text-xs">Alamat:</span>
+                        <span className="text-muted-foreground text-xs">Alamat:</span>
                         <p className="text-xs mt-1">{teacher.alamat}</p>
                       </div>
                     )}

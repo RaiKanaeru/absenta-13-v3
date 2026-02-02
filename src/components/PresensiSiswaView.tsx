@@ -228,24 +228,24 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
   const { lakiLaki, perempuan } = countByGender();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <button
             onClick={onBack}
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali
           </button>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <FileText className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Presensi Siswa</h1>
-              <p className="text-gray-600">Format presensi siswa sesuai standar SMKN 13</p>
+              <h1 className="text-2xl font-bold text-foreground">Presensi Siswa</h1>
+              <p className="text-muted-foreground">Format presensi siswa sesuai standar SMKN 13</p>
             </div>
           </div>
         </div>
@@ -344,7 +344,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
           <CardContent>
             <div className="overflow-x-auto">
               {/* School Header */}
-              <div className="text-center mb-6 p-4 bg-white border-2 border-gray-300">
+              <div className="text-center mb-6 p-4 bg-card border-2 border-border">
                 {letterhead && letterhead.enabled && letterhead.lines && letterhead.lines.length > 0 ? (
                   <>
                     {/* Logo kiri dan kanan jika tersedia */}
@@ -416,53 +416,53 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
               </div>
 
               {/* Presensi Table */}
-              <div className="border-2 border-gray-400">
+              <div className="border-2 border-border">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-100 border-b-2 border-gray-400">
-                      <th className="border border-gray-300 p-2 text-center w-12">NO</th>
-                      <th className="border border-gray-300 p-2 text-center w-32">NIS / NISN</th>
-                      <th className="border border-gray-300 p-2 text-center w-48">NAMA</th>
-                      <th className="border border-gray-300 p-2 text-center w-8">L/P</th>
-                      <th className="border border-gray-300 p-2 text-center" colSpan={daysInMonth.length}>
+                    <tr className="bg-muted border-b-2 border-border">
+                      <th className="border border-border p-2 text-center w-12">NO</th>
+                      <th className="border border-border p-2 text-center w-32">NIS / NISN</th>
+                      <th className="border border-border p-2 text-center w-48">NAMA</th>
+                      <th className="border border-border p-2 text-center w-8">L/P</th>
+                      <th className="border border-border p-2 text-center" colSpan={daysInMonth.length}>
                         PERTEMUAN
                       </th>
-                      <th className="border border-gray-300 p-2 text-center w-20">KET</th>
+                      <th className="border border-border p-2 text-center w-20">KET</th>
                     </tr>
-                    <tr className="bg-gray-50 border-b border-gray-300">
-                      <th className="border border-gray-300 p-1"></th>
-                      <th className="border border-gray-300 p-1"></th>
-                      <th className="border border-gray-300 p-1"></th>
-                      <th className="border border-gray-300 p-1"></th>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="border border-border p-1"></th>
+                      <th className="border border-border p-1"></th>
+                      <th className="border border-border p-1"></th>
+                      <th className="border border-border p-1"></th>
                       {daysInMonth.map((day) => (
-                        <th key={day} className="border border-gray-300 p-1 text-center w-8">
+                        <th key={day} className="border border-border p-1 text-center w-8">
                           {day}
                         </th>
                       ))}
-                      <th className="border border-gray-300 p-1"></th>
+                      <th className="border border-border p-1"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {students.map((siswa, index) => (
-                      <tr key={siswa.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                        <td className="border border-gray-300 p-2 text-center">
+                      <tr key={siswa.id} className="hover:bg-muted/50">
+                        <td className="border border-border p-2 text-center">{index + 1}</td>
+                        <td className="border border-border p-2 text-center">
                           {siswa.nis} / {siswa.nisn}
                         </td>
-                        <td className="border border-gray-300 p-2">{siswa.nama}</td>
-                        <td className="border border-gray-300 p-2 text-center">{siswa.jenis_kelamin}</td>
+                        <td className="border border-border p-2">{siswa.nama}</td>
+                        <td className="border border-border p-2 text-center">{siswa.jenis_kelamin}</td>
                         {daysInMonth.map((day) => {
                           const status = getPresensiStatus(siswa.id, day);
                           return (
-                            <td key={day} className="border border-gray-300 p-1 text-center">
+                            <td key={day} className="border border-border p-1 text-center">
                               {status && (
                                 <span className={`px-1 py-0.5 text-xs rounded ${
-                                  status === 'H' ? 'bg-green-100 text-green-800' :
-                                  status === 'S' ? 'bg-red-100 text-red-800' :
-                                  status === 'A' ? 'bg-yellow-100 text-yellow-800' :
-                                  status === 'I' ? 'bg-blue-100 text-blue-800' :
-                                  status === 'D' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-gray-100 text-gray-800'
+                                  status === 'H' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' :
+                                  status === 'S' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
+                                  status === 'A' ? 'bg-destructive/15 text-destructive' :
+                                  status === 'I' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
+                                  status === 'D' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
+                                  'bg-muted text-muted-foreground'
                                 }`}>
                                   {status}
                                 </span>
@@ -470,7 +470,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                             </td>
                           );
                         })}
-                        <td className="border border-gray-300 p-2 text-center">
+                        <td className="border border-border p-2 text-center">
                           {(() => {
                             // Collect all keterangan for this student
                             const keteranganList = daysInMonth
@@ -481,15 +481,15 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                               .filter(Boolean);
                             
                             return keteranganList.length > 0 ? (
-                              <div className="text-xs text-gray-600 text-left max-w-32">
+                              <div className="text-xs text-muted-foreground text-left max-w-32">
                                 {keteranganList.map((item, idx) => (
                                   <div key={idx} className="mb-1">
-                                    <span className="font-semibold text-blue-600">{item.day}:</span> {item.keterangan}
+                                    <span className="font-semibold text-primary">{item.day}:</span> {item.keterangan}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-gray-400 text-xs">-</span>
+                              <span className="text-muted-foreground text-xs">-</span>
                             );
                           })()}
                         </td>
@@ -517,7 +517,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                 <div className="text-sm text-right">
                   <div>Guru Mata Pelajaran</div>
                   <div className="mt-8">
-                    <div className="border-b border-gray-400 w-32 mb-1"></div>
+                    <div className="border-b border-border w-32 mb-1"></div>
                     <div className="text-xs">(___________________)</div>
                   </div>
                 </div>
@@ -531,9 +531,9 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       {!loading && (!selectedKelas || !selectedBulan || !selectedTahun) && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Calendar className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Pilih Filter</h3>
-            <p className="text-gray-500 text-center">Pilih kelas, bulan, dan tahun untuk melihat presensi siswa</p>
+            <Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Pilih Filter</h3>
+            <p className="text-muted-foreground text-center">Pilih kelas, bulan, dan tahun untuk melihat presensi siswa</p>
           </CardContent>
         </Card>
       )}
@@ -541,9 +541,9 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       {!loading && selectedKelas && selectedBulan && selectedTahun && students.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada siswa</h3>
-            <p className="text-gray-500 text-center">Tidak ada siswa ditemukan untuk kelas yang dipilih</p>
+            <Users className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada siswa</h3>
+            <p className="text-muted-foreground text-center">Tidak ada siswa ditemukan untuk kelas yang dipilih</p>
           </CardContent>
         </Card>
       )}
@@ -551,9 +551,9 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       {!loading && selectedKelas && selectedBulan && selectedTahun && students.length > 0 && presensiData.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Calendar className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada data presensi</h3>
-            <p className="text-gray-500 text-center">Tidak ada data presensi untuk periode yang dipilih. Pastikan ada data absensi siswa untuk kelas dan periode yang dipilih.</p>
+            <Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada data presensi</h3>
+            <p className="text-muted-foreground text-center">Tidak ada data presensi untuk periode yang dipilih. Pastikan ada data absensi siswa untuk kelas dan periode yang dipilih.</p>
           </CardContent>
         </Card>
       )}

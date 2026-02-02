@@ -128,8 +128,8 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ringkasan Kehadiran Siswa</h1>
-          <p className="text-gray-600">Download ringkasan kehadiran siswa dalam format Excel</p>
+          <h1 className="text-2xl font-bold text-foreground">Ringkasan Kehadiran Siswa</h1>
+          <p className="text-muted-foreground">Download ringkasan kehadiran siswa dalam format Excel</p>
         </div>
       </div>
 
@@ -177,7 +177,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
             </div>
             
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Atau Pilih Rentang Tanggal Manual</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Atau Pilih Rentang Tanggal Manual</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div>
                   <Label className="text-sm font-medium">Periode Mulai</Label>
@@ -264,7 +264,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
                 <FileText className="w-5 h-5" />
                 Export Format SMK 13
               </CardTitle>
-              <p className="text-sm text-gray-600">
+<p className="text-sm text-muted-foreground">
                 Download laporan dalam format resmi SMK Negeri 13 Bandung
               </p>
             </CardHeader>
@@ -277,7 +277,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
                   <Download className="w-4 h-4 mr-2" />
                   Export Format SMK 13
                 </Button>
-                <div className="text-sm text-gray-500">
+<div className="text-sm text-muted-foreground">
                   Format resmi dengan header sekolah dan styling profesional
                 </div>
               </div>
@@ -289,9 +289,9 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       {!loading && reportData.length === 0 && !error && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada data laporan</h3>
-            <p className="text-gray-600 text-center">Pilih periode dan kelas, lalu klik "Tampilkan" untuk melihat laporan kehadiran siswa</p>
+<FileText className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Belum ada data laporan</h3>
+            <p className="text-muted-foreground text-center">Pilih periode dan kelas, lalu klik "Tampilkan" untuk melihat laporan kehadiran siswa</p>
           </CardContent>
         </Card>
       )}

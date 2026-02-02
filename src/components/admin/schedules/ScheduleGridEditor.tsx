@@ -94,7 +94,7 @@ function DroppableCell({
   return (
     <div 
       ref={setNodeRef} 
-      className={`h-full ${isOver && !isDisabled ? 'ring-2 ring-blue-500 bg-blue-100' : ''}`}
+      className={`h-full ${isOver && !isDisabled ? 'ring-2 ring-primary bg-primary/10' : ''}`}
     >
       {children}
     </div>
@@ -395,19 +395,19 @@ export function ScheduleGridEditor({
   }, []);
 
   const getCellBgColor = (cell: CellData | undefined, jamSlot: JamSlot) => {
-    if (jamSlot.jenis === 'istirahat') return 'bg-gray-200';
-    if (jamSlot.jenis === 'pembiasaan') return 'bg-purple-100';
-    if (!cell) return 'bg-white hover:bg-blue-50';
-    if (cell.jenis_aktivitas === 'upacara') return 'bg-yellow-100';
-    return 'bg-green-50';
+    if (jamSlot.jenis === 'istirahat') return 'bg-muted';
+    if (jamSlot.jenis === 'pembiasaan') return 'bg-purple-500/15';
+    if (!cell) return 'bg-background hover:bg-primary/5';
+    if (cell.jenis_aktivitas === 'upacara') return 'bg-amber-500/15';
+    return 'bg-emerald-500/10';
   };
 
   const renderEmptyState = () => (
-    <div className="p-8 text-center text-gray-500">Tidak ada data kelas</div>
+    <div className="p-8 text-center text-muted-foreground">Tidak ada data kelas</div>
   );
 
   const renderLoadingState = () => (
-    <div className="p-8 text-center text-gray-500">Memuat data...</div>
+    <div className="p-8 text-center text-muted-foreground">Memuat data...</div>
   );
 
   return (
@@ -423,8 +423,8 @@ export function ScheduleGridEditor({
                 Kembali
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Grid Editor Jadwal</h1>
-                <p className="text-sm text-gray-600">Klik cell atau drag dari palette</p>
+                <h1 className="text-xl font-bold text-foreground">Grid Editor Jadwal</h1>
+                <p className="text-sm text-muted-foreground">Klik cell atau drag dari palette</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -449,7 +449,7 @@ export function ScheduleGridEditor({
           {/* Toolbar */}
           <Card className="p-3 flex gap-4 items-center">
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
+              <Calendar className="w-4 h-4 text-muted-foreground" />
               <Select value={selectedHari} onValueChange={setSelectedHari}>
                 <SelectTrigger className="w-28">
                   <SelectValue />
@@ -462,7 +462,7 @@ export function ScheduleGridEditor({
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
+              <Filter className="w-4 h-4 text-muted-foreground" />
               <Select value={selectedTingkat} onValueChange={setSelectedTingkat}>
                 <SelectTrigger className="w-28">
                   <SelectValue placeholder="Semua" />
@@ -476,9 +476,9 @@ export function ScheduleGridEditor({
               </Select>
             </div>
             <div className="flex gap-2 ml-auto text-xs">
-              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-50 border rounded" /><span>Pelajaran</span></div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-purple-100 border rounded" /><span>Pembiasaan</span></div>
-              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-200 border rounded" /><span>Istirahat</span></div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-500/10 border border-border rounded" /><span>Pelajaran</span></div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-purple-500/15 border border-border rounded" /><span>Pembiasaan</span></div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 bg-muted border border-border rounded" /><span>Istirahat</span></div>
             </div>
           </Card>
 
@@ -490,19 +490,19 @@ export function ScheduleGridEditor({
               {!isLoading && matrixData && matrixData.rows.length > 0 && (
                 <table className="w-full text-xs border-collapse">
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-gray-100">
-                      <th className="border p-2 sticky left-0 bg-gray-100 z-30 min-w-28">Kelas</th>
+                    <tr className="bg-muted">
+                      <th className="border border-border p-2 sticky left-0 bg-muted z-30 min-w-28">Kelas</th>
                       {matrixData.jam_slots.map(slot => (
                         <th 
                           key={slot.jam_ke} 
-                          className={`border p-2 min-w-16 ${slot.jenis === 'istirahat' ? 'bg-gray-300' : ''}`}
+                          className={`border border-border p-2 min-w-16 ${slot.jenis === 'istirahat' ? 'bg-muted/80' : ''}`}
                         >
                           {slot.jenis === 'istirahat' ? (
-                            <span className="text-gray-600 text-xs">{slot.label || 'Ist.'}</span>
+                            <span className="text-muted-foreground text-xs">{slot.label || 'Ist.'}</span>
                           ) : (
                             <>
                               <div>J{slot.jam_ke}</div>
-                              <div className="text-gray-500 font-normal text-xs">{slot.jam_mulai?.slice(0,5)}</div>
+                              <div className="text-muted-foreground font-normal text-xs">{slot.jam_mulai?.slice(0,5)}</div>
                             </>
                           )}
                         </th>
@@ -511,9 +511,9 @@ export function ScheduleGridEditor({
                   </thead>
                   <tbody>
                     {matrixData.rows.map(row => (
-                      <tr key={row.kelas_id} className="hover:bg-gray-50">
+                      <tr key={row.kelas_id} className="hover:bg-muted/50">
                         <td 
-                          className="border p-1 font-medium sticky left-0 bg-white z-10 text-xs cursor-context-menu"
+                          className="border border-border p-1 font-medium sticky left-0 bg-background z-10 text-xs cursor-context-menu"
                           onContextMenu={(e) => handleRowContextMenu(e, row.kelas_id)}
                           title="Klik kanan untuk Copy/Paste"
                         >
@@ -527,7 +527,7 @@ export function ScheduleGridEditor({
                           return (
                             <td 
                               key={slot.jam_ke}
-                              className={`border p-0 relative min-w-16 h-16 transition-colors ${getCellBgColor(cell, slot)}`}
+                              className={`border border-border p-0 relative min-w-16 h-16 transition-colors ${getCellBgColor(cell, slot)}`}
                               onClick={() => handleCellClick(row.kelas_id, slot.jam_ke, cell)}
                               role="button"
                               tabIndex={0}
@@ -541,9 +541,9 @@ export function ScheduleGridEditor({
                               <DroppableCell kelasId={row.kelas_id} jamKe={slot.jam_ke} isDisabled={slot.jenis !== 'pelajaran'}>
                                 {cell && cell.jenis_aktivitas === 'pelajaran' && (
                                   <div className="p-1 text-[10px] leading-tight space-y-1">
-                                    <div className="font-bold truncate text-blue-700">{cell.nama_mapel}</div>
-                                    <div className="text-gray-600 truncate">{cell.nama_guru}</div>
-                                    {cell.kode_ruang && <div className="text-gray-400">{cell.kode_ruang}</div>}
+                                    <div className="font-bold truncate text-primary">{cell.nama_mapel}</div>
+                                    <div className="text-muted-foreground truncate">{cell.nama_guru}</div>
+                                    {cell.kode_ruang && <div className="text-muted-foreground/70">{cell.kode_ruang}</div>}
                                   </div>
                                 )}
                               </DroppableCell>
@@ -643,18 +643,18 @@ export function ScheduleGridEditor({
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-white border rounded-lg shadow-lg py-1 z-50"
+          className="fixed bg-background border border-border rounded-lg shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
             onClick={() => handleCopyRow(contextMenu.kelasId)}
           >
             Copy Jadwal
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+            className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 disabled:opacity-50"
             onClick={() => handlePasteRow(contextMenu.kelasId)}
             disabled={!copiedRow}
           >
@@ -665,8 +665,8 @@ export function ScheduleGridEditor({
 
       <DragOverlay>
         {activeDragItem ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg border bg-white shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-blue-500">
-            <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-background shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-primary">
+            <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
             {activeDragItem.type === 'guru' ? (
               <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
             ) : (
@@ -678,7 +678,7 @@ export function ScheduleGridEditor({
                   ? (activeDragItem.item as Teacher).nama 
                   : (activeDragItem.item as Subject).nama_mapel}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {activeDragItem.type === 'guru' 
                   ? ((activeDragItem.item as Teacher).nip || '-') 
                   : ((activeDragItem.item as Subject).kode_mapel || '-')}

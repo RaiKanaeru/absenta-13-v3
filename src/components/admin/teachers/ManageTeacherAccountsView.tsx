@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,19 @@ import { ArrowLeft, Download, Plus, Eye, EyeOff, Search, Users, GraduationCap, E
 import ExcelImportView from "../../ExcelImportView";
 import { Teacher, Subject } from "@/types/dashboard";
 import { GenderType, AccountStatusType } from "../types/adminTypes";
+
+// Define clear types for backend response
+interface PaginationMeta {
+  current_page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationMeta;
+}
 
 // ManageTeacherAccountsView Component
 const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
@@ -34,25 +47,83 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Search & Pagination State
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  
+  // Ref for AbortController to handle race conditions
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Debounce search term (500ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset page when search term or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, pageSize]);
 
   const fetchTeachers = useCallback(async () => {
+    // Abort previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setIsLoading(true);
     try {
-      const response = await apiCall<Teacher[] | { data?: Teacher[] }>('/api/admin/guru', { onLogout });
+      // Build query parameters for server-side pagination
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pageSize.toString(),
+        search: debouncedSearchTerm || '' // Ensure string
+      });
+
+      const response = await apiCall<Teacher[] | PaginatedResponse<Teacher>>(`/api/admin/guru?${queryParams.toString()}`, { 
+        onLogout,
+        signal: controller.signal
+      });
       
-      // Handle both response structures
-      const teachersData = Array.isArray(response) ? response : response.data || [];
-      setTeachers(Array.isArray(teachersData) ? teachersData : []);
+      // Handle response structure
+      if (Array.isArray(response)) {
+        // Fallback for array response
+        setTeachers(response);
+        setTotalItems(response.length);
+      } else {
+        // Standard paginated response
+        setTeachers(response.data || []);
+        setTotalItems(response.pagination?.total || 0);
+      }
     } catch (error: unknown) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      
       console.error('Error fetching teachers:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
+    } finally {
+      // Only unset loading if this is the current request
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+      }
     }
-  }, [onLogout]);
+  }, [currentPage, pageSize, debouncedSearchTerm, onLogout]);
 
   const fetchSubjects = useCallback(async () => {
     try {
@@ -67,8 +138,13 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
 
   useEffect(() => {
     fetchTeachers();
+  }, [fetchTeachers]);
+  
+  useEffect(() => {
+    // Fetch subjects only once on mount
     fetchSubjects();
-  }, [fetchTeachers, fetchSubjects]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Extracted validation helper to reduce CC
   const validateTeacherFormData = (data: typeof formData, isEditing: boolean): string | null => {
@@ -219,28 +295,10 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     }
   };
 
-  const filteredTeachers = teachers.filter(teacher => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (teacher.nama && teacher.nama.toLowerCase().includes(searchLower)) ||
-      (teacher.username && teacher.username.toLowerCase().includes(searchLower)) ||
-      (teacher.nip && teacher.nip.toLowerCase().includes(searchLower))
-    );
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / pageSize));
+  // Server-side pagination - calculate pages from server total
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
-  const pagedTeachers = filteredTeachers.slice(startIndex, startIndex + pageSize);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, pageSize]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const pagedTeachers = teachers; // No client-side slicing
 
   if (showImport) {
     return <ExcelImportView entityType="teacher-account" entityName="Akun Guru" onBack={() => setShowImport(false)} />;
@@ -259,7 +317,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
               Kelola Akun Guru
             </h1>
-            <p className="text-sm text-gray-600">Tambah, edit, dan hapus akun login guru</p>
+            <p className="text-sm text-muted-foreground">Tambah, edit, dan hapus akun login guru</p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -298,10 +356,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
               maxWidth: '42rem',
               margin: '0',
               padding: '1rem',
-              backgroundColor: 'white',
               borderRadius: '0.5rem',
               boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-              border: '1px solid #e5e7eb',
               boxSizing: 'border-box'
             }}
           >
@@ -447,7 +503,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -488,7 +544,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
                   placeholder="Cari berdasarkan nama, username, atau NIP..."
                   value={searchTerm}
@@ -497,7 +553,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                 />
               </div>
               <Badge variant="secondary" className="px-3 py-1 self-start sm:self-center">
-                {filteredTeachers.length} guru ditemukan
+                {totalItems} guru ditemukan
               </Badge>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -558,11 +614,11 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredTeachers.length === 0 ? (
+          {teachers.length === 0 && !isLoading ? (
             <div className="text-center py-8">
-              <GraduationCap className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 {searchTerm ? 'Tidak ada guru yang sesuai dengan pencarian' : 'Belum ada akun guru yang ditambahkan'}
               </p>
               {!searchTerm && (
@@ -596,7 +652,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                 <TableBody>
                   {pagedTeachers.map((teacher, index) => (
                     <TableRow key={teacher.id}>
-                      <TableCell className="text-gray-500 text-xs sm:text-sm">{startIndex + index + 1}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs sm:text-sm">{startIndex + index + 1}</TableCell>
                       <TableCell className="font-mono text-xs sm:text-sm">{teacher.nip || '-'}</TableCell>
                       <TableCell className="font-medium text-xs sm:text-sm">{teacher.nama || '-'}</TableCell>
                       <TableCell className="font-mono text-xs sm:text-sm">{teacher.username || teacher.user_username || '-'}</TableCell>
@@ -610,7 +666,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                       <TableCell>
                         <Badge 
                           variant={teacher.status === 'aktif' ? 'default' : 'destructive'}
-                          className={`text-xs px-1 py-0.5 ${teacher.status === 'aktif' ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
+                          className={`text-xs px-1 py-0.5 ${teacher.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25' : 'bg-destructive/15 text-destructive hover:bg-destructive/25'}`}
                         >
                           {teacher.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
                         </Badge>
@@ -672,8 +728,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h3 className="font-medium text-sm">{teacher.nama || '-'}</h3>
-                        <p className="text-xs text-gray-500 font-mono">{teacher.nip || '-'}</p>
-                        <p className="text-xs text-gray-500">@{teacher.username || teacher.user_username || '-'}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{teacher.nip || '-'}</p>
+                        <p className="text-xs text-muted-foreground">@{teacher.username || teacher.user_username || '-'}</p>
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -714,22 +770,22 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-gray-500">Email:</span>
+                        <span className="text-muted-foreground">Email:</span>
                         <p className="truncate">{teacher.email || teacher.user_email || '-'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Telepon:</span>
+                        <span className="text-muted-foreground">Telepon:</span>
                         <p>{teacher.no_telp || '-'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Jenis Kelamin:</span>
+                        <span className="text-muted-foreground">Jenis Kelamin:</span>
                         <p>{teacher.jenis_kelamin === 'L' ? 'Laki-laki' : teacher.jenis_kelamin === 'P' ? 'Perempuan' : '-'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Status:</span>
+                        <span className="text-muted-foreground">Status:</span>
                         <Badge 
                           variant={teacher.status === 'aktif' ? 'default' : 'destructive'}
-                          className={`text-xs ${teacher.status === 'aktif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                          className={`text-xs ${teacher.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-destructive/15 text-destructive'}`}
                         >
                           {teacher.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
                         </Badge>
@@ -738,8 +794,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                     
                     {teacher.nama_mapel && (
                       <div>
-                        <span className="text-gray-500 text-xs">Mata Pelajaran:</span>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 text-xs ml-1">
+                        <span className="text-muted-foreground text-xs">Mata Pelajaran:</span>
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs ml-1">
                           {teacher.nama_mapel}
                         </Badge>
                       </div>
@@ -747,7 +803,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                     
                     {teacher.alamat && (
                       <div>
-                        <span className="text-gray-500 text-xs">Alamat:</span>
+                        <span className="text-muted-foreground text-xs">Alamat:</span>
                         <p className="text-xs mt-1">{teacher.alamat}</p>
                       </div>
                     )}

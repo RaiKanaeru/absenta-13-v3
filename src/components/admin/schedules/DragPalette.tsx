@@ -54,12 +54,12 @@ function DraggableItem({ id, type, data, isDisabled }: Readonly<DraggableItemPro
       {...listeners}
       {...attributes}
       className={`
-        flex items-center gap-2 p-2 rounded-lg border bg-white
-        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab hover:border-blue-400 hover:bg-blue-50'}
-        ${isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''}
+        flex items-center gap-2 p-2 rounded-lg border border-border bg-background
+        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab hover:border-primary hover:bg-primary/5'}
+        ${isDragging ? 'shadow-lg ring-2 ring-primary' : ''}
       `}
     >
-      <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+      <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       {isGuru ? (
         <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
       ) : (
@@ -69,7 +69,7 @@ function DraggableItem({ id, type, data, isDisabled }: Readonly<DraggableItemPro
         <p className="text-xs font-medium truncate">
           {isGuru ? itemData.nama : itemData.nama_mapel}
         </p>
-        <p className="text-xs text-gray-500 truncate">
+        <p className="text-xs text-muted-foreground truncate">
           {isGuru ? (itemData.nip || '-') : (itemData.kode_mapel || '-')}
         </p>
       </div>
@@ -116,7 +116,7 @@ export function DragPalette({
           Palette (Drag ke Grid)
         </h3>
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Cari..."
             value={searchTerm}
@@ -140,7 +140,7 @@ export function DragPalette({
 
         <TabsContent value="guru" className="flex-1 overflow-y-auto p-2 space-y-1 m-0">
           {filteredTeachers.length === 0 ? (
-            <p className="text-xs text-gray-500 text-center py-4">Tidak ada guru ditemukan</p>
+            <p className="text-xs text-muted-foreground text-center py-4">Tidak ada guru ditemukan</p>
           ) : (
             filteredTeachers.map(teacher => {
               const hasConflict = conflictMap[teacher.id]?.length > 0;
@@ -159,7 +159,7 @@ export function DragPalette({
 
         <TabsContent value="mapel" className="flex-1 overflow-y-auto p-2 space-y-1 m-0">
           {filteredSubjects.length === 0 ? (
-            <p className="text-xs text-gray-500 text-center py-4">Tidak ada mapel ditemukan</p>
+            <p className="text-xs text-muted-foreground text-center py-4">Tidak ada mapel ditemukan</p>
           ) : (
             filteredSubjects.map(subject => (
               <DraggableItem
@@ -173,8 +173,8 @@ export function DragPalette({
         </TabsContent>
       </Tabs>
 
-      <div className="p-2 border-t bg-gray-50">
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+      <div className="p-2 border-t bg-muted/50">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Badge variant="outline" className="text-xs">
             {selectedHari}
           </Badge>

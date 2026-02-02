@@ -108,7 +108,7 @@ export const ReportLetterhead: React.FC<ReportLetterheadProps> = ({
   periodInfo
 }) => {
   return (
-    <div className="text-center mb-6 p-4 bg-white border-2 border-gray-300">
+    <div className="text-center mb-6 p-4 bg-card border-2 border-border">
       {hasCustomLetterhead(letterhead) ? (
         <CustomLetterhead letterhead={letterhead} />
       ) : (

@@ -16,7 +16,7 @@ export class ServiceError extends Error {
 }
 
 /**
- * Get all teachers
+ * Get all teachers (without pagination - for backwards compatibility)
  */
 export const getAllTeachers = async () => {
     const query = `
@@ -28,6 +28,47 @@ export const getAllTeachers = async () => {
     `;
     const [results] = await db.execute(query);
     return results;
+};
+
+/**
+ * Get teachers with pagination and search
+ * @param {number} page - Page number (starts from 1)
+ * @param {number} limit - Number of items per page
+ * @param {string} search - Search term for filtering by name, NIP, or subject
+ * @returns {Promise<{data: Array, pagination: Object}>} Paginated teacher data
+ */
+export const getTeachersPaginated = async (page = 1, limit = 15, search = '') => {
+    const offset = (page - 1) * limit;
+    
+    let query = `
+        SELECT g.id, g.nip, g.nama, g.email, g.mata_pelajaran, 
+               g.alamat, g.no_telp as telepon, g.jenis_kelamin, 
+               COALESCE(g.status, 'aktif') as status
+        FROM guru g
+    `;
+    let countQuery = 'SELECT COUNT(*) as total FROM guru g';
+    let params = [];
+    
+    if (search) {
+        query += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.mata_pelajaran LIKE ?)';
+        countQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.mata_pelajaran LIKE ?)';
+        params = [`%${search}%`, `%${search}%`, `%${search}%`];
+    }
+    
+    query += ` ORDER BY g.nama ASC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+    
+    const [rows] = await db.execute(query, params);
+    const [countResult] = await db.execute(countQuery, params);
+    
+    return {
+        data: rows,
+        pagination: {
+            current_page: Number.parseInt(page),
+            per_page: Number.parseInt(limit),
+            total: countResult[0].total,
+            total_pages: Math.ceil(countResult[0].total / limit)
+        }
+    };
 };
 
 /**
