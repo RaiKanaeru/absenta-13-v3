@@ -1639,7 +1639,7 @@ type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
                             onChange={(e) => 
                               setAdaTugasData(prev => ({ ...prev, [jadwal.id_jadwal]: e.target.checked }))
                             }
-                            className="rounded border-border text-blue-600 focus:ring-blue-500"
+                            className="rounded border-border text-blue-600 focus:ring-ring"
                           />
                           <Label htmlFor={`ada-tugas-${jadwal.id_jadwal}`} className="text-sm text-blue-600">
                             Ada Tugas

@@ -262,7 +262,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
             Kembali
           </button>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-500/15 rounded-lg">
               <BarChart3 className="w-6 h-6 text-blue-600" />
             </div>
             <div>

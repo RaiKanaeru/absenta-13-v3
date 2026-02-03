@@ -1791,7 +1791,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       {formData.guru_ids.map((guruId, index) => {
                         const teacher = teachers.find(t => t.id === guruId);
                         return teacher ? (
-                          <div key={`selected-guru-${guruId}-${index}`} className="flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm">
+                          <div key={`selected-guru-${guruId}-${index}`} className="flex items-center gap-1 bg-blue-500/15 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-md text-sm">
                             <span>{teacher.nama}</span>
                             <button
                               type="button"
@@ -3164,7 +3164,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       </Button>
 
       {/* Info Hari dan Waktu */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card className="border-blue-500/20 bg-blue-500/10">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -3187,7 +3187,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
       </Card>
 
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-destructive/20 bg-destructive/10">
           <CardContent className="p-4">
             <div className="flex items-center text-red-800">
               <AlertTriangle className="w-5 h-5 mr-2" />
@@ -3211,11 +3211,11 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                 <Users className="w-5 h-5 mr-2" />
                 Pemantauan Siswa Langsung
                 {searchQuery === '' ? (
-                  <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800">
+                  <Badge variant="secondary" className="ml-2 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                     Mode: Hanya yang Sudah Absen
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
+                  <Badge variant="secondary" className="ml-2 bg-blue-500/15 text-blue-700 dark:text-blue-400">
                     Mode: Pencarian (Semua Data)
                   </Badge>
                 )}
@@ -3263,7 +3263,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                 placeholder="Cari berdasarkan nama atau NIS..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div className="sm:w-48">
@@ -3273,7 +3273,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
               <select
                 value={selectedKelas}
                 onChange={(e) => setSelectedKelas(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="all">Semua Kelas</option>
                 {classes.map((kelas, index) => (
@@ -3601,7 +3601,7 @@ const BandingAbsenReportView = ({ onBack, onLogout }: { onBack: () => void; onLo
 
         {/* Error Display */}
         {error && (
-          <Card className="p-4 border-red-200 bg-red-50">
+          <Card className="p-4 border-destructive/20 bg-destructive/10">
             <div className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="w-5 h-5" />
               <p className="font-medium">{error}</p>
@@ -4130,7 +4130,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         </Button>
 
         {/* Info Hari dan Waktu */}
-        <Card className="border-indigo-200 bg-indigo-50">
+        <Card className="border-indigo-500/20 bg-indigo-500/10">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -4153,7 +4153,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
         </Card>
 
         {error && (
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-destructive/20 bg-destructive/10">
             <CardContent className="p-4">
               <div className="flex items-center text-red-800">
                 <AlertTriangle className="w-5 h-5 mr-2" />
@@ -4177,11 +4177,11 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                   <GraduationCap className="w-5 h-5 mr-2" />
                   Pemantauan Guru Langsung
                   {searchQuery === '' ? (
-                    <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800">
+                    <Badge variant="secondary" className="ml-2 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                       Mode: Hanya yang Sudah Absen
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
+                    <Badge variant="secondary" className="ml-2 bg-blue-500/15 text-blue-700 dark:text-blue-400">
                       Mode: Pencarian (Semua Data)
                     </Badge>
                   )}
@@ -4222,7 +4222,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                   placeholder="Cari berdasarkan nama, NIP, atau mata pelajaran..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div className="sm:w-48">
@@ -4232,7 +4232,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                 <select
                   value={selectedMapel}
                   onChange={(e) => setSelectedMapel(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="all">Semua Mata Pelajaran</option>
                   {mapelList.map((mapel, index) => (
@@ -4442,7 +4442,7 @@ const AnalyticsDashboardView = ({ onBack, onLogout }: { onBack: () => void; onLo
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali ke Menu Laporan
           </Button>
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-destructive/20 bg-destructive/10">
             <CardContent className="p-4">
               <div className="flex items-center text-red-800">
                 <AlertTriangle className="w-5 h-5 mr-2" />
@@ -4905,7 +4905,7 @@ const StudentAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
 
       {/* Error Display */}
       {error && (
-        <Card className="p-4 border-red-200 bg-red-50">
+        <Card className="p-4 border-destructive/20 bg-destructive/10">
           <div className="flex items-center gap-2 text-red-700">
             <AlertCircle className="w-5 h-5" />
             <p className="font-medium">{error}</p>
@@ -5128,7 +5128,7 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
             Kembali
           </button>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-500/15 rounded-lg">
               <FileText className="w-6 h-6 text-blue-600" />
             </div>
             <div>

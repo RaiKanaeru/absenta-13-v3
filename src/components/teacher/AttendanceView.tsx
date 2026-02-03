@@ -436,7 +436,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                             onChange={(e) => 
                               setAdaTugas(prev => ({ ...prev, [student.id]: e.target.checked }))
                             }
-                            className="rounded border-border text-blue-600 focus:ring-blue-500"
+                            className="rounded border-border text-blue-600 focus:ring-ring"
                           />
                         <Label htmlFor={`ada-tugas-${student.id}`} className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
                             Ada Tugas

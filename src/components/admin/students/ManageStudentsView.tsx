@@ -476,7 +476,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                     type="checkbox"
                     checked={formData.is_perwakilan}
                     onChange={(e) => setFormData({ ...formData, is_perwakilan: e.target.checked })}
-                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="rounded border-border text-emerald-600 focus:ring-ring"
                   />
                   <Label htmlFor="is-perwakilan" className="text-sm font-medium text-gray-700">
                     Akun perwakilan

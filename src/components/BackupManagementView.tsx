@@ -1207,7 +1207,7 @@ const BackupManagementView: React.FC = () => {
                             {/* Custom Schedule Section Removed - Use 'Jadwal Backup' tab instead */}
                             
                             {/* Informasi Tanggal Backup */}
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
                                 <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
                                     <Calendar className="w-4 h-4" />
                                     Informasi Tanggal Backup
@@ -1252,7 +1252,7 @@ const BackupManagementView: React.FC = () => {
                                 </div>
                                 
                                 {/* Informasi Tambahan */}
-                                <div className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded-lg">
+                                <div className="mt-4 p-3 bg-blue-500/15 border border-blue-500/30 rounded-lg">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Clock className="w-4 h-4 text-blue-600" />
                                         <span className="text-sm font-medium text-blue-800">Status Backup</span>
@@ -1377,7 +1377,7 @@ const BackupManagementView: React.FC = () => {
 
                             {/* Status Jadwal */}
                             {customSchedules.length > 0 && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
                                     <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
                                         <Clock className="w-4 h-4" />
                                         Status Jadwal Backup
@@ -1549,7 +1549,7 @@ const BackupManagementView: React.FC = () => {
                                                             })}
                                                         </span>
                                                     </div>
-                                                    <Badge variant="default" className="text-green-700 bg-green-100">
+                                                    <Badge variant="default" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                                                         Selesai
                                                     </Badge>
                                                 </div>
@@ -1560,7 +1560,7 @@ const BackupManagementView: React.FC = () => {
 
                             {/* Jadwal Mendatang */}
                             {customSchedules.some(s => s.enabled && !s.lastRun) && (
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
                                     <h4 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
                                         <Calendar className="w-4 h-4" />
                                         Jadwal Mendatang

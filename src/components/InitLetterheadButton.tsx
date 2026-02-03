@@ -83,7 +83,7 @@ const InitLetterheadButton: React.FC<InitLetterheadButtonProps> = ({ onSuccess }
         </Button>
 
         {status === 'success' && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+          <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
             <div className="flex items-center gap-2 text-green-800">
               <CheckCircle className="h-4 w-4" />
               <span className="text-sm font-medium">Berhasil!</span>
@@ -93,7 +93,7 @@ const InitLetterheadButton: React.FC<InitLetterheadButtonProps> = ({ onSuccess }
         )}
 
         {status === 'error' && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
             <div className="flex items-center gap-2 text-red-800">
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm font-medium">Error!</span>
