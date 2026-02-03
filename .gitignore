@@ -60,3 +60,6 @@ redis/*.rdb
 # Uploads
 public/uploads/*
 !public/uploads/.gitkeep
+# Patches
+*.patch
+*.diff
