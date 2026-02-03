@@ -278,16 +278,16 @@ export const exportStudentSummary = async (req, res) => {
 
         // Generate Excel workbook
         const workbook = await buildExcel({
-            title: rekapGuruSchema.default.title,
-            subtitle: rekapGuruSchema.default.subtitle,
-            reportPeriod: `Tahun ${tahun}`,
+            title: studentSummarySchema.default.title,
+            subtitle: studentSummarySchema.default.subtitle,
+            reportPeriod: reportPeriod,
             letterhead: letterhead,
-            columns: rekapGuruSchema.default.columns,
+            columns: studentSummarySchema.default.columns,
             rows: reportData
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="REKAP_KETIDAKHADIRAN_GURU_SMKN13_${tahun}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename=\"Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}.xlsx\"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -515,53 +515,57 @@ export const exportRekapKetidakhadiran = async (req, res) => {
 
         const [rows] = await db.execute(query, params);
 
-        // Build Excel
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Rekap Ketidakhadiran');
+        // Use buildExcel helper with letterhead
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const reportKey = tipe === 'guru' ? REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU : REPORT_KEYS.REKAP_KETIDAKHADIRAN_SISWA;
+        const letterhead = await getLetterhead({ reportKey });
 
-        if (tipe === 'guru') {
-            worksheet.columns = [
-                { header: 'No', key: 'no', width: 5 },
-                { header: 'Nama', key: 'nama', width: 30 },
-                { header: 'NIP', key: 'nip', width: 20 },
-                { header: 'Sakit', key: 'sakit', width: 8 },
-                { header: 'Izin', key: 'izin', width: 8 },
-                { header: 'Alpha', key: 'alpha', width: 8 },
-                { header: 'Total Tidak Hadir', key: 'total_tidak_hadir', width: 18 }
-            ];
-        } else {
-            worksheet.columns = [
-                { header: 'No', key: 'no', width: 5 },
-                { header: 'Nama', key: 'nama', width: 30 },
-                { header: 'NIS', key: 'nis', width: 15 },
-                { header: 'Kelas', key: 'kelas', width: 12 },
-                { header: 'Sakit', key: 'sakit', width: 8 },
-                { header: 'Izin', key: 'izin', width: 8 },
-                { header: 'Alpha', key: 'alpha', width: 8 },
-                { header: 'Total Tidak Hadir', key: 'total_tidak_hadir', width: 18 }
-            ];
-        }
+        // Define columns based on type
+        const columns = tipe === 'guru' ? [
+            { key: 'no', label: 'No', width: 5, align: 'center' },
+            { key: 'nama', label: 'Nama', width: 30, align: 'left' },
+            { key: 'nip', label: 'NIP', width: 20, align: 'left' },
+            { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
+            { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
+            { key: 'alpha', label: 'Alpha', width: 8, align: 'center', format: 'number' },
+            { key: 'total_tidak_hadir', label: 'Total Tidak Hadir', width: 18, align: 'center', format: 'number' }
+        ] : [
+            { key: 'no', label: 'No', width: 5, align: 'center' },
+            { key: 'nama', label: 'Nama', width: 30, align: 'left' },
+            { key: 'nis', label: 'NIS', width: 15, align: 'center' },
+            { key: 'kelas', label: 'Kelas', width: 12, align: 'center' },
+            { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
+            { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
+            { key: 'alpha', label: 'Alpha', width: 8, align: 'center', format: 'number' },
+            { key: 'total_tidak_hadir', label: 'Total Tidak Hadir', width: 18, align: 'center', format: 'number' }
+        ];
 
-        rows.forEach((row, index) => {
-            worksheet.addRow({
-                no: index + 1,
-                ...row
-            });
-        });
-
-        // Style header
-        worksheet.getRow(1).font = { bold: true };
-        worksheet.getRow(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' }
-        };
+        // Prepare data
+        const reportData = rows.map((row, index) => ({
+            no: index + 1,
+            ...row
+        }));
 
         const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
                            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-        // Generate filename based on available params
+        // Build title and period
+        const title = tipe === 'guru' ? 'Rekap Ketidakhadiran Guru' : 'Rekap Ketidakhadiran Siswa';
+        const reportPeriod = bulan && tahun 
+            ? `${bulanNames[parseInt(bulan)]} ${tahun}`
+            : `${startDate} - ${endDate}`;
+
+        // Generate Excel with letterhead
+        const workbook = await buildExcel({
+            title,
+            subtitle: `Periode: ${reportPeriod}`,
+            reportPeriod,
+            letterhead: { ...letterhead, enabled: true },
+            columns,
+            rows: reportData
+        });
+
+        // Generate filename
         let filename;
         if (bulan && tahun) {
             filename = `Rekap_Ketidakhadiran_${tipe}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx`;
@@ -634,74 +638,51 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
             ORDER BY s.nama
         `, [startDate, endDate, kelas_id]);
 
-        // Build Excel with SMKN13 format
-        const ExcelJS = (await import('exceljs')).default;
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Ringkasan Kehadiran');
+        // Import helpers and load letterhead
+        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { calculateSafePercentage } = await import('../utils/exportHelpers.js');
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
-        // Add header info
-        worksheet.mergeCells('A1:H1');
-        worksheet.getCell('A1').value = 'RINGKASAN KEHADIRAN SISWA';
-        worksheet.getCell('A1').font = { bold: true, size: 14 };
-        worksheet.getCell('A1').alignment = { horizontal: 'center' };
-
-        worksheet.mergeCells('A2:H2');
-        worksheet.getCell('A2').value = `Kelas: ${namaKelas} | Semester: ${semester || '-'} | Tahun Ajaran: ${tahun_ajaran || '-'}`;
-        worksheet.getCell('A2').alignment = { horizontal: 'center' };
-
-        // Add empty row
-        worksheet.addRow([]);
-
-        // Column headers
-        worksheet.columns = [
-            { key: 'no', width: 5 },
-            { key: 'nis', width: 15 },
-            { key: 'nama', width: 30 },
-            { key: 'hadir', width: 10 },
-            { key: 'sakit', width: 10 },
-            { key: 'izin', width: 10 },
-            { key: 'alpha', width: 10 },
-            { key: 'persentase', width: 15 }
-        ];
-
-        const headerRow = worksheet.addRow(['No', 'NIS', 'Nama Siswa', 'Hadir', 'Sakit', 'Izin', 'Alpha', '% Kehadiran']);
-        headerRow.font = { bold: true };
-        headerRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF4472C4' }
-        };
-        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-
-        // Add data rows
-        rows.forEach((row, index) => {
-            const totalHari = row.total_hari || 1;
-            const persentase = ((row.hadir / totalHari) * 100).toFixed(1);
+        // Prepare data with safe percentage calculation
+        const reportData = rows.map((row, index) => {
+            const totalHari = Math.max(row.total_hari || 1, 1); // Guard against zero
+            const persentase = calculateSafePercentage(row.hadir || 0, totalHari, 1, { 
+                context: `Ringkasan SMKN13: ${row.nama}` 
+            });
             
-            worksheet.addRow([
-                index + 1,
-                row.nis,
-                row.nama,
-                row.hadir || 0,
-                row.sakit || 0,
-                row.izin || 0,
-                row.alpha || 0,
-                `${persentase}%`
-            ]);
+            return {
+                no: index + 1,
+                nis: row.nis,
+                nama: row.nama,
+                hadir: row.hadir || 0,
+                sakit: row.sakit || 0,
+                izin: row.izin || 0,
+                alpha: row.alpha || 0,
+                persentase: persentase / 100 // Convert to decimal for percentage format
+            };
         });
 
-        // Add borders
-        const lastRow = worksheet.rowCount;
-        for (let i = 4; i <= lastRow; i++) {
-            for (let j = 1; j <= 8; j++) {
-                worksheet.getCell(i, j).border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-            }
-        }
+        // Define columns
+        const columns = [
+            { key: 'no', label: 'No', width: 5, align: 'center' },
+            { key: 'nis', label: 'NIS', width: 15, align: 'center' },
+            { key: 'nama', label: 'Nama Siswa', width: 30, align: 'left' },
+            { key: 'hadir', label: 'Hadir', width: 10, align: 'center', format: 'number' },
+            { key: 'sakit', label: 'Sakit', width: 10, align: 'center', format: 'number' },
+            { key: 'izin', label: 'Izin', width: 10, align: 'center', format: 'number' },
+            { key: 'alpha', label: 'Alpha', width: 10, align: 'center', format: 'number' },
+            { key: 'persentase', label: '% Kehadiran', width: 15, align: 'center', format: 'percentage' }
+        ];
+
+        // Build Excel with letterhead
+        const workbook = await buildExcel({
+            title: 'RINGKASAN KEHADIRAN SISWA',
+            subtitle: `Kelas: ${namaKelas} | Semester: ${semester || '-'} | Tahun Ajaran: ${tahun_ajaran || '-'}`,
+            reportPeriod: `${startDate} - ${endDate}`,
+            letterhead: { ...letterhead, enabled: true },
+            columns,
+            rows: reportData
+        });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_${namaKelas}_Semester${semester || ''}.xlsx"`);
@@ -1031,6 +1012,10 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
 export const exportRekapKetidakhadiranSiswa = async (req, res) => {
     try {
         const { kelas_id, tahun, semester = 'gasal' } = req.query;
+        
+        // Load letterhead configuration for this report
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_SISWA });
+        
         // Get class info and wali kelas
         const [kelasRows] = await db.execute(`
             SELECT k.nama_kelas, g.nama as wali_kelas 
@@ -1071,15 +1056,28 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
 
         // Get total hari efektif from kalender_akademik (dynamic, not hardcoded)
         const tahunPelajaran = buildTahunPelajaran(tahun);
-        const { totalDays: TOTAL_HARI_EFEKTIF, monthlyBreakdown } = await getSemesterEffectiveDays(tahunPelajaran, semester);
+        const { totalDays: TOTAL_HARI_EFEKTIF_RAW, monthlyBreakdown } = await getSemesterEffectiveDays(tahunPelajaran, semester);
         
-        logger.info('Fetched semester effective days from DB', {
-            tahunPelajaran,
-            semester,
-            TOTAL_HARI_EFEKTIF,
-            monthlyBreakdown,
-            studentCount: studentsRows.length
-        });
+        // CRITICAL: Guard against zero effective days (prevents division by zero and percentage > 100%)
+        const TOTAL_HARI_EFEKTIF = Math.max(TOTAL_HARI_EFEKTIF_RAW, 1);
+        
+        if (TOTAL_HARI_EFEKTIF_RAW <= 0) {
+            logger.warn('Zero or negative effective days detected - using minimum value of 1', {
+                tahunPelajaran,
+                semester,
+                TOTAL_HARI_EFEKTIF_RAW,
+                TOTAL_HARI_EFEKTIF,
+                studentCount: studentsRows.length
+            });
+        } else {
+            logger.info('Fetched semester effective days from DB', { 
+                tahunPelajaran, 
+                semester, 
+                TOTAL_HARI_EFEKTIF,
+                monthlyBreakdown, 
+                studentCount: studentsRows.length 
+            });
+        }
 
         // Build Excel using ExcelJS directly for precise control
         const ExcelJS = (await import('exceljs')).default;
@@ -1089,33 +1087,58 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         // Use centralized styles from top of file
         const headerStyle = REKAP_HEADER_STYLE;
         const dataStyle = REKAP_DATA_STYLE;
+        
+        let currentRow = 1;
 
-        // Title Headers (Row 1-4)
-        worksheet.mergeCells('A1:AH1');
-        worksheet.getCell('A1').value = 'PERSENTASE KETIDAKHADIRAN PESERTA DIDIK';
-        worksheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFCC0000' } };
-        worksheet.getCell('A1').alignment = { horizontal: 'center' };
+        // Add letterhead if available (logos and school info)
+        if (letterhead.enabled && letterhead.lines && letterhead.lines.length > 0) {
+            // School name from letterhead
+            worksheet.mergeCells(`A${currentRow}:AH${currentRow}`);
+            const schoolCell = worksheet.getCell(`A${currentRow}`);
+            schoolCell.value = letterhead.lines[0]?.text || letterhead.lines[0] || 'SEKOLAH';
+            schoolCell.font = { bold: true, size: 14, color: { argb: 'FF000000' } };
+            schoolCell.alignment = { horizontal: 'center' };
+            currentRow++;
+            
+            // Additional letterhead lines
+            for (let i = 1; i < Math.min(letterhead.lines.length, 4); i++) {
+                worksheet.mergeCells(`A${currentRow}:AH${currentRow}`);
+                const lineCell = worksheet.getCell(`A${currentRow}`);
+                lineCell.value = letterhead.lines[i]?.text || letterhead.lines[i] || '';
+                lineCell.font = { size: 11 };
+                lineCell.alignment = { horizontal: 'center' };
+                currentRow++;
+            }
+            currentRow++; // Separator
+        }
 
-        worksheet.mergeCells('A2:AH2');
-        worksheet.getCell('A2').value = EXPORT_TITLES.SCHOOL_NAME;
-        worksheet.getCell('A2').font = { bold: true, size: 12, color: { argb: 'FFCC0000' } };
-        worksheet.getCell('A2').alignment = { horizontal: 'center' };
+        // Title Headers
+        worksheet.mergeCells(`A${currentRow}:AH${currentRow}`);
+        worksheet.getCell(`A${currentRow}`).value = 'PERSENTASE KETIDAKHADIRAN PESERTA DIDIK';
+        worksheet.getCell(`A${currentRow}`).font = { bold: true, size: 14, color: { argb: 'FFCC0000' } };
+        worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center' };
+        currentRow++;
 
-        worksheet.mergeCells('A3:AH3');
-        worksheet.getCell('A3').value = `TAHUN PELAJARAN ${tahun}-${Number.parseInt(tahun) + 1}`;
-        worksheet.getCell('A3').font = { bold: true, size: 11, color: { argb: 'FFCC0000' } };
-        worksheet.getCell('A3').alignment = { horizontal: 'center' };
+        worksheet.mergeCells(`A${currentRow}:AH${currentRow}`);
+        worksheet.getCell(`A${currentRow}`).value = `TAHUN PELAJARAN ${tahun}-${Number.parseInt(tahun) + 1}`;
+        worksheet.getCell(`A${currentRow}`).font = { bold: true, size: 11, color: { argb: 'FFCC0000' } };
+        worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center' };
+        currentRow++;
+        currentRow++; // Separator
 
-        // Class and Wali Kelas info (Row 5-6)
-        worksheet.getCell('A5').value = 'KELAS';
-        worksheet.getCell('B5').value = ':';
-        worksheet.getCell('C5').value = kelasName;
-        worksheet.getCell('A6').value = 'NAMA WALI KELAS';
-        worksheet.getCell('B6').value = ':';
-        worksheet.getCell('C6').value = waliKelas;
+        // Class and Wali Kelas info
+        worksheet.getCell(`A${currentRow}`).value = 'KELAS';
+        worksheet.getCell(`B${currentRow}`).value = ':';
+        worksheet.getCell(`C${currentRow}`).value = kelasName;
+        currentRow++;
+        worksheet.getCell(`A${currentRow}`).value = 'NAMA WALI KELAS';
+        worksheet.getCell(`B${currentRow}`).value = ':';
+        worksheet.getCell(`C${currentRow}`).value = waliKelas;
+        currentRow++;
+        currentRow++; // Separator
 
-        // Header Row 1 - Main headers (Row 8)
-        const headerRow1 = 8;
+        // Header Row 1 - Main headers
+        const headerRow1 = currentRow;
         worksheet.getCell(`A${headerRow1}`).value = '';
         worksheet.getCell(`B${headerRow1}`).value = '';
         worksheet.getCell(`C${headerRow1}`).value = '';
