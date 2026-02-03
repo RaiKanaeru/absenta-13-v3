@@ -1681,17 +1681,6 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          key={item.id}
-                          variant="outline"
-                          className="h-auto py-4 flex flex-col items-center justify-center gap-2 hover:bg-muted border-border"
-                          onClick={() => handleMenuClick(item.id)}
-                        >
-                          <div className={`p-2 rounded-full bg-gradient-to-br ${item.gradient} text-white`}>
-                            <item.icon className="h-4 w-4" />
-                          </div>
-                          <span className="text-xs text-center font-medium text-foreground">{item.title}</span>
-                        </Button>
           <Button onClick={() => setShowPreview(true)} variant="default" size="sm" className="text-xs">
             <Eye className="w-3 h-3 mr-1" />
             Preview Jadwal
