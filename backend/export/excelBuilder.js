@@ -126,8 +126,8 @@ function processLogo(workbook, worksheet, logoRow, logoUrl, side, currentRow, co
         
         if (logoBuffer) {
             const colPosition = side === 'left' 
-                ? { col: 0, row: currentRow - 1, colSpan: 2, rowSpan: 3 }
-                : { col: Math.max(columnsCount - 1, 3), row: currentRow - 1, colSpan: 2, rowSpan: 3 };
+                ? { col: 0, row: currentRow - 1, colSpan: 2, rowSpan: 5 }
+                : { col: Math.max(columnsCount - 1, 3), row: currentRow - 1, colSpan: 2, rowSpan: 5 };
             
             addLogoToWorksheet(workbook, worksheet, logoBuffer, colPosition);
             console.log(`[OK] Logo ${position} added to Excel successfully`);
@@ -171,7 +171,7 @@ function addLogosRow(workbook, worksheet, letterhead, currentRow, columnsCount) 
     processLogo(workbook, worksheet, logoRow, letterhead.logoLeftUrl, 'left', currentRow, columnsCount);
     processLogo(workbook, worksheet, logoRow, letterhead.logoRightUrl, 'right', currentRow, columnsCount);
 
-    return currentRow + 4; // Space for logo
+    return currentRow + 6; // Space for logo
 }
 
 /**

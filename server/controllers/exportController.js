@@ -394,18 +394,40 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
             { key: 'jam_selesai', label: 'Jam Selesai', width: 10 },
             { key: 'mata_pelajaran', label: 'Mata Pelajaran', width: 25 },
             { key: 'nama_kelas', label: 'Kelas', width: 10 },
-            { key: 'total_siswa', label: 'Total Siswa', width: 10 },
-            { key: 'hadir', label: 'Hadir', width: 8 },
-            { key: 'izin', label: 'Izin', width: 8 },
-            { key: 'sakit', label: 'Sakit', width: 8 },
-            { key: 'alpa', label: 'Alpa', width: 8 },
-            { key: 'dispen', label: 'Dispen', width: 8 }
+            { key: 'total_siswa', label: 'Total Siswa', width: 12 },
+            { key: 'hadir', label: 'Hadir', width: 10 },
+            { key: 'izin', label: 'Izin', width: 10 },
+            { key: 'sakit', label: 'Sakit', width: 10 },
+            { key: 'alpa', label: 'Alpa', width: 10 },
+            { key: 'dispen', label: 'Dispen', width: 10 }
         ];
 
         const reportData = rows.map((row, index) => ({
             no: index + 1,
             ...row
         }));
+       // Calculate totals for summary row
+        const totals = reportData.reduce((acc, row) => {
+            acc.total_siswa += Number(row.total_siswa) || 0;
+            acc.hadir += Number(row.hadir) || 0;
+            acc.izin += Number(row.izin) || 0;
+            acc.sakit += Number(row.sakit) || 0;
+            acc.alpa += Number(row.alpa) || 0;
+            acc.dispen += Number(row.dispen) || 0;
+            return acc;
+        }, { total_siswa: 0, hadir: 0, izin: 0, sakit: 0, alpa: 0, dispen: 0 });
+
+        // Add summary row
+        reportData.push({
+            no: '',
+            tanggal: '',
+            hari: '',
+            jam_mulai: '',
+            jam_selesai: '',
+            mata_pelajaran: 'TOTAL',
+            nama_kelas: '',
+            ...totals
+        });
 
         const workbook = await buildExcel({
             title: 'LAPORAN PRESENSI SISWA (FORMAT SMKN 13)',
