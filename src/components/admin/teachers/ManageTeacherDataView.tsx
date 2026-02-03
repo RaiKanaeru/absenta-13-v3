@@ -38,7 +38,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   const fetchTeachersData = useCallback(async () => {
     try {
       const data = await apiCall<TeacherData[]>('/api/admin/teachers-data', { onLogout });
-      setTeachersData(data);
+      setTeachersData(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       console.error('Error fetching teachers data:', error);
       const message = error instanceof Error ? error.message : String(error);

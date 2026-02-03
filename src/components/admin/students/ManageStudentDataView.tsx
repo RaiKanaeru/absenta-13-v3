@@ -45,7 +45,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
   const fetchStudentsData = useCallback(async () => {
     try {
       const data = await apiCall<StudentData[]>('/api/admin/students-data', { onLogout });
-      setStudentsData(data);
+      setStudentsData(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       console.error('Error fetching students data:', error);
       const message = error instanceof Error ? error.message : String(error);
