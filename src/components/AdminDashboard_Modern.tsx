@@ -2977,7 +2977,7 @@ const LiveStudentAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
                 cx="64"
                 cy="64"
                 r="45"
-                stroke="#e5e7eb"
+                stroke="hsl(var(--border))"
                 strokeWidth="10"
                 fill="none"
               />
@@ -3937,7 +3937,7 @@ const LiveTeacherAttendanceView = ({ onBack, onLogout }: { onBack: () => void; o
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="relative">
               <svg className="w-32 h-32 transform -rotate-90">
-                <circle cx="64" cy="64" r="45" stroke="#e5e7eb" strokeWidth="10" fill="none" />
+                <circle cx="64" cy="64" r="45" stroke="hsl(var(--border))" strokeWidth="10" fill="none" />
                 <circle
                   cx="64" cy="64" r="45"
                   stroke="url(#gradientTeacher)"
