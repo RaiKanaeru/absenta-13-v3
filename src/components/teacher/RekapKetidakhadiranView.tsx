@@ -35,7 +35,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
   useEffect(() => {
     (async ()=>{
       const res = await apiCall('/api/guru/classes');
-      setKelasOptions(res);
+      setKelasOptions(Array.isArray(res) ? res : []);
     })();
   }, []);
 

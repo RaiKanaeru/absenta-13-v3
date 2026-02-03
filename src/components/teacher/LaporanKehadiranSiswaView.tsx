@@ -41,7 +41,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
   useEffect(() => {
     (async ()=>{
       const res = await apiCall('/api/guru/classes');
-      setKelasOptions(res);
+      setKelasOptions(Array.isArray(res) ? res : []);
     })();
     
     // Set default month to current month

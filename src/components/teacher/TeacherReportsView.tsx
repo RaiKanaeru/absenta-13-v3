@@ -34,7 +34,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
   useEffect(() => {
     (async ()=>{
       const res = await apiCall('/api/guru/classes');
-      setKelasOptions(res);
+      setKelasOptions(Array.isArray(res) ? res : []);
     })();
   }, []);
 

@@ -101,7 +101,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         }
       });
 
-      setRekapData(data);
+      setRekapData(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching rekap data:', error);
       setError(error instanceof Error ? error.message : 'Gagal memuat data rekap');

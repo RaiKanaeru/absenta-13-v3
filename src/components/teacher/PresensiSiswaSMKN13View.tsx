@@ -34,7 +34,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
   useEffect(() => {
     (async ()=>{
       const res = await apiCall('/api/guru/classes');
-      setKelasOptions(res);
+      setKelasOptions(Array.isArray(res) ? res : []);
     })();
   }, []);
 
