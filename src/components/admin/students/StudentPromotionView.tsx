@@ -169,6 +169,17 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
     try {
       const data = await apiCall('/api/admin/students-data', { onLogout });
 
+      // Guard: Ensure data is an array
+      if (!Array.isArray(data)) {
+        console.error('Invalid data format from /api/admin/students-data:', data);
+        setStudents([]);
+        toast({ 
+          title: "Error Format Data", 
+          description: "Data siswa tidak dalam format yang benar", 
+          variant: "destructive" 
+        });
+        return;
+      }
       
       const filteredStudents = data.filter((student: StudentData) => {
         // Convert both to string for comparison

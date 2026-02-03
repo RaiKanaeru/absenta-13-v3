@@ -5133,7 +5133,7 @@ const TeacherAttendanceSummaryView = ({ onBack, onLogout }: { onBack: () => void
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">Ringkasan Kehadiran Guru</h1>
-              <p className="text-muted-foreground">Download ringkasan kehadiran guru dalam format CSV</p>
+              <p className="text-muted-foreground">Download ringkasan kehadiran guru dalam format Excel</p>
             </div>
           </div>
         </div>
