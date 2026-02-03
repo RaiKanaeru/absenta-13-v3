@@ -52,7 +52,6 @@ const ScheduleGridTable = React.lazy(() => import('./admin/schedules/ScheduleGri
 
 
 const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
-const DatabaseManagerView = React.lazy(() => import('./admin/database/DatabaseManagerView').then(module => ({ default: module.DatabaseManagerView })));
 
 
 
@@ -339,7 +338,6 @@ const menuItems = [
 
 
   { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
-  { id: 'database-manager', title: 'Database Manager', icon: Database, description: 'Kelola file database dan seeders', gradient: 'from-indigo-400 to-indigo-600' },
 
 ];
 
@@ -5355,9 +5353,6 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         return <ErrorBoundary><ReportsView onBack={handleBack} onLogout={onLogout} /></ErrorBoundary>;
       case 'jam-pelajaran':
         return <ErrorBoundary><JamPelajaranConfig /></ErrorBoundary>;
-      case 'database-manager':
-        return <ErrorBoundary><DatabaseManagerView /></ErrorBoundary>;
-      case 'audit-logs':
         return <ErrorBoundary><AuditLogView onBack={handleBack} /></ErrorBoundary>;
       default:
         return null;
