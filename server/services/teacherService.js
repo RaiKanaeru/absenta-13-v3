@@ -55,9 +55,11 @@ export const getTeachersPaginated = async (page = 1, limit = 15, search = '') =>
         params = [`%${search}%`, `%${search}%`, `%${search}%`];
     }
     
-    query += ` ORDER BY g.nama ASC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+    // Use parameterized query for LIMIT/OFFSET to prevent SQL injection
+    query += ` ORDER BY g.nama ASC LIMIT ? OFFSET ?`;
+    const queryParams = [...params, parseInt(limit, 10), parseInt(offset, 10)];
     
-    const [rows] = await db.execute(query, params);
+    const [rows] = await db.execute(query, queryParams);
     const [countResult] = await db.execute(countQuery, params);
     
     return {

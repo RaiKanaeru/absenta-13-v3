@@ -44,8 +44,20 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
 
   const fetchStudentsData = useCallback(async () => {
     try {
-      const data = await apiCall<StudentData[]>('/api/admin/students-data', { onLogout });
-      setStudentsData(Array.isArray(data) ? data : []);
+      // Backend returns { data: [...], pagination: {...} } format
+      const response = await apiCall<{ data: StudentData[], pagination: unknown } | StudentData[]>('/api/admin/students-data', { onLogout });
+      
+      // Handle both response formats for compatibility
+      if (response && typeof response === 'object' && 'data' in response) {
+        // New format: { data: [...], pagination: {...} }
+        setStudentsData(Array.isArray(response.data) ? response.data : []);
+      } else if (Array.isArray(response)) {
+        // Legacy format: direct array
+        setStudentsData(response);
+      } else {
+        console.warn('Unexpected response format from /api/admin/students-data:', response);
+        setStudentsData([]);
+      }
     } catch (error: unknown) {
       console.error('Error fetching students data:', error);
       const message = error instanceof Error ? error.message : String(error);

@@ -227,9 +227,11 @@ export const getGuru = async (req, res) => {
             params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
         }
 
-        query += ` ORDER BY g.created_at DESC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+        // Use parameterized query for LIMIT/OFFSET to prevent SQL injection
+        query += ` ORDER BY g.created_at DESC LIMIT ? OFFSET ?`;
+        const queryParams = [...params, parseInt(limit, 10), parseInt(offset, 10)];
 
-        const [rows] = await db.query(query, params);
+        const [rows] = await db.query(query, queryParams);
         const [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         log.success('GetGuru', { count: rows.length, total: countResult[0].total });

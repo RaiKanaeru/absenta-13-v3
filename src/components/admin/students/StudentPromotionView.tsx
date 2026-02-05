@@ -167,11 +167,19 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
     }
     setIsLoading(true);
     try {
-      const data = await apiCall('/api/admin/students-data', { onLogout });
+      // Backend returns { data: [...], pagination: {...} } format
+      const response = await apiCall<{ data: StudentData[], pagination: unknown } | StudentData[]>('/api/admin/students-data', { onLogout });
 
-      // Guard: Ensure data is an array
-      if (!Array.isArray(data)) {
-        console.error('Invalid data format from /api/admin/students-data:', data);
+      // Handle both response formats for compatibility
+      let studentsArray: StudentData[] = [];
+      if (response && typeof response === 'object' && 'data' in response) {
+        // New format: { data: [...], pagination: {...} }
+        studentsArray = Array.isArray(response.data) ? response.data : [];
+      } else if (Array.isArray(response)) {
+        // Legacy format: direct array
+        studentsArray = response;
+      } else {
+        console.warn('Unexpected response format from /api/admin/students-data:', response);
         setStudents([]);
         toast({ 
           title: "Error Format Data", 
@@ -181,7 +189,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
         return;
       }
       
-      const filteredStudents = data.filter((student: StudentData) => {
+      const filteredStudents = studentsArray.filter((student: StudentData) => {
         // Convert both to string for comparison
         const studentClassId = student.kelas_id?.toString();
         const targetClassId = classId.toString();
