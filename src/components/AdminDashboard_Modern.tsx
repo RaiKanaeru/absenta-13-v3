@@ -1660,6 +1660,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         teachers={teachers}
         subjects={subjects}
         rooms={rooms}
+        classes={classes}
       />
     );
   }
@@ -1679,6 +1680,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
+          <Button onClick={() => setViewMode('grid')} variant="outline" size="sm" className="text-xs">
+            <LayoutGrid className="w-3 h-3 mr-1" />
+            Grid Jadwal
+          </Button>
           <Button onClick={() => setShowPreview(true)} variant="default" size="sm" className="text-xs">
             <Eye className="w-3 h-3 mr-1" />
             Preview Jadwal
@@ -5550,8 +5555,6 @@ export const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     </div>
   );
 };
-
-
 
 
 

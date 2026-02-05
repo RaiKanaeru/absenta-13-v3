@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { ChevronLeft, Save, RefreshCw, GripVertical, User, BookOpen, Search, Loader2 } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
-import { Teacher, Subject, Room } from '@/types/dashboard';
+import { Teacher, Subject, Room, Kelas } from '@/types/dashboard';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ interface ScheduleGridTableProps {
   teachers: Teacher[];
   subjects: Subject[];
   rooms: Room[];
+  classes: Kelas[];
 }
 
 interface PendingChange {
@@ -115,6 +116,8 @@ const ROW_TYPES = ['MAPEL', 'RUANG', 'GURU'] as const;
 
 const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;
 
+const getKelasId = (kelas: Kelas) => kelas.id_kelas ?? kelas.id;
+
 // Draggable Item Component
 function DraggableItem({ id, type, data, isDisabled }: {
   id: string;
@@ -158,11 +161,9 @@ function DraggableItem({ id, type, data, isDisabled }: {
         <p className="text-xs font-medium truncate">
           {displayName}
         </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {activeDragItem.type === 'guru' 
-                  ? ((activeDragItem.item as Teacher).nip || '-') 
-                  : ((activeDragItem.item as Subject).kode_mapel || '-')}
-              </p>
+        <p className="text-xs text-muted-foreground truncate">
+          {displayCode}
+        </p>
       </div>
     </div>
   );
@@ -204,11 +205,13 @@ export function ScheduleGridTable({
   onLogout,
   teachers,
   subjects,
-  rooms
+  rooms,
+  classes
 }: Readonly<ScheduleGridTableProps>) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedTingkat, setSelectedTingkat] = useState<string>('all');
+  const [selectedKelasId, setSelectedKelasId] = useState('');
   const [matrixData, setMatrixData] = useState<MatrixResponse | null>(null);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -221,6 +224,24 @@ export function ScheduleGridTable({
   const [editRuangId, setEditRuangId] = useState<number | null>(null);
   const [copiedRow, setCopiedRow] = useState<{kelas_id: number; schedule: Record<string, Record<number, ScheduleCell | null>>} | null>(null);
   const [contextMenu, setContextMenu] = useState<{x: number; y: number; kelasId: number} | null>(null);
+
+  const filteredClasses = useMemo(() => {
+    if (!classes.length) return [];
+    const validClasses = classes.filter(kelas => Number.isFinite(getKelasId(kelas)));
+    if (selectedTingkat === 'all') return validClasses;
+    return validClasses.filter(kelas => String(kelas.nama_kelas || '').startsWith(selectedTingkat));
+  }, [classes, selectedTingkat]);
+
+  useEffect(() => {
+    if (filteredClasses.length === 0) {
+      setSelectedKelasId('');
+      return;
+    }
+    const firstId = String(getKelasId(filteredClasses[0]));
+    if (!selectedKelasId || !filteredClasses.some(kelas => String(getKelasId(kelas)) === selectedKelasId)) {
+      setSelectedKelasId(firstId);
+    }
+  }, [filteredClasses, selectedKelasId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -236,6 +257,9 @@ export function ScheduleGridTable({
       if (selectedTingkat !== 'all') {
         params.append('tingkat', selectedTingkat);
       }
+      if (selectedKelasId) {
+        params.append('kelas_id', selectedKelasId);
+      }
 
       const response = await apiCall<{ data?: MatrixResponse }>(`/api/admin/jadwal/matrix?${params}`, {
         method: 'GET',
@@ -250,7 +274,7 @@ export function ScheduleGridTable({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTingkat, onLogout]);
+  }, [selectedTingkat, selectedKelasId, onLogout]);
 
   useEffect(() => {
     fetchMatrix();
@@ -677,6 +701,21 @@ export function ScheduleGridTable({
                   {TINGKAT_LIST.map(t => (
                     <SelectItem key={t} value={t}>{t}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedKelasId} onValueChange={setSelectedKelasId}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Pilih kelas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredClasses.map(kelas => {
+                    const kelasId = String(getKelasId(kelas));
+                    return (
+                      <SelectItem key={kelasId} value={kelasId}>
+                        {kelas.nama_kelas}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               <Button onClick={fetchMatrix} variant="outline" size="sm" disabled={isLoading}>

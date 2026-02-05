@@ -1,8 +1,62 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { access } from 'node:fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const PUBLIC_ROOT = path.resolve(__dirname, '..', '..', 'public');
+const UPLOAD_PREFIX = '/uploads/letterheads/';
+const DEFAULT_LOGO_LEFT = '/logo-kiri.png';
+const DEFAULT_LOGO_RIGHT = '/logo-kanan.png';
+
+const isExternalUrl = (url) => url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:');
+
+const normalizeLogoUrl = (logoUrl) => {
+  if (!logoUrl) return '';
+  const trimmed = String(logoUrl).trim();
+  if (!trimmed) return '';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
+const fileExists = async (filePath) => {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isLocalFileAvailable = async (urlPath) => {
+  const normalized = normalizeLogoUrl(urlPath);
+  if (!normalized) return false;
+  if (normalized.startsWith(UPLOAD_PREFIX)) {
+    const filename = path.basename(normalized);
+    const filePath = path.join(PUBLIC_ROOT, 'uploads', 'letterheads', filename);
+    return fileExists(filePath);
+  }
+  const relativePath = normalized.replace(/^\/+/, '');
+  const filePath = path.join(PUBLIC_ROOT, relativePath);
+  return fileExists(filePath);
+};
+
+const resolveLogoUrl = async (logoUrl, fallback = '') => {
+  if (!logoUrl) return '';
+  const normalized = normalizeLogoUrl(logoUrl);
+  if (!normalized) return '';
+  if (isExternalUrl(normalized)) return normalized;
+
+  if (await isLocalFileAvailable(normalized)) {
+    return normalized;
+  }
+
+  if (!fallback) return '';
+  const fallbackNormalized = normalizeLogoUrl(fallback);
+  if (!fallbackNormalized) return '';
+  if (isExternalUrl(fallbackNormalized)) return fallbackNormalized;
+  return (await isLocalFileAvailable(fallbackNormalized)) ? fallbackNormalized : '';
+};
 
 // Konstanta untuk kode laporan
 export const REPORT_KEYS = {
@@ -111,12 +165,16 @@ export async function getLetterhead({ reportKey = null } = {}) {
       }));
     }
     
+    const logo = await resolveLogoUrl(dbConfig.logo_tengah_url || '', '');
+    const logoLeftUrl = await resolveLogoUrl(dbConfig.logo_kiri_url || '', DEFAULT_LOGO_LEFT);
+    const logoRightUrl = await resolveLogoUrl(dbConfig.logo_kanan_url || '', DEFAULT_LOGO_RIGHT);
+
     return {
       enabled: Boolean(dbConfig.aktif),
-      logo: dbConfig.logo_tengah_url || "",
-      logoLeftUrl: dbConfig.logo_kiri_url || "",
-      logoRightUrl: dbConfig.logo_kanan_url || "",
-      lines: lines,
+      logo,
+      logoLeftUrl,
+      logoRightUrl,
+      lines,
       alignment: mapAlignmentFromDB(dbConfig.perataan)
     };
 

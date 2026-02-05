@@ -63,10 +63,11 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
 
     // Filter and search data
     const filteredData = attendanceData.filter(item => {
+      const searchLower = searchQuery.toLowerCase();
       const matchesSearch = searchQuery === '' || 
-        item.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.nip.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.nama_mapel?.toLowerCase().includes(searchQuery.toLowerCase());
+        String(item.nama ?? '').toLowerCase().includes(searchLower) ||
+        String(item.nip ?? '').toLowerCase().includes(searchLower) ||
+        String(item.nama_mapel ?? '').toLowerCase().includes(searchLower);
       
       const matchesMapel = selectedMapel === 'all' || 
         item.nama_mapel?.includes(selectedMapel);

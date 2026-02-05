@@ -19,11 +19,16 @@ const logger = createLogger('TeacherData');
 export const getTeachersData = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { page = 1, limit = 15, search = '' } = req.query;
+    const parsedPage = Number.parseInt(page, 10);
+    const parsedLimit = Number.parseInt(limit, 10);
+    const safePage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 15;
+    const safeSearch = typeof search === 'string' ? search : String(search ?? '');
     
-    log.requestStart('GetAll', { page, limit, search: search ? '***' : '' });
+    log.requestStart('GetAll', { page: safePage, limit: safeLimit, search: safeSearch ? '***' : '' });
 
     try {
-        const result = await teacherService.getTeachersPaginated(page, limit, search);
+        const result = await teacherService.getTeachersPaginated(safePage, safeLimit, safeSearch);
         
         log.success('GetAll', { 
             count: result.data.length, 

@@ -101,9 +101,10 @@ const mapKelasByName = async (namaKelas) => {
  */
 const mapMapelByName = async (namaMapel) => {
     if (!namaMapel || namaMapel === '-') return null;
+    const value = namaMapel.trim();
     const [rows] = await db.execute(
-        'SELECT id_mapel FROM mapel WHERE nama_mapel = ? AND status = "aktif"',
-        [namaMapel.trim()]
+        'SELECT id_mapel FROM mapel WHERE (nama_mapel = ? OR kode_mapel = ?) AND status = "aktif"',
+        [value, value]
     );
     return rows[0]?.id_mapel || null;
 };

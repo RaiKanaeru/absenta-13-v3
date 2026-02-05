@@ -329,10 +329,40 @@ const fetchJamSlotsByDay = async () => {
     return { jamSlotsByDay, HARI_LIST, hasData: allJamSlots.length > 0 };
 };
 
-const fetchClassesByTingkat = async (tingkat) => {
+/**
+ * Fetch jam slots for a specific class from jam_pelajaran_kelas.
+ * @param {number} kelasId
+ * @returns {Promise<{ jamSlotsByDay: object, HARI_LIST: string[], hasData: boolean }>} 
+ */
+const fetchJamSlotsByClass = async (kelasId) => {
+    const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    try {
+        const [allJamSlots] = await db.execute(
+            `SELECT hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
+             FROM jam_pelajaran_kelas
+             WHERE kelas_id = ?
+             ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`,
+            [kelasId]
+        );
+
+        const jamSlotsByDay = {};
+        for (const hari of HARI_LIST) {
+            jamSlotsByDay[hari] = allJamSlots.filter(s => s.hari === hari);
+        }
+        return { jamSlotsByDay, HARI_LIST, hasData: allJamSlots.length > 0 };
+    } catch (error) {
+        logger.warn('Failed to read jam_pelajaran_kelas, fallback to jam_pelajaran', { error: error.message });
+        return { jamSlotsByDay: {}, HARI_LIST, hasData: false };
+    }
+};
+
+const fetchClassesByTingkat = async (tingkat, kelasId = null) => {
     let kelasQuery = 'SELECT id_kelas, nama_kelas FROM kelas WHERE status = "aktif"';
     const kelasParams = [];
-    if (tingkat && tingkat !== 'all') {
+    if (kelasId) {
+        kelasQuery += ' AND id_kelas = ?';
+        kelasParams.push(kelasId);
+    } else if (tingkat && tingkat !== 'all') {
         kelasQuery += ' AND nama_kelas LIKE ?';
         kelasParams.push(`${tingkat}%`);
     }
@@ -790,15 +820,19 @@ const insertJadwalGuru = async (jadwalId, guruIds, connection = db) => {
  */
 export const getScheduleMatrix = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { tingkat } = req.query;
+    const { tingkat, kelas_id } = req.query;
+    const parsedKelasId = Number.parseInt(kelas_id, 10);
+    const hasKelasFilter = Number.isFinite(parsedKelasId) && parsedKelasId > 0;
 
-    log.requestStart('GetScheduleMatrix', { tingkat });
+    log.requestStart('GetScheduleMatrix', { tingkat, kelas_id: hasKelasFilter ? parsedKelasId : null });
 
     try {
         // 1. Fetch Basic Data (with Auto-Seed fallback)
-        let jamSlotsResult = await fetchJamSlotsByDay();
+        let jamSlotsResult = hasKelasFilter
+            ? await fetchJamSlotsByClass(parsedKelasId)
+            : await fetchJamSlotsByDay();
 
-        if (!jamSlotsResult.hasData) {
+        if (!jamSlotsResult.hasData && !hasKelasFilter) {
             log.warn('No jam_pelajaran found, attempting auto-seed...');
             try {
                 const seedCount = await seedDefaultJamPelajaranData();
@@ -810,21 +844,29 @@ export const getScheduleMatrix = async (req, res) => {
             }
         }
 
+        if (!jamSlotsResult.hasData && hasKelasFilter) {
+            log.warn('No jam_pelajaran_kelas found, falling back to jam_pelajaran', { kelas_id: parsedKelasId });
+            jamSlotsResult = await fetchJamSlotsByDay();
+        }
+
         const { jamSlotsByDay, HARI_LIST, hasData } = jamSlotsResult;
 
         if (!hasData) {
             log.warn('No jam_pelajaran found and auto-seed failed/empty');
+            const emptyMessage = hasKelasFilter
+                ? 'Jam pelajaran kelas belum tersedia. Silakan impor jadwal manual untuk kelas ini.'
+                : 'Silakan seed tabel jam_pelajaran terlebih dahulu';
             return sendSuccessResponse(res, {
                 days: HARI_LIST || [],
                 jamSlots: {},
                 classes: [],
-                message: 'Silakan seed tabel jam_pelajaran terlebih dahulu'
+                message: emptyMessage
             });
         }
 
         // 2. Fetch Classes, Schedules, and Guru Data in Parallel
         const [classes, allSchedules, multiGuruMap] = await Promise.all([
-            fetchClassesByTingkat(tingkat),
+            fetchClassesByTingkat(tingkat, hasKelasFilter ? parsedKelasId : null),
             fetchAllSchedules(),
             fetchMultiGuruMap()
         ]);
@@ -893,11 +935,33 @@ export const batchUpdateMatrix = async (req, res) => {
     try {
         await connection.beginTransaction();
 
-            const [jamSlots] = await connection.execute(
-                'SELECT jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran WHERE hari = ?',
-                [normalizedHari]
-            );
-        const jamSlotMap = new Map(jamSlots.map(slot => [slot.jam_ke, slot]));
+        const kelasIds = Array.from(new Set(
+            normalizedChanges
+                .map(change => Number(change.kelas_id))
+                .filter(id => Number.isFinite(id) && id > 0)
+        ));
+
+        let classSlotMap = new Map();
+        if (kelasIds.length > 0) {
+            try {
+                const placeholders = kelasIds.map(() => '?').join(',');
+                const [classSlots] = await connection.execute(
+                    `SELECT kelas_id, jam_ke, jam_mulai, jam_selesai
+                     FROM jam_pelajaran_kelas
+                     WHERE hari = ? AND kelas_id IN (${placeholders})`,
+                    [normalizedHari, ...kelasIds]
+                );
+                classSlotMap = new Map(classSlots.map(slot => [`${slot.kelas_id}|${slot.jam_ke}`, slot]));
+            } catch (error) {
+                log.warn('jam_pelajaran_kelas not available, fallback to jam_pelajaran', { error: error.message });
+            }
+        }
+
+        const [globalSlots] = await connection.execute(
+            'SELECT jam_ke, jam_mulai, jam_selesai FROM jam_pelajaran WHERE hari = ?',
+            [normalizedHari]
+        );
+        const globalSlotMap = new Map(globalSlots.map(slot => [slot.jam_ke, slot]));
 
         let created = 0;
         let updated = 0;
@@ -923,7 +987,7 @@ export const batchUpdateMatrix = async (req, res) => {
                 continue;
             }
 
-            const jamSlot = jamSlotMap.get(jam_ke);
+            const jamSlot = classSlotMap.get(`${kelas_id}|${jam_ke}`) || globalSlotMap.get(jam_ke);
             if (!jamSlot) {
                 await connection.rollback();
                 return sendValidationError(

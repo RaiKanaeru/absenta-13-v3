@@ -177,8 +177,9 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
 
   // Filter logic
   const filteredData = bandingData.filter(item => {
-    const matchesSearch = item.nama_siswa.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.kelas.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = String(item.nama_siswa ?? '').toLowerCase().includes(searchLower) ||
+                         String(item.kelas ?? '').toLowerCase().includes(searchLower);
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     
     return matchesSearch && matchesStatus;
