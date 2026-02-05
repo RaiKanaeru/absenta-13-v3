@@ -20,7 +20,7 @@ export class ServiceError extends Error {
  */
 export const getAllTeachers = async () => {
     const query = `
-        SELECT g.id, g.nip, g.nama, g.email, g.mata_pelajaran, 
+        SELECT g.id_guru as id, g.nip, g.nama, g.email, g.mata_pelajaran, 
                g.alamat, g.no_telp as telepon, g.jenis_kelamin, 
                COALESCE(g.status, 'aktif') as status
         FROM guru g
@@ -41,7 +41,7 @@ export const getTeachersPaginated = async (page = 1, limit = 15, search = '') =>
     const offset = (page - 1) * limit;
     
     let query = `
-        SELECT g.id, g.nip, g.nama, g.email, g.mata_pelajaran, 
+        SELECT g.id_guru as id, g.nip, g.nama, g.email, g.mata_pelajaran, 
                g.alamat, g.no_telp as telepon, g.jenis_kelamin, 
                COALESCE(g.status, 'aktif') as status
         FROM guru g
@@ -82,7 +82,7 @@ export const createTeacher = async (data) => {
     
     try {
         // Check if NIP exists
-        const [existing] = await connection.execute('SELECT id FROM guru WHERE nip = ?', [nip]);
+        const [existing] = await connection.execute('SELECT id_guru FROM guru WHERE nip = ?', [nip]);
         if (existing.length > 0) {
             throw new ServiceError('NIP sudah terdaftar', 'DUPLICATE_NIP');
         }
@@ -101,8 +101,8 @@ export const createTeacher = async (data) => {
 
             // Insert guru
             const query = `
-                INSERT INTO guru (id_guru, user_id, username, nip, nama, email, mata_pelajaran, alamat, no_telp, jenis_kelamin, status)
-                VALUES ((SELECT COALESCE(MAX(id_guru), 0) + 1 FROM guru g2), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO guru (id, id_guru, user_id, username, nip, nama, email, mata_pelajaran, alamat, no_telp, jenis_kelamin, status)
+                VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM guru g2), (SELECT COALESCE(MAX(id_guru), 0) + 1 FROM guru g2), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             const [result] = await connection.execute(query, [
@@ -131,7 +131,7 @@ export const updateTeacher = async (id, data) => {
     try {
         // Check duplicate NIP
         const [existing] = await connection.execute(
-            'SELECT id FROM guru WHERE nip = ? AND id != ?',
+            'SELECT id_guru FROM guru WHERE nip = ? AND id_guru != ?',
             [nip, id]
         );
         if (existing.length > 0) {
@@ -142,7 +142,7 @@ export const updateTeacher = async (id, data) => {
 
         try {
             // Update user name if linked
-            const [guruData] = await connection.execute('SELECT user_id FROM guru WHERE id = ?', [id]);
+            const [guruData] = await connection.execute('SELECT user_id FROM guru WHERE id_guru = ?', [id]);
             
             if (guruData.length > 0 && guruData[0].user_id) {
                 await connection.execute('UPDATE users SET nama = ? WHERE id = ?', [nama, guruData[0].user_id]);
@@ -153,7 +153,7 @@ export const updateTeacher = async (id, data) => {
                 UPDATE guru 
                 SET nip = ?, nama = ?, email = ?, mata_pelajaran = ?, 
                     alamat = ?, no_telp = ?, jenis_kelamin = ?, status = ?
-                WHERE id = ?
+                WHERE id_guru = ?
             `;
 
             const [result] = await connection.execute(updateQuery, [
@@ -186,14 +186,14 @@ export const deleteTeacher = async (id) => {
         await connection.beginTransaction();
 
         try {
-            const [guruData] = await connection.execute('SELECT user_id FROM guru WHERE id = ?', [id]);
+            const [guruData] = await connection.execute('SELECT user_id FROM guru WHERE id_guru = ?', [id]);
              if (guruData.length === 0) {
                  await connection.rollback();
                  throw new ServiceError('Data guru tidak ditemukan', 'NOT_FOUND');
              }
 
             // Delete guru
-            const [result] = await connection.execute('DELETE FROM guru WHERE id = ?', [id]);
+            const [result] = await connection.execute('DELETE FROM guru WHERE id_guru = ?', [id]);
             if (result.affectedRows === 0) {
                 await connection.rollback();
                 throw new ServiceError('Data guru tidak ditemukan', 'NOT_FOUND');

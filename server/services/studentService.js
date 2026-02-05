@@ -22,8 +22,7 @@ export class ServiceError extends Error {
 export const getAllStudents = async () => {
     const query = `
         SELECT 
-            s.id_siswa as id_siswa,
-            s.id,
+            s.id_siswa as id,
             s.nis, 
             s.nama, 
             s.kelas_id, 
@@ -53,8 +52,7 @@ export const getStudentsPaginated = async (page = 1, limit = 15, search = '') =>
     
     let query = `
         SELECT 
-            s.id_siswa as id_siswa,
-            s.id,
+            s.id_siswa as id,
             s.nis, 
             s.nama, 
             s.kelas_id, 
@@ -105,7 +103,7 @@ export const createStudent = async (data) => {
         await connection.beginTransaction();
 
         // Check if NIS exists
-        const [existing] = await connection.execute('SELECT id FROM siswa WHERE nis = ?', [nis]);
+        const [existing] = await connection.execute('SELECT id_siswa FROM siswa WHERE nis = ?', [nis]);
         if (existing.length > 0) {
             throw new ServiceError('NIS sudah terdaftar', 'DUPLICATE_NIS');
         }
@@ -165,7 +163,7 @@ export const updateStudent = async (id, data) => {
         // Duplicate phone check
         if (nomor_telepon_siswa) {
             const [existingPhone] = await connection.execute(
-                'SELECT id FROM siswa WHERE nomor_telepon_siswa = ? AND id != ?',
+                'SELECT id_siswa FROM siswa WHERE nomor_telepon_siswa = ? AND id_siswa != ?',
                 [nomor_telepon_siswa, id]
             );
             if (existingPhone.length > 0) {
@@ -174,13 +172,13 @@ export const updateStudent = async (id, data) => {
         }
 
         // Check if student exists
-        const [studentExists] = await connection.execute('SELECT user_id FROM siswa WHERE id = ?', [id]);
+        const [studentExists] = await connection.execute('SELECT user_id FROM siswa WHERE id_siswa = ?', [id]);
         if (studentExists.length === 0) {
             throw new ServiceError('Data siswa tidak ditemukan', 'NOT_FOUND');
         }
 
         // Check duplicate NIS
-        const [existing] = await connection.execute('SELECT id FROM siswa WHERE nis = ? AND id != ?', [nis, id]);
+        const [existing] = await connection.execute('SELECT id_siswa FROM siswa WHERE nis = ? AND id_siswa != ?', [nis, id]);
         if (existing.length > 0) {
             throw new ServiceError('NIS sudah digunakan oleh siswa lain', 'DUPLICATE_NIS');
         }
@@ -191,7 +189,7 @@ export const updateStudent = async (id, data) => {
             UPDATE siswa 
             SET nis = ?, nama = ?, kelas_id = ?, jenis_kelamin = ?, 
                 alamat = ?, telepon_orangtua = ?, nomor_telepon_siswa = ?, status = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id_siswa = ?
         `;
 
         const [result] = await connection.execute(updateQuery, [
@@ -226,12 +224,12 @@ export const deleteStudent = async (id) => {
     try {
         await connection.beginTransaction();
 
-        const [studentData] = await connection.execute('SELECT user_id FROM siswa WHERE id = ?', [id]);
+        const [studentData] = await connection.execute('SELECT user_id FROM siswa WHERE id_siswa = ?', [id]);
         if (studentData.length === 0) {
             throw new ServiceError('Data siswa tidak ditemukan', 'NOT_FOUND');
         }
 
-        const [studentResult] = await connection.execute('DELETE FROM siswa WHERE id = ?', [id]);
+        const [studentResult] = await connection.execute('DELETE FROM siswa WHERE id_siswa = ?', [id]);
         if (studentResult.affectedRows === 0) {
             throw new ServiceError('Data siswa tidak ditemukan', 'NOT_FOUND');
         }
