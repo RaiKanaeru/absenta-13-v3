@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  FileText, Search, Download, ArrowLeft, AlertCircle 
+  FileText, Search, Download, ArrowLeft, AlertCircle, Loader2 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
@@ -25,6 +25,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
     const [tahun, setTahun] = useState(new Date().getFullYear());
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
+    const [exporting, setExporting] = useState(false);
 
     // Tambah state untuk sorting dan filtering
     const [searchValues, setSearchValues] = useState('');
@@ -130,6 +131,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
         }
 
         try {
+            setExporting(true);
             // Prepare CSV content
             const headers = ['No', 'Nama', 'NIP', 'Hadir', 'Izin', 'Sakit', 'Tidak Hadir', 'Persentase'];
             const rows = filteredData.map((item, index) => [
@@ -153,6 +155,10 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            toast({
+                title: "Berhasil",
+                description: "File CSV berhasil diunduh"
+            });
         } catch (err) {
             console.error('Export error:', err);
             toast({
@@ -160,6 +166,8 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                 description: "Gagal mengekspor laporan",
                 variant: 'destructive'
             });
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -173,9 +181,18 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                     </Button>
                     <h2 className="text-2xl font-bold text-foreground">Rekapitulasi Absensi Guru</h2>
                 </div>
-                <Button onClick={handleExportReport} variant="outline" disabled={!reportData.length}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Export CSV
+                <Button onClick={handleExportReport} variant="outline" disabled={!reportData.length || exporting}>
+                    {exporting ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Mengekspor...
+                        </>
+                    ) : (
+                        <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Export CSV
+                        </>
+                    )}
                 </Button>
             </div>
 
@@ -255,7 +272,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
 
                     {loading ? (
                         <div className="flex justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     ) : reportData.length > 0 ? (
                         <>
@@ -285,9 +302,9 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                                 <TableCell>{(currentPage - 1) * itemsPerPage + idx + 1}</TableCell>
                                                 <TableCell className="font-medium">{row.nama}</TableCell>
                                                 <TableCell>{row.nip}</TableCell>
-                                <TableCell className="text-emerald-600 dark:text-emerald-400 font-medium">{row.hadir}</TableCell>
-                                                <TableCell className="text-blue-600 dark:text-blue-400">{row.izin}</TableCell>
-                                                <TableCell className="text-amber-600 dark:text-amber-400">{row.sakit}</TableCell>
+                                                <TableCell className="text-emerald-600 dark:text-emerald-400 font-medium">{row.hadir}</TableCell>
+                                                <TableCell className="text-amber-600 dark:text-amber-400">{row.izin}</TableCell>
+                                                <TableCell className="text-blue-600 dark:text-blue-400">{row.sakit}</TableCell>
                                                 <TableCell className="text-destructive font-bold">{row.alpa}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  ArrowLeft, Clock, AlertTriangle, CheckCircle2, FileText, X, GraduationCap, RefreshCw, Download 
+  ArrowLeft, Clock, AlertTriangle, CheckCircle2, FileText, X, GraduationCap, RefreshCw, Download, Loader2 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
@@ -34,6 +34,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedMapel, setSelectedMapel] = useState('all');
     const [mapelList, setMapelList] = useState<{id_mapel: number; nama_mapel: string}[]>([]);
+    const [exporting, setExporting] = useState(false);
 
     // Update waktu setiap detik
     useEffect(() => {
@@ -134,8 +135,8 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
 
       const stats = [
         { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
-        { label: 'Tidak Hadir', value: tidakHadir, color: 'rose', icon: X, pct: total > 0 ? Math.round((tidakHadir/total)*100) : 0 },
-        { label: 'Sakit', value: sakit, color: 'sky', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
+        { label: 'Tidak Hadir', value: tidakHadir, color: 'destructive', icon: X, pct: total > 0 ? Math.round((tidakHadir/total)*100) : 0 },
+        { label: 'Sakit', value: sakit, color: 'blue', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
         { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
         { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
         { label: 'Belum Absen', value: belumAbsen, color: 'slate', icon: Clock, pct: total > 0 ? Math.round((belumAbsen/total)*100) : 0 },
@@ -144,8 +145,8 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
 
 const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
         emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-500' },
-        rose: { bg: 'bg-rose-500/10 dark:bg-rose-500/20', border: 'border-l-rose-500', text: 'text-rose-700 dark:text-rose-400', icon: 'text-rose-500' },
-        sky: { bg: 'bg-sky-500/10 dark:bg-sky-500/20', border: 'border-l-sky-500', text: 'text-sky-700 dark:text-sky-400', icon: 'text-sky-500' },
+        destructive: { bg: 'bg-destructive/15', border: 'border-l-destructive', text: 'text-destructive', icon: 'text-destructive' },
+        blue: { bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-l-blue-500', text: 'text-blue-700 dark:text-blue-400', icon: 'text-blue-500' },
         amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-500' },
         violet: { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-l-violet-500', text: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-500' },
         slate: { bg: 'bg-muted', border: 'border-l-slate-500 dark:border-l-slate-400', text: 'text-foreground', icon: 'text-muted-foreground' },
@@ -194,7 +195,15 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="relative">
               <svg className="w-32 h-32 transform -rotate-90">
-                <circle cx="64" cy="64" r="45" stroke="#e5e7eb" strokeWidth="10" fill="none" />
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="45"
+                  stroke="currentColor"
+                  strokeWidth="10"
+                  fill="none"
+                  className="text-muted"
+                />
                 <circle
                   cx="64" cy="64" r="45"
                   stroke="url(#gradientTeacher)"
@@ -207,13 +216,13 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                 />
                 <defs>
                   <linearGradient id="gradientTeacher" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
+                    <stop offset="0%" stopColor="currentColor" className="text-emerald-500 dark:text-emerald-400" />
+                    <stop offset="100%" stopColor="currentColor" className="text-emerald-400 dark:text-emerald-300" />
                   </linearGradient>
                 </defs>
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl font-bold text-indigo-700">{presentase}%</span>
+                <span className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{presentase}%</span>
               </div>
             </div>
             
@@ -223,19 +232,19 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
               
               <div className="grid grid-cols-4 gap-3">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-indigo-600">{hadir}</p>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{hadir}</p>
 <p className="text-xs text-muted-foreground">Hadir</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-amber-600">{izin}</p>
+                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{izin}</p>
                   <p className="text-xs text-muted-foreground">Izin</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-sky-600">{sakit}</p>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{sakit}</p>
                   <p className="text-xs text-muted-foreground">Sakit</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold text-rose-600">{tidakHadir}</p>
+                  <p className="text-lg font-bold text-destructive">{tidakHadir}</p>
                   <p className="text-xs text-muted-foreground">Tidak Hadir</p>
                 </div>
               </div>
@@ -326,6 +335,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
           });
           return;
         }
+        setExporting(true);
         
         // Prepare data for Excel export
         const exportData = filteredData.map((teacher, index) => ({
@@ -356,13 +366,15 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
         // Download CSV file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        link.href = url;
         link.download = `pemantauan_guru_live_${getCurrentDateWIB()}.csv`;
         link.click();
+        URL.revokeObjectURL(url);
         
         toast({
           title: "Berhasil",
-          description: "Data guru berhasil diekspor ke CSV"
+          description: "File CSV berhasil diunduh"
         });
       } catch (error: unknown) {
         console.error('❌ Error exporting live teacher attendance:', error);
@@ -372,6 +384,8 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
           description: "Gagal mengekspor data: " + message,
           variant: "destructive"
         });
+      } finally {
+        setExporting(false);
       }
     };
 
@@ -384,7 +398,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
           </Button>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-muted-foreground">Memuat data pemantauan guru...</p>
             </div>
           </div>
@@ -465,14 +479,23 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                   onClick={() => setAutoRefresh(!autoRefresh)} 
                   size="sm" 
                   variant={autoRefresh ? "default" : "outline"}
-                  className={autoRefresh ? "bg-green-600 hover:bg-green-700" : ""}
+                  className={autoRefresh ? "bg-emerald-600 hover:bg-emerald-700" : ""}
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
                   Auto Refresh: {autoRefresh ? 'ON' : 'OFF'}
                 </Button>
-                <Button onClick={handleExport} size="sm" disabled={filteredData?.length === 0}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export ke CSV
+                <Button onClick={handleExport} size="sm" disabled={filteredData?.length === 0 || exporting}>
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export ke CSV
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

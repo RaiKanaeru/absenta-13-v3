@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB, getMonthRangeWIB } from "@/lib/time-utils";
-import { MessageCircle, Search, Download } from "lucide-react";
+import { MessageCircle, Search, Download, Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
@@ -31,6 +31,7 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -75,12 +76,28 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
     }
   };
 
+  const getAttendanceBadgeClass = (status: string) => {
+    const normalized = status.toLowerCase();
+    if (normalized === 'hadir') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    if (normalized === 'izin') return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
+    if (normalized === 'sakit') return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
+    if (normalized === 'alpa' || normalized === 'tidak hadir') return 'bg-destructive/15 text-destructive';
+    return 'bg-muted text-foreground';
+  };
+
   const downloadExcel = async () => {
     if (!dateRange.startDate || !dateRange.endDate) {
-      setError('Mohon pilih periode mulai dan akhir');
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
       return;
     }
     try {
+      setExporting(true);
       const params = new URLSearchParams({ 
         startDate: dateRange.startDate, 
         endDate: dateRange.endDate 
@@ -104,7 +121,15 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
       });
     } catch (err) {
       console.error('Error downloading Excel:', err);
-      setError(getErrorMessage(err) || 'Gagal mengunduh file Excel');
+      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -148,7 +173,7 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
             
             {/* Manual Date Range Selection */}
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Atau Pilih Rentang Tanggal Manual</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Atau Pilih Rentang Tanggal Manual</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                 <div>
                   <Label className="text-sm font-medium">Periode Mulai</Label>
@@ -207,8 +232,8 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
       </Card>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600">{error}</p>
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+          <p className="text-destructive">{error}</p>
         </div>
       )}
 
@@ -221,9 +246,18 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
                   <MessageCircle className="w-5 h-5" />
                   Riwayat Pengajuan Banding Absen
                 </CardTitle>
-                <Button onClick={downloadExcel} className="bg-green-600 hover:bg-green-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Excel
+                <Button onClick={downloadExcel} className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={exporting}>
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Excel
+                    </>
+                  )}
                 </Button>
               </div>
             </CardHeader>
@@ -255,7 +289,7 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
                         <TableCell>{item.nama_kelas}</TableCell>
                         <TableCell>{formatDateWIB(String(item.tanggal_absen))}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{item.status_absen}</Badge>
+                          <Badge variant="outline" className={getAttendanceBadgeClass(String(item.status_absen))}>{item.status_absen}</Badge>
                         </TableCell>
                         <TableCell>{item.alasan_banding}</TableCell>
                         <TableCell>

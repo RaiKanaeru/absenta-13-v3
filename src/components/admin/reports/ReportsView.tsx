@@ -267,7 +267,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
                 </div>
 
                 <div className="flex justify-end pt-4">
-                <Button onClick={handleExportTeacherRecap} disabled={exporting} className="bg-orange-600 hover:bg-orange-700 text-white min-w-[200px]">
+                <Button onClick={handleExportTeacherRecap} disabled={exporting} className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[200px]">
                     {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
                 </Button>
                 </div>

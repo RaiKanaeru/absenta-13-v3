@@ -135,7 +135,7 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
           </div>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-muted-foreground">Memuat data analitik...</p>
             </div>
           </div>
@@ -200,7 +200,7 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
 <p className="text-sm text-muted-foreground">Tanggal</p>
                 <p className="font-mono text-foreground">{getCurrentDateWIB()}</p>
               </div>
-              <Button onClick={toggleFullscreen} variant="outline" size="sm" className="bg-white">
+              <Button onClick={toggleFullscreen} variant="outline" size="sm" className="bg-background">
                 {fullscreenMode ? <Minimize2 className="w-4 h-4 mr-1" /> : <Maximize2 className="w-4 h-4 mr-1" />}
                 {fullscreenMode ? 'Keluar' : 'Fullscreen'}
               </Button>

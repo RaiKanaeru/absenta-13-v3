@@ -250,7 +250,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
   // Use the shared getEffectiveDays from academic-constants instead of local function
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -262,8 +262,8 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
             Kembali
           </button>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/15 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg">
+              <BarChart3 className="w-6 h-6 text-blue-700 dark:text-blue-400" />
             </div>
             <div>
 <h1 className="text-2xl font-bold text-foreground">Rekap Ketidakhadiran Siswa</h1>
@@ -415,70 +415,70 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
               />
 
               {/* Rekap Table */}
-              <div className="border-2 border-gray-400">
+              <div className="border-2 border-border">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-100 border-b-2 border-gray-400">
-                      <th className="border border-gray-300 p-2 text-center w-12">NO.</th>
-                      <th className="border border-gray-300 p-2 text-center w-48">NAMA SISWA</th>
+                    <tr className="bg-muted border-b-2 border-border">
+                      <th className="border border-border p-2 text-center w-12">NO.</th>
+                      <th className="border border-border p-2 text-center w-48">NAMA SISWA</th>
                       {viewMode === 'tahunan' ? (
                         <>
                           {ACADEMIC_MONTHS.map((month) => (
-                            <th key={month.key} className="border border-gray-300 p-2 text-center bg-blue-100">
+                            <th key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {month.key}
                             </th>
                           ))}
                         </>
                       ) : viewMode === 'bulanan' ? (
-                        <th className="border border-gray-300 p-2 text-center bg-blue-100">
+                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                           {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
                         </th>
                       ) : (
-                        <th className="border border-gray-300 p-2 text-center bg-blue-100">
+                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                           PERIODE TANGGAL
                         </th>
                       )}
-                      <th className="border border-gray-300 p-2 text-center bg-green-100 w-24">JUMLAH KETIDAKHADIRAN</th>
-                      <th className="border border-gray-300 p-2 text-center bg-green-100 w-32">PERSENTASE KETIDAKHADIRAN (%)</th>
-                      <th className="border border-gray-300 p-2 text-center bg-green-100 w-32">PERSENTASE KEHADIRAN (%)</th>
+                      <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-24">JUMLAH KETIDAKHADIRAN</th>
+                      <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KETIDAKHADIRAN (%)</th>
+                      <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KEHADIRAN (%)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {students.map((siswa, index) => (
-                      <tr key={siswa.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                        <td className="border border-gray-300 p-2">{siswa.nama}</td>
+                      <tr key={siswa.id} className="hover:bg-muted">
+                        <td className="border border-border p-2 text-center">{index + 1}</td>
+                        <td className="border border-border p-2">{siswa.nama}</td>
                         {viewMode === 'tahunan' ? (
                           <>
                             {ACADEMIC_MONTHS.map((month) => {
                               const presensi = getPresensiForStudent(siswa.id, month.number);
                               return (
-                                <td key={month.key} className="border border-gray-300 p-2 text-center bg-blue-50">
+                                <td key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                                   {presensi ? presensi.total_ketidakhadiran : 0}
                                 </td>
                               );
                             })}
                           </>
                         ) : viewMode === 'bulanan' ? (
-                          <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                             {getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0}
                           </td>
                         ) : (
-                          <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                             {getPresensiForStudentByDate(siswa.id)?.total_ketidakhadiran || 0}
                           </td>
                         )}
-                        <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
+                        <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {viewMode === 'tahunan' ? getTotalKetidakhadiran(siswa.id) : 
                            viewMode === 'bulanan' ? getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0 :
                            getPresensiForStudentByDate(siswa.id)?.total_ketidakhadiran || 0}
                         </td>
-                        <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
+                        <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {viewMode === 'tahunan' ? getTotalPersentaseKetidakhadiran(siswa.id).toFixed(2) : 
                            viewMode === 'bulanan' ? (Number.parseFloat(String(getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.persentase_ketidakhadiran || '0'))).toFixed(2) :
                            (Number.parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_ketidakhadiran || '0'))).toFixed(2)}
                         </td>
-                        <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
+                        <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {viewMode === 'tahunan' ? getTotalPersentaseKehadiran(siswa.id).toFixed(2) : 
                            viewMode === 'bulanan' ? (Number.parseFloat(String(getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.persentase_kehadiran || '0'))).toFixed(2) :
                            (Number.parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_kehadiran || '0'))).toFixed(2)}

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { getMonthRangeWIB } from "@/lib/time-utils";
-import { ClipboardList, Search, Download, ArrowLeft } from "lucide-react";
+import { ClipboardList, Search, Download, ArrowLeft, Loader2 } from "lucide-react";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 
@@ -31,6 +31,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -77,6 +78,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
 
   const downloadExcel = async () => {
     try {
+      setExporting(true);
       const params = new URLSearchParams({ 
         startDate: dateRange.startDate, 
         endDate: dateRange.endDate,
@@ -99,7 +101,15 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       });
     } catch (err) {
       console.error('Error downloading Excel:', err);
-      setError('Gagal mengunduh file Excel');
+      const message = 'Gagal mengunduh file Excel';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -217,9 +227,18 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                   <ClipboardList className="w-5 h-5" />
                   Rekap Ketidakhadiran {reportType === 'bulanan' ? 'Bulanan' : 'Tahunan'}
                 </CardTitle>
-                <Button onClick={downloadExcel} className="bg-green-600 hover:bg-green-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Excel
+                <Button onClick={downloadExcel} className="bg-emerald-600 hover:bg-emerald-700" disabled={exporting}>
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Excel
+                    </>
+                  )}
                 </Button>
               </div>
             </CardHeader>
@@ -259,19 +278,19 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                             <Badge variant="outline">{totalSiswa}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="default" className="bg-green-500">{hadir}</Badge>
+                            <Badge variant="default" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">{hadir}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-yellow-500">{item.izin || 0}</Badge>
+                            <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-400">{item.izin || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-orange-500">{item.sakit || 0}</Badge>
+                            <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-400">{item.sakit || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="destructive">{item.alpa || 0}</Badge>
+                            <Badge variant="destructive" className="bg-destructive/15 text-destructive">{item.alpa || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-purple-500">{item.dispen || 0}</Badge>
+                            <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-400">{item.dispen || 0}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-destructive/15 text-destructive">{totalAbsen}</Badge>

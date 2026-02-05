@@ -31,6 +31,33 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
   const [totalAll, setTotalAll] = useState(0);
   const limit = 5;
 
+  const getAttendanceBadgeClass = (status: string) => {
+    const normalized = status.toLowerCase();
+    if (normalized === 'hadir') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    if (normalized === 'izin') return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
+    if (normalized === 'sakit') return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
+    if (normalized === 'alpa' || normalized === 'tidak hadir') return 'bg-destructive/15 text-destructive';
+    return 'bg-muted text-foreground';
+  };
+
+  const getBandingStatusClass = (status: string) => {
+    if (status === 'disetujui') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    if (status === 'ditolak') return 'bg-destructive/15 text-destructive';
+    return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
+  };
+
+  const renderStatusPair = (statusAsli: string, statusDiajukan: string) => (
+    <div className="flex flex-wrap items-center gap-1">
+      <Badge variant="outline" className={`text-xs px-1 py-0 ${getAttendanceBadgeClass(statusAsli)}`}>
+        {statusAsli}
+      </Badge>
+      <span className="text-xs text-muted-foreground">→</span>
+      <Badge variant="outline" className={`text-xs px-1 py-0 ${getAttendanceBadgeClass(statusDiajukan)}`}>
+        {statusDiajukan}
+      </Badge>
+    </div>
+  );
+
   useEffect(() => {
     const fetchBandingAbsen = async () => {
       try {
@@ -128,16 +155,16 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
             <span className="text-lg sm:text-xl">Pengajuan Banding Absen</span>
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-600 font-medium">
+            <div className="text-sm text-muted-foreground font-medium">
               {filterPending ? `${totalPending} belum di-acc` : `${totalAll} total`}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               Halaman {currentPage} dari {totalPages}
             </div>
           </div>
         </CardTitle>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             <div className="block sm:hidden">
               Total: {totalAll} | Belum di-acc: {totalPending}
             </div>
@@ -149,7 +176,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
             variant={filterPending ? "default" : "outline"}
             size="sm"
             onClick={handleFilterToggle}
-            className={`w-full sm:w-auto ${filterPending ? "bg-orange-600 hover:bg-orange-700" : ""}`}
+            className={`w-full sm:w-auto ${filterPending ? "bg-primary hover:bg-primary/90 text-primary-foreground" : ""}`}
           >
             {filterPending ? (
               <>
@@ -171,14 +198,14 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse bg-gray-200 h-32 rounded"></div>
+              <div key={i} className="animate-pulse bg-muted h-32 rounded"></div>
             ))}
           </div>
         ) : bandingList.length === 0 ? (
           <div className="text-center py-12">
-            <MessageCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada banding absen</h3>
-            <p className="text-gray-600">Belum ada pengajuan banding absen dari siswa yang perlu diproses</p>
+            <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada banding absen</h3>
+            <p className="text-muted-foreground">Belum ada pengajuan banding absen dari siswa yang perlu diproses</p>
           </div>
         ) : (
           <>
@@ -198,12 +225,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                 </TableHeader>
                 <TableBody>
                   {bandingList.map((banding) => (
-                    <TableRow key={banding.id_banding} className="hover:bg-gray-50">
+                    <TableRow key={banding.id_banding} className="hover:bg-muted">
                       <TableCell>
                         <div className="text-sm font-medium">
                           {formatDateWIB(banding.tanggal_pengajuan)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           {formatTime24(banding.tanggal_pengajuan)}
                         </div>
                       </TableCell>
@@ -211,17 +238,17 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                         <div className="text-sm font-medium">
                           {formatDateWIB(banding.tanggal_absen)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           {banding.jam_mulai}-{banding.jam_selesai}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <div className="font-medium text-sm">{banding.nama_mapel}</div>
-                          <div className="text-xs text-gray-600">
+                          <div className="text-xs text-muted-foreground">
                             {banding.nama_guru}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             {banding.nama_kelas}
                           </div>
                         </div>
@@ -229,37 +256,28 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                       <TableCell>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">
+                            <span className="text-sm font-medium text-foreground">
                               {banding.nama_siswa}
                             </span>
                           </div>
-                          <div className="text-xs text-gray-600 space-y-1">
+                          <div className="text-xs text-muted-foreground space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">NIS: {banding.nis}</span>
-                              <Badge 
-                                variant="outline" 
-                                className="text-xs px-1 py-0"
-                              >
-                                {banding.status_asli} → {banding.status_diajukan}
-                              </Badge>
+                              {renderStatusPair(banding.status_asli, banding.status_diajukan)}
                             </div>
-                            <div className="text-gray-600">
+                            <div className="text-muted-foreground">
                               {banding.alasan_banding}
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={
-                            banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800 hover:bg-green-200' :
-                            banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800 hover:bg-red-200' :
-                            'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                        }>
+                        <Badge className={getBandingStatusClass(banding.status_banding)}>
                           {banding.status_banding === 'disetujui' ? 'Disetujui' :
                            banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
                         </Badge>
                         {banding.tanggal_keputusan && (
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             {formatDateWIB(banding.tanggal_keputusan)}
                           </div>
                         )}
@@ -267,12 +285,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                       <TableCell>
                         <div className="max-w-xs">
                           {banding.catatan_guru ? (
-                            <div className="text-sm bg-gray-50 p-2 rounded border-l-2 border-gray-300">
-                              <div className="font-medium text-gray-700 mb-1">Respon Guru:</div>
-                              <div className="text-gray-600 break-words">{banding.catatan_guru}</div>
+                            <div className="text-sm bg-muted p-2 rounded border-l-2 border-border">
+                              <div className="font-medium text-foreground mb-1">Respon Guru:</div>
+                              <div className="text-muted-foreground break-words">{banding.catatan_guru}</div>
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-sm">Belum ada respon</span>
+                            <span className="text-muted-foreground text-sm">Belum ada respon</span>
                           )}
                         </div>
                       </TableCell>
@@ -281,7 +299,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                           <div className="flex gap-2">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
                                   <CheckCircle className="w-4 h-4 mr-1" />
                                   Setujui
                                 </Button>
@@ -292,9 +310,10 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-2">Banding dari: <strong>{banding.nama_siswa}</strong></p>
-                                    <p className="text-sm text-gray-600">Status: {banding.status_asli} → {banding.status_diajukan}</p>
-                                    <p className="text-sm text-gray-600">Tanggal: {formatDateWIB(banding.tanggal_absen)}</p>
+                                    <p className="text-sm text-muted-foreground mb-2">Banding dari: <strong>{banding.nama_siswa}</strong></p>
+                                    <div className="text-sm text-muted-foreground">Status:</div>
+                                    {renderStatusPair(banding.status_asli, banding.status_diajukan)}
+                                    <p className="text-sm text-muted-foreground">Tanggal: {formatDateWIB(banding.tanggal_absen)}</p>
                                   </div>
                                   <Textarea 
                                     placeholder="Catatan persetujuan (opsional)" 
@@ -305,7 +324,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                       const textarea = document.getElementById(`approve-banding-${banding.id_banding}`) as HTMLTextAreaElement;
                                       handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
                                     }}
-                                    className="w-full bg-green-600 hover:bg-green-700"
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700"
                                   >
                                     Setujui Banding Absen
                                   </Button>
@@ -326,8 +345,9 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-2">Banding dari: <strong>{banding.nama_siswa}</strong></p>
-                                    <p className="text-sm text-gray-600">Status: {banding.status_asli} → {banding.status_diajukan}</p>
+                                    <p className="text-sm text-muted-foreground mb-2">Banding dari: <strong>{banding.nama_siswa}</strong></p>
+                                    <div className="text-sm text-muted-foreground">Status:</div>
+                                    {renderStatusPair(banding.status_asli, banding.status_diajukan)}
                                   </div>
                                   <Textarea 
                                     placeholder="Alasan penolakan (wajib)" 
@@ -377,16 +397,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                     {/* Header dengan status */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm">
+                        <h3 className="font-semibold text-foreground text-sm">
                           {banding.nama_siswa}
                         </h3>
-                        <p className="text-xs text-gray-600">NIS: {banding.nis}</p>
+                        <p className="text-xs text-muted-foreground">NIS: {banding.nis}</p>
                       </div>
-                      <Badge className={
-                          banding.status_banding === 'disetujui' ? 'bg-green-100 text-green-800' :
-                          banding.status_banding === 'ditolak' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                      }>
+                      <Badge className={getBandingStatusClass(banding.status_banding)}>
                         {banding.status_banding === 'disetujui' ? 'Disetujui' :
                          banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
                       </Badge>
@@ -395,37 +411,35 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                     {/* Informasi tanggal dan jadwal */}
                     <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
                       <div>
-                        <p className="font-medium text-gray-700">Tanggal Pengajuan</p>
-                        <p className="text-gray-600">{formatDateWIB(banding.tanggal_pengajuan)}</p>
-                        <p className="text-gray-500">{formatTime24(banding.tanggal_pengajuan)}</p>
+                        <p className="font-medium text-foreground">Tanggal Pengajuan</p>
+                        <p className="text-muted-foreground">{formatDateWIB(banding.tanggal_pengajuan)}</p>
+                        <p className="text-muted-foreground">{formatTime24(banding.tanggal_pengajuan)}</p>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-700">Tanggal Absen</p>
-                        <p className="text-gray-600">{formatDateWIB(banding.tanggal_absen)}</p>
-                        <p className="text-gray-500">{banding.jam_mulai}-{banding.jam_selesai}</p>
+                        <p className="font-medium text-foreground">Tanggal Absen</p>
+                        <p className="text-muted-foreground">{formatDateWIB(banding.tanggal_absen)}</p>
+                        <p className="text-muted-foreground">{banding.jam_mulai}-{banding.jam_selesai}</p>
                       </div>
                     </div>
 
                     {/* Jadwal dan kelas */}
                     <div className="mb-3">
-                      <p className="font-medium text-gray-700 text-xs mb-1">Jadwal</p>
-                      <p className="text-sm font-medium text-gray-900">{banding.nama_mapel}</p>
-                      <p className="text-xs text-gray-600">{banding.nama_guru}</p>
-                      <p className="text-xs text-gray-500">{banding.nama_kelas}</p>
+                      <p className="font-medium text-foreground text-xs mb-1">Jadwal</p>
+                      <p className="text-sm font-medium text-foreground">{banding.nama_mapel}</p>
+                      <p className="text-xs text-muted-foreground">{banding.nama_guru}</p>
+                      <p className="text-xs text-muted-foreground">{banding.nama_kelas}</p>
                     </div>
 
                     {/* Status perubahan */}
                     <div className="mb-3">
-                      <p className="font-medium text-gray-700 text-xs mb-1">Perubahan Status</p>
-                      <Badge variant="outline" className="text-xs">
-                        {banding.status_asli} → {banding.status_diajukan}
-                      </Badge>
+                      <p className="font-medium text-foreground text-xs mb-1">Perubahan Status</p>
+                      {renderStatusPair(banding.status_asli, banding.status_diajukan)}
                     </div>
 
                     {/* Alasan banding */}
                     <div className="mb-3">
-                      <p className="font-medium text-gray-700 text-xs mb-1">Alasan Banding</p>
-                      <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded text-xs">
+                      <p className="font-medium text-foreground text-xs mb-1">Alasan Banding</p>
+                      <p className="text-sm text-muted-foreground bg-muted p-2 rounded text-xs">
                         {banding.alasan_banding}
                       </p>
                     </div>
@@ -433,12 +447,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                     {/* Respon guru */}
                     {banding.catatan_guru && (
                       <div className="mb-3">
-                        <p className="font-medium text-gray-700 text-xs mb-1">Respon Guru</p>
-                        <div className="text-sm bg-blue-50 p-2 rounded border-l-2 border-blue-300">
-                          <div className="text-gray-600 text-xs">{banding.catatan_guru}</div>
+                        <p className="font-medium text-foreground text-xs mb-1">Respon Guru</p>
+                        <div className="text-sm bg-blue-500/10 dark:bg-blue-500/20 p-2 rounded border-l-2 border-blue-500/30">
+                          <div className="text-muted-foreground text-xs">{banding.catatan_guru}</div>
                         </div>
                         {banding.tanggal_keputusan && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             Diproses: {formatDateWIB(banding.tanggal_keputusan)}
                           </p>
                         )}
@@ -451,7 +465,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                         <div className="flex gap-2">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700 flex-1">
+                              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 flex-1">
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 Setujui
                               </Button>
@@ -462,9 +476,10 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                               </DialogHeader>
                               <div className="space-y-4">
                                 <div className="text-sm">
-                                  <p className="text-gray-600 mb-1">Banding dari: <strong>{banding.nama_siswa}</strong></p>
-                                  <p className="text-gray-600 mb-1">Status: {banding.status_asli} → {banding.status_diajukan}</p>
-                                  <p className="text-gray-600">Tanggal: {formatDateWIB(banding.tanggal_absen)}</p>
+                                  <p className="text-muted-foreground mb-1">Banding dari: <strong>{banding.nama_siswa}</strong></p>
+                                  <div className="text-muted-foreground text-sm">Status:</div>
+                                  {renderStatusPair(banding.status_asli, banding.status_diajukan)}
+                                  <p className="text-muted-foreground">Tanggal: {formatDateWIB(banding.tanggal_absen)}</p>
                                 </div>
                                 <Textarea 
                                   placeholder="Catatan persetujuan (opsional)" 
@@ -476,7 +491,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                     const textarea = document.getElementById(`approve-banding-mobile-${banding.id_banding}`) as HTMLTextAreaElement;
                                     handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
                                   }}
-                                  className="w-full bg-green-600 hover:bg-green-700"
+                                  className="w-full bg-emerald-600 hover:bg-emerald-700"
                                 >
                                   Setujui Banding Absen
                                 </Button>
@@ -497,8 +512,9 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                               </DialogHeader>
                               <div className="space-y-4">
                                 <div className="text-sm">
-                                  <p className="text-gray-600 mb-1">Banding dari: <strong>{banding.nama_siswa}</strong></p>
-                                  <p className="text-gray-600">Status: {banding.status_asli} → {banding.status_diajukan}</p>
+                                  <p className="text-muted-foreground mb-1">Banding dari: <strong>{banding.nama_siswa}</strong></p>
+                                  <div className="text-muted-foreground text-sm">Status:</div>
+                                  {renderStatusPair(banding.status_asli, banding.status_diajukan)}
                                 </div>
                                 <Textarea 
                                   placeholder="Alasan penolakan (wajib)" 
@@ -548,9 +564,9 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
             {/* Mobile Pagination */}
             <div className="lg:hidden">
               <div className="flex flex-col gap-3">
-                <div className="text-center text-sm text-gray-600">
+                <div className="text-center text-sm text-muted-foreground">
                   Halaman {currentPage} dari {totalPages}
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     {filterPending ? `${totalPending} belum di-acc` : `${totalAll} total`}
                   </div>
                 </div>
@@ -612,7 +628,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
 
             {/* Desktop Pagination */}
             <div className="hidden lg:flex items-center justify-between">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Halaman {currentPage} dari {totalPages} 
                 {filterPending ? ` (${totalPending} belum di-acc)` : ` (${totalAll} total)`}
               </div>

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, getMonthRangeWIB } from "@/lib/time-utils";
-import { ArrowLeft, Filter, FileText, Search, Download, XCircle } from "lucide-react";
+import { ArrowLeft, Filter, FileText, Search, Download, XCircle, Loader2 } from "lucide-react";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 import { getErrorMessage } from "@/utils/apiClient";
@@ -30,6 +30,8 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportingSmkn13, setExportingSmkn13] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -71,10 +73,17 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
 
   const downloadExcel = async () => {
     if (!dateRange.startDate || !dateRange.endDate) {
-      setError('Mohon pilih periode mulai dan akhir');
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
       return;
     }
     try {
+      setExporting(true);
       const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       const blob = await apiCall<Blob>(`/api/guru/download-attendance-excel?${params.toString()}`, {
@@ -86,18 +95,37 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       link.download = `laporan-kehadiran-siswa-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
       globalThis.URL.revokeObjectURL(url);
+      toast({
+        title: "Berhasil",
+        description: "File Excel berhasil diunduh"
+      });
     } catch (err) {
       console.error('Error downloading excel:', err);
-      setError(getErrorMessage(err) || 'Gagal mengunduh file Excel');
+      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
   const downloadSMKN13Format = async () => {
     if (!dateRange.startDate || !dateRange.endDate) {
-      setError('Mohon pilih periode mulai dan akhir');
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
       return;
     }
     try {
+      setExportingSmkn13(true);
       const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       
@@ -117,7 +145,15 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       });
     } catch (err) {
       console.error('Error downloading SMKN 13 format:', err);
-      setError(getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13');
+      const message = getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExportingSmkn13(false);
     }
   };
 
@@ -134,8 +170,8 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       </div>
 
       {error && (
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-2 text-red-700">
+        <Card className="p-4 border-destructive/20 bg-destructive/10">
+          <div className="flex items-center gap-2 text-destructive">
             <XCircle className="w-5 h-5" />
             <p className="font-medium">{error}</p>
           </div>
@@ -251,6 +287,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
               { key: 'presentase', label: 'Presentase', width: 100, align: 'center', format: 'percentage' }
             ]}
             onExport={downloadExcel}
+            exporting={exporting}
             teacherName={user?.nama || 'Guru'}
             reportPeriod={selectedMonth ? 
               `Periode: ${formatDateOnly(selectedMonth + '-01')}` :
@@ -272,10 +309,20 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
               <div className="flex items-center gap-3">
                 <Button 
                   onClick={downloadSMKN13Format}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  disabled={exportingSmkn13}
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Format SMK 13
+                  {exportingSmkn13 ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Format SMK 13
+                    </>
+                  )}
                 </Button>
 <div className="text-sm text-muted-foreground">
                   Format resmi dengan header sekolah dan styling profesional

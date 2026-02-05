@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Download, FileText } from 'lucide-react';
+import { Download, FileText, Loader2 } from 'lucide-react';
 import { useLetterhead } from '../hooks/useLetterhead';
 
 interface ExcelPreviewProps {
@@ -17,6 +17,8 @@ interface ExcelPreviewProps {
   showPreview?: boolean;
   onExport?: () => void;
   onExportSMKN13?: () => void;
+  exporting?: boolean;
+  exportingSMKN13?: boolean;
   className?: string;
   teacherName?: string;
   subjectName?: string;
@@ -32,6 +34,8 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
   showPreview = true,
   onExport,
   onExportSMKN13,
+  exporting = false,
+  exportingSMKN13 = false,
   className = "",
   teacherName,
   subjectName,
@@ -70,16 +74,16 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
     // Special styling for attendance columns (with type guard)
     const numValue = typeof value === 'number' ? value : 0;
     if (columnKey === 'hadir' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-emerald-500/20 text-emerald-700 dark:text-emerald-400`;
+      return `${baseStyle} text-center font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400`;
     }
     if (columnKey === 'izin' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-blue-500/20 text-blue-700 dark:text-blue-400`;
+      return `${baseStyle} text-center font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400`;
     }
     if (columnKey === 'sakit' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-red-500/20 text-red-700 dark:text-red-400`;
+      return `${baseStyle} text-center font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-400`;
     }
     if (columnKey === 'alpa' && numValue > 0) {
-      return `${baseStyle} text-center font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400`;
+      return `${baseStyle} text-center font-semibold bg-destructive/15 text-destructive`;
     }
     
     return `${baseStyle} ${alignStyle} bg-card`;
@@ -103,7 +107,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 shrink-0" />
+            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
             <CardTitle className="text-base sm:text-lg font-semibold text-foreground break-words">
               {title} ({data.length} record)
             </CardTitle>
@@ -115,10 +119,21 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                 size="sm"
                 onClick={onExport}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                disabled={exporting}
               >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Download Excel</span>
-                <span className="sm:hidden">Download</span>
+                {exporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline">Mengekspor...</span>
+                    <span className="sm:hidden">Mengekspor</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Download Excel</span>
+                    <span className="sm:hidden">Download</span>
+                  </>
+                )}
               </Button>
             )}
             {onExportSMKN13 && (
@@ -127,10 +142,21 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                 size="sm"
                 onClick={onExportSMKN13}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                disabled={exportingSMKN13}
               >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export SMKN 13</span>
-                <span className="sm:hidden">SMKN 13</span>
+                {exportingSMKN13 ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline">Mengekspor...</span>
+                    <span className="sm:hidden">Mengekspor</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Export SMKN 13</span>
+                    <span className="sm:hidden">SMKN 13</span>
+                  </>
+                )}
               </Button>
             )}
           </div>

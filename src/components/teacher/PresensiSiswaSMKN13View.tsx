@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB } from "@/lib/time-utils";
-import { FileText, Search, Download, ArrowLeft } from "lucide-react";
+import { FileText, Search, Download, ArrowLeft, Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
@@ -30,6 +30,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -65,10 +66,17 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
 
   const downloadExcel = async () => {
     if (!dateRange.startDate || !dateRange.endDate) {
-      setError('Mohon pilih periode mulai dan akhir');
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
       return;
     }
     try {
+      setExporting(true);
       const params = new URLSearchParams({ 
         startDate: dateRange.startDate, 
         endDate: dateRange.endDate 
@@ -91,7 +99,15 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       });
     } catch (err) {
       console.error('Error downloading Excel:', err);
-      setError(getErrorMessage(err) || 'Gagal mengunduh file Excel');
+      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -168,9 +184,18 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                   <FileText className="w-5 h-5" />
                   Presensi Siswa SMK 13
                 </CardTitle>
-                <Button onClick={downloadExcel} className="bg-blue-600 hover:bg-blue-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Excel
+                <Button onClick={downloadExcel} className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={exporting}>
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Excel
+                    </>
+                  )}
                 </Button>
               </div>
             </CardHeader>
@@ -215,22 +240,22 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                             <Badge variant="outline">{total}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="default" className="bg-green-500">{item.hadir || 0}</Badge>
+                            <Badge variant="default" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">{item.hadir || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-yellow-500">{item.izin || 0}</Badge>
+                            <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-400">{item.izin || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-orange-500">{item.sakit || 0}</Badge>
+                            <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-400">{item.sakit || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="destructive">{item.alpa || 0}</Badge>
+                            <Badge variant="destructive" className="bg-destructive/15 text-destructive">{item.alpa || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="bg-purple-500">{item.dispen || 0}</Badge>
+                            <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-400">{item.dispen || 0}</Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="bg-orange-400 text-white border-orange-500">{item.terlambat_count || 0}</Badge>
+                            <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400">{item.terlambat_count || 0}</Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-blue-500/15 text-blue-700 dark:text-blue-400">

@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Download, Search, Users, Calendar, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Download, Search, Users, Calendar, BarChart3, Loader2 } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
 
@@ -67,6 +67,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
   const [rekapData, setRekapData] = useState<RekapGuru[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // Use letterhead hook for consistent kop laporan
   const { letterhead } = useLetterhead('REPORT_REKAP_KETIDAKHADIRAN_GURU');
@@ -112,6 +113,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
   const handleExportExcel = async () => {
     try {
+      setExporting(true);
       const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru?tahun=${selectedTahun}`, {
         responseType: 'blob',
         onLogout
@@ -137,11 +139,14 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         description: message,
         variant: "destructive"
       });
+    } finally {
+      setExporting(false);
     }
   };
 
   const handleExportSMKN13 = async () => {
     try {
+      setExporting(true);
       const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru-smkn13?tahun=${selectedTahun}`, {
         responseType: 'blob',
         onLogout
@@ -167,6 +172,8 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         description: message,
         variant: "destructive"
       });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -222,36 +229,45 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
   // Use shared getEffectiveDays from academic-constants instead of local function
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <button
             onClick={onBack}
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mb-4"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali
           </button>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg">
+              <BarChart3 className="w-6 h-6 text-blue-700 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Rekap Ketidakhadiran Guru</h1>
-              <p className="text-gray-600">Format rekap ketidakhadiran sesuai standar SMKN 13</p>
+              <h1 className="text-2xl font-bold text-foreground">Rekap Ketidakhadiran Guru</h1>
+              <p className="text-muted-foreground">Format rekap ketidakhadiran sesuai standar SMKN 13</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
             onClick={handleExportExcel}
-            disabled={loading || !selectedTahun}
+            disabled={loading || !selectedTahun || exporting}
             className="flex items-center gap-2"
             variant="outline"
           >
-            <Download className="w-4 h-4" />
-            {loading ? 'Exporting...' : 'Export Excel'}
+            {exporting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Mengekspor...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Export Excel
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -370,80 +386,80 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
               />
 
               {/* Rekap Table */}
-              <div className="border-2 border-gray-400">
+              <div className="border-2 border-border">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-100 border-b-2 border-gray-400">
-                      <th className="border border-gray-300 p-2 text-center w-12">NO.</th>
-                      <th className="border border-gray-300 p-2 text-center w-48">NAMA GURU</th>
+                    <tr className="bg-muted border-b-2 border-border">
+                      <th className="border border-border p-2 text-center w-12">NO.</th>
+                      <th className="border border-border p-2 text-center w-48">NAMA GURU</th>
                       {viewMode === 'tahunan' ? (
                         <>
                           {ACADEMIC_MONTHS.map((month) => (
-                            <th key={month.key} className="border border-gray-300 p-2 text-center bg-blue-100">
+                            <th key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {month.key}
                             </th>
                           ))}
                         </>
                       ) : viewMode === 'bulanan' ? (
-                        <th className="border border-gray-300 p-2 text-center bg-blue-100">
+                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                           {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
                         </th>
                       ) : (
-                        <th className="border border-gray-300 p-2 text-center bg-blue-100">
+                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                           PERIODE TANGGAL
                         </th>
                       )}
-                      <th className="border border-gray-300 p-2 text-center bg-green-100 w-24">JUMLAH KETIDAKHADIRAN</th>
-                      <th className="border border-gray-300 p-2 text-center bg-green-100 w-32">PERSENTASE KETIDAKHADIRAN (%)</th>
-                      <th className="border border-gray-300 p-2 text-center bg-green-100 w-32">PERSENTASE KEHADIRAN (%)</th>
+                      <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-24">JUMLAH KETIDAKHADIRAN</th>
+                      <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KETIDAKHADIRAN (%)</th>
+                      <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KEHADIRAN (%)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rekapData.map((guru, index) => (
-                      <tr key={guru.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                        <td className="border border-gray-300 p-2">{guru.nama_guru}</td>
+                      <tr key={guru.id} className="hover:bg-muted">
+                        <td className="border border-border p-2 text-center">{index + 1}</td>
+                        <td className="border border-border p-2">{guru.nama_guru}</td>
                         {viewMode === 'tahunan' ? (
                           <>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.jul || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.agt || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.sep || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.okt || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.nov || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.des || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.jan || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.feb || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.mar || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.apr || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.mei || 0}
                             </td>
-                            <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                               {guru.jun || 0}
                             </td>
                           </>
                         ) : viewMode === 'bulanan' ? (
-                          <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                             {(() => {
                               const monthNumber = Number.parseInt(selectedBulan);
                               const monthData = {
@@ -454,17 +470,17 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                             })()}
                           </td>
                         ) : (
-                          <td className="border border-gray-300 p-2 text-center bg-blue-50">
+                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
                             {guru.total_ketidakhadiran || 0}
                           </td>
                         )}
-                        <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
+                        <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {guru.total_ketidakhadiran || 0}
                         </td>
-                        <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
+                        <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {Number.parseFloat(String(guru.persentase_ketidakhadiran || '0')).toFixed(2)}
                         </td>
-                        <td className="border border-gray-300 p-2 text-center bg-green-50 font-semibold">
+                        <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {Number.parseFloat(String(guru.persentase_kehadiran || '100')).toFixed(2)}
                         </td>
                       </tr>
@@ -490,9 +506,9 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       {!loading && !selectedTahun && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Calendar className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Pilih Filter</h3>
-            <p className="text-gray-500 text-center">Pilih tahun untuk melihat rekap ketidakhadiran guru</p>
+            <Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Pilih Filter</h3>
+            <p className="text-muted-foreground text-center">Pilih tahun untuk melihat rekap ketidakhadiran guru</p>
           </CardContent>
         </Card>
       )}
@@ -500,9 +516,9 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       {!loading && selectedTahun && rekapData.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada data rekap</h3>
-            <p className="text-gray-500 text-center">Tidak ada data rekap ketidakhadiran guru untuk periode yang dipilih. Pastikan ada data absensi guru untuk periode yang dipilih.</p>
+            <Users className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada data rekap</h3>
+            <p className="text-muted-foreground text-center">Tidak ada data rekap ketidakhadiran guru untuk periode yang dipilih. Pastikan ada data absensi guru untuk periode yang dipilih.</p>
           </CardContent>
         </Card>
       )}

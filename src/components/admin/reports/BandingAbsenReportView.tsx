@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  FileText, CheckCircle, XCircle, AlertTriangle, Search, Filter, Calendar, ArrowLeft, Download 
+  FileText, CheckCircle, XCircle, AlertTriangle, Search, Filter, Calendar, ArrowLeft, Download, Loader2 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
@@ -50,6 +50,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [exporting, setExporting] = useState(false);
   
   // Filter state
   const [statusFilter, setStatusFilter] = useState('all');
@@ -130,6 +131,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
         });
         return;
       }
+      setExporting(true);
 
       const exportData = filteredData.map((item, index) => ({
         'No': index + 1,
@@ -152,9 +154,15 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
       const csvContent = BOM + headers + '\n' + rows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `laporan_banding_absen_${getCurrentDateWIB()}.csv`;
       link.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Berhasil",
+        description: "File CSV berhasil diunduh"
+      });
     } catch (error) {
       console.error('Export error:', error);
       toast({
@@ -162,6 +170,8 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
         description: "Gagal mengekspor data",
         variant: "destructive"
       });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -200,9 +210,18 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           </Button>
           <h2 className="text-2xl font-bold text-foreground">Laporan Banding Absen</h2>
         </div>
-        <Button onClick={handleExport} variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
+        <Button onClick={handleExport} variant="outline" disabled={exporting}>
+          {exporting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Mengekspor...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </>
+          )}
         </Button>
       </div>
 
@@ -287,7 +306,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                             href={item.bukti_url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm flex items-center"
+                            className="text-primary hover:underline text-sm flex items-center"
                           >
                             Listing Bukti 
                           </a>
@@ -303,7 +322,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                           <div className="flex justify-end gap-2">
                             <Button 
                               size="sm" 
-                              className="bg-green-600 hover:bg-green-700 h-8"
+                              className="bg-emerald-600 hover:bg-emerald-700 h-8"
                               onClick={() => openReviewModal(item, 'approve')}
                             >
                               Setujui
@@ -444,7 +463,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
             </Button>
             <Button 
               disabled={reviewAction === 'reject' && !reviewNote}
-              className={reviewAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+              className={reviewAction === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}
               onClick={handleReviewBanding}
             >
               Konfirmasi

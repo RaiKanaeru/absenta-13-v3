@@ -28,6 +28,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [mapelInfo, setMapelInfo] = useState<{nama_mapel: string, nama_guru: string} | null>(null);
   const [pertemuanDates, setPertemuanDates] = useState<string[]>([]);
   const [periode, setPeriode] = useState<{startDate: string, endDate: string, total_days: number} | null>(null);
@@ -116,19 +117,28 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
     const { startDate, endDate } = getDateRange();
     
     if (!startDate || !endDate) {
-      setError('Mohon pilih periode');
+      const message = 'Mohon pilih periode';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
       return;
     }
 
     try {
+      setExporting(true);
       const blob = await apiCall<Blob>(`/api/guru/download-laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`, {
         responseType: 'blob'
       });
       
       const link = document.createElement('a');
-      link.href = globalThis.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
+      link.href = url;
       link.download = `laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx`;
       link.click();
+      globalThis.URL.revokeObjectURL(url);
       
       toast({
         title: "Berhasil!",
@@ -136,7 +146,15 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
       });
     } catch (err) {
       console.error('Error downloading excel:', err);
-      setError('Gagal mengunduh file Excel');
+      const message = 'Gagal mengunduh file Excel';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -315,6 +333,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
                 { key: 'presentase', label: '%', width: 80, align: 'center', format: 'percentage' }
               ]}
               onExport={downloadExcel}
+              exporting={exporting}
               teacherName={mapelInfo?.nama_guru || 'Guru'}
               subjectName={mapelInfo?.nama_mapel || 'Mata Pelajaran'}
               reportPeriod={periode ? 
