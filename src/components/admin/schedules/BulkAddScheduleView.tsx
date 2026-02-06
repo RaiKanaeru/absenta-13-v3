@@ -72,7 +72,7 @@ export function BulkAddScheduleView({
   }, {} as Record<string, Kelas[]>);
 
   // Sort tingkat keys
-  const tingkatOrder = ['X', 'XI', 'XII', 'XIII', 'Lainnya'];
+  const tingkatOrder = ['X', 'XI', 'XII', 'Lainnya'];
   const sortedTingkats = Object.keys(groupedClasses).sort((a, b) => {
     return tingkatOrder.indexOf(a) - tingkatOrder.indexOf(b);
   });

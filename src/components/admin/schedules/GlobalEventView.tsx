@@ -69,7 +69,7 @@ export function GlobalEventView({
     return acc;
   }, {} as Record<string, Kelas[]>);
 
-  const tingkatOrder = ['X', 'XI', 'XII', 'XIII', 'Lainnya'];
+  const tingkatOrder = ['X', 'XI', 'XII', 'Lainnya'];
   const sortedTingkats = Object.keys(groupedClasses).sort((a, b) => 
     tingkatOrder.indexOf(a) - tingkatOrder.indexOf(b)
   );

@@ -57,7 +57,7 @@ export function CloneScheduleView({
     return acc;
   }, {} as Record<string, Kelas[]>);
 
-  const tingkatOrder = ['X', 'XI', 'XII', 'XIII', 'Lainnya'];
+  const tingkatOrder = ['X', 'XI', 'XII', 'Lainnya'];
   const sortedTingkats = Object.keys(groupedClasses).sort((a, b) => {
     return tingkatOrder.indexOf(a) - tingkatOrder.indexOf(b);
   });

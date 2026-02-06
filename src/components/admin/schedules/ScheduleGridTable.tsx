@@ -111,7 +111,7 @@ const getSubjectColor = (mapel: string, defaultColor?: string): string => {
   return defaultColor || '#E5E7EB';
 };
 
-const TINGKAT_LIST = ['X', 'XI', 'XII', 'XIII'];
+const TINGKAT_LIST = ['X', 'XI', 'XII'];
 const ROW_TYPES = ['MAPEL', 'RUANG', 'GURU'] as const;
 
 const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;

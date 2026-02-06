@@ -102,7 +102,7 @@ function DroppableCell({
 }
 
 const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
-const TINGKAT_LIST = ['X', 'XI', 'XII', 'XIII'];
+const TINGKAT_LIST = ['X', 'XI', 'XII'];
 
 export function ScheduleGridEditor({ 
   onBack, 
