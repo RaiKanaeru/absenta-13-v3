@@ -77,6 +77,17 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
   };
 
   const downloadExcel = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setExporting(true);
       const params = new URLSearchParams({ 

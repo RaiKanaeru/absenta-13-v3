@@ -82,9 +82,16 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
       return;
     }
 
-    // Validasi rentang maksimal 62 hari
+    // Validasi rentang tanggal
     const start = new Date(startDate);
     const end = new Date(endDate);
+
+    if (end < start) {
+      setError('Tanggal akhir harus setelah tanggal mulai');
+      return;
+    }
+
+    // Validasi rentang maksimal 62 hari
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
@@ -118,8 +125,19 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
   const downloadExcel = async () => {
     const { startDate, endDate } = getDateRange();
     
-    if (!startDate || !endDate) {
-      const message = 'Mohon pilih periode';
+    if (!startDate || !endDate || !selectedKelas) {
+      const message = 'Mohon pilih kelas dan periode';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (new Date(endDate) < new Date(startDate)) {
+      const message = 'Tanggal akhir harus setelah tanggal mulai';
       setError(message);
       toast({
         title: "Error",

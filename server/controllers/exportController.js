@@ -463,7 +463,8 @@ export const exportRekapKetidakhadiran = async (req, res) => {
             endDate = rawEndDate;
         } else if (bulan && tahun) {
             startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
-            endDate = new Date(tahun, bulan, 0).toISOString().split('T')[0];
+            const lastDay = new Date(tahun, bulan, 0);
+            endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
         } else {
             return sendValidationError(res, 'Periode wajib diisi (startDate+endDate atau bulan+tahun)');
         }
@@ -1409,7 +1410,7 @@ export const exportPresensiSiswa = async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="Presensi_Siswa_${kelasName}_${bulan}_${tahun}.xlsx"`);
+        res.setHeader('Content-Disposition', `attachment; filename="Presensi_Siswa_${namaKelas}_${bulan}_${tahun}.xlsx"`);
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
@@ -2196,7 +2197,12 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const attendanceMap = {};
         detailKehadiran.forEach(r => {
             if (!attendanceMap[r.id_siswa]) attendanceMap[r.id_siswa] = {};
-            if (r.tanggal && r.status) attendanceMap[r.id_siswa][r.tanggal.toISOString().split('T')[0]] = r.status;
+            if (r.tanggal && r.status) {
+                // Format date safely - handles both Date objects and strings from MySQL
+                const d = new Date(r.tanggal);
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                attendanceMap[r.id_siswa][dateStr] = r.status;
+            }
         });
 
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');

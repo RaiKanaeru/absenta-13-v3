@@ -12,8 +12,6 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiCall } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
-import { getCleanToken } from '@/utils/authUtils';
 import { Kelas } from '@/types/dashboard';
 import BandingAbsenReportView from './BandingAbsenReportView';
 import { TeacherAttendanceSummaryView } from './TeacherAttendanceSummaryView';
@@ -66,26 +64,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
     try {
       setExporting(true);
       const params = new URLSearchParams({ tahun: selectedYearTeacher });
-      const token = getCleanToken();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await fetch(getApiUrl(`/api/export/rekap-ketidakhadiran-guru-template?${params}`), {
-        headers,
-        credentials: 'include'
+      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru-template?${params}`, {
+        responseType: 'blob'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || errorData.error || 'Export failed');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedYearTeacher}.xlsx`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      globalThis.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
       toast({ title: "Export Berhasil", description: "File Excel Guru sedang diunduh...", variant: "default" });

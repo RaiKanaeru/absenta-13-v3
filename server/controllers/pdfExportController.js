@@ -477,8 +477,7 @@ export const exportLaporanKehadiranSiswaPdf = wrapPdfExport(async (req, res) => 
         [kelas_id]
     );
 
-    // Get attendance summary per student
-    const statusPlaceholders = ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'].map(() => '?').join(', ');
+    // Get attendance summary per student (JOIN siswa to filter by kelas_id since absensi_siswa has no kelas_id column)
     const [attendanceRows] = await db.execute(`
         SELECT 
             a.siswa_id,
@@ -489,7 +488,8 @@ export const exportLaporanKehadiranSiswaPdf = wrapPdfExport(async (req, res) => 
             SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as total_dispen,
             COUNT(*) as total_pertemuan
         FROM absensi_siswa a
-        WHERE a.kelas_id = ? AND a.tanggal BETWEEN ? AND ?
+        INNER JOIN siswa s ON s.id_siswa = a.siswa_id
+        WHERE s.kelas_id = ? AND a.tanggal BETWEEN ? AND ?
         GROUP BY a.siswa_id
     `, [kelas_id, startDate, endDate]);
 

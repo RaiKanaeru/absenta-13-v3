@@ -85,6 +85,12 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
   // Fetch presensi data
   const fetchPresensiData = useCallback(async (kelasId: string, tahun: string, bulan?: string, tanggalAwal?: string, tanggalAkhir?: string) => {
     if (!kelasId || !tahun) return;
+
+    // Validasi urutan tanggal untuk mode tanggal
+    if (tanggalAwal && tanggalAkhir && new Date(tanggalAkhir) < new Date(tanggalAwal)) {
+      setError('Tanggal akhir harus setelah tanggal awal');
+      return;
+    }
     
     try {
       setLoading(true);
