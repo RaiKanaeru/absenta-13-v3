@@ -113,8 +113,81 @@ class DownloadQueue {
             // Handle Redis connection events
             this.redis.on('error', (error) => {
                 logger.error('Redis connection error', error);
+            });
+        } catch (error) {
+            logger.error('Redis initialization failed', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Initialize database connection pool
+     */
+    async initializeDatabase() {
+        logger.info('Initializing database connection pool');
+        this.pool = mysql.createPool(this.dbConfig);
+        // Test connection
+        const connection = await this.pool.getConnection();
+        connection.release();
+        logger.info('Database connection established');
+    }
+
+    /**
+     * Create download directory
+     */
+    async createDownloadDirectory() {
+        try {
+            await fs.access(this.downloadDir);
+        } catch {
+            logger.info('Creating download directory', { dir: this.downloadDir });
+            await fs.mkdir(this.downloadDir, { recursive: true });
+        }
+    }
+
+    /**
+     * Initialize queues
+     */
+    async initializeQueues() {
+        logger.info('Initializing Bull queues');
+        
+        const redisOpts = {
+            redis: this.redisConfig
+        };
+
+        this.queues.excelDownload = new Queue('excel-download', redisOpts);
+        this.queues.reportGeneration = new Queue('report-generation', redisOpts);
+        
+        logger.info('Queues initialized');
+    }
+
+    /**
+     * Start queue processors
+     */
+    async startQueueProcessors() {
+        logger.info('Starting queue processors');
+        
+        this.queues.excelDownload.process(this.maxConcurrentDownloads, async (job) => {
+            const { type } = job.data;
+            
+            switch (type) {
+                case 'student-attendance':
+                    return this.processStudentAttendanceDownload(job);
+                case 'teacher-attendance':
+                    return this.processTeacherAttendanceDownload(job);
+                case 'analytics-report':
+                    return this.processAnalyticsReportDownload(job);
+                default:
+                    throw new Error(`Unknown job type: ${type}`);
+            }
         });
 
+        this.queues.reportGeneration.process(5, async (job) => {
+             const { type } = job.data;
+             if (type === 'semester-report') {
+                 return this.processSemesterReportGeneration(job);
+             }
+        });
+        
         // Report generation queue events
         this.queues.reportGeneration.on('completed', (job, result) => {
             logger.info('Report generation completed', { jobId: job.id, filename: result.filename });
@@ -123,6 +196,8 @@ class DownloadQueue {
         this.queues.reportGeneration.on('failed', (job, err) => {
             logger.error('Report generation failed', { jobId: job.id, error: err.message });
         });
+        
+        logger.info('Queue processors started');
     }
 
     /**

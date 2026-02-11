@@ -220,3 +220,16 @@ export function getDayNameWIB(date = null) {
 
     return formatter.format(targetDate);
 }
+
+/**
+ * Format time string (HH:MM:SS) to HH:MM
+ * @param {string} time - Time string (e.g., "07:30:00")
+ * @returns {string} Formatted time (e.g., "07:30")
+ */
+export function formatTime(time) {
+    if (!time) return '';
+    const parts = time.toString().split(':');
+    if (parts.length < 2) return time;
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+}
+

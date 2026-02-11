@@ -276,27 +276,16 @@ const detectManualScheduleLayout = (worksheet) => {
     return { headerRowIndex, timeRowIndex, dayRowIndex, kelasCol, jamKeLabelCol };
 };
 
-/**
- * Parse manual schedule sheet into jam slots and jadwal rows.
- * @param {ExcelJS.Worksheet} worksheet
- * @param {object} refMaps
- * @param {string} tahunAjaran
- * @returns {{ jamSlots: Array, jadwalRows: Array, errors: Array }|null}
- */
-const parseManualScheduleSheet = (worksheet, refMaps, tahunAjaran = DEFAULT_TAHUN_AJARAN) => {
-    const layout = detectManualScheduleLayout(worksheet);
-    if (!layout) return null;
-
-    const { headerRowIndex, timeRowIndex, dayRowIndex, kelasCol, jamKeLabelCol } = layout;
+const parseScheduleColumns = (worksheet, layout) => {
+    const { headerRowIndex, timeRowIndex, dayRowIndex, jamKeLabelCol } = layout;
     const headerRow = worksheet.getRow(headerRowIndex);
     const timeRow = worksheet.getRow(timeRowIndex);
     const dayRow = worksheet.getRow(dayRowIndex);
-
     const columnCount = worksheet.columnCount || headerRow.cellCount || 0;
     const columnMeta = [];
     const lastJamKeByDay = {};
-
     let currentDay = '';
+
     for (let col = jamKeLabelCol + 1; col <= columnCount; col++) {
         const dayCell = getCellText(dayRow.getCell(col));
         const detectedDay = extractDayName(dayCell);
@@ -310,7 +299,6 @@ const parseManualScheduleSheet = (worksheet, refMaps, tahunAjaran = DEFAULT_TAHU
             const last = lastJamKeByDay[currentDay];
             jamKe = Number.isFinite(last) ? last + 1 : 0;
         }
-
         lastJamKeByDay[currentDay] = jamKe;
 
         const timeValue = getCellText(timeRow.getCell(col));
@@ -325,12 +313,74 @@ const parseManualScheduleSheet = (worksheet, refMaps, tahunAjaran = DEFAULT_TAHU
             jam_selesai: timeRange.end
         });
     }
+    return columnMeta;
+};
 
+const processScheduleSlot = (meta, rows, context, refMaps, jamSlotMap, jadwalList, errors, rowIdx) => {
+    const { mapelRow, ruangRow, guruRow } = rows;
+    const { kelasId, kelasName, tahunAjaran } = context;
+
+    const mapelRaw = normalizeText(getCellText(mapelRow.getCell(meta.col)));
+    const ruangRaw = normalizeText(getCellText(ruangRow.getCell(meta.col)));
+    const guruRaw = normalizeText(getCellText(guruRow.getCell(meta.col)));
+
+    const slotType = detectSlotType(mapelRaw);
+    const slotKey = `${kelasId}|${meta.day}|${meta.jam_ke}`;
+    const existingSlot = jamSlotMap.get(slotKey);
+    if (!existingSlot || (existingSlot.jenis === 'pelajaran' && slotType.jenis !== 'pelajaran')) {
+        jamSlotMap.set(slotKey, {
+            kelas_id: kelasId,
+            hari: meta.day,
+            jam_ke: meta.jam_ke,
+            jam_mulai: meta.jam_mulai,
+            jam_selesai: meta.jam_selesai,
+            jenis: slotType.jenis,
+            label: slotType.label,
+            tahun_ajaran: tahunAjaran
+        });
+    }
+
+    if (!mapelRaw) return;
+    if (slotType.jenis !== 'pelajaran') return;
+
+    const mapelId = findMapelId(mapelRaw, refMaps.mapelCodeMap, refMaps.mapelNameMap);
+    if (!mapelId) {
+        errors.push({ index: rowIdx, errors: [`Mapel tidak ditemukan: ${mapelRaw}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
+        return;
+    }
+
+    const guruId = findGuruId(guruRaw, refMaps.guruMap);
+    if (!guruId) {
+        errors.push({ index: rowIdx, errors: [`Guru tidak ditemukan: ${guruRaw || '-'}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
+        return;
+    }
+
+    const ruangId = findRuangId(ruangRaw, refMaps.ruangMap);
+
+    jadwalList.push({
+        kelas_id: kelasId,
+        mapel_id: mapelId,
+        guru_id: guruId,
+        ruang_id: ruangId,
+        hari: meta.day,
+        jam_ke: meta.jam_ke,
+        jam_mulai: meta.jam_mulai,
+        jam_selesai: meta.jam_selesai,
+        jenis_aktivitas: 'pelajaran',
+        is_absenable: 1,
+        keterangan_khusus: null,
+        status: 'aktif',
+        guru_ids: [guruId]
+    });
+};
+
+const processScheduleRows = (worksheet, layout, columnMeta, refMaps, tahunAjaran) => {
+    const { timeRowIndex, kelasCol, jamKeLabelCol } = layout;
     const jamSlotMap = new Map();
     const jadwalList = [];
     const errors = [];
-
     const rowCount = worksheet.rowCount || 0;
+
     for (let rowIdx = timeRowIndex + 1; rowIdx <= rowCount; rowIdx++) {
         const row = worksheet.getRow(rowIdx);
         const kelasName = normalizeText(getCellText(row.getCell(kelasCol)));
@@ -350,62 +400,26 @@ const parseManualScheduleSheet = (worksheet, refMaps, tahunAjaran = DEFAULT_TAHU
         const guruRow = worksheet.getRow(rowIdx + 2);
 
         for (const meta of columnMeta) {
-            const mapelRaw = normalizeText(getCellText(mapelRow.getCell(meta.col)));
-            const ruangRaw = normalizeText(getCellText(ruangRow.getCell(meta.col)));
-            const guruRaw = normalizeText(getCellText(guruRow.getCell(meta.col)));
-
-            const slotType = detectSlotType(mapelRaw);
-            const slotKey = `${kelasId}|${meta.day}|${meta.jam_ke}`;
-            const existingSlot = jamSlotMap.get(slotKey);
-            if (!existingSlot || (existingSlot.jenis === 'pelajaran' && slotType.jenis !== 'pelajaran')) {
-                jamSlotMap.set(slotKey, {
-                    kelas_id: kelasId,
-                    hari: meta.day,
-                    jam_ke: meta.jam_ke,
-                    jam_mulai: meta.jam_mulai,
-                    jam_selesai: meta.jam_selesai,
-                    jenis: slotType.jenis,
-                    label: slotType.label,
-                    tahun_ajaran: tahunAjaran
-                });
-            }
-
-            if (!mapelRaw) continue;
-            if (slotType.jenis !== 'pelajaran') continue;
-
-            const mapelId = findMapelId(mapelRaw, refMaps.mapelCodeMap, refMaps.mapelNameMap);
-            if (!mapelId) {
-                errors.push({ index: rowIdx, errors: [`Mapel tidak ditemukan: ${mapelRaw}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
-                continue;
-            }
-
-            const guruId = findGuruId(guruRaw, refMaps.guruMap);
-            if (!guruId) {
-                errors.push({ index: rowIdx, errors: [`Guru tidak ditemukan: ${guruRaw || '-'}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
-                continue;
-            }
-
-            const ruangId = findRuangId(ruangRaw, refMaps.ruangMap);
-
-            jadwalList.push({
-                kelas_id: kelasId,
-                mapel_id: mapelId,
-                guru_id: guruId,
-                ruang_id: ruangId,
-                hari: meta.day,
-                jam_ke: meta.jam_ke,
-                jam_mulai: meta.jam_mulai,
-                jam_selesai: meta.jam_selesai,
-                jenis_aktivitas: 'pelajaran',
-                is_absenable: 1,
-                keterangan_khusus: null,
-                status: 'aktif',
-                guru_ids: [guruId]
-            });
+            processScheduleSlot(meta, { mapelRow, ruangRow, guruRow }, { kelasId, kelasName, tahunAjaran }, refMaps, jamSlotMap, jadwalList, errors, rowIdx);
         }
-
         rowIdx += 2;
     }
+    return { jamSlotMap, jadwalList, errors };
+};
+
+/**
+ * Parse manual schedule sheet into jam slots and jadwal rows.
+ * @param {ExcelJS.Worksheet} worksheet
+ * @param {object} refMaps
+ * @param {string} tahunAjaran
+ * @returns {{ jamSlots: Array, jadwalRows: Array, errors: Array }|null}
+ */
+const parseManualScheduleSheet = (worksheet, refMaps, tahunAjaran = DEFAULT_TAHUN_AJARAN) => {
+    const layout = detectManualScheduleLayout(worksheet);
+    if (!layout) return null;
+
+    const columnMeta = parseScheduleColumns(worksheet, layout);
+    const { jamSlotMap, jadwalList, errors } = processScheduleRows(worksheet, layout, columnMeta, refMaps, tahunAjaran);
 
     return {
         jamSlots: Array.from(jamSlotMap.values()),
@@ -718,6 +732,88 @@ async function persistJadwalBatch(conn, validItems) {
     }
 }
 
+const handleManualScheduleImport = async (res, worksheet, dryRun) => {
+    const refMaps = await buildReferenceMaps(db);
+    const manualParsed = parseManualScheduleSheet(worksheet, refMaps, DEFAULT_TAHUN_AJARAN);
+    if (!manualParsed) {
+        return sendImportValidationError(res, ERROR_TEMPLATE_MISMATCH);
+    }
+    const { jamSlots, jadwalRows, errors } = manualParsed;
+
+    if (dryRun === 'true') {
+        return res.json({
+            total: jadwalRows.length,
+            valid: jadwalRows.length,
+            invalid: errors.length,
+            errors,
+            previewData: jadwalRows.slice(0, 20),
+            message: MSG_DRY_RUN_COMPLETED
+        });
+    }
+
+    if (jadwalRows.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
+
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+        if (jamSlots.length > 0) {
+            await persistJamPelajaranKelas(conn, jamSlots);
+        }
+        await persistJadwalBatch(conn, jadwalRows);
+        await conn.commit();
+    } catch (e) {
+        await conn.rollback();
+        throw e;
+    } finally {
+        conn.release();
+    }
+
+    return sendSuccessResponse(res, { inserted: jadwalRows.length, invalid: errors.length, errors }, 'Import jadwal berhasil');
+};
+
+const handleStandardScheduleImport = async (res, worksheet, dryRun) => {
+    const rows = sheetToJsonByHeader(worksheet);
+    const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kelas_id');
+    const errors = [];
+    const valid = [];
+
+    for (let i = 0; i < rows.length; i++) {
+        try {
+            const result = await processJadwalRow(rows[i], i + 2, isBasicFormat);
+            if (result.error) errors.push(result.error);
+            else valid.push(result.valid);
+        } catch (err) {
+            errors.push({ index: i + 2, errors: [err.message], data: rows[i] });
+        }
+    }
+
+    if (dryRun === 'true') {
+        return res.json({
+            total: rows.length,
+            valid: valid.length,
+            invalid: errors.length,
+            errors,
+            previewData: valid.slice(0, 20),
+            message: MSG_DRY_RUN_COMPLETED
+        });
+    }
+    if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
+
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+        await persistJadwalBatch(conn, valid);
+        await conn.commit();
+    } catch (e) {
+        await conn.rollback();
+        throw e;
+    } finally {
+        conn.release();
+    }
+
+    sendSuccessResponse(res, { inserted: valid.length, invalid: errors.length, errors }, 'Import jadwal berhasil');
+};
+
 /**
  * Import jadwal from Excel file
  * POST /api/admin/import/jadwal
@@ -730,87 +826,12 @@ const importJadwal = async (req, res) => {
         await workbook.xlsx.load(req.file.buffer);
         const worksheet = workbook.worksheets[0];
         const manualLayout = detectManualScheduleLayout(worksheet);
+        
         if (manualLayout) {
-            const refMaps = await buildReferenceMaps(db);
-            const manualParsed = parseManualScheduleSheet(worksheet, refMaps, DEFAULT_TAHUN_AJARAN);
-            if (!manualParsed) {
-                return sendImportValidationError(res, ERROR_TEMPLATE_MISMATCH);
-            }
-            const { jamSlots, jadwalRows, errors } = manualParsed;
-
-            if (req.query.dryRun === 'true') {
-                return res.json({
-                    total: jadwalRows.length,
-                    valid: jadwalRows.length,
-                    invalid: errors.length,
-                    errors,
-                    previewData: jadwalRows.slice(0, 20),
-                    message: MSG_DRY_RUN_COMPLETED
-                });
-            }
-
-            if (jadwalRows.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
-
-            const conn = await db.getConnection();
-            try {
-                await conn.beginTransaction();
-                if (jamSlots.length > 0) {
-                    await persistJamPelajaranKelas(conn, jamSlots);
-                }
-                await persistJadwalBatch(conn, jadwalRows);
-                await conn.commit();
-            } catch (e) {
-                await conn.rollback();
-                throw e;
-            } finally {
-                conn.release();
-            }
-
-            return sendSuccessResponse(res, { inserted: jadwalRows.length, invalid: errors.length, errors }, 'Import jadwal berhasil');
+            return await handleManualScheduleImport(res, worksheet, req.query.dryRun);
         }
 
-        const rows = sheetToJsonByHeader(worksheet);
-
-        const isBasicFormat = rows[0] && rows[0].hasOwnProperty('kelas_id');
-        const errors = [];
-        const valid = [];
-
-        // Process each row using extracted helper
-        for (let i = 0; i < rows.length; i++) {
-            try {
-                const result = await processJadwalRow(rows[i], i + 2, isBasicFormat);
-                if (result.error) errors.push(result.error);
-                else valid.push(result.valid);
-            } catch (err) {
-                errors.push({ index: i + 2, errors: [err.message], data: rows[i] });
-            }
-        }
-
-        if (req.query.dryRun === 'true') {
-            return res.json({
-                total: rows.length,
-                valid: valid.length,
-                invalid: errors.length,
-                errors,
-                previewData: valid.slice(0, 20),
-                message: MSG_DRY_RUN_COMPLETED
-            });
-        }
-        if (valid.length === 0) return sendImportValidationError(res, ERROR_NO_VALID_ROWS, errors);
-
-        const conn = await db.getConnection();
-        try {
-            await conn.beginTransaction();
-            await persistJadwalBatch(conn, valid);
-            await conn.commit();
-        } catch (e) {
-            await conn.rollback();
-            throw e;
-        } finally {
-            conn.release();
-        }
-
-        sendSuccessResponse(res, { inserted: valid.length, invalid: errors.length, errors }, 'Import jadwal berhasil');
+        return await handleStandardScheduleImport(res, worksheet, req.query.dryRun);
     } catch (err) {
         logger.error('Import jadwal error', { error: err.message });
         return sendDatabaseError(res, err, 'Gagal impor jadwal');

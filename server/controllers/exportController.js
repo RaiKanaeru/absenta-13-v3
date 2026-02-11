@@ -39,7 +39,7 @@ import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { addLetterheadToWorksheet, addReportTitle } from '../utils/excelLetterhead.js';
-import { getWIBTime, formatWIBDate } from '../utils/timeUtils.js';
+import { getWIBTime, formatWIBDate, formatTime } from '../utils/timeUtils.js';
 import { excelStyles, applyStyle, borders } from '../utils/excelStyles.js';
 import { isSafeFilename } from '../utils/downloadAccess.js';
 
@@ -71,10 +71,9 @@ const mapStatusToCode = (status) => {
  * Build schedule content lines for Excel cell (S2004 - extracted to avoid deep nesting)
  * @param {Object} schedule - Schedule object
  * @param {Function} parseGuruList - Function to parse guru list
- * @param {Function} formatTime - Function to format time
  * @returns {string} Formatted schedule content
  */
-const buildScheduleContentLines = (schedule, parseGuruList, formatTime) => {
+const buildScheduleContentLines = (schedule, parseGuruList) => {
     const lines = [
         schedule.nama_guru,
         ...(schedule.nama_mapel ? [schedule.nama_mapel] : []),
@@ -1551,13 +1550,6 @@ export const exportJadwalMatrix = async (req, res) => {
             }).filter(g => g.name);
         };
 
-        // Helper function to format time
-        const formatTime = (time) => {
-            if (!time) return '';
-            const parts = time.toString().split(':');
-            return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-        };
-
         // Matrix data with proper styling
         const uniqueClasses = [...new Set(schedules.map(s => s.nama_kelas))].sort();
         
@@ -1585,7 +1577,7 @@ export const exportJadwalMatrix = async (req, res) => {
                     maxSlots = Math.max(maxSlots, daySchedules.length);
                     
                     // Use file-level helper function (S2004 - avoid deep nesting)
-                    const contentParts = daySchedules.map(s => buildScheduleContentLines(s, parseGuruList, formatTime));
+                    const contentParts = daySchedules.map(s => buildScheduleContentLines(s, parseGuruList));
                     
                     cell.value = contentParts.join('\n\n────────────\n\n');
                     cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
@@ -1636,13 +1628,6 @@ export const exportJadwalMatrix = async (req, res) => {
 export const exportJadwalGrid = async (req, res) => {
     try {
         const { kelas_id, hari } = req.query;
-
-        // Helper function to format time
-        const formatTime = (time) => {
-            if (!time) return '';
-            const parts = time.toString().split(':');
-            return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-        };
 
         // Use getLetterhead from top-level import
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.JADWAL_PELAJARAN });
