@@ -42,7 +42,7 @@ build
 # Database backups & archives
 backups/
 archives/
-reports/
+/reports/
 *.sql
 !absenta13.sql
 !migrations/*.sql
