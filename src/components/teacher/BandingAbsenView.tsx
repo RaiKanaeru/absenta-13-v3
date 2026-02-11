@@ -1,6 +1,6 @@
 /**
  * BandingAbsenView - Teacher view for processing student attendance appeals
- * Extracted from TeacherDashboard_Modern.tsx - EXACT COPY, no UI changes
+ * Extracted from TeacherDashboard.tsx - EXACT COPY, no UI changes
  */
 
 import { useState, useEffect } from "react";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB, formatTime24 } from "@/lib/time-utils";
 import { MessageCircle, Filter, Eye, CheckCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { getTeacherAttendanceBadgeClass as getAttendanceBadgeClass, getTeacherBandingStatusClass as getBandingStatusClass } from "@/utils/statusMaps";
 import { TeacherUserData, BandingAbsenTeacher } from "./types";
 import { apiCall } from "./apiUtils";
 
@@ -31,20 +32,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
   const [totalAll, setTotalAll] = useState(0);
   const limit = 5;
 
-  const getAttendanceBadgeClass = (status: string) => {
-    const normalized = status.toLowerCase();
-    if (normalized === 'hadir') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
-    if (normalized === 'izin') return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
-    if (normalized === 'sakit') return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
-    if (normalized === 'alpa' || normalized === 'tidak hadir') return 'bg-destructive/15 text-destructive';
-    return 'bg-muted text-foreground';
-  };
-
-  const getBandingStatusClass = (status: string) => {
-    if (status === 'disetujui') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
-    if (status === 'ditolak') return 'bg-destructive/15 text-destructive';
-    return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
-  };
+  // getAttendanceBadgeClass and getBandingStatusClass are now imported from @/utils/statusMaps
 
   const renderStatusPair = (statusAsli: string, statusDiajukan: string) => (
     <div className="flex flex-wrap items-center gap-1">

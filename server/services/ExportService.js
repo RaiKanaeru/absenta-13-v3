@@ -200,7 +200,7 @@ class ExportService {
                 COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as S,
                 COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as A,
                 COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as D,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Hadir' THEN CONCAT(a.tanggal, '#', a.siswa_id) END) * 100.0 / NULLIF(COUNT(DISTINCT CONCAT(a.tanggal, '#', a.siswa_id)), 0), 0) as presentase
+                COALESCE(COUNT(DISTINCT CASE WHEN a.status IN ('Hadir', 'Dispen') THEN CONCAT(a.tanggal, '#', a.siswa_id) END) * 100.0 / NULLIF(COUNT(DISTINCT CONCAT(a.tanggal, '#', a.siswa_id)), 0), 0) as presentase
             FROM siswa s
             LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
             LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
@@ -442,7 +442,7 @@ class ExportService {
                 COALESCE(SUM(CASE WHEN kg.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
                 COALESCE(SUM(CASE WHEN kg.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
                 COALESCE(SUM(CASE WHEN kg.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as A,
-                COALESCE(SUM(CASE WHEN kg.status = 'Hadir' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id_absensi), 0), 0) as presentase
+                COALESCE(SUM(CASE WHEN kg.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(kg.id_absensi), 0), 0) as presentase
             FROM guru g
             LEFT JOIN absensi_guru kg ON g.id_guru = kg.guru_id 
                 AND kg.tanggal BETWEEN ? AND ?
@@ -725,18 +725,18 @@ class ExportService {
             SELECT 
                 g.id_guru as id,
                 g.nama,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jul,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as agt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as sep,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as okt,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as nov,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as des,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jan,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as feb,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as mar,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as apr,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as mei,
-                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 AND a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as jun
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 7 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as jul,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 8 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as agt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 9 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as sep,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 10 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as okt,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 11 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as nov,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 12 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as des,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 1 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as jan,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 2 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as feb,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 3 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as mar,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as apr,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as mei,
+                COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as jun
             FROM guru g
             LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
                 AND (
@@ -769,11 +769,11 @@ class ExportService {
                 COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 4 THEN 1 ELSE 0 END), 0) as apr,
                 COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 5 THEN 1 ELSE 0 END), 0) as mei,
                 COALESCE(SUM(CASE WHEN MONTH(a.tanggal) = 6 THEN 1 ELSE 0 END), 0) as jun,
-                COALESCE(SUM(CASE WHEN a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) as total_ketidakhadiran
+                COALESCE(SUM(CASE WHEN a.status IN ('Tidak Hadir', 'Sakit', 'Izin') THEN 1 ELSE 0 END), 0) as total_ketidakhadiran
             FROM guru g
             LEFT JOIN absensi_guru a ON g.id_guru = a.guru_id 
                 AND YEAR(a.tanggal) = ? 
-                AND a.status = 'Tidak Hadir'
+                AND a.status IN ('Tidak Hadir', 'Sakit', 'Izin')
             GROUP BY g.id_guru, g.nama, g.nip
             ORDER BY g.nama
         `;

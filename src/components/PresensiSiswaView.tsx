@@ -11,6 +11,7 @@ import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
 
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { downloadPdf } from '@/utils/exportUtils';
 import { Kelas, Siswa } from '@/types/school';
 
 interface PresensiData {
@@ -38,11 +39,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
   const fetchClasses = useCallback(async () => {
     try {
       setError(null);
-      const data = await apiCall('/api/kelas', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall('/api/kelas');
 
       setClasses(data);
     } catch (error) {
@@ -58,11 +55,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
     try {
       setLoading(true);
       setError(null);
-      const data = await apiCall(`/api/admin/students-by-class/${kelasId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall(`/api/admin/students-by-class/${kelasId}`);
 
       setStudents(data);
     } catch (error) {
@@ -86,11 +79,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
         tahun: tahun
       });
 
-      const data = await apiCall(`/api/admin/presensi-siswa?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall(`/api/admin/presensi-siswa?${params}`);
 
       setPresensiData(data);
     } catch (error) {
@@ -224,6 +213,47 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
     }
   };
 
+  const handleExportPdf = async () => {
+    if (!selectedKelas || !selectedBulan || !selectedTahun) {
+      toast({
+        title: "Error",
+        description: "Pilih kelas, bulan, dan tahun terlebih dahulu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        kelas_id: selectedKelas,
+        bulan: selectedBulan,
+        tahun: selectedTahun,
+      });
+
+      const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
+      const bulanName = new Date(Number.parseInt(selectedTahun), Number.parseInt(selectedBulan) - 1).toLocaleDateString('id-ID', { month: 'long' });
+      const fileName = `Presensi_Siswa_${kelasName}_${bulanName}_${selectedTahun}`;
+
+      await downloadPdf('/api/export/pdf/presensi-siswa', fileName, params, onLogout);
+
+      toast({
+        title: "Berhasil",
+        description: "Data presensi berhasil diekspor ke PDF",
+      });
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      const message = getErrorMessage(error) || "Gagal mengekspor data presensi ke PDF";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const daysInMonth = getDaysInMonth(selectedBulan, selectedTahun);
   const { lakiLaki, perempuan } = countByGender();
 
@@ -337,6 +367,16 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                 >
                   <Download className="w-4 h-4" />
                   {loading ? 'Exporting...' : 'Export Excel'}
+                </Button>
+                <Button
+                  onClick={handleExportPdf}
+                  disabled={loading || !selectedKelas || !selectedBulan || !selectedTahun}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  {loading ? 'Exporting...' : 'Export PDF'}
                 </Button>
               </div>
             </CardTitle>

@@ -119,9 +119,18 @@ export const executeDatabaseFile = async (req, res) => {
             return sendValidationError(res, 'File kosong');
         }
 
-        // Simple check for safety
-        if (cleanSql.toLowerCase().includes('drop database')) {
-             return sendPermissionError(res, 'Keamanan: DROP DATABASE tidak diizinkan');
+        // Safety check: block destructive SQL statements
+        const BLOCKED_SQL_PATTERNS = [
+            'drop database',
+            'drop table',
+            'truncate table',
+            'truncate ',
+        ];
+        const lowerSql = cleanSql.toLowerCase();
+        for (const pattern of BLOCKED_SQL_PATTERNS) {
+            if (lowerSql.includes(pattern)) {
+                return sendPermissionError(res, `Keamanan: ${pattern.trim().toUpperCase()} tidak diizinkan`);
+            }
         }
 
         // Execute
@@ -160,6 +169,6 @@ export const executeDatabaseFile = async (req, res) => {
 
     } catch (error) {
         logger.error('Error executing database file', error);
-        return sendDatabaseError(res, error, `Gagal mengeksekusi: ${error.message}`);
+        return sendDatabaseError(res, error, 'Gagal mengeksekusi file database');
     }
 };

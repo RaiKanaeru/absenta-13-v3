@@ -1,6 +1,6 @@
 /**
  * RiwayatBandingAbsenView - Attendance appeal history report
- * Extracted from TeacherDashboard_Modern.tsx
+ * Extracted from TeacherDashboard.tsx
  */
 
 import { useState, useEffect } from "react";
@@ -17,6 +17,7 @@ import { MessageCircle, Search, Download, Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
+import { getTeacherAttendanceBadgeClass as getAttendanceBadgeClass } from "@/utils/statusMaps";
 
 interface RiwayatBandingAbsenViewProps {
   user: TeacherUserData;
@@ -76,14 +77,7 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
     }
   };
 
-  const getAttendanceBadgeClass = (status: string) => {
-    const normalized = status.toLowerCase();
-    if (normalized === 'hadir') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
-    if (normalized === 'izin') return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
-    if (normalized === 'sakit') return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
-    if (normalized === 'alpa' || normalized === 'tidak hadir') return 'bg-destructive/15 text-destructive';
-    return 'bg-muted text-foreground';
-  };
+  // getAttendanceBadgeClass is now imported from @/utils/statusMaps
 
   const downloadExcel = async () => {
     if (!dateRange.startDate || !dateRange.endDate) {

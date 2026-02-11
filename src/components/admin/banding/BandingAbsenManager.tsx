@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Filter, FileText, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
+import { downloadPdf } from '@/utils/exportUtils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -44,6 +45,7 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -114,6 +116,44 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
     }
   };
 
+  const handleExportPdf = async () => {
+    if (filteredRequests.length === 0) {
+      toast({
+        title: "Tidak ada data",
+        description: "Tidak ada data banding untuk di-export PDF",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setExportingPdf(true);
+    try {
+      const params: Record<string, string> = {};
+      if (filterStatus && filterStatus !== 'all') {
+        params.status = filterStatus;
+      }
+      await downloadPdf(
+        '/api/export/pdf/banding-absen',
+        `laporan-banding-absen-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+        params,
+        onLogout
+      );
+      toast({
+        title: "Berhasil",
+        description: "File PDF berhasil diunduh"
+      });
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      toast({
+        title: "Gagal Export PDF",
+        description: getErrorMessage(error) || "Gagal mengunduh file PDF",
+        variant: "destructive"
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch(status) {
       case 'disetujui': return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0">Disetujui</Badge>;
@@ -167,6 +207,15 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
           >
             <Download className="w-4 h-4 mr-2" />
             {exporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+          <Button
+            onClick={handleExportPdf}
+            disabled={exportingPdf || filteredRequests.length === 0}
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            {exportingPdf ? 'Exporting...' : 'Export PDF'}
           </Button>
         </div>
       </div>

@@ -128,6 +128,23 @@ export interface BandingAbsen {
 }
 
 // =============================================================================
+// FORM TYPES
+// =============================================================================
+
+export type StatusType = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
+
+export interface FormBanding {
+  jadwal_id: string;
+  tanggal_absen: string;
+  siswa_banding: Array<{
+    nama: string;
+    status_asli: StatusType;
+    status_diajukan: StatusType;
+    alasan_banding: string;
+  }>;
+}
+
+// =============================================================================
 // COMPONENT PROPS
 // =============================================================================
 

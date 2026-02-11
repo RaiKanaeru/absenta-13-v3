@@ -1,6 +1,6 @@
 /**
  * LaporanKehadiranSiswaView - Student attendance report view
- * Extracted from TeacherDashboard_Modern.tsx
+ * Extracted from TeacherDashboard.tsx
  */
 
 import { useState, useEffect } from "react";
@@ -16,6 +16,7 @@ import ExcelPreview from '../ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
+import { downloadPdf } from '@/utils/exportUtils';
 
 interface LaporanKehadiranSiswaViewProps {
   user: TeacherUserData;
@@ -29,6 +30,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [mapelInfo, setMapelInfo] = useState<{nama_mapel: string, nama_guru: string} | null>(null);
   const [pertemuanDates, setPertemuanDates] = useState<string[]>([]);
   const [periode, setPeriode] = useState<{startDate: string, endDate: string, total_days: number} | null>(null);
@@ -158,6 +160,40 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
     }
   };
 
+  const handleExportPdf = async () => {
+    const { startDate, endDate } = getDateRange();
+    if (!startDate || !endDate || !selectedKelas) {
+      toast({
+        title: "Error",
+        description: "Mohon pilih kelas dan periode",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setExportingPdf(true);
+      await downloadPdf(
+        '/api/export/pdf/laporan-kehadiran-siswa',
+        `laporan-kehadiran-siswa-${startDate}-${endDate}.pdf`,
+        { kelas_id: selectedKelas, startDate, endDate }
+      );
+      toast({
+        title: "Berhasil!",
+        description: "File PDF berhasil diunduh"
+      });
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      toast({
+        title: "Error",
+        description: "Gagal mengunduh file PDF",
+        variant: "destructive"
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -276,6 +312,18 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
 
       {reportData.length > 0 && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+              variant="outline"
+              size="sm"
+              className="text-red-600 border-red-200 hover:bg-red-50"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              {exportingPdf ? 'Mengunduh PDF...' : 'Download PDF'}
+            </Button>
+          </div>
           <div className="overflow-x-auto">
             <ExcelPreview
               title="Laporan Kehadiran Siswa"

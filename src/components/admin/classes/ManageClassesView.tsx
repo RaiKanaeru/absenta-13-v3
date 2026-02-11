@@ -1,42 +1,44 @@
+import React, { useCallback, useEffect, useState } from "react";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { apiCall } from '@/utils/apiClient';
-import { Kelas } from '@/types/dashboard';
-import { ArrowLeft, Download, Home, Search, Edit, Trash2 } from "lucide-react";
-import { getSubmitButtonLabel } from '../utils/dashboardUtils';
+import type { Kelas } from "@/types/dashboard";
+import { apiCall, getErrorMessage } from "@/utils/apiClient";
+import { ArrowLeft, Download, Edit, Home, Search, Trash2 } from "lucide-react";
 
-// Lazy load ExcelImportView
-const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));
+const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
-interface ManageClassesViewProps {
+export const ManageClassesView = ({
+  onBack,
+  onLogout,
+}: {
   onBack: () => void;
   onLogout: () => void;
-}
-
-const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout }) => {
-  const [formData, setFormData] = useState({ nama_kelas: '' });
+}) => {
+  const [formData, setFormData] = useState({ nama_kelas: "" });
   const [classes, setClasses] = useState<Kelas[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showImport, setShowImport] = useState(false);
 
   const fetchClasses = useCallback(async () => {
     try {
-      const data = await apiCall('/api/admin/kelas', { onLogout }) as Kelas[];
-      setClasses(data);
-    } catch (error: unknown) {
-      console.error('Error fetching classes:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error memuat kelas", description: message || "Unknown error", variant: "destructive" });
+      const data = await apiCall("/api/admin/kelas", { onLogout });
+      setClasses(data as Kelas[]);
+    } catch (error) {
+      console.error("Error fetching classes:", error instanceof Error ? error.message : String(error));
+      toast({
+        title: "Error memuat kelas",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
     }
   }, [onLogout]);
 
@@ -46,37 +48,40 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Client-side validation
-    if (!formData.nama_kelas || formData.nama_kelas.trim() === '') {
+    if (!formData.nama_kelas || formData.nama_kelas.trim() === "") {
       toast({ title: "Error", description: "Nama kelas wajib diisi!", variant: "destructive" });
       return;
     }
     if (!/^[A-Za-z0-9\s-]{2,30}$/.test(formData.nama_kelas.trim())) {
-      toast({ title: "Error", description: "Nama kelas harus 2-30 karakter, hanya huruf, angka, spasi, dan strip!", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Nama kelas harus 2-30 karakter, hanya huruf, angka, spasi, dan strip!",
+        variant: "destructive",
+      });
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
-      const url = editingId ? `/api/admin/kelas/${editingId}` : '/api/admin/kelas';
-      const method = editingId ? 'PUT' : 'POST';
-      
+      const url = editingId ? `/api/admin/kelas/${editingId}` : "/api/admin/kelas";
+      const method = editingId ? "PUT" : "POST";
+
       await apiCall(url, {
         method,
         body: JSON.stringify(formData),
-        onLogout
+        onLogout,
       });
 
       toast({ title: editingId ? "Kelas berhasil diupdate!" : "Kelas berhasil ditambahkan!" });
-      setFormData({ nama_kelas: '' });
+      setFormData({ nama_kelas: "" });
       setEditingId(null);
       fetchClasses();
-    } catch (error: unknown) {
-      console.error('Error submitting class:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error", description: message || "Unknown error", variant: "destructive" });
+    } catch (error) {
+      console.error("Error submitting class:", error);
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -93,32 +98,25 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
     }
     try {
       await apiCall(`/api/admin/kelas/${id}`, {
-        method: 'DELETE',
-        onLogout
+        method: "DELETE",
+        onLogout,
       });
 
       toast({ title: `Kelas ${nama} berhasil dihapus` });
       fetchClasses();
-    } catch (error: unknown) {
-      console.error('Error deleting class:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error menghapus kelas", description: message || "Unknown error", variant: "destructive" });
+    } catch (error) {
+      console.error("Error deleting class:", error);
+      toast({ title: "Error menghapus kelas", description: getErrorMessage(error), variant: "destructive" });
     }
   };
 
-  const filteredClasses = classes.filter(kelas => {
+  const filteredClasses = classes.filter((kelas) => {
     const searchLower = searchTerm.toLowerCase();
-    return (
-      kelas.nama_kelas?.toLowerCase().includes(searchLower)
-    );
+    return kelas.nama_kelas && kelas.nama_kelas.toLowerCase().includes(searchLower);
   });
 
   if (showImport) {
-    return (
-      <React.Suspense fallback={<div>Loading...</div>}>
-        <ExcelImportView entityType="kelas" entityName="Kelas" onBack={() => setShowImport(false)} />
-      </React.Suspense>
-    );
+    return <ExcelImportView entityType="kelas" entityName="Kelas" onBack={() => setShowImport(false)} />;
   }
 
   return (
@@ -150,34 +148,39 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Home className="w-4 h-4" />
-            {editingId ? 'Edit Kelas' : 'Tambah Kelas'}
+            {editingId ? "Edit Kelas" : "Tambah Kelas"}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="class-name" className="text-sm font-medium">Nama Kelas *</Label>
-              <Input 
-                id="class-name" 
-                value={formData.nama_kelas} 
-                onChange={(e) => setFormData({...formData, nama_kelas: e.target.value})} 
+              <Label htmlFor="class-name" className="text-sm font-medium">
+                Nama Kelas *
+              </Label>
+              <Input
+                id="class-name"
+                value={formData.nama_kelas}
+                onChange={(e) => setFormData({ ...formData, nama_kelas: e.target.value })}
                 placeholder="Contoh: X IPA 1, XI IPS 2, XII IPA 3"
                 className="mt-1"
-                required 
+                required
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Format: [Tingkat] [Jurusan] [Nomor] - contoh: X IPA 1
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Format: [Tingkat] [Jurusan] [Nomor] - contoh: X IPA 1</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700 text-sm">
-                {getSubmitButtonLabel(isLoading, editingId)}
+                {isLoading ? "Menyimpan..." : editingId ? "Update" : "Tambah"}
               </Button>
-              {editingId !== null && (
-                <Button type="button" variant="outline" onClick={() => {
-                  setEditingId(null);
-                  setFormData({ nama_kelas: '' });
-                }} className="text-sm">
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingId(null);
+                    setFormData({ nama_kelas: "" });
+                  }}
+                  className="text-sm"
+                >
                   Batal
                 </Button>
               )}
@@ -191,7 +194,7 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
         <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Cari berdasarkan nama kelas..."
                 value={searchTerm}
@@ -217,10 +220,10 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
         <CardContent>
           {filteredClasses.length === 0 ? (
             <div className="text-center py-8">
-              <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
-                {searchTerm ? 'Tidak ada kelas yang cocok dengan pencarian' : 'Belum ada kelas yang ditambahkan'}
+              <Home className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchTerm ? "Tidak ada kelas yang cocok dengan pencarian" : "Belum ada kelas yang ditambahkan"}
               </p>
             </div>
           ) : (
@@ -239,21 +242,16 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
                   <TableBody>
                     {filteredClasses.map((kelas, index) => (
                       <TableRow key={kelas.id}>
-                        <TableCell className="text-gray-500 text-xs">{index + 1}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{index + 1}</TableCell>
                         <TableCell className="font-medium text-xs">{kelas.nama_kelas}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {kelas.tingkat || 'Belum diatur'}
+                            {kelas.tingkat || "Belum diatur"}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(kelas)}
-                              className="h-7 w-7 p-0"
-                            >
+                            <Button variant="outline" size="sm" onClick={() => handleEdit(kelas)} className="h-7 w-7 p-0">
                               <Edit className="w-3 h-3" />
                             </Button>
                             <AlertDialog>
@@ -266,16 +264,13 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Hapus Kelas</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Apakah Anda yakin ingin menghapus kelas <strong>{kelas.nama_kelas}</strong>?
-                                    Tindakan ini tidak dapat dibatalkan.
+                                    Apakah Anda yakin ingin menghapus kelas <strong>{kelas.nama_kelas}</strong>? Tindakan ini tidak dapat
+                                    dibatalkan.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(kelas.id, kelas.nama_kelas)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
+                                  <AlertDialogAction onClick={() => handleDelete(kelas.id, kelas.nama_kelas)} className="bg-red-600 hover:bg-red-700">
                                     Hapus
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
@@ -297,15 +292,10 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{kelas.nama_kelas}</h3>
-                          <p className="text-xs text-gray-500">#{index + 1}</p>
+                          <p className="text-xs text-muted-foreground">#{index + 1}</p>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(kelas)}
-                            className="h-7 w-7 p-0"
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(kelas)} className="h-7 w-7 p-0">
                             <Edit className="w-3 h-3" />
                           </Button>
                           <AlertDialog>
@@ -318,16 +308,13 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Hapus Kelas</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Apakah Anda yakin ingin menghapus kelas <strong>{kelas.nama_kelas}</strong>?
-                                  Tindakan ini tidak dapat dibatalkan.
+                                  Apakah Anda yakin ingin menghapus kelas <strong>{kelas.nama_kelas}</strong>? Tindakan ini tidak dapat
+                                  dibatalkan.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(kelas.id, kelas.nama_kelas)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
+                                <AlertDialogAction onClick={() => handleDelete(kelas.id, kelas.nama_kelas)} className="bg-red-600 hover:bg-red-700">
                                   Hapus
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -335,11 +322,11 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
                           </AlertDialog>
                         </div>
                       </div>
-                      
+
                       <div>
-                        <span className="text-gray-500 text-xs">Tingkat:</span>
+                        <span className="text-muted-foreground text-xs">Tingkat:</span>
                         <Badge variant="outline" className="text-xs mt-1">
-                          {kelas.tingkat || 'Belum diatur'}
+                          {kelas.tingkat || "Belum diatur"}
                         </Badge>
                       </div>
                     </div>
@@ -353,5 +340,3 @@ const ManageClassesView: React.FC<ManageClassesViewProps> = ({ onBack, onLogout 
     </div>
   );
 };
-
-export default ManageClassesView;

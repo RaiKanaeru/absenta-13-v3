@@ -11,6 +11,9 @@ import {
 import { EditProfile } from './EditProfile';
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { ScheduleListView, AttendanceView, LaporanKehadiranSiswaView, BandingAbsenView, HistoryView, RiwayatBandingAbsenView } from './teacher';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface TeacherDashboardProps {
   userData: {
@@ -27,7 +30,6 @@ interface TeacherDashboardProps {
     mata_pelajaran?: string;
     email?: string;
   };
-  onLogout: () => void;
 }
 
 type ScheduleStatus = 'upcoming' | 'current' | 'completed';
@@ -165,7 +167,16 @@ interface BandingAbsenTeacher {
 }
 
 // Main TeacherDashboard Component
-export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) => {
+export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
+  const { logout } = useAuth();
+  const onLogout = useCallback(() => {
+    void logout();
+  }, [logout]);
+
+  // Notifications (guru — needs userId)
+  const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
+    useNotifications({ role: 'guru', userId: userData?.guru_id ?? null, onLogout });
+
   const [activeView, setActiveView] = useState<'schedule' | 'history' | 'banding-absen' | 'history-banding' | 'reports'>('schedule');
   const [activeReportView, setActiveReportView] = useState<string | null>(null);
   const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
@@ -409,10 +420,16 @@ export const TeacherDashboard = ({ userData, onLogout }: TeacherDashboardProps) 
         {/* User Info */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
 {/* Font Size Control - Above Profile */}
-          {(sidebarOpen || window.innerWidth >= 1024) && (
+           {(sidebarOpen || window.innerWidth >= 1024) && (
             <div className="mb-4 flex items-center gap-2">
               <FontSizeControl variant="compact" />
               <ModeToggle />
+              <NotificationBell
+                notifications={notifications}
+                unreadCount={unreadCount}
+                isLoading={notifLoading}
+                onRefresh={notifRefresh}
+              />
             </div>
           )}
           

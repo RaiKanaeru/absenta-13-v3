@@ -139,9 +139,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
 
       const result = await apiCall<ImportResult>(`/api/admin/import/${entityType}?dryRun=true`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        },
         body: formData
       });
       
@@ -179,9 +176,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
 
       const result = await apiCall<ImportResult & { processed?: number, inserted_or_updated?: number, inserted?: number }>(`/api/admin/import/${entityType}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        },
         body: formData
       });
 

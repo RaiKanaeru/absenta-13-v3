@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Download, Search, Users, Calendar, BarChart3, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Search, Users, Calendar, BarChart3, Loader2, FileText } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
 
@@ -14,6 +14,7 @@ import { ReportSummary } from './ui/report-summary';
 import { getCurrentYearWIB, formatDateOnly } from '../lib/time-utils';
 import { ACADEMIC_MONTHS, getMonthName } from '../lib/academic-constants';
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { downloadPdf } from '@/utils/exportUtils';
 
 interface Kelas {
   id: number;
@@ -96,11 +97,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         params.append('tanggal_akhir', tanggalAkhir);
       }
 
-      const data = await apiCall<RekapGuru[]>(`/api/admin/rekap-ketidakhadiran-guru?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall<RekapGuru[]>(`/api/admin/rekap-ketidakhadiran-guru?${params}`);
 
       setRekapData(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -177,6 +174,29 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
     }
   };
 
+
+  const handleExportPdf = async () => {
+    try {
+      setExporting(true);
+      const params = new URLSearchParams({ tahun: selectedTahun });
+      await downloadPdf('/api/export/pdf/rekap-ketidakhadiran-guru', `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}`, params, onLogout);
+
+      toast({
+        title: "Berhasil",
+        description: "File PDF berhasil diunduh"
+      });
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      const message = getErrorMessage(error) || "Gagal mengunduh file PDF";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedTahun) {
@@ -266,6 +286,24 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
               <>
                 <Download className="w-4 h-4" />
                 Export Excel
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={handleExportPdf}
+            disabled={loading || !selectedTahun || exporting}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Mengekspor...
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4" />
+                Export PDF
               </>
             )}
           </Button>

@@ -216,11 +216,25 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     }
 
     selectedBackups.forEach(id => {
-       // Using token for authentication in URL if needed, or relying on cookie
-       // For better security, should use fetch with blob, but window.open is simpler for file download
-       // Assuming cookie auth works or token is not needed for download endpoint if standardized
-       const url = getApiUrl(`/api/admin/download-backup/${id}?token=${localStorage.getItem('token')}`);
-       window.open(url, '_blank');
+       // Use fetch + blob to avoid leaking JWT token in URL
+       fetch(getApiUrl(`/api/admin/download-backup/${id}`), {
+         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+       })
+         .then(res => {
+           if (!res.ok) throw new Error('Download failed');
+           const disposition = res.headers.get('content-disposition');
+           const filename = disposition?.match(/filename="?(.+?)"?$/)?.[1] || `backup-${id}.sql`;
+           return res.blob().then(blob => ({ blob, filename }));
+         })
+         .then(({ blob, filename }) => {
+           const url = URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = filename;
+           a.click();
+           URL.revokeObjectURL(url);
+         })
+         .catch(() => { /* individual download failure is non-critical */ });
     });
   };
 

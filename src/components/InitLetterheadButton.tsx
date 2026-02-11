@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/config/api';
+import { getAuthHeaders } from '@/utils/authUtils';
 
 interface InitLetterheadButtonProps {
   onSuccess?: () => void;
@@ -21,10 +22,7 @@ const InitLetterheadButton: React.FC<InitLetterheadButtonProps> = ({ onSuccess }
     try {
       const response = await fetch(getApiUrl('/api/admin/init-letterhead'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers: getAuthHeaders()
       });
 
       // Check if response is HTML (error page)

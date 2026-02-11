@@ -5,6 +5,9 @@
 
 import { getLetterhead } from '../../backend/utils/letterheadService.js';
 import { buildExcel } from '../../backend/export/excelBuilder.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('ExportHelpers');
 
 /**
  * Standard export wrapper that ensures letterhead is always included
@@ -48,7 +51,7 @@ export function calculateSafePercentage(value, total, decimals = 2, options = {}
     // Guard against zero or negative total
     if (!total || total <= 0) {
         if (options.context) {
-            console.warn(`[PERCENTAGE] Zero or negative total in ${options.context}: total=${total}`);
+            logger.warn(`[PERCENTAGE] Zero or negative total in ${options.context}: total=${total}`);
         }
         return 0;
     }
@@ -58,7 +61,7 @@ export function calculateSafePercentage(value, total, decimals = 2, options = {}
     
     // Warn if percentage exceeds 100% (data issue)
     if (percentage > 100) {
-        console.warn(`[PERCENTAGE] Value exceeds 100% in ${options.context || 'unknown'}: ${percentage.toFixed(2)}% (value=${value}, total=${total})`);
+        logger.warn(`[PERCENTAGE] Value exceeds 100% in ${options.context || 'unknown'}: ${percentage.toFixed(2)}% (value=${value}, total=${total})`);
     }
     
     // Cap between 0-100 and format
@@ -168,7 +171,7 @@ export function getSafeEffectiveDays(effectiveDays, options = {}) {
     const days = Number(effectiveDays) || 0;
     
     if (days <= 0) {
-        console.warn(`[EFFECTIVE_DAYS] Zero or negative effective days in ${options.context || 'unknown'}: ${days}. Using minimum value of 1.`);
+        logger.warn(`[EFFECTIVE_DAYS] Zero or negative effective days in ${options.context || 'unknown'}: ${days}. Using minimum value of 1.`);
         return 1;
     }
     

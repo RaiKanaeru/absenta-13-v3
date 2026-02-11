@@ -1,6 +1,6 @@
 /**
  * TeacherReportsView - Teacher attendance summary reports
- * Extracted from TeacherDashboard_Modern.tsx
+ * Extracted from TeacherDashboard.tsx
  */
 
 import { useState, useEffect } from "react";

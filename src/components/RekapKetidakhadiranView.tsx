@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Download, Search, Users, Calendar, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Download, Search, Users, Calendar, BarChart3, FileText } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
 
@@ -14,6 +14,7 @@ import { ReportSummary } from './ui/report-summary';
 import { formatDateOnly } from '../lib/time-utils';
 import { ACADEMIC_MONTHS, getMonthName } from '../lib/academic-constants';
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { downloadPdf } from '@/utils/exportUtils';
 import { Kelas, Siswa } from '@/types/school';
 
 interface PresensiData {
@@ -54,11 +55,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
   const fetchClasses = useCallback(async () => {
     try {
       setError(null);
-      const data = await apiCall('/api/kelas', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall('/api/kelas');
 
       setClasses(data);
     } catch (error) {
@@ -74,11 +71,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     try {
       setLoading(true);
       setError(null);
-      const data = await apiCall(`/api/admin/students-by-class/${kelasId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall(`/api/admin/students-by-class/${kelasId}`);
 
       setStudents(data);
     } catch (error) {
@@ -110,11 +103,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
         params.append('tanggal_akhir', tanggalAkhir);
       }
 
-      const data = await apiCall(`/api/admin/rekap-ketidakhadiran?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      const data = await apiCall(`/api/admin/rekap-ketidakhadiran?${params}`);
 
       setPresensiData(data);
     } catch (error) {
@@ -247,6 +236,60 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     }
   };
 
+  const handleExportPdf = async () => {
+    if (!selectedKelas || !selectedTahun) {
+      toast({
+        title: "Error",
+        description: "Pilih kelas dan tahun terlebih dahulu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        kelas_id: selectedKelas,
+        tahun: selectedTahun,
+      });
+
+      if (viewMode === 'bulanan' && selectedBulan) {
+        params.append('bulan', selectedBulan);
+      }
+
+      if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
+        params.append('tanggal_awal', selectedTanggalAwal);
+        params.append('tanggal_akhir', selectedTanggalAkhir);
+      }
+
+      const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
+      let fileName = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${selectedTahun}`;
+
+      if (viewMode === 'bulanan' && selectedBulan) {
+        fileName += `_${selectedBulan}`;
+      } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
+        fileName += `_${selectedTanggalAwal}_${selectedTanggalAkhir}`;
+      }
+
+      await downloadPdf('/api/export/pdf/rekap-ketidakhadiran-siswa', fileName, params, onLogout);
+
+      toast({
+        title: "Berhasil",
+        description: "Data berhasil diekspor ke PDF",
+      });
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      const message = getErrorMessage(error) || "Gagal mengekspor data ke PDF";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Use the shared getEffectiveDays from academic-constants instead of local function
 
   return (
@@ -280,6 +323,15 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
           >
             <Download className="w-4 h-4" />
             {loading ? 'Exporting...' : 'Export Excel'}
+          </Button>
+          <Button
+            onClick={handleExportPdf}
+            disabled={loading || !selectedKelas || !selectedTahun}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            <FileText className="w-4 h-4" />
+            {loading ? 'Exporting...' : 'Export PDF'}
           </Button>
         </div>
       </div>

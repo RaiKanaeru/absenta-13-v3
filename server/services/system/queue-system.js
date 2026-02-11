@@ -55,6 +55,7 @@ class DownloadQueue {
         this.maxConcurrentDownloads = 80;
         this.fileAccessMap = new Map();
         this.fileAccessTtlMs = 24 * 60 * 60 * 1000;
+        this.maxExportSize = 50 * 1024 * 1024; // 50MB
         this.priorityLevels = {
             admin: 1,    // Highest priority
             guru: 2,     // Medium priority
@@ -84,6 +85,9 @@ class DownloadQueue {
             // Start queue processors
             await this.startQueueProcessors();
             
+            // Start file cleanup scheduler
+            await this.startFileCleanupScheduler();
+            
             logger.info('Download Queue System initialized successfully');
             return true;
             
@@ -109,137 +113,6 @@ class DownloadQueue {
             // Handle Redis connection events
             this.redis.on('error', (error) => {
                 logger.error('Redis connection error', error);
-            });
-            
-            this.redis.on('connect', () => {
-                logger.debug('Redis connected');
-            });
-            
-            this.redis.on('ready', () => {
-                logger.debug('Redis ready');
-            });
-            
-        } catch (error) {
-            logger.error('Failed to connect to Redis', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Initialize database connection pool
-     */
-    async initializeDatabase() {
-        logger.info('Initializing database connection pool');
-        
-        try {
-            this.pool = mysql.createPool(this.dbConfig);
-            
-            // Test database connection
-            await this.pool.execute('SELECT 1');
-            logger.info('Database connection pool established');
-            
-        } catch (error) {
-            logger.error('Failed to initialize database pool', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Create download directory
-     */
-    async createDownloadDirectory() {
-        try {
-            await fs.mkdir(this.downloadDir, { recursive: true });
-            logger.debug('Created download directory', { path: this.downloadDir });
-        } catch (error) {
-            if (error.code !== 'EEXIST') {
-                throw error;
-            }
-        }
-    }
-
-    /**
-     * Initialize queues
-     */
-    async initializeQueues() {
-        logger.info('Initializing download queues');
-        
-        // Excel download queue
-        this.queues.excelDownload = new Queue('excel download', {
-            redis: this.redisConfig,
-            defaultJobOptions: {
-                removeOnComplete: 10,  // Keep last 10 completed jobs
-                removeOnFail: 5,       // Keep last 5 failed jobs
-                attempts: 3,           // Retry failed jobs 3 times
-                backoff: {
-                    type: 'exponential',
-                    delay: 2000
-                }
-            }
-        });
-
-        // Report generation queue
-        this.queues.reportGeneration = new Queue('report generation', {
-            redis: this.redisConfig,
-            defaultJobOptions: {
-                removeOnComplete: 5,
-                removeOnFail: 3,
-                attempts: 2,
-                backoff: {
-                    type: 'fixed',
-                    delay: 1000
-                }
-            }
-        });
-
-        logger.info('Download queues initialized');
-    }
-
-    /**
-     * Start queue processors
-     */
-    async startQueueProcessors() {
-        logger.info('Starting queue processors');
-        
-        // Excel download processor
-        this.queues.excelDownload.process('student-attendance', this.maxConcurrentDownloads, async (job) => {
-            return await this.processStudentAttendanceDownload(job);
-        });
-
-        this.queues.excelDownload.process('teacher-attendance', this.maxConcurrentDownloads, async (job) => {
-            return await this.processTeacherAttendanceDownload(job);
-        });
-
-        this.queues.excelDownload.process('analytics-report', this.maxConcurrentDownloads, async (job) => {
-            return await this.processAnalyticsReportDownload(job);
-        });
-
-        // Report generation processor
-        this.queues.reportGeneration.process('semester-report', 5, async (job) => {
-            return await this.processSemesterReportGeneration(job);
-        });
-
-        // Queue event handlers
-        this.setupQueueEventHandlers();
-
-        logger.info('Queue processors started');
-    }
-
-    /**
-     * Setup queue event handlers
-     */
-    setupQueueEventHandlers() {
-        // Excel download queue events
-        this.queues.excelDownload.on('completed', (job, result) => {
-            logger.info('Excel download completed', { jobId: job.id, filename: result.filename });
-        });
-
-        this.queues.excelDownload.on('failed', (job, err) => {
-            logger.error('Excel download failed', { jobId: job.id, error: err.message });
-        });
-
-        this.queues.excelDownload.on('stalled', (job) => {
-            logger.warn('Excel download stalled', { jobId: job.id });
         });
 
         // Report generation queue events
@@ -453,6 +326,8 @@ class DownloadQueue {
             // Save Excel file
             await workbook.xlsx.writeFile(filepath);
             this.registerDownloadFile(filename, userId);
+
+            await this.enforceExportSizeLimit(filepath, filename);
             
             await job.progress(100);
             
@@ -565,6 +440,8 @@ class DownloadQueue {
             // Save Excel file
             await workbook.xlsx.writeFile(filepath);
             this.registerDownloadFile(filename, userId);
+
+            await this.enforceExportSizeLimit(filepath, filename);
             
             await job.progress(100);
             
@@ -664,6 +541,8 @@ class DownloadQueue {
             // Save Excel file
             await workbook.xlsx.writeFile(filepath);
             this.registerDownloadFile(filename, userId);
+
+            await this.enforceExportSizeLimit(filepath, filename);
             
             await job.progress(100);
             
@@ -866,26 +745,103 @@ class DownloadQueue {
     }
 
     /**
-     * Cleanup old download files
+     * Start file cleanup scheduler
+     * Automatically delete old Excel files to prevent disk space leaks
      */
-    async cleanupOldDownloads() {
+    async startFileCleanupScheduler() {
+        logger.info('Starting file cleanup scheduler', { 
+            directory: this.downloadDir,
+            retentionHours: this.fileAccessTtlMs / (60 * 60 * 1000)
+        });
+
+        // Run cleanup immediately on startup
+        await this.cleanupOldFiles();
+
+        // Schedule cleanup every hour
+        this.cleanupInterval = setInterval(async () => {
+            try {
+                await this.cleanupOldFiles();
+            } catch (error) {
+                logger.error('File cleanup failed', { error: error.message });
+            }
+        }, 60 * 60 * 1000); // Run every 1 hour
+
+        logger.info('File cleanup scheduler started');
+    }
+
+    /**
+     * Cleanup old download files
+     * Removes .xlsx files older than fileAccessTtlMs (24 hours default)
+     */
+    async cleanupOldFiles() {
         try {
             const files = await fs.readdir(this.downloadDir);
             const now = Date.now();
-            const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-            
+            let cleanedCount = 0;
+            let totalFreedBytes = 0;
+
             for (const file of files) {
+                // Only process .xlsx files
+                if (!file.endsWith('.xlsx')) continue;
+
                 const filepath = path.join(this.downloadDir, file);
-                const stats = await fs.stat(filepath);
                 
-                if (now - stats.mtime.getTime() > maxAge) {
-                    await fs.unlink(filepath);
-                    logger.debug('Deleted old download file', { file });
+                try {
+                    const stats = await fs.stat(filepath);
+                    const fileAge = now - stats.mtimeMs;
+
+                    // Delete if older than retention period
+                    if (fileAge > this.fileAccessTtlMs) {
+                        await fs.unlink(filepath);
+                        this.fileAccessMap.delete(file);
+                        cleanedCount++;
+                        totalFreedBytes += stats.size;
+                        
+                        logger.debug('Cleaned up old file', { 
+                            file, 
+                            ageHours: (fileAge / (60 * 60 * 1000)).toFixed(2),
+                            sizeKB: (stats.size / 1024).toFixed(2)
+                        });
+                    }
+                } catch (error) {
+                    // Skip files that can't be accessed (may already be deleted)
+                    if (error.code !== 'ENOENT') {
+                        logger.warn('Failed to cleanup file', { file, error: error.message });
+                    }
                 }
             }
-            
+
+            if (cleanedCount > 0) {
+                logger.info('File cleanup completed', { 
+                    filesRemoved: cleanedCount,
+                    freedSpaceMB: (totalFreedBytes / (1024 * 1024)).toFixed(2)
+                });
+            } else {
+                logger.debug('File cleanup completed - no old files found');
+            }
+
+            return { cleanedCount, totalFreedBytes };
+
         } catch (error) {
-            logger.error('Failed to cleanup old downloads', error);
+            logger.error('Error during file cleanup', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Enforce export file size limit.
+     * Deletes the file and revokes access if it exceeds maxExportSize.
+     * @param {string} filepath - Absolute path to the export file
+     * @param {string} filename - Basename used in fileAccessMap
+     */
+    async enforceExportSizeLimit(filepath, filename) {
+        const stats = await fs.stat(filepath);
+        if (stats.size > this.maxExportSize) {
+            await fs.unlink(filepath);
+            this.fileAccessMap.delete(filename);
+            const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
+            const limitMB = (this.maxExportSize / (1024 * 1024)).toFixed(0);
+            throw new Error(`Export file terlalu besar (${sizeMB}MB > ${limitMB}MB)`);
         }
     }
 
@@ -894,9 +850,21 @@ class DownloadQueue {
      */
     async close() {
         try {
-            // Close queues
+            // Clear file cleanup scheduler
+            if (this.cleanupInterval) {
+                clearInterval(this.cleanupInterval);
+                this.cleanupInterval = null;
+                logger.info('File cleanup scheduler stopped');
+            }
+
+            // Close queues gracefully (wait for active jobs)
             for (const queueName in this.queues) {
-                await this.queues[queueName].close();
+                try {
+                    await this.queues[queueName].close();
+                    logger.debug('Queue closed', { queueName });
+                } catch (err) {
+                    logger.warn('Error closing queue', { queueName, error: err.message });
+                }
             }
             
             // Close Redis connection
@@ -908,11 +876,49 @@ class DownloadQueue {
             if (this.pool) {
                 await this.pool.end();
             }
+
+            // Clear file access map
+            this.fileAccessMap.clear();
             
-            logger.info('Queue system connections closed');
+            logger.info('Queue system shut down gracefully');
             
         } catch (error) {
             logger.error('Error closing queue system', error);
+        }
+    }
+
+    /**
+     * Get download directory stats (file count, total size, oldest file age)
+     * @returns {Promise<Object>} Directory statistics
+     */
+    async getDownloadDirStats() {
+        try {
+            const files = await fs.readdir(this.downloadDir);
+            const xlsxFiles = files.filter(f => f.endsWith('.xlsx'));
+            let totalSize = 0;
+            let oldestAge = 0;
+            const now = Date.now();
+
+            for (const file of xlsxFiles) {
+                try {
+                    const stats = await fs.stat(path.join(this.downloadDir, file));
+                    totalSize += stats.size;
+                    const age = now - stats.mtimeMs;
+                    if (age > oldestAge) oldestAge = age;
+                } catch { /* skip inaccessible files */ }
+            }
+
+            return {
+                fileCount: xlsxFiles.length,
+                totalSizeMB: Number((totalSize / (1024 * 1024)).toFixed(2)),
+                oldestFileHours: Number((oldestAge / (60 * 60 * 1000)).toFixed(2)),
+                accessMapSize: this.fileAccessMap.size,
+                retentionHours: this.fileAccessTtlMs / (60 * 60 * 1000),
+                downloadDir: this.downloadDir
+            };
+        } catch (error) {
+            logger.error('Failed to get download dir stats', { error: error.message });
+            return { error: error.message };
         }
     }
 }

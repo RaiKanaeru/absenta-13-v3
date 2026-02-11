@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { toast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/api';
+import { getAuthToken, getAuthHeaders } from '@/utils/authUtils';
 import { 
   Lock, 
   Eye, 
@@ -282,7 +283,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Token tidak ditemukan');
       }
@@ -293,10 +294,7 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
       const response = await fetch(getApiUrl(`/api/${role}/update-profile`), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify(requestBody)
       });
@@ -355,17 +353,14 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Token tidak ditemukan');
       }
 
       const response = await fetch(getApiUrl(`/api/${role}/change-password`), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({
           newPassword: passwordData.newPassword

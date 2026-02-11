@@ -347,7 +347,7 @@ function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
         SELECT 
             s.nama,
             k.nama_kelas,
-            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.ALPA}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as total_alpa
+            COUNT(CASE WHEN a.status IN ('${REPORT_STATUS.ALPA}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.SAKIT}') THEN 1 END) as total_alpa
         FROM siswa s
         JOIN kelas k ON s.kelas_id = k.id_kelas
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
@@ -360,7 +360,7 @@ function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
     const topAbsentTeachersQuery = `
         SELECT 
             g.nama,
-            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.TIDAK_HADIR}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.DISPEN}') THEN 1 END) as total_tidak_hadir
+            COUNT(CASE WHEN ag.status IN ('${REPORT_STATUS.TIDAK_HADIR}', '${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}') THEN 1 END) as total_tidak_hadir
         FROM guru g
         LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id
         GROUP BY g.id_guru, g.nama
@@ -920,7 +920,7 @@ function buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate,
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                 AND ag.tanggal BETWEEN ? AND ?
-                AND ag.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}', '${REPORT_STATUS.TIDAK_HADIR}')
+                AND ag.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.TIDAK_HADIR}')
             WHERE g.status = 'aktif'
             GROUP BY g.id_guru, g.nama, g.nip
             ORDER BY g.nama
@@ -937,7 +937,7 @@ function buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate,
             FROM guru g
             LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
                 AND ag.tanggal BETWEEN ? AND ?
-                AND ag.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.ALPA}', '${REPORT_STATUS.TIDAK_HADIR}')
+                AND ag.status IN ('${REPORT_STATUS.SAKIT}', '${REPORT_STATUS.IZIN}', '${REPORT_STATUS.TIDAK_HADIR}')
             WHERE g.status = 'aktif'
             GROUP BY g.id_guru, g.nama, g.nip
             ORDER BY g.nama

@@ -1,6 +1,6 @@
 /**
  * RekapKetidakhadiranView - Absence recap report view
- * Extracted from TeacherDashboard_Modern.tsx
+ * Extracted from TeacherDashboard.tsx
  */
 
 import { useState, useEffect } from "react";

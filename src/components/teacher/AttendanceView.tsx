@@ -1,6 +1,6 @@
 /**
  * AttendanceView - Component for taking student attendance
- * Extracted from TeacherDashboard_Modern.tsx
+ * Extracted from TeacherDashboard.tsx
  */
 
 import { useState, useEffect } from "react";

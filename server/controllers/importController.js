@@ -6,7 +6,7 @@
 
 import ExcelJS from 'exceljs';
 
-import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse } from '../utils/errorHandler.js';
+import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import db from '../config/db.js';
 import {
@@ -766,7 +766,7 @@ const importJadwal = async (req, res) => {
                 conn.release();
             }
 
-            return res.json({ success: true, inserted: jadwalRows.length, invalid: errors.length, errors });
+            return sendSuccessResponse(res, { inserted: jadwalRows.length, invalid: errors.length, errors }, 'Import jadwal berhasil');
         }
 
         const rows = sheetToJsonByHeader(worksheet);
@@ -810,7 +810,7 @@ const importJadwal = async (req, res) => {
             conn.release();
         }
 
-        res.json({ success: true, inserted: valid.length, invalid: errors.length, errors });
+        sendSuccessResponse(res, { inserted: valid.length, invalid: errors.length, errors }, 'Import jadwal berhasil');
     } catch (err) {
         logger.error('Import jadwal error', { error: err.message });
         return sendDatabaseError(res, err, 'Gagal impor jadwal');

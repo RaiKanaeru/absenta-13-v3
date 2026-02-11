@@ -33,7 +33,7 @@ const uploadLogo = multer({
             // Get extension from original filename (use basename to strip path)
             const safeName = path.basename(file.originalname);
             const rawExt = path.extname(safeName).toLowerCase();
-            const ext = ALLOWED_IMAGE_EXTENSIONS.includes(rawExt) ? rawExt : '.png';
+            const ext = ALLOWED_IMAGE_EXTENSIONS.has(rawExt) ? rawExt : '.png';
             
             // Use strict whitelist lookup - no user input reaches the filename
             const logoType = String(req.body.logoType || '').toLowerCase();

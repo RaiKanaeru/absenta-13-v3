@@ -8,6 +8,9 @@ import SecuritySystem from './security-system.js';
 import PerformanceOptimizer from './performance-optimizer.js';
 import { formatWIBTime } from '../../utils/timeUtils.js';
 import { setPool } from '../../config/db.js';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('Initializer');
 
 export async function initializeDatabase(ddosProtectionInstance = null) {
     console.log('Initializing optimized database connection...');
@@ -168,7 +171,7 @@ export async function initializeDatabase(ddosProtectionInstance = null) {
                     throw err;
                 }
             };
-            console.log('Database pool wrapped for monitoring');
+            logger.info('Database pool wrapped for monitoring');
             
             // Register pool to centralized config
             setPool(globalThis.dbPool);

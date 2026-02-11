@@ -5,6 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, RefreshCw, Clock, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateWIB, formatTime24 } from '@/lib/time-utils';
+import { getBandingStatusInteractiveClass as getBandingStatusClass, getBandingStatusLabel } from '@/utils/statusMaps';
+import type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan } from './types';
+
+// Re-export so existing consumers don't break
+export type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan };
 
 // Types extracted/adapted from parent
 export interface EmptyScheduleViewProps {
@@ -12,21 +17,7 @@ export interface EmptyScheduleViewProps {
   onRefresh: () => void;
 }
 
-const getBandingStatusClass = (status: string) => {
-  switch (status) {
-    case 'disetujui': return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-0 hover:bg-emerald-500/25';
-    case 'ditolak': return 'bg-destructive/15 text-destructive border-0 hover:bg-destructive/25';
-    default: return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-0 hover:bg-amber-500/25';
-  }
-};
 
-const getBandingStatusLabel = (status: string) => {
-  switch (status) {
-    case 'disetujui': return 'Disetujui';
-    case 'ditolak': return 'Ditolak';
-    default: return 'Menunggu';
-  }
-};
 
 // Renamed for clarity: This is just the empty state card
 export const EmptyScheduleCard: React.FC<{ isEditMode: boolean; onRefresh: () => void }> = ({ isEditMode, onRefresh }) => (
@@ -235,29 +226,8 @@ export const BandingCardItem: React.FC<BandingItemProps> = ({ banding, isExpande
 // NEW: BandingList and Dependencies for Refactoring
 // =============================================================================
 
-export type BandingStatusAsli = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
-export type BandingStatusDiajukan = 'hadir' | 'izin' | 'sakit' | 'alpa' | 'dispen';
-
-export interface BandingAbsen {
-  id_banding: number;
-  siswa_id: number;
-  jadwal_id: number;
-  tanggal_absen: string;
-  status_asli: BandingStatusAsli;
-  status_diajukan: BandingStatusDiajukan;
-  alasan_banding: string;
-  status_banding: 'pending' | 'disetujui' | 'ditolak';
-  catatan_guru?: string;
-  tanggal_pengajuan: string;
-  tanggal_keputusan?: string;
-  nama_mapel?: string;
-  nama_guru?: string;
-  jam_mulai?: string;
-  jam_selesai?: string;
-  nama_kelas?: string;
-  jenis_banding?: 'individual';
-  nama_siswa?: string;
-}
+// BandingAbsen, BandingStatusAsli, BandingStatusDiajukan are imported from ./types
+// and re-exported above to preserve backward compatibility.
 
 export const Pagination = React.memo(({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; }) => {
   const getVisiblePages = () => {

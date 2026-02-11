@@ -1,64 +1,53 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from "react";
+
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { 
-  ArrowLeft, Home, Edit, Trash2, Plus, FileText, Search 
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { apiCall } from '@/utils/apiClient';
-import { Room } from '@/types/dashboard';
-import { getSubmitButtonLabel } from '../utils/dashboardUtils';
+import type { Room } from "@/types/dashboard";
+import { apiCall, getErrorMessage } from "@/utils/apiClient";
+import { ArrowLeft, Edit, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));
+const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
-const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
+export const ManageRoomsView = ({
+  onBack,
+  onLogout,
+}: {
+  onBack: () => void;
+  onLogout: () => void;
+}) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({
-    kode_ruang: '',
-    nama_ruang: '',
-    lokasi: '',
-    kapasitas: '',
-    status: 'aktif'
+    kode_ruang: "",
+    nama_ruang: "",
+    lokasi: "",
+    kapasitas: "",
+    status: "aktif",
   });
 
   const fetchRooms = useCallback(async () => {
     try {
-      const response = await apiCall<Room[] | { data?: Room[] }>('/api/admin/ruang', { onLogout });
-      const roomsData = Array.isArray(response) ? response : response.data || [];
-      setRooms(roomsData);
-    } catch (error: unknown) {
-      console.error('Error fetching rooms:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error memuat data ruang", description: message, variant: "destructive" });
+      const response = await apiCall("/api/admin/ruang", { onLogout });
+      setRooms(response as Room[]);
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+      toast({
+        title: "Error memuat data ruang",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
     }
   }, [onLogout]);
 
@@ -68,9 +57,9 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Client-side validation
-    if (!formData.kode_ruang || formData.kode_ruang.trim() === '') {
+    if (!formData.kode_ruang || formData.kode_ruang.trim() === "") {
       toast({ title: "Error", description: "Kode ruang wajib diisi!", variant: "destructive" });
       return;
     }
@@ -78,69 +67,71 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       toast({ title: "Error", description: "Kode ruang harus 2-20 karakter alfanumerik!", variant: "destructive" });
       return;
     }
-    if (formData.kapasitas && (Number.isNaN(Number.parseInt(formData.kapasitas)) || Number.parseInt(formData.kapasitas) <= 0)) {
+    if (
+      formData.kapasitas &&
+      (Number.isNaN(Number.parseInt(formData.kapasitas)) || Number.parseInt(formData.kapasitas) <= 0)
+    ) {
       toast({ title: "Error", description: "Kapasitas harus berupa angka positif!", variant: "destructive" });
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
       if (editingId) {
         // Update existing room
         await apiCall(`/api/admin/ruang/${editingId}`, {
-          method: 'PUT',
+          method: "PUT",
           body: JSON.stringify({
             kode_ruang: formData.kode_ruang,
             nama_ruang: formData.nama_ruang,
             lokasi: formData.lokasi,
             kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
-            status: formData.status
+            status: formData.status,
           }),
-          onLogout
+          onLogout,
         });
 
         toast({
           title: "Berhasil",
-          description: "Ruang berhasil diperbarui"
+          description: "Ruang berhasil diperbarui",
         });
       } else {
         // Create new room
-        await apiCall('/api/admin/ruang', {
-          method: 'POST',
+        await apiCall("/api/admin/ruang", {
+          method: "POST",
           body: JSON.stringify({
             kode_ruang: formData.kode_ruang,
             nama_ruang: formData.nama_ruang,
             lokasi: formData.lokasi,
             kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
-            status: formData.status
+            status: formData.status,
           }),
-          onLogout
+          onLogout,
         });
 
         toast({
           title: "Berhasil",
-          description: "Ruang berhasil ditambahkan"
+          description: "Ruang berhasil ditambahkan",
         });
       }
 
       // Reset form
       setFormData({
-        kode_ruang: '',
-        nama_ruang: '',
-        lokasi: '',
-        kapasitas: '',
-        status: 'aktif'
+        kode_ruang: "",
+        nama_ruang: "",
+        lokasi: "",
+        kapasitas: "",
+        status: "aktif",
       });
       setEditingId(null);
       setDialogOpen(false);
       fetchRooms();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (error) {
       toast({
         title: "Error",
-        description: message,
-        variant: "destructive"
+        description: getErrorMessage(error),
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -150,41 +141,44 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
   const handleEdit = (room: Room) => {
     setFormData({
       kode_ruang: room.kode_ruang,
-      nama_ruang: room.nama_ruang || '',
-      lokasi: room.lokasi || '',
-      kapasitas: room.kapasitas?.toString() || '',
-      status: room.status
+      nama_ruang: room.nama_ruang || "",
+      lokasi: room.lokasi || "",
+      kapasitas: room.kapasitas?.toString() || "",
+      status: room.status,
     });
     setEditingId(room.id);
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: number) => {
+    if (!globalThis.confirm("Yakin ingin menghapus ruang ini? Tindakan ini tidak dapat dibatalkan.")) {
+      return;
+    }
     try {
       await apiCall(`/api/admin/ruang/${id}`, {
-        method: 'DELETE',
-        onLogout
+        method: "DELETE",
+        onLogout,
       });
 
       toast({
         title: "Berhasil",
-        description: "Ruang berhasil dihapus"
+        description: "Ruang berhasil dihapus",
       });
       fetchRooms();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (error) {
       toast({
         title: "Error",
-        description: message,
-        variant: "destructive"
+        description: getErrorMessage(error),
+        variant: "destructive",
       });
     }
   };
 
-  const filteredRooms = rooms.filter(room =>
-    room.kode_ruang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    room.nama_ruang?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    room.lokasi?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRooms = rooms.filter(
+    (room) =>
+      room.kode_ruang.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (room.lokasi && room.lokasi.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (showImport) {
@@ -195,8 +189,8 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Kelola Ruang Kelas</h2>
-          <p className="text-sm text-gray-600">Tambah, edit, dan hapus data ruang kelas</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Kelola Ruang Kelas</h2>
+          <p className="text-sm text-muted-foreground">Tambah, edit, dan hapus data ruang kelas</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button onClick={onBack} variant="outline" size="sm" className="text-xs">
@@ -219,7 +213,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
         <CardContent className="p-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Cari ruang kelas..."
                 value={searchTerm}
@@ -245,10 +239,10 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
         <CardContent>
           {filteredRooms.length === 0 ? (
             <div className="text-center py-8">
-              <Home className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Data</h3>
-              <p className="text-sm text-gray-600">
-                {searchTerm ? 'Tidak ada ruang yang cocok dengan pencarian' : 'Belum ada ruang kelas yang ditambahkan'}
+              <Home className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold text-muted-foreground mb-2">Belum Ada Data</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchTerm ? "Tidak ada ruang yang cocok dengan pencarian" : "Belum ada ruang kelas yang ditambahkan"}
               </p>
             </div>
           ) : (
@@ -270,12 +264,12 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                     {filteredRooms.map((room) => (
                       <TableRow key={room.id}>
                         <TableCell className="font-medium text-xs">{room.kode_ruang}</TableCell>
-                        <TableCell className="text-xs">{room.nama_ruang || '-'}</TableCell>
-                        <TableCell className="text-xs">{room.lokasi || '-'}</TableCell>
-                        <TableCell className="text-xs">{room.kapasitas || '-'}</TableCell>
+                        <TableCell className="text-xs">{room.nama_ruang || "-"}</TableCell>
+                        <TableCell className="text-xs">{room.lokasi || "-"}</TableCell>
+                        <TableCell className="text-xs">{room.kapasitas || "-"}</TableCell>
                         <TableCell>
-                          <Badge variant={room.status === 'aktif' ? 'default' : 'secondary'} className="text-xs">
-                            {room.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
+                          <Badge variant={room.status === "aktif" ? "default" : "secondary"} className="text-xs">
+                            {room.status === "aktif" ? "Aktif" : "Tidak Aktif"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -298,15 +292,12 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Apakah Anda yakin ingin menghapus ruang {room.kode_ruang}? 
-                                    Tindakan ini tidak dapat dibatalkan.
+                                    Apakah Anda yakin ingin menghapus ruang {room.kode_ruang}? Tindakan ini tidak dapat dibatalkan.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(room.id)}>
-                                    Hapus
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={() => handleDelete(room.id)}>Hapus</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -326,7 +317,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{room.kode_ruang}</h3>
-                          <p className="text-xs text-gray-500">{room.nama_ruang || 'Tidak ada nama'}</p>
+                          <p className="text-xs text-muted-foreground">{room.nama_ruang || "Tidak ada nama"}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -347,35 +338,32 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Apakah Anda yakin ingin menghapus ruang {room.kode_ruang}? 
-                                  Tindakan ini tidak dapat dibatalkan.
+                                  Apakah Anda yakin ingin menghapus ruang {room.kode_ruang}? Tindakan ini tidak dapat dibatalkan.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(room.id)}>
-                                  Hapus
-                                </AlertDialogAction>
+                                <AlertDialogAction onClick={() => handleDelete(room.id)}>Hapus</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-gray-500">Lokasi:</span>
-                          <p className="font-medium">{room.lokasi || '-'}</p>
+                          <span className="text-muted-foreground">Lokasi:</span>
+                          <p className="font-medium">{room.lokasi || "-"}</p>
                         </div>
                         <div>
-                          <span className="text-gray-500">Kapasitas:</span>
-                          <p className="font-medium">{room.kapasitas || '-'}</p>
+                          <span className="text-muted-foreground">Kapasitas:</span>
+                          <p className="font-medium">{room.kapasitas || "-"}</p>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-gray-500">Status:</span>
+                          <span className="text-muted-foreground">Status:</span>
                           <div className="mt-1">
-                            <Badge variant={room.status === 'aktif' ? 'default' : 'secondary'} className="text-xs">
-                              {room.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}
+                            <Badge variant={room.status === "aktif" ? "default" : "secondary"} className="text-xs">
+                              {room.status === "aktif" ? "Aktif" : "Tidak Aktif"}
                             </Badge>
                           </div>
                         </div>
@@ -393,17 +381,17 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-base">
-              {editingId ? 'Edit Ruang Kelas' : 'Tambah Ruang Kelas'}
-            </DialogTitle>
+            <DialogTitle className="text-base">{editingId ? "Edit Ruang Kelas" : "Tambah Ruang Kelas"}</DialogTitle>
             <DialogDescription className="text-sm">
-              {editingId ? 'Perbarui informasi ruang kelas' : 'Tambahkan ruang kelas baru'}
+              {editingId ? "Perbarui informasi ruang kelas" : "Tambahkan ruang kelas baru"}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="kode_ruang" className="text-sm font-medium">Kode Ruang *</Label>
+                <Label htmlFor="kode_ruang" className="text-sm font-medium">
+                  Kode Ruang *
+                </Label>
                 <Input
                   id="kode_ruang"
                   value={formData.kode_ruang}
@@ -414,7 +402,9 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                 />
               </div>
               <div>
-                <Label htmlFor="nama_ruang" className="text-sm font-medium">Nama Ruang</Label>
+                <Label htmlFor="nama_ruang" className="text-sm font-medium">
+                  Nama Ruang
+                </Label>
                 <Input
                   id="nama_ruang"
                   value={formData.nama_ruang}
@@ -426,7 +416,9 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="lokasi" className="text-sm font-medium">Lokasi</Label>
+                <Label htmlFor="lokasi" className="text-sm font-medium">
+                  Lokasi
+                </Label>
                 <Input
                   id="lokasi"
                   value={formData.lokasi}
@@ -436,7 +428,9 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                 />
               </div>
               <div>
-                <Label htmlFor="kapasitas" className="text-sm font-medium">Kapasitas</Label>
+                <Label htmlFor="kapasitas" className="text-sm font-medium">
+                  Kapasitas
+                </Label>
                 <Input
                   id="kapasitas"
                   type="number"
@@ -448,11 +442,10 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
               </div>
             </div>
             <div>
-              <Label htmlFor="status" className="text-sm font-medium">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
-              >
+              <Label htmlFor="status" className="text-sm font-medium">
+                Status
+              </Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -467,7 +460,7 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
                 Batal
               </Button>
               <Button type="submit" disabled={isLoading} className="text-sm">
-                {getSubmitButtonLabel(isLoading, editingId, 'Menyimpan...', 'Perbarui', 'Tambah')}
+                {isLoading ? "Menyimpan..." : editingId ? "Perbarui" : "Tambah"}
               </Button>
             </DialogFooter>
           </form>
@@ -476,5 +469,3 @@ const ManageRoomsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: (
     </div>
   );
 };
-
-export default ManageRoomsView;

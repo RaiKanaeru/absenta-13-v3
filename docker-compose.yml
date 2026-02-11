@@ -37,11 +37,11 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=absenta
-      - DB_PASSWORD=${DB_PASSWORD:-rootaja12345}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD environment variable must be set}
       - DB_NAME=absenta13
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - JWT_SECRET=${JWT_SECRET:-c7f199d6d61fcb73bf62642a2550c3bb2e8e3fa53d852854acf8d69774ff28ae}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET environment variable must be set}
       - ALLOWED_ORIGINS=https://absenta13.my.id,https://api.absenta13.my.id
       - TZ=Asia/Jakarta
     volumes:
@@ -65,10 +65,10 @@ services:
     container_name: absenta13-mysql
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootaja12345}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD environment variable must be set}
       - MYSQL_DATABASE=absenta13
       - MYSQL_USER=absenta
-      - MYSQL_PASSWORD=${DB_PASSWORD:-rootaja12345}
+      - MYSQL_PASSWORD=${DB_PASSWORD:?DB_PASSWORD environment variable must be set}
       - TZ=Asia/Jakarta
     volumes:
       - mysql_data:/var/lib/mysql

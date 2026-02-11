@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, BarChart3, Minimize2, Maximize2, Users, Activity, GraduationCap, AlertTriangle 
 } from "lucide-react";
+import { AttendanceTrendChart } from './AttendanceTrendChart';
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { formatTime24WithSeconds, getCurrentDateWIB } from "@/lib/time-utils";
@@ -355,6 +356,9 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
               )}
             </CardContent>
           </Card>
+
+          {/* Attendance Trend Chart - Recharts */}
+          <AttendanceTrendChart onLogout={onLogout} />
 
           {/* Top Absent Students - Modern List */}
           <Card className="border-0 shadow-sm">

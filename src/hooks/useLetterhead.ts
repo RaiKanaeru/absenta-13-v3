@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getApiUrl } from '@/config/api';
+import { getAuthToken, getAuthHeaders } from '@/utils/authUtils';
 
 export interface LetterheadConfig {
   enabled: boolean;
@@ -62,7 +63,7 @@ export function useLetterhead(reportKey?: string) {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Token tidak ditemukan');
       }
@@ -73,10 +74,7 @@ export function useLetterhead(reportKey?: string) {
         : getApiUrl('/api/admin/letterhead');
         
       const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {

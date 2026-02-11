@@ -1,6 +1,6 @@
 /**
  * PresensiSiswaSMKN13View - Student attendance report SMKN13 format
- * Extracted from TeacherDashboard_Modern.tsx
+ * Extracted from TeacherDashboard.tsx
  */
 
 import { useState, useEffect } from "react";

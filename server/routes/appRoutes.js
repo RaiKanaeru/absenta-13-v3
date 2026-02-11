@@ -26,6 +26,9 @@ import templateExportRoutes from './templateExportRoutes.js';
 import kalenderAkademikRoutes from './kalenderAkademikRoutes.js';
 import databaseFileRoutes from './databaseFileRoutes.js';
 import downloadRoutes from './downloadRoutes.js';
+import pdfExportRoutes from './pdfExportRoutes.js';
+import auditLogRoutes from './auditLogRoutes.js';
+import attendanceSettingsRoutes from './attendanceSettingsRoutes.js';
 
 export function setupRoutes(app) {
     // Auth Routes
@@ -42,6 +45,8 @@ export function setupRoutes(app) {
     app.use('/api/admin/database-files', databaseFileRoutes); // Database file manager
     app.use('/api/admin', monitoringRoutes); // Monitoring endpoints
     app.use('/api/admin/export', templateExportRoutes); // Template-based Excel export
+    app.use('/api/admin/audit-logs', auditLogRoutes); // Audit log endpoints
+    app.use('/api/admin/attendance-settings', attendanceSettingsRoutes); // Attendance settings
 
     // SISWA CRUD
     app.use('/api/admin/siswa', siswaRoutes);
@@ -86,6 +91,7 @@ export function setupRoutes(app) {
     // EXPORT ROUTES
     app.use('/api/export', exportRoutes); // All export endpoints
     app.use('/api/admin/export', exportRoutes); // Alias for frontend compatibility
+    app.use('/api/export/pdf', pdfExportRoutes); // PDF export endpoints
     app.use('/api/downloads', downloadRoutes); // Secure download endpoints
 
     // LETTERHEAD & DASHBOARD STATS

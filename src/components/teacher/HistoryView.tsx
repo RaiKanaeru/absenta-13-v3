@@ -1,6 +1,6 @@
 /**
  * HistoryView - Teacher attendance history view
- * Extracted from TeacherDashboard_Modern.tsx - EXACT COPY, no UI changes
+ * Extracted from TeacherDashboard.tsx - EXACT COPY, no UI changes
  */
 
 import { useState, useEffect } from "react";

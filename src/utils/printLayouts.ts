@@ -1,4 +1,5 @@
 // Print Layout Utilities untuk Laporan Absenta
+import { toast } from '@/hooks/use-toast';
 
 export interface PrintData {
   nama: string;
@@ -87,7 +88,7 @@ export const printReport = (
   letterhead: LetterheadConfig | null = null
 ) => {
   if (data.length === 0) {
-    alert('Tidak ada data untuk dicetak');
+    toast({ title: 'Tidak ada data', description: 'Tidak ada data untuk dicetak', variant: 'destructive' });
     return;
   }
 

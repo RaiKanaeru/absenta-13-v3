@@ -17,8 +17,10 @@ interface ExcelPreviewProps {
   showPreview?: boolean;
   onExport?: () => void;
   onExportSMKN13?: () => void;
+  onExportPdf?: () => void;
   exporting?: boolean;
   exportingSMKN13?: boolean;
+  exportingPdf?: boolean;
   className?: string;
   teacherName?: string;
   subjectName?: string;
@@ -34,8 +36,10 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
   showPreview = true,
   onExport,
   onExportSMKN13,
+  onExportPdf,
   exporting = false,
   exportingSMKN13 = false,
+  exportingPdf = false,
   className = "",
   teacherName,
   subjectName,
@@ -155,6 +159,29 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">Export SMKN 13</span>
                     <span className="sm:hidden">SMKN 13</span>
+                  </>
+                )}
+              </Button>
+            )}
+            {onExportPdf && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExportPdf}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
+                disabled={exportingPdf}
+              >
+                {exportingPdf ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline">Mengekspor...</span>
+                    <span className="sm:hidden">Mengekspor</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    <span className="hidden sm:inline">Download PDF</span>
+                    <span className="sm:hidden">PDF</span>
                   </>
                 )}
               </Button>
