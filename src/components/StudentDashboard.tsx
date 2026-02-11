@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,8 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
   const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
     useNotifications({ role: 'siswa', userId: userData?.id ?? null, onLogout });
 
-  const [activeTab, setActiveTab] = useState('kehadiran');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [currentUserData, setCurrentUserData] = useState(userData);
   const [jadwalHariIni, setJadwalHariIni] = useState<JadwalHariIni[]>([]);
@@ -229,7 +231,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
     };
 
     getSiswaInfo();
-  }, [onLogout, apiRequest, userData.id]);
+  }, [apiRequest, userData.id]);
 
   // Load jadwal hari ini
   const loadJadwalHariIni = useCallback(async () => {
@@ -472,16 +474,16 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
 
   useEffect(() => {
-    if (siswaId && activeTab === 'kehadiran') {
+    if (siswaId && location.pathname === '/siswa') {
       loadJadwalHariIni();
     }
-  }, [siswaId, activeTab, loadJadwalHariIni]);
+  }, [siswaId, location.pathname, loadJadwalHariIni]);
 
   useEffect(() => {
-    if (siswaId && activeTab === 'riwayat') {
+    if (siswaId && location.pathname === '/siswa/riwayat') {
       loadRiwayatData();
     }
-  }, [siswaId, activeTab, loadRiwayatData]);
+  }, [siswaId, location.pathname, loadRiwayatData]);
 
 
   // Load Banding Absen
@@ -588,12 +590,12 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
 
   useEffect(() => {
-    if (siswaId && activeTab === 'banding-absen') {
+    if (siswaId && location.pathname === '/siswa/banding') {
       loadBandingAbsen();
       loadRiwayatData();
       loadDaftarSiswa();
     }
-  }, [siswaId, activeTab, loadBandingAbsen, loadRiwayatData, loadDaftarSiswa]);
+  }, [siswaId, location.pathname, loadBandingAbsen, loadRiwayatData, loadDaftarSiswa]);
 
   // useEffect untuk load jadwal ketika selectedDate berubah atau masuk edit mode
   useEffect(() => {
@@ -1153,25 +1155,25 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
         {/* Navigation */}
         <nav className="p-4 space-y-2">
           <Button
-            variant={activeTab === 'kehadiran' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeTab !== 'kehadiran' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveTab('kehadiran'); setSidebarOpen(false);}}
+            variant={location.pathname === '/siswa' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/siswa' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/siswa'); setSidebarOpen(false); }}
           >
             <Clock className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Kehadiran</span>}
           </Button>
           <Button
-            variant={activeTab === 'banding-absen' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeTab !== 'banding-absen' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveTab('banding-absen'); setSidebarOpen(false);}}
+            variant={location.pathname === '/siswa/banding' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/siswa/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/siswa/banding'); setSidebarOpen(false); }}
           >
             <MessageCircle className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Banding Absen</span>}
           </Button>
           <Button
-            variant={activeTab === 'riwayat' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeTab !== 'riwayat' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveTab('riwayat'); setSidebarOpen(false);}}
+            variant={location.pathname === '/siswa/riwayat' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/siswa/riwayat' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/siswa/riwayat'); setSidebarOpen(false); }}
           >
             <History className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat</span>}
@@ -1262,60 +1264,62 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
           </div>
 
           {/* Content */}
-          {activeTab === 'kehadiran' && (
-            <KehadiranTab
-              loading={loading}
-              isEditMode={isEditMode}
-              kelasInfo={kelasInfo}
-              selectedDate={selectedDate}
-              minDate={minDate}
-              maxDate={maxDate}
-              jadwalHariIni={jadwalHariIni}
-              jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
-              kehadiranData={kehadiranData}
-              adaTugasData={adaTugasData}
-              isUpdatingStatus={isUpdatingStatus}
-              toggleEditMode={toggleEditMode}
-              handleDateChange={handleDateChange}
-              updateKehadiranStatus={updateKehadiranStatus}
-              updateKehadiranKeterangan={updateKehadiranKeterangan}
-              setAdaTugasData={setAdaTugasData}
-              submitKehadiran={submitKehadiran}
-              openAbsenKelasModal={openAbsenKelasModal}
-            />
-          )}
-          {activeTab === 'riwayat' && (
-            <RiwayatTab
-              riwayatData={riwayatData}
-              riwayatPage={riwayatPage}
-              setRiwayatPage={setRiwayatPage}
-              detailRiwayat={detailRiwayat}
-              setDetailRiwayat={setDetailRiwayat}
-            />
-          )}
-          {activeTab === 'banding-absen' && (
-            <BandingAbsenTab
-              bandingAbsen={bandingAbsen}
-              expandedBanding={expandedBanding}
-              setExpandedBanding={setExpandedBanding}
-              showFormBanding={showFormBanding}
-              setShowFormBanding={setShowFormBanding}
-              formBanding={formBanding}
-              setFormBanding={setFormBanding}
-              jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
-              setJadwalBerdasarkanTanggal={setJadwalBerdasarkanTanggal}
-              loadingJadwal={loadingJadwal}
-              selectedSiswaId={selectedSiswaId}
-              setSelectedSiswaId={setSelectedSiswaId}
-              daftarSiswa={daftarSiswa}
-              bandingAbsenPage={bandingAbsenPage}
-              setBandingAbsenPage={setBandingAbsenPage}
-              itemsPerPage={itemsPerPage}
-              submitBandingAbsen={submitBandingAbsen}
-              loadJadwalBandingByDate={loadJadwalBandingByDate}
-              loadSiswaStatusById={loadSiswaStatusById}
-            />
-          )}
+          <Routes>
+            <Route index element={
+              <KehadiranTab
+                loading={loading}
+                isEditMode={isEditMode}
+                kelasInfo={kelasInfo}
+                selectedDate={selectedDate}
+                minDate={minDate}
+                maxDate={maxDate}
+                jadwalHariIni={jadwalHariIni}
+                jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
+                kehadiranData={kehadiranData}
+                adaTugasData={adaTugasData}
+                isUpdatingStatus={isUpdatingStatus}
+                toggleEditMode={toggleEditMode}
+                handleDateChange={handleDateChange}
+                updateKehadiranStatus={updateKehadiranStatus}
+                updateKehadiranKeterangan={updateKehadiranKeterangan}
+                setAdaTugasData={setAdaTugasData}
+                submitKehadiran={submitKehadiran}
+                openAbsenKelasModal={openAbsenKelasModal}
+              />
+            } />
+            <Route path="riwayat" element={
+              <RiwayatTab
+                riwayatData={riwayatData}
+                riwayatPage={riwayatPage}
+                setRiwayatPage={setRiwayatPage}
+                detailRiwayat={detailRiwayat}
+                setDetailRiwayat={setDetailRiwayat}
+              />
+            } />
+            <Route path="banding" element={
+              <BandingAbsenTab
+                bandingAbsen={bandingAbsen}
+                expandedBanding={expandedBanding}
+                setExpandedBanding={setExpandedBanding}
+                showFormBanding={showFormBanding}
+                setShowFormBanding={setShowFormBanding}
+                formBanding={formBanding}
+                setFormBanding={setFormBanding}
+                jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
+                setJadwalBerdasarkanTanggal={setJadwalBerdasarkanTanggal}
+                loadingJadwal={loadingJadwal}
+                selectedSiswaId={selectedSiswaId}
+                setSelectedSiswaId={setSelectedSiswaId}
+                daftarSiswa={daftarSiswa}
+                bandingAbsenPage={bandingAbsenPage}
+                setBandingAbsenPage={setBandingAbsenPage}
+                itemsPerPage={itemsPerPage}
+                submitBandingAbsen={submitBandingAbsen}
+                loadJadwalBandingByDate={loadJadwalBandingByDate}
+                loadSiswaStatusById={loadSiswaStatusById}
+              />
+            } />
+          </Routes>
         </div>
       </div>
       
@@ -1339,6 +1343,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowAbsenKelasModal(false);
                     setAbsenKelasJadwalId(null);
@@ -1407,6 +1412,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
                       <div className="grid grid-cols-5 gap-1">
                         {['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'].map(status => (
                           <button
+                            type="button"
                             key={status}
                             onClick={() => setAbsenSiswaData(prev => ({
                               ...prev,
@@ -1467,7 +1473,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
           userData={currentUserData}
           onUpdate={handleUpdateProfile}
           onClose={() => setShowEditProfile(false)}
-          role="siswa"
+          {...{ role: 'siswa' }}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FontSizeControl } from "@/components/ui/font-size-control";
@@ -68,21 +69,37 @@ interface AdminProfileData {
 // ---------------------------------------------------------------------------
 
 const menuItems = [
-  { id: 'add-teacher', title: 'Tambah Akun Guru', icon: UserPlus, description: 'Kelola akun guru', gradient: 'from-blue-500 to-blue-700' },
-  { id: 'add-student', title: 'Tambah Akun Siswa', icon: UserPlus, description: 'Kelola akun siswa perwakilan', gradient: 'from-green-500 to-green-700' },
-  { id: 'add-teacher-data', title: 'Data Guru', icon: GraduationCap, description: 'Input dan kelola data guru', gradient: 'from-purple-500 to-purple-700' },
-  { id: 'add-student-data', title: 'Data Siswa', icon: Users, description: 'Input dan kelola data siswa lengkap', gradient: 'from-orange-500 to-orange-700' },
-  { id: 'student-promotion', title: 'Naik Kelas', icon: ArrowUpCircle, description: 'Kelola kenaikan kelas siswa', gradient: 'from-emerald-500 to-emerald-700' },
-  { id: 'add-subject', title: 'Mata Pelajaran', icon: BookOpen, description: 'Kelola mata pelajaran', gradient: 'from-red-500 to-red-700' },
-  { id: 'add-class', title: 'Kelas', icon: Home, description: 'Kelola kelas', gradient: 'from-indigo-500 to-indigo-700' },
-  { id: 'add-schedule', title: 'Jadwal', icon: Calendar, description: 'Atur jadwal pelajaran', gradient: 'from-teal-500 to-teal-700' },
-  { id: 'add-room', title: 'Ruang Kelas', icon: Home, description: 'Kelola ruang kelas', gradient: 'from-amber-500 to-amber-700' },
-  { id: 'backup-management', title: 'Backup & Archive', icon: Database, description: 'Kelola backup dan arsip data', gradient: 'from-cyan-500 to-cyan-700' },
-  { id: 'monitoring', title: 'System Monitoring', icon: Monitor, description: 'Real-time monitoring & alerting', gradient: 'from-violet-500 to-violet-700' },
-  { id: 'disaster-recovery', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
-  { id: 'letterhead-settings', title: 'Kop Laporan', icon: FileText, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
-  { id: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
+  { id: 'add-teacher', path: 'teachers', title: 'Tambah Akun Guru', icon: UserPlus, description: 'Kelola akun guru', gradient: 'from-blue-500 to-blue-700' },
+  { id: 'add-student', path: 'students', title: 'Tambah Akun Siswa', icon: UserPlus, description: 'Kelola akun siswa perwakilan', gradient: 'from-green-500 to-green-700' },
+  { id: 'add-teacher-data', path: 'teacher-data', title: 'Data Guru', icon: GraduationCap, description: 'Input dan kelola data guru', gradient: 'from-purple-500 to-purple-700' },
+  { id: 'add-student-data', path: 'student-data', title: 'Data Siswa', icon: Users, description: 'Input dan kelola data siswa lengkap', gradient: 'from-orange-500 to-orange-700' },
+  { id: 'student-promotion', path: 'promotions', title: 'Naik Kelas', icon: ArrowUpCircle, description: 'Kelola kenaikan kelas siswa', gradient: 'from-emerald-500 to-emerald-700' },
+  { id: 'add-subject', path: 'subjects', title: 'Mata Pelajaran', icon: BookOpen, description: 'Kelola mata pelajaran', gradient: 'from-red-500 to-red-700' },
+  { id: 'add-class', path: 'classes', title: 'Kelas', icon: Home, description: 'Kelola kelas', gradient: 'from-indigo-500 to-indigo-700' },
+  { id: 'add-schedule', path: 'schedules', title: 'Jadwal', icon: Calendar, description: 'Atur jadwal pelajaran', gradient: 'from-teal-500 to-teal-700' },
+  { id: 'add-room', path: 'rooms', title: 'Ruang Kelas', icon: Home, description: 'Kelola ruang kelas', gradient: 'from-amber-500 to-amber-700' },
+  { id: 'backup-management', path: 'backups', title: 'Backup & Archive', icon: Database, description: 'Kelola backup dan arsip data', gradient: 'from-cyan-500 to-cyan-700' },
+  { id: 'monitoring', path: 'monitoring', title: 'System Monitoring', icon: Monitor, description: 'Real-time monitoring & alerting', gradient: 'from-violet-500 to-violet-700' },
+  { id: 'disaster-recovery', path: 'restore', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
+  { id: 'letterhead-settings', path: 'letterhead', title: 'Kop Laporan', icon: FileText, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
+  { id: 'reports', path: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
 ];
+
+/** Wrapper for admin sub-views: adds back button + Suspense boundary */
+const SubView = ({ children }: { children: React.ReactNode }) => {
+  const nav = useNavigate();
+  return (
+    <div className="space-y-6">
+      <Button variant="ghost" className="mb-4" onClick={() => nav('/admin')}>
+        <ChevronLeft className="w-4 h-4 mr-2" />
+        Kembali ke Menu
+      </Button>
+      <React.Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
+        {children}
+      </React.Suspense>
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Main Admin Dashboard Component
@@ -90,7 +107,8 @@ const menuItems = [
 
 export const AdminDashboard = () => {
   const { logout, user } = useAuth();
-  const [activeView, setActiveView] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [userData, setUserData] = useState<AdminProfileData | null>(null);
@@ -141,44 +159,7 @@ export const AdminDashboard = () => {
     }));
   };
 
-  const renderActiveView = () => {
-    const handleBack = () => setActiveView(null);
-
-    switch (activeView) {
-      case 'add-teacher':
-        return <ManageTeacherAccountsView onBack={handleBack} onLogout={logout} />;
-      case 'add-student':
-        return <ManageStudentsView onBack={handleBack} onLogout={logout} />;
-      case 'add-teacher-data':
-        return <ManageTeacherDataView onBack={handleBack} onLogout={logout} />;
-      case 'add-student-data':
-        return <ManageStudentDataView onBack={handleBack} onLogout={logout} />;
-      case 'student-promotion':
-        return <StudentPromotionView onBack={handleBack} onLogout={logout} />;
-      case 'add-subject':
-        return <ManageSubjectsView onBack={handleBack} onLogout={logout} />;
-      case 'add-class':
-        return <ManageClassesView onBack={handleBack} onLogout={logout} />;
-      case 'add-schedule':
-        return <ManageSchedulesView onBack={handleBack} onLogout={logout} />;
-      case 'add-room':
-        return <ManageRoomsView onBack={handleBack} onLogout={logout} />;
-      case 'backup-management':
-        return <ErrorBoundary><BackupManagementView /></ErrorBoundary>;
-      case 'monitoring':
-        return <ErrorBoundary><MonitoringDashboard /></ErrorBoundary>;
-      case 'disaster-recovery':
-        return <ErrorBoundary><SimpleRestoreView onBack={handleBack} onLogout={logout} /></ErrorBoundary>;
-      case 'letterhead-settings':
-        return <ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={logout} /></ErrorBoundary>;
-      case 'reports':
-        return <ErrorBoundary><ReportsView onBack={handleBack} onLogout={logout} /></ErrorBoundary>;
-      case 'jam-pelajaran':
-        return <ErrorBoundary><JamPelajaranConfig /></ErrorBoundary>;
-      default:
-        return null;
-    }
-  };
+  const handleBack = () => navigate('/admin');
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,10 +197,10 @@ export const AdminDashboard = () => {
           {menuItems.map((item) => (
             <Button
               key={item.id}
-              variant={activeView === item.id ? "default" : "ghost"}
-              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${activeView !== item.id ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+              variant={location.pathname === `/admin/${item.path}` ? "default" : "ghost"}
+              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${location.pathname !== `/admin/${item.path}` ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
               onClick={() => {
-                setActiveView(item.id);
+                navigate(item.path);
                 setSidebarOpen(false);
               }}
             >
@@ -306,56 +287,59 @@ export const AdminDashboard = () => {
           </div>
 
           {/* Content */}
-          {activeView ? (
-             <div className="space-y-6">
-                <Button variant="ghost" className="mb-4" onClick={() => setActiveView(null)}>
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Kembali ke Menu
-                </Button>
-
+          <Routes>
+            <Route index element={
+              <div className="space-y-8">
+                {/* Desktop Header */}
+                <div className="hidden lg:block">
+                  <h1 className="text-4xl font-bold text-foreground">Dashboard Admin</h1>
+                  <p className="text-muted-foreground mt-2">ABSENTA - Sistem Absensi Sekolah</p>
+                </div>
                 <React.Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
-                  {renderActiveView()}
+                  <LiveSummaryView onLogout={logout} />
                 </React.Suspense>
-             </div>
-          ) : (
-            <div className="space-y-8">
-              {/* Desktop Header */}
-              <div className="hidden lg:block">
-                <h1 className="text-4xl font-bold text-foreground">
-                  Dashboard Admin
-                </h1>
-                <p className="text-muted-foreground mt-2">ABSENTA - Sistem Absensi Sekolah</p>
-              </div>
-
-              <React.Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
-                <LiveSummaryView onLogout={logout} />
-              </React.Suspense>
-
-              {/* Menu Grid */}
-              <div>
-                <h2 className="text-2xl font-bold text-foreground mb-6">Menu Administrasi</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {menuItems.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-border bg-card"
-                      onClick={() => setActiveView(item.id)}
-                    >
-                      <CardContent className="p-6 text-center space-y-4">
-                        <div className={`w-16 h-16 mx-auto rounded-2xl bg-gradient-to-r ${item.gradient} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                          <item.icon className="w-8 h-8 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-card-foreground mb-1">{item.title}</h3>
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                {/* Menu Grid */}
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-6">Menu Administrasi</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {menuItems.map((item) => (
+                      <Card
+                        key={item.id}
+                        className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-border bg-card"
+                        onClick={() => navigate(item.path)}
+                      >
+                        <CardContent className="p-6 text-center space-y-4">
+                          <div className={`w-16 h-16 mx-auto rounded-2xl bg-gradient-to-r ${item.gradient} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                            <item.icon className="w-8 h-8 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-card-foreground mb-1">{item.title}</h3>
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            } />
+
+            <Route path="teachers" element={<SubView><ManageTeacherAccountsView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="students" element={<SubView><ManageStudentsView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="teacher-data" element={<SubView><ManageTeacherDataView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="student-data" element={<SubView><ManageStudentDataView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="promotions" element={<SubView><StudentPromotionView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="subjects" element={<SubView><ManageSubjectsView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="classes" element={<SubView><ManageClassesView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="schedules" element={<SubView><ManageSchedulesView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="rooms" element={<SubView><ManageRoomsView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="backups" element={<SubView><ErrorBoundary><BackupManagementView /></ErrorBoundary></SubView>} />
+            <Route path="monitoring" element={<SubView><ErrorBoundary><MonitoringDashboard /></ErrorBoundary></SubView>} />
+            <Route path="restore" element={<SubView><ErrorBoundary><SimpleRestoreView onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
+            <Route path="letterhead" element={<SubView><ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
+            <Route path="reports" element={<SubView><ErrorBoundary><ReportsView onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
+            <Route path="jam-pelajaran" element={<SubView><ErrorBoundary><JamPelajaranConfig /></ErrorBoundary></SubView>} />
+          </Routes>
         </div>
       </div>
 

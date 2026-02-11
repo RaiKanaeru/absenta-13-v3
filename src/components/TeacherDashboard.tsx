@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Routes, Route, useNavigate, useLocation, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, getWIBTime } from "@/lib/time-utils";
@@ -173,13 +174,13 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
     void logout();
   }, [logout]);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Notifications (guru — needs userId)
   const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
     useNotifications({ role: 'guru', userId: userData?.guru_id ?? null, onLogout });
 
-  const [activeView, setActiveView] = useState<'schedule' | 'history' | 'banding-absen' | 'history-banding' | 'reports'>('schedule');
-  const [activeReportView, setActiveReportView] = useState<string | null>(null);
-  const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -206,6 +207,26 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
 
   const handleUpdateProfile = (updatedData: TeacherDashboardProps['userData']) => {
     setCurrentUserData(updatedData);
+  };
+
+  const AttendanceRouteWrapper = () => {
+    const { scheduleId } = useParams();
+    const schedule = schedules.find(s => s.id === Number(scheduleId));
+
+    if (isLoading) {
+      return <div className="flex justify-center p-8">Loading...</div>;
+    }
+
+    if (!schedule) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground mb-4">Jadwal tidak ditemukan</p>
+          <Button onClick={() => navigate('/guru')}>Kembali ke Jadwal</Button>
+        </div>
+      );
+    }
+
+    return <AttendanceView schedule={schedule} user={user} onBack={() => navigate('/guru')} />;
   };
 
   // Load latest profile data on component mount
@@ -376,41 +397,41 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
         {/* Navigation */}
         <nav className="p-4 space-y-2">
           <Button
-            variant={activeView === 'schedule' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'schedule' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveView('schedule'); setSidebarOpen(false);}}
+            variant={location.pathname === '/guru' || location.pathname.startsWith('/guru/schedule') ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru' && !location.pathname.startsWith('/guru/schedule') ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/guru'); setSidebarOpen(false); }}
           >
             <Clock className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Jadwal Hari Ini</span>}
           </Button>
           <Button
-            variant={activeView === 'banding-absen' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'banding-absen' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveView('banding-absen'); setSidebarOpen(false);}}
+            variant={location.pathname === '/guru/banding' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/guru/banding'); setSidebarOpen(false); }}
           >
             <MessageCircle className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Banding Absen</span>}
           </Button>
           <Button
-            variant={activeView === 'history-banding' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'history-banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveView('history-banding'); setSidebarOpen(false);}}
+            variant={location.pathname === '/guru/banding-history' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru/banding-history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/guru/banding-history'); setSidebarOpen(false); }}
           >
             <History className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat Banding</span>}
           </Button>
           <Button
-            variant={activeView === 'history' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'ml-2'} ${activeView !== 'history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveView('history'); setSidebarOpen(false);}}
+            variant={location.pathname === '/guru/history' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'ml-2'} ${location.pathname !== '/guru/history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/guru/history'); setSidebarOpen(false); }}
           >
             <History className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat Absensi</span>}
           </Button>
           <Button
-            variant={activeView === 'reports' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${activeView !== 'reports' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => {setActiveView('reports'); setSidebarOpen(false);}}
+            variant={location.pathname === '/guru/reports' ? "default" : "ghost"}
+            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru/reports' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+            onClick={() => { navigate('/guru/reports'); setSidebarOpen(false); }}
           >
             <ClipboardList className="h-4 w-4" />
             {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Laporan</span>}
@@ -501,27 +522,23 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
           </div>
 
           {/* Content */}
-          {activeSchedule ? (
-            <AttendanceView 
-              schedule={activeSchedule} 
-              user={user}
-              onBack={() => setActiveSchedule(null)} 
+          <Routes>
+            <Route
+              index
+              element={
+                <ScheduleListView
+                  schedules={schedules.filter(s => s.hari === new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(new Date()))}
+                  onSelectSchedule={(schedule) => navigate(`/guru/schedule/${schedule.id}`)}
+                  isLoading={isLoading}
+                />
+              }
             />
-          ) : activeView === 'schedule' ? (
-            <ScheduleListView 
-              schedules={schedules.filter(s => s.hari === new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(new Date()))} 
-              onSelectSchedule={setActiveSchedule} 
-              isLoading={isLoading}
-            />
-          ) : activeView === 'banding-absen' ? (
-            <BandingAbsenView user={user} />
-          ) : activeView === 'reports' ? (
-            <LaporanKehadiranSiswaView user={user} />
-          ) : activeView === 'history-banding' ? (
-            <RiwayatBandingAbsenView user={user} />
-          ) : (
-            <HistoryView user={user} />
-          )}
+            <Route path="schedule/:scheduleId" element={<AttendanceRouteWrapper />} />
+            <Route path="banding" element={<BandingAbsenView user={user} />} />
+            <Route path="reports" element={<LaporanKehadiranSiswaView user={user} />} />
+            <Route path="banding-history" element={<RiwayatBandingAbsenView user={user} />} />
+            <Route path="history" element={<HistoryView user={user} />} />
+          </Routes>
         </div>
       </div>
       
@@ -537,7 +554,7 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
           userData={currentUserData}
           onUpdate={handleUpdateProfile}
           onClose={() => setShowEditProfile(false)}
-          role="guru"
+          {...{ role: "guru" }}
         />
       )}
     </div>

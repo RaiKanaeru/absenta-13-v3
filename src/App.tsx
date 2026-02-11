@@ -72,7 +72,7 @@ const App = () => (
 
                   {/* Protected dashboards */}
                   <Route
-                    path="/admin"
+                    path="/admin/*"
                     element={
                       <ProtectedRoute requiredRole="admin">
                         <AdminDashboard />
@@ -80,7 +80,7 @@ const App = () => (
                     }
                   />
                   <Route
-                    path="/guru"
+                    path="/guru/*"
                     element={
                       <ProtectedRoute requiredRole="guru">
                         <GuruDashboardWrapper />
@@ -88,7 +88,7 @@ const App = () => (
                     }
                   />
                   <Route
-                    path="/siswa"
+                    path="/siswa/*"
                     element={
                       <ProtectedRoute requiredRole="siswa">
                         <SiswaDashboardWrapper />
