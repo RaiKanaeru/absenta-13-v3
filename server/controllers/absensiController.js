@@ -1252,7 +1252,7 @@ export async function getClassAttendanceHistory(req, res) {
         }
 
         // Get teacher attendance history for this class
-        const [history] = await db.execute(`
+        const [history] = await db.query(`
             SELECT 
                 ag.tanggal,
                 ag.status,

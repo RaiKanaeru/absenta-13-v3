@@ -69,11 +69,11 @@ export const getAuditLogs = async (req, res) => {
         query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
         
         // Execute count query first
-        const [countResult] = await db.execute(countQuery, params.slice(0, params.length)); // Use params without limit/offset
+        const [countResult] = await db.query(countQuery, params.slice(0, params.length)); // Use params without limit/offset
         const totalItems = countResult[0].total;
         
         // Execute main query
-        const [rows] = await db.execute(query, [...params, limit, offset]);
+        const [rows] = await db.query(query, [...params, limit, offset]);
 
         // Parse JSON details if string
         const logs = rows.map(row => ({
