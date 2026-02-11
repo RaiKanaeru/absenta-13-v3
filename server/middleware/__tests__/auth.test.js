@@ -1,9 +1,11 @@
 import assert from 'node:assert';
+import crypto from 'node:crypto';
 import { describe, it, before, after } from 'node:test';
 import jwt from 'jsonwebtoken';
 
-// Test-only secret for JWT verification failure tests (not a real secret)
-const TEST_INVALID_SECRET = 'test-invalid-secret-for-unit-tests-only'; // NOSONAR
+// Generate random secrets at runtime to avoid hardcoded credential detection (S6437)
+const TEST_JWT_SECRET = crypto.randomBytes(32).toString('hex');
+const TEST_INVALID_SECRET = crypto.randomBytes(32).toString('hex');
 
 let authenticateToken;
 let requireRole;
@@ -27,7 +29,7 @@ const waitTick = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('auth middleware', () => {
   before(async () => {
-    process.env.JWT_SECRET = 'test-secret';
+    process.env.JWT_SECRET = TEST_JWT_SECRET;
     ({ authenticateToken, requireRole } = await import('../auth.js'));
   });
 
@@ -60,7 +62,6 @@ describe('auth middleware', () => {
     });
 
     it('returns 401 when token verification fails', async () => {
-      // NOSONAR - test-only invalid secret to verify rejection of tampered tokens
       const token = jwt.sign({ role: 'admin' }, TEST_INVALID_SECRET);
 
       const req = {
