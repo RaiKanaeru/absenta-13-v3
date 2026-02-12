@@ -82,6 +82,7 @@ const fetchProfileByRole = async (role: string): Promise<Record<string, unknown>
     const data = (await response.json()) as Record<string, unknown>;
     return data.success ? data : null;
   } catch (error) {
+    console.error('Operation failed:', error);
     return null;
   }
 };

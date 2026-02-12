@@ -39,7 +39,7 @@ export const useExcelDownload = () => {
         document.body.appendChild(link);
         link.click();
         globalThis.URL.revokeObjectURL(url);
-        document.body.removeChild(link);
+        link.remove();
 
         toast({
           title: "Berhasil",

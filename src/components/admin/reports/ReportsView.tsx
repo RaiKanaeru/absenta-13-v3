@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
-  FileText, Download, Users, GraduationCap, ArrowLeft, Loader2, 
+  FileText, Download, Users, GraduationCap, Loader2, 
   AlertTriangle, FileSpreadsheet, ClipboardList, MessageSquare, 
   Activity, BarChart3, ChevronLeft 
 } from 'lucide-react';

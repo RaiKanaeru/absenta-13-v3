@@ -132,8 +132,7 @@ export const AdminDashboard = () => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const profileResponse = await apiCall('/api/admin/info', { onLogout: handleLogout }) as
-          AdminProfileData & { success?: boolean };
+        const profileResponse = await apiCall<AdminProfileData & { success?: boolean }>('/api/admin/info', { onLogout: handleLogout });
         if (profileResponse.success !== false) {
           setUserData({
             id: profileResponse.id,
@@ -212,7 +211,7 @@ export const AdminDashboard = () => {
           {menuItems.map((item) => {
             const itemPath = `/admin/${item.path}`;
             const isActive = location.pathname === itemPath;
-            const buttonClassName = `w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${!isActive ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`;
+            const buttonClassName = `w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${isActive ? '' : 'text-muted-foreground hover:text-foreground font-medium'}`;
 
             return (
               <Button

@@ -19,7 +19,7 @@ interface TeacherAttendanceSummaryViewProps {
 }
 
 const getAttendanceBadgeVariant = (presentase: ReportDataRow['presentase']): 'default' | 'secondary' | 'destructive' => {
-    const percentage = parseFloat(String(presentase).replace('%', ''));
+    const percentage = Number.parseFloat(String(presentase).replace('%', ''));
 
     if (percentage >= 85) {
         return 'default';

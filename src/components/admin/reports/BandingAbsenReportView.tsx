@@ -75,7 +75,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
       });
       setBandingData(data);
     } catch (error: unknown) {
-      toast({ variant: "destructive", title: "Gagal memuat data banding", description: error instanceof Error ? (error as Error).message : "Terjadi kesalahan" });
+      toast({ variant: "destructive", title: "Gagal memuat data banding", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
       const message = error instanceof Error ? error.message : String(error);
       setError('Gagal memuat data banding: ' + message);
     } finally {

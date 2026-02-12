@@ -103,7 +103,7 @@ const StudentSidebar = ({
       <nav className="p-4 space-y-2">
         <Button
           variant={locationPathname === '/siswa' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/siswa' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname === '/siswa' ? '' : 'text-muted-foreground hover:text-foreground font-medium'}`}
           onClick={() => {
             navigate('/siswa');
             setSidebarOpen(false);
@@ -114,7 +114,7 @@ const StudentSidebar = ({
         </Button>
         <Button
           variant={locationPathname === '/siswa/banding' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/siswa/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname === '/siswa/banding' ? '' : 'text-muted-foreground hover:text-foreground font-medium'}`}
           onClick={() => {
             navigate('/siswa/banding');
             setSidebarOpen(false);
@@ -125,7 +125,7 @@ const StudentSidebar = ({
         </Button>
         <Button
           variant={locationPathname === '/siswa/riwayat' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/siswa/riwayat' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname === '/siswa/riwayat' ? '' : 'text-muted-foreground hover:text-foreground font-medium'}`}
           onClick={() => {
             navigate('/siswa/riwayat');
             setSidebarOpen(false);

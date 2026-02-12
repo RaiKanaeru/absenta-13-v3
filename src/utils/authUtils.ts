@@ -11,8 +11,9 @@ export const getAuthToken = (): string | null => {
    try {
      return localStorage.getItem('token') || sessionStorage.getItem('token');
    } catch (error) {
-     return null;
-   }
+      console.error('Operation failed:', error);
+      return null;
+    }
 };
 
 /**
@@ -59,9 +60,9 @@ export const setAuthToken = (token: string): void => {
    } catch (error) {
      try {
        sessionStorage.setItem('token', token);
-     } catch (sessionError) {
-       // Both storage methods failed silently
-     }
+      } catch (sessionError) {
+        console.error('Operation failed:', sessionError);
+      }
    }
 };
 
@@ -74,9 +75,9 @@ export const clearAuthToken = (): void => {
      localStorage.removeItem('authToken');
      sessionStorage.removeItem('token');
      sessionStorage.removeItem('authToken');
-   } catch (error) {
-     // Storage clear failed silently
-   }
+    } catch (error) {
+      console.error('Operation failed:', error);
+    }
 };
 
 export default {

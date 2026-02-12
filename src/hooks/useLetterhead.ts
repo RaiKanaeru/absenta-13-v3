@@ -70,7 +70,7 @@ export function useLetterhead(reportKey?: string) {
       const data = await apiCall<{ success: boolean; data: LetterheadConfig; error?: string }>(endpoint);
       
       if (data.success && data.data) {
-        const config = data.data as LetterheadConfig;
+        const config = data.data;
         
         // Update cache
         letterheadCache.set(cacheKey, config);

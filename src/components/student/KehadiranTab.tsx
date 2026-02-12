@@ -58,6 +58,289 @@ const getStatusBadgeColor = (status: string) => {
   return colorMap[status.toLowerCase()] || 'bg-muted text-muted-foreground';
 };
 
+type GroupedJadwal = JadwalHariIni & { guru_list: GuruInSchedule[] };
+
+const groupJadwalByKey = (jadwalData: JadwalHariIni[]): GroupedJadwal[] => {
+  const groupedJadwal = jadwalData.reduce((acc, jadwal) => {
+    const key = jadwal.id_jadwal;
+    if (!acc[key]) {
+      acc[key] = {
+        ...jadwal,
+        guru_list: []
+      };
+    }
+
+    if (Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
+      acc[key].guru_list = jadwal.guru_list;
+    } else if (jadwal.guru_id || jadwal.id_guru) {
+      const resolvedGuruId = jadwal.guru_id || jadwal.id_guru;
+      acc[key].guru_list.push({
+        id_guru: resolvedGuruId || 0,
+        nama_guru: jadwal.nama_guru,
+        nip: jadwal.nip,
+        is_primary: true,
+        status_kehadiran: jadwal.status_kehadiran,
+        keterangan_guru: jadwal.keterangan ?? ''
+      });
+    } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list.length === 0) {
+      const raw = jadwal.nama_guru;
+      const parts = raw.split(/,|&| dan /gi).map((namaPart) => namaPart.trim()).filter(Boolean);
+      if (parts.length > 1) {
+        parts.forEach((nama, idx) => {
+          acc[key].guru_list.push({
+            id_guru: 0,
+            nama_guru: nama,
+            nip: '',
+            is_primary: idx === 0,
+            status_kehadiran: 'belum_diambil',
+            keterangan_guru: ''
+          });
+        });
+      }
+    }
+
+    return acc;
+  }, {} as Record<number, GroupedJadwal>);
+
+  return Object.values(groupedJadwal);
+};
+
+interface JadwalCardProps {
+  jadwal: GroupedJadwal;
+  kehadiranData: KehadiranData;
+  isUpdatingStatus: string | null;
+  updateKehadiranStatus: (key: string | number, status: string) => Promise<void>;
+  updateKehadiranKeterangan: (key: string | number, keterangan: string) => void;
+  adaTugasData: { [key: number]: boolean };
+  updateAdaTugasCheckboxState: (jadwalId: number, isChecked: boolean) => void;
+  openAbsenKelasModal: (jadwalId: number, guruNama: string) => Promise<void>;
+  isEditMode: boolean;
+}
+
+const JadwalCard: React.FC<JadwalCardProps> = ({
+  jadwal,
+  kehadiranData,
+  isUpdatingStatus,
+  updateKehadiranStatus,
+  updateKehadiranKeterangan,
+  adaTugasData,
+  updateAdaTugasCheckboxState,
+  openAbsenKelasModal,
+  isEditMode,
+}) => {
+  if (!jadwal.is_absenable) {
+    return (
+      <div key={jadwal.id_jadwal} className="border-2 border-dashed border-border rounded-lg p-3 sm:p-4 bg-muted">
+        <div className="mb-4">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+            <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
+            <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
+            <Badge variant="secondary" className="text-xs">
+              {getActivityTypeLabel(jadwal.jenis_aktivitas)}
+            </Badge>
+            <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
+              Tidak perlu absen
+            </Badge>
+          </div>
+          <h4 className="font-semibold text-base sm:text-lg text-muted-foreground break-words mb-1">
+            {jadwal.keterangan_khusus || jadwal.nama_mapel}
+          </h4>
+          <p className="text-sm sm:text-base text-muted-foreground break-words">Aktivitas Khusus</p>
+        </div>
+      </div>
+    );
+  }
+
+  let guruAttendanceForm: React.ReactNode;
+  if (jadwal.is_multi_guru) {
+    if (jadwal.guru_list && jadwal.guru_list.length > 0) {
+      guruAttendanceForm = (
+        <div className="space-y-3 sm:space-y-4">
+          <Label className="text-sm font-medium text-foreground mb-3 block">
+            Status Kehadiran Guru (Multi-Guru):
+          </Label>
+          {jadwal.guru_list.map((guru) => {
+            const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+            return (
+              <GuruAttendanceCard
+                key={guruKey}
+                guru={guru}
+                jadwalId={jadwal.id_jadwal}
+                kehadiranStatus={kehadiranData[guruKey]?.status || ''}
+                kehadiranKeterangan={kehadiranData[guruKey]?.keterangan || ''}
+                isUpdating={isUpdatingStatus === guruKey}
+                onStatusChange={updateKehadiranStatus}
+                onKeteranganChange={updateKehadiranKeterangan}
+              />
+            );
+          })}
+        </div>
+      );
+    } else {
+      guruAttendanceForm = (
+        <div className="p-3 border rounded bg-yellow-50 border-yellow-200 text-sm text-yellow-800">
+          Jadwal ini multi-guru namun daftar guru belum tersedia. Silakan refresh/ulang sampai daftar guru tampil.
+        </div>
+      );
+    }
+  } else {
+    guruAttendanceForm = (
+      <div>
+        <Label className="text-sm font-medium text-foreground mb-3 block">
+          Status Kehadiran Guru:
+        </Label>
+        <RadioGroup
+          value={kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || ''}
+          onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
+          disabled={isUpdatingStatus === String(jadwal.id_jadwal)}
+        >
+          {isUpdatingStatus === String(jadwal.id_jadwal) && (
+            <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
+              <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              Menyimpan...
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Hadir" id={`hadir-${jadwal.id_jadwal}`} />
+              <Label htmlFor={`hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                Hadir
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${jadwal.id_jadwal}`} />
+              <Label htmlFor={`tidak_hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                <XCircle className="w-4 h-4 text-red-600" />
+                Tidak Hadir
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Izin" id={`izin-${jadwal.id_jadwal}`} />
+              <Label htmlFor={`izin-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                <User className="w-4 h-4 text-yellow-600" />
+                Izin
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Sakit" id={`sakit-${jadwal.id_jadwal}`} />
+              <Label htmlFor={`sakit-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                <BookOpen className="w-4 h-4 text-blue-600" />
+                Sakit
+              </Label>
+            </div>
+          </div>
+        </RadioGroup>
+      </div>
+    );
+  }
+
+  return (
+    <div key={jadwal.id_jadwal} className="border rounded-lg p-3 sm:p-4">
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+          <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
+          <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
+          <Badge className={`text-xs ${getStatusBadgeColor(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}`}>
+            {getAttendanceStatusLabel(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}
+          </Badge>
+          {jadwal.waktu_catat && (
+            <Badge variant="secondary" className="text-xs">
+              Waktu: {formatDateTime24(jadwal.waktu_catat, true)}
+            </Badge>
+          )}
+        </div>
+        <h4 className="font-semibold text-base sm:text-lg text-foreground break-words mb-2">{jadwal.nama_mapel}</h4>
+        <div className="space-y-1">
+          {!(jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) && (
+            <>
+              <p className="text-sm sm:text-base text-muted-foreground break-words">{jadwal.nama_guru}</p>
+              {jadwal.nip && <p className="text-xs sm:text-sm text-muted-foreground">NIP: {jadwal.nip}</p>}
+            </>
+          )}
+          {jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              <Badge variant="secondary" className="text-xs">
+                <Users className="w-3 h-3 mr-1" />
+                Multi-Guru ({jadwal.guru_list.length} guru)
+              </Badge>
+              {jadwal.guru_list.slice(1).map((guru) => (
+                <Badge key={`guru-${guru.id_guru}-${guru.nama_guru}`} variant="outline" className="text-xs">
+                  {guru.nama_guru}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+        {jadwal.kode_ruang && (
+          <div className="text-xs sm:text-sm text-blue-600 mt-2">
+            <Badge variant="outline" className="text-xs">
+              {jadwal.kode_ruang}
+            </Badge>
+            {jadwal.nama_ruang && ` - ${jadwal.nama_ruang}`}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 sm:space-y-4">
+        {guruAttendanceForm}
+
+        {(kehadiranData[jadwal.id_jadwal]?.status === 'Tidak Hadir' ||
+          kehadiranData[jadwal.id_jadwal]?.status === 'Izin' ||
+          kehadiranData[jadwal.id_jadwal]?.status === 'Sakit') && (
+          <div className="mt-2 sm:mt-3">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`ada-tugas-${jadwal.id_jadwal}`}
+                checked={adaTugasData[jadwal.id_jadwal] || false}
+                onChange={(e) => updateAdaTugasCheckboxState(jadwal.id_jadwal, e.target.checked)}
+                className="rounded border-border text-blue-600 focus:ring-ring"
+              />
+              <Label htmlFor={`ada-tugas-${jadwal.id_jadwal}`} className="text-sm text-blue-600">
+                Ada Tugas
+              </Label>
+            </div>
+          </div>
+        )}
+
+        {['Tidak Hadir', 'Izin', 'Sakit'].includes(kehadiranData[jadwal.id_jadwal]?.status || '') && !isEditMode && (
+          <div className="mt-3">
+            <Button
+              onClick={() => openAbsenKelasModal(jadwal.id_jadwal, jadwal.nama_guru || 'Guru')}
+              variant="outline"
+              className="w-full bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Absen Kelas (Guru Tidak Hadir)
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1 text-center">
+              Klik untuk mengabsen siswa karena guru tidak hadir/izin/sakit
+            </p>
+          </div>
+        )}
+
+        {!jadwal.is_multi_guru && (
+          <div>
+            <Label htmlFor={`keterangan-${jadwal.id_jadwal}`} className="text-xs sm:text-sm font-medium text-foreground">
+              Keterangan:
+            </Label>
+            <Textarea
+              id={`keterangan-${jadwal.id_jadwal}`}
+              placeholder="Masukkan keterangan jika diperlukan..."
+              value={kehadiranData[jadwal.id_jadwal]?.keterangan || ''}
+              onChange={(e) => updateKehadiranKeterangan(jadwal.id_jadwal, e.target.value)}
+              disabled={false}
+              className="mt-1 text-sm"
+              rows={2}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // =============================================================================
 // COMPONENT
 // =============================================================================
@@ -196,284 +479,23 @@ export const KehadiranTab: React.FC<KehadiranTabProps> = ({
                   </div>
                 );
               }
-              return (() => {
-              // Group by jadwal_id to handle multi-guru properly
               const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
-              
-              const groupedJadwal = jadwalData.reduce((acc, jadwal) => {
-                const key = jadwal.id_jadwal;
-                if (!acc[key]) {
-                  acc[key] = {
-                    ...jadwal,
-                    guru_list: []
-                  };
-                }
-                
-                // Sumber prioritas guru_list:
-                // 1) Jika jadwal.guru_list sudah array (hasil parsing), pakai itu
-                if (Array.isArray(jadwal.guru_list) && jadwal.guru_list.length > 0) {
-                  acc[key].guru_list = jadwal.guru_list as GuruInSchedule[];
-                } else if (jadwal.guru_id || jadwal.id_guru) {
-                  // 2) Jika ada guru_id di record ini, dorong satu guru
-                  const resolvedGuruId = jadwal.guru_id || jadwal.id_guru;
-                  acc[key].guru_list!.push({
-                    id_guru: resolvedGuruId || 0,
-                    nama_guru: jadwal.nama_guru,
-                    nip: jadwal.nip,
-                    is_primary: true,
-                    status_kehadiran: jadwal.status_kehadiran,
-                    keterangan_guru: jadwal.keterangan ?? ''
-                  } as GuruInSchedule);
-                } else if (jadwal.is_multi_guru && typeof jadwal.nama_guru === 'string' && acc[key].guru_list!.length === 0) {
-                  // 3) Fallback: pecah nama_guru menjadi beberapa nama jika dipisah delimiter umum
-                  const raw = jadwal.nama_guru as string;
-                  const parts = raw.split(/,|&| dan /gi).map(s => s.trim()).filter(Boolean);
-                  if (parts.length > 1) {
-                    parts.forEach((nama: string, idx: number) => {
-                      acc[key].guru_list!.push({
-                        id_guru: 0, // placeholder, belum bisa diupdate ke server
-                        nama_guru: nama,
-                        nip: '',
-                        is_primary: idx === 0,
-                        status_kehadiran: 'belum_diambil',
-                        keterangan_guru: ''
-                      } as {
-                        id_guru: number;
-                        nama_guru: string;
-                        nip: string;
-                        is_primary?: boolean;
-                        status_kehadiran: string;
-                        keterangan_guru?: string;
-                      });
-                    });
-                  }
-                }
-                
-                return acc;
-              }, {} as Record<number, JadwalHariIni & { guru_list: GuruInSchedule[] }>);
-              
-              const uniqueJadwal = Object.values(groupedJadwal);
-              
-              return uniqueJadwal.map((jadwal) => {
-              // Conditional rendering untuk jadwal yang tidak bisa diabsen
-              if (!jadwal.is_absenable) {
-                return (
-                  <div key={jadwal.id_jadwal} className="border-2 border-dashed border-border rounded-lg p-3 sm:p-4 bg-muted">
-                    <div className="mb-4">
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
-                        <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
-                        <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {getActivityTypeLabel(jadwal.jenis_aktivitas)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
-                          Tidak perlu absen
-                        </Badge>
-                      </div>
-                      <h4 className="font-semibold text-base sm:text-lg text-muted-foreground break-words mb-1">
-                        {jadwal.keterangan_khusus || jadwal.nama_mapel}
-                      </h4>
-                      <p className="text-sm sm:text-base text-muted-foreground break-words">Aktivitas Khusus</p>
-                    </div>
-                  </div>
-                );
-              }
+              const groupedJadwal = groupJadwalByKey(jadwalData);
 
-              // Jadwal normal yang bisa diabsen
-              let guruAttendanceForm: React.ReactNode;
-              if (jadwal.is_multi_guru) {
-                if (jadwal.guru_list && jadwal.guru_list.length > 0) {
-                  guruAttendanceForm = (
-                    <div className="space-y-3 sm:space-y-4">
-                      <Label className="text-sm font-medium text-foreground mb-3 block">
-                        Status Kehadiran Guru (Multi-Guru):
-                      </Label>
-                      {jadwal.guru_list.map((guru) => {
-                        const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
-                        return (
-                          <GuruAttendanceCard
-                            key={guruKey}
-                            guru={guru}
-                            jadwalId={jadwal.id_jadwal}
-                            kehadiranStatus={kehadiranData[guruKey]?.status || ''}
-                            kehadiranKeterangan={kehadiranData[guruKey]?.keterangan || ''}
-                            isUpdating={isUpdatingStatus === guruKey}
-                            onStatusChange={updateKehadiranStatus}
-                            onKeteranganChange={updateKehadiranKeterangan}
-                          />
-                        );
-                      })}
-                    </div>
-                  );
-                } else {
-                  guruAttendanceForm = (
-                    <div className="p-3 border rounded bg-yellow-50 border-yellow-200 text-sm text-yellow-800">
-                      Jadwal ini multi-guru namun daftar guru belum tersedia. Silakan refresh/ulang sampai daftar guru tampil.
-                    </div>
-                  );
-                }
-              } else {
-                guruAttendanceForm = (
-                  <div>
-                    <Label className="text-sm font-medium text-foreground mb-3 block">
-                      Status Kehadiran Guru:
-                    </Label>
-                    <RadioGroup 
-                      value={kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || ''} 
-                      onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
-                      disabled={isUpdatingStatus === String(jadwal.id_jadwal)}
-                    >
-                      {isUpdatingStatus === String(jadwal.id_jadwal) && (
-                        <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
-                          <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                          Menyimpan...
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Hadir" id={`hadir-${jadwal.id_jadwal}`} />
-                          <Label htmlFor={`hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            Hadir
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${jadwal.id_jadwal}`} />
-                          <Label htmlFor={`tidak_hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                            <XCircle className="w-4 h-4 text-red-600" />
-                            Tidak Hadir
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Izin" id={`izin-${jadwal.id_jadwal}`} />
-                          <Label htmlFor={`izin-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                            <User className="w-4 h-4 text-yellow-600" />
-                            Izin
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Sakit" id={`sakit-${jadwal.id_jadwal}`} />
-                          <Label htmlFor={`sakit-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                            <BookOpen className="w-4 h-4 text-blue-600" />
-                            Sakit
-                          </Label>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={jadwal.id_jadwal} className="border rounded-lg p-3 sm:p-4">
-                  <div className="mb-4">
-                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
-                      <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
-                      <Badge variant="outline" className="text-xs">{jadwal.jam_mulai} - {jadwal.jam_selesai}</Badge>
-                      <Badge className={`text-xs ${getStatusBadgeColor(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}`}>
-                        {getAttendanceStatusLabel(kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || 'belum_diambil')}
-                      </Badge>
-                      {jadwal.waktu_catat && (
-                        <Badge variant="secondary" className="text-xs">
-                          Waktu: {formatDateTime24(jadwal.waktu_catat, true)}
-                        </Badge>
-                      )}
-                    </div>
-                    <h4 className="font-semibold text-base sm:text-lg text-foreground break-words mb-2">{jadwal.nama_mapel}</h4>
-                    <div className="space-y-1">
-                      {!(jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0) && (
-                        <>
-                          <p className="text-sm sm:text-base text-muted-foreground break-words">{jadwal.nama_guru}</p>
-                          {jadwal.nip && <p className="text-xs sm:text-sm text-muted-foreground">NIP: {jadwal.nip}</p>}
-                        </>
-                      )}
-                      {jadwal.is_multi_guru && jadwal.guru_list && jadwal.guru_list.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            <Users className="w-3 h-3 mr-1" />
-                            Multi-Guru ({jadwal.guru_list.length} guru)
-                          </Badge>
-                          {jadwal.guru_list.slice(1).map((guru) => (
-                            <Badge key={`guru-${guru.id_guru}-${guru.nama_guru}`} variant="outline" className="text-xs">
-                              {guru.nama_guru}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {jadwal.kode_ruang && (
-                      <div className="text-xs sm:text-sm text-blue-600 mt-2">
-                        <Badge variant="outline" className="text-xs">
-                          {jadwal.kode_ruang}
-                        </Badge>
-                        {jadwal.nama_ruang && ` - ${jadwal.nama_ruang}`}
-                      </div>
-                    )}
-                  </div>
-
-                <div className="space-y-3 sm:space-y-4">
-                  {guruAttendanceForm}
-
-                  {/* Opsi Ada Tugas */}
-                  {(kehadiranData[jadwal.id_jadwal]?.status === 'Tidak Hadir' || 
-                    kehadiranData[jadwal.id_jadwal]?.status === 'Izin' || 
-                    kehadiranData[jadwal.id_jadwal]?.status === 'Sakit') && (
-                    <div className="mt-2 sm:mt-3">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`ada-tugas-${jadwal.id_jadwal}`}
-                          checked={adaTugasData[jadwal.id_jadwal] || false}
-                          onChange={(e) => updateAdaTugasCheckboxState(jadwal.id_jadwal, e.target.checked)}
-                          className="rounded border-border text-blue-600 focus:ring-ring"
-                        />
-                        <Label htmlFor={`ada-tugas-${jadwal.id_jadwal}`} className="text-sm text-blue-600">
-                          Ada Tugas
-                        </Label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tombol Absen Kelas - Muncul ketika guru tidak hadir */}
-                  {['Tidak Hadir', 'Izin', 'Sakit'].includes(kehadiranData[jadwal.id_jadwal]?.status || '') && !isEditMode && (
-                    <div className="mt-3">
-                      <Button
-                        onClick={() => openAbsenKelasModal(jadwal.id_jadwal, jadwal.nama_guru || 'Guru')}
-                        variant="outline"
-                        className="w-full bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
-                      >
-                        <Users className="w-4 h-4 mr-2" />
-                        Absen Kelas (Guru Tidak Hadir)
-                      </Button>
-                      <p className="text-xs text-muted-foreground mt-1 text-center">
-                        Klik untuk mengabsen siswa karena guru tidak hadir/izin/sakit
-                      </p>
-                    </div>
-                  )}
-
-
-                  {/* Keterangan untuk single guru */}
-                  {!jadwal.is_multi_guru && (
-                    <div>
-                      <Label htmlFor={`keterangan-${jadwal.id_jadwal}`} className="text-xs sm:text-sm font-medium text-foreground">
-                        Keterangan:
-                      </Label>
-                      <Textarea
-                        id={`keterangan-${jadwal.id_jadwal}`}
-                        placeholder="Masukkan keterangan jika diperlukan..."
-                        value={kehadiranData[jadwal.id_jadwal]?.keterangan || ''}
-                        onChange={(e) => updateKehadiranKeterangan(jadwal.id_jadwal, e.target.value)}
-                        disabled={false}
-                        className="mt-1 text-sm"
-                        rows={2}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-              );
-              });
-              })();
+              return groupedJadwal.map((jadwal) => (
+                <JadwalCard
+                  key={jadwal.id_jadwal}
+                  jadwal={jadwal}
+                  kehadiranData={kehadiranData}
+                  isUpdatingStatus={isUpdatingStatus}
+                  updateKehadiranStatus={updateKehadiranStatus}
+                  updateKehadiranKeterangan={updateKehadiranKeterangan}
+                  adaTugasData={adaTugasData}
+                  updateAdaTugasCheckboxState={updateAdaTugasCheckboxState}
+                  openAbsenKelasModal={openAbsenKelasModal}
+                  isEditMode={isEditMode}
+                />
+              ));
             })()}
           </div>
 

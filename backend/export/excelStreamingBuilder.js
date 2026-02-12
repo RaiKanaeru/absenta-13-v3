@@ -131,14 +131,14 @@ export async function streamExcel(res, options) {
     headerRow.commit();
 
     // --- 3. Stream Data ---
-    let currentRowIdx = 6;
+    const currentRowIdx = 6;
     const isAsyncIterable = dataIterator && typeof dataIterator[Symbol.asyncIterator] === 'function';
     const isIterable = dataIterator && typeof dataIterator[Symbol.iterator] === 'function';
 
     if (isAsyncIterable) {
-        currentRowIdx = await streamAsyncRows(dataIterator, rowMapper, worksheet, columns, currentRowIdx);
+        await streamAsyncRows(dataIterator, rowMapper, worksheet, columns, currentRowIdx);
     } else if (Array.isArray(dataIterator) || isIterable) {
-        currentRowIdx = streamIterableRows(dataIterator, rowMapper, worksheet, columns, currentRowIdx);
+        streamIterableRows(dataIterator, rowMapper, worksheet, columns, currentRowIdx);
     }
 
     // --- 4. Finalize ---

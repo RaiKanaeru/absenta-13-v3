@@ -6,8 +6,9 @@ import { formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { FontSizeControl } from "@/components/ui/font-size-control";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings
+import {
+  Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings,
+  type LucideIcon
 } from "lucide-react";
 import { EditProfile } from './EditProfile';
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
@@ -384,6 +385,59 @@ interface TeacherSidebarProps {
   notifRefresh: ReturnType<typeof useNotifications>['refresh'];
 }
 
+interface TeacherSidebarNavItem {
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  collapsedClassName?: string;
+  matches?: (pathname: string) => boolean;
+}
+
+const TEACHER_SIDEBAR_NAV_ITEMS: TeacherSidebarNavItem[] = [
+  {
+    path: '/guru',
+    label: 'Jadwal Hari Ini',
+    icon: Clock,
+    matches: (pathname) => pathname === '/guru' || pathname.startsWith('/guru/schedule'),
+  },
+  {
+    path: '/guru/banding',
+    label: 'Banding Absen',
+    icon: MessageCircle,
+  },
+  {
+    path: '/guru/banding-history',
+    label: 'Riwayat Banding',
+    icon: History,
+  },
+  {
+    path: '/guru/history',
+    label: 'Riwayat Absensi',
+    icon: History,
+    collapsedClassName: 'ml-2',
+  },
+  {
+    path: '/guru/reports',
+    label: 'Laporan',
+    icon: ClipboardList,
+  },
+];
+
+const isTeacherSidebarNavItemActive = (pathname: string, item: TeacherSidebarNavItem): boolean => {
+  if (item.matches) {
+    return item.matches(pathname);
+  }
+  return pathname === item.path;
+};
+
+const getTeacherSidebarNavButtonClassName = (
+  showLabel: boolean,
+  isActive: boolean,
+  collapsedClassName: string = 'px-2'
+): string => {
+  return `w-full justify-start ${showLabel ? '' : collapsedClassName} ${isActive ? '' : 'text-muted-foreground hover:text-foreground font-medium'}`;
+};
+
 const TeacherSidebar = ({
   locationPathname,
   sidebarOpen,
@@ -421,61 +475,25 @@ const TeacherSidebar = ({
       </div>
 
       <nav className="p-4 space-y-2">
-        <Button
-          variant={locationPathname === '/guru' || locationPathname.startsWith('/guru/schedule') ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru' && !locationPathname.startsWith('/guru/schedule') ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-          onClick={() => {
-            navigate('/guru');
-            setSidebarOpen(false);
-          }}
-        >
-          <Clock className="h-4 w-4" />
-          {showLabel && <span className="ml-2">Jadwal Hari Ini</span>}
-        </Button>
-        <Button
-          variant={locationPathname === '/guru/banding' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-          onClick={() => {
-            navigate('/guru/banding');
-            setSidebarOpen(false);
-          }}
-        >
-          <MessageCircle className="h-4 w-4" />
-          {showLabel && <span className="ml-2">Banding Absen</span>}
-        </Button>
-        <Button
-          variant={locationPathname === '/guru/banding-history' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru/banding-history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-          onClick={() => {
-            navigate('/guru/banding-history');
-            setSidebarOpen(false);
-          }}
-        >
-          <History className="h-4 w-4" />
-          {showLabel && <span className="ml-2">Riwayat Banding</span>}
-        </Button>
-        <Button
-          variant={locationPathname === '/guru/history' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'ml-2'} ${locationPathname !== '/guru/history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-          onClick={() => {
-            navigate('/guru/history');
-            setSidebarOpen(false);
-          }}
-        >
-          <History className="h-4 w-4" />
-          {showLabel && <span className="ml-2">Riwayat Absensi</span>}
-        </Button>
-        <Button
-          variant={locationPathname === '/guru/reports' ? 'default' : 'ghost'}
-          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru/reports' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-          onClick={() => {
-            navigate('/guru/reports');
-            setSidebarOpen(false);
-          }}
-        >
-          <ClipboardList className="h-4 w-4" />
-          {showLabel && <span className="ml-2">Laporan</span>}
-        </Button>
+        {TEACHER_SIDEBAR_NAV_ITEMS.map((item) => {
+          const isActive = isTeacherSidebarNavItemActive(locationPathname, item);
+          const Icon = item.icon;
+
+          return (
+            <Button
+              key={item.path}
+              variant={isActive ? 'default' : 'ghost'}
+              className={getTeacherSidebarNavButtonClassName(showLabel, isActive, item.collapsedClassName)}
+              onClick={() => {
+                navigate(item.path);
+                setSidebarOpen(false);
+              }}
+            >
+              <Icon className="h-4 w-4" />
+              {showLabel && <span className="ml-2">{item.label}</span>}
+            </Button>
+          );
+        })}
       </nav>
 
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">

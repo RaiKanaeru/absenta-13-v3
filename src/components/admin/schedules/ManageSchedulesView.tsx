@@ -183,6 +183,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         setRooms(Array.isArray(roomsData) ? roomsData : []);
         
        } catch (error) {
+         console.error('Operation failed:', error);
          toast({
            title: "Error",
            description: "Gagal memuat data. Silakan refresh halaman.",
@@ -201,6 +202,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
       const data = await JadwalService.getJadwal('admin');
       setSchedules(Array.isArray(data) ? data : []);
      } catch (error) {
+       console.error('Operation failed:', error);
        try {
          const data = await apiCall('/api/admin/jadwal', { onLogout });
          setSchedules(Array.isArray(data) ? data : []);

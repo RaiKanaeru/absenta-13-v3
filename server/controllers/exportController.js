@@ -388,13 +388,10 @@ const buildDownloadRequestContext = (payload) => {
     };
 
     if (!filters) {
-        if (startDate) normalizedFilters.tanggal_mulai = startDate;
-        if (endDate) normalizedFilters.tanggal_selesai = endDate;
-        if (kelas_id) normalizedFilters.kelas_id = kelas_id;
-        if (mapel_id) normalizedFilters.mapel_id = mapel_id;
-        if (guru_id) normalizedFilters.guru_id = guru_id;
-        if (semester) normalizedFilters.semester = semester;
-        if (year) normalizedFilters.year = year;
+        const fieldMap = { tanggal_mulai: startDate, tanggal_selesai: endDate, kelas_id, mapel_id, guru_id, semester, year };
+        for (const [key, value] of Object.entries(fieldMap)) {
+            if (value) normalizedFilters[key] = value;
+        }
     }
 
     return { downloadType, normalizedFilters };

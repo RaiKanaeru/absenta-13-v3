@@ -120,6 +120,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         });
       }
     } catch (error) {
+      console.error('Operation failed:', error);
       toast({
         title: "Error",
         description: "Terjadi kesalahan saat memuat konfigurasi",
@@ -299,7 +300,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         };
       }
     } catch (error) {
-      // Upload error — returned to caller
+      console.error('Operation failed:', error);
       return {
         success: false,
         error: 'Terjadi kesalahan saat upload file'

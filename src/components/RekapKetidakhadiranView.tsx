@@ -34,11 +34,13 @@ interface PresensiData {
   }[];
 }
 
+type ViewMode = 'tahunan' | 'bulanan' | 'tanggal';
+
 const shouldShowRekapTable = (
   selectedKelas: string,
   selectedTahun: string,
   studentsLength: number,
-  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  viewMode: ViewMode,
   selectedBulan: string,
   selectedTanggalAwal: string,
   selectedTanggalAkhir: string,
@@ -64,7 +66,7 @@ const shouldShowRekapTable = (
 const shouldFetchPresensiData = (
   selectedKelas: string,
   selectedTahun: string,
-  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  viewMode: ViewMode,
   selectedBulan: string,
   selectedTanggalAwal: string,
   selectedTanggalAkhir: string,
@@ -82,7 +84,7 @@ const shouldFetchPresensiData = (
 const buildPresensiParams = (
   kelasId: string,
   tahun: string,
-  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  viewMode: ViewMode,
   bulan?: string,
   tanggalAwal?: string,
   tanggalAkhir?: string,
@@ -111,7 +113,7 @@ const buildExportFileName = (
   baseFileName: string,
   kelasName: string,
   tahun: string,
-  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  viewMode: ViewMode,
   selectedBulan?: string,
   selectedTanggalAwal?: string,
   selectedTanggalAkhir?: string,
@@ -133,7 +135,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
   const [selectedBulan, setSelectedBulan] = useState<string>('');
   const [selectedTanggalAwal, setSelectedTanggalAwal] = useState<string>('');
   const [selectedTanggalAkhir, setSelectedTanggalAkhir] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'tahunan' | 'bulanan' | 'tanggal'>('tahunan');
+  const [viewMode, setViewMode] = useState<ViewMode>('tahunan');
   const [classes, setClasses] = useState<Kelas[]>([]);
   const [students, setStudents] = useState<Siswa[]>([]);
   const [presensiData, setPresensiData] = useState<PresensiData[]>([]);
@@ -404,7 +406,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
 
             <div className="space-y-2">
               <Label htmlFor="viewMode">Mode Tampilan</Label>
-              <Select value={viewMode} onValueChange={(value: 'tahunan' | 'bulanan' | 'tanggal') => setViewMode(value)}>
+              <Select value={viewMode} onValueChange={(value: ViewMode) => setViewMode(value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih Mode" />
                 </SelectTrigger>
