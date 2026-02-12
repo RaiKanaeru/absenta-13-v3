@@ -565,6 +565,50 @@ export async function submitStudentAttendance(req, res) {
 }
 
 /**
+ * Build existing records map from database rows
+ * @private
+ */
+function buildExistingRecordsMap(existingRows) {
+    const existingMap = {};
+    existingRows.forEach(row => {
+        if (!existingMap[row.guru_pengabsen_id]) existingMap[row.guru_pengabsen_id] = {};
+        existingMap[row.guru_pengabsen_id][row.siswa_id] = row.id;
+    });
+    return existingMap;
+}
+
+/**
+ * Prepare insert and update operations for multi-guru attendance
+ * @private
+ */
+function prepareMultiGuruOperations(otherGuruIds, attendance, notes, scheduleId, targetDate, currentTime, existingMap) {
+    const updates = [];
+    const inserts = [];
+    const waktuAbsen = `${targetDate} ${currentTime}`;
+
+    for (const otherGuruId of otherGuruIds) {
+        for (const [studentIdStr, attendanceData] of Object.entries(attendance)) {
+            const studentId = Number(studentIdStr);
+            const parsed = parseAttendanceData(attendanceData);
+            if (!parsed) continue;
+
+            const { status, terlambat, ada_tugas } = parsed;
+            const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
+            const note = status === 'Hadir' ? '' : (notes[studentIdStr] || '');
+            const existingId = existingMap[otherGuruId]?.[studentId];
+
+            if (existingId) {
+                updates.push([finalStatus, note, waktuAbsen, otherGuruId, isLate, hasTask, existingId]);
+            } else {
+                inserts.push([studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, otherGuruId, otherGuruId, isLate, hasTask]);
+            }
+        }
+    }
+
+    return { updates, inserts };
+}
+
+/**
  * Syncs attendance data to other teachers in multi-guru schedules
  * Optimized to avoid N+1 queries
  * @private
@@ -591,37 +635,19 @@ async function syncMultiGuruAttendance(connection, scheduleId, primaryGuruId, at
         [scheduleId, targetDate, ...otherGuruIds]
     );
 
-    // Map: guruId -> studentId -> recordId
-    const existingMap = {};
-    existingRows.forEach(row => {
-        if (!existingMap[row.guru_pengabsen_id]) existingMap[row.guru_pengabsen_id] = {};
-        existingMap[row.guru_pengabsen_id][row.siswa_id] = row.id;
-    });
-
-    const updates = [];
-    const inserts = [];
-    const waktuAbsen = `${targetDate} ${currentTime}`;
+    // Build existing map
+    const existingMap = buildExistingRecordsMap(existingRows);
 
     // 2. Prepare operations in memory
-    for (const otherGuruId of otherGuruIds) {
-        for (const [studentIdStr, attendanceData] of Object.entries(attendance)) {
-            const studentId = Number(studentIdStr); // Ensure number
-            const parsed = parseAttendanceData(attendanceData);
-            if (!parsed) continue;
-
-            const { status, terlambat, ada_tugas } = parsed;
-            const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
-            const note = status === 'Hadir' ? '' : (notes[studentIdStr] || '');
-
-            const existingId = existingMap[otherGuruId]?.[studentId];
-
-            if (existingId) {
-                updates.push([finalStatus, note, waktuAbsen, otherGuruId, isLate, hasTask, existingId]);
-            } else {
-                inserts.push([studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, otherGuruId, otherGuruId, isLate, hasTask]);
-            }
-        }
-    }
+    const { updates, inserts } = prepareMultiGuruOperations(
+        otherGuruIds,
+        attendance,
+        notes,
+        scheduleId,
+        targetDate,
+        currentTime,
+        existingMap
+    );
 
     // 3. Execute Bulk Insert
     if (inserts.length > 0) {

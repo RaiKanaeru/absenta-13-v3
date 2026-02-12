@@ -1062,69 +1062,87 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
     }
   };
 
-  // Show loading or error states
-  if (initialLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <Card className="w-96">
-          <CardContent className="p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Memuat Data...</h3>
-            <p className="text-muted-foreground">Sedang memuat informasi siswa</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const resetAbsenKelasModalState = useCallback((): void => {
+    setShowAbsenKelasModal(false);
+    setAbsenKelasJadwalId(null);
+    setDaftarSiswaKelas([]);
+    setAbsenSiswaData({});
+  }, []);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <XCircle className="w-16 h-16 mx-auto text-red-500 mb-6" />
-            <h3 className="text-xl font-bold text-foreground mb-3">Terjadi Kesalahan</h3>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-red-700 text-sm font-medium mb-2">Pesan Error:</p>
-              <p className="text-red-600 text-sm">{error}</p>
-            </div>
-            
-            <div className="space-y-3">
-              <Button 
-                onClick={() => {
-                  setError(null);
-                  setInitialLoading(true);
-                  // Retry the initial data fetch
-                  globalThis.location.reload();
-                }} 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                Coba Lagi
-              </Button>
-              
-              <Button 
-                onClick={onLogout} 
-                variant="outline" 
-                className="w-full"
-              >
-                Kembali ke Login
-              </Button>
-              
-              {error.includes('server backend') && (
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-yellow-700 text-xs">
-                    <strong>Tips:</strong> Pastikan server backend sudah berjalan di port 3001
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleSetSemuaSiswaHadir = useCallback((): void => {
+    const newData: { [key: number]: { status: string; keterangan: string } } = {};
+    daftarSiswaKelas.forEach((siswa) => {
+      newData[siswa.id_siswa] = { status: 'Hadir', keterangan: '' };
+    });
+    setAbsenSiswaData(newData);
+  }, [daftarSiswaKelas]);
 
-  return (
+  const handleUpdateAbsenSiswaStatus = useCallback((idSiswa: number, status: string): void => {
+    setAbsenSiswaData((prev) => ({
+      ...prev,
+      [idSiswa]: { ...prev[idSiswa], status }
+    }));
+  }, []);
+
+  const handleRetryInitialLoad = useCallback((): void => {
+    setError(null);
+    setInitialLoading(true);
+    globalThis.location.reload();
+  }, []);
+
+  const renderInitialLoadingState = (): React.ReactElement => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+      <Card className="w-96">
+        <CardContent className="p-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">Memuat Data...</h3>
+          <p className="text-muted-foreground">Sedang memuat informasi siswa</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderErrorState = (errorMessage: string): React.ReactElement => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardContent className="p-8 text-center">
+          <XCircle className="w-16 h-16 mx-auto text-red-500 mb-6" />
+          <h3 className="text-xl font-bold text-foreground mb-3">Terjadi Kesalahan</h3>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-700 text-sm font-medium mb-2">Pesan Error:</p>
+            <p className="text-red-600 text-sm">{errorMessage}</p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={handleRetryInitialLoad}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              Coba Lagi
+            </Button>
+
+            <Button
+              onClick={onLogout}
+              variant="outline"
+              className="w-full"
+            >
+              Kembali ke Login
+            </Button>
+
+            {errorMessage.includes('server backend') && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-700 text-xs">
+                  <strong>Tips:</strong> Pastikan server backend sudah berjalan di port 3001
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderDashboardLayout = (): React.ReactElement => (
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
@@ -1195,7 +1213,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
               />
             </div>
           )}
-          
+
           <div className={`flex items-center space-x-3 mb-3 ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'justify-center'}`}>
             <div className="bg-primary/10 p-2 rounded-full">
               <User className="h-4 w-4 text-primary" />
@@ -1207,7 +1225,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
               </div>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Button
               onClick={() => setShowEditProfile(true)}
@@ -1218,7 +1236,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
               <Settings className="h-4 w-4" />
               {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Edit Profil</span>}
             </Button>
-            
+
             <Button
               onClick={onLogout}
               variant="outline"
@@ -1322,13 +1340,13 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
           </Routes>
         </div>
       </div>
-      
+
 {/* Floating Font Size Control for Mobile */}
       <div className="fixed bottom-4 right-4 flex items-center gap-2 lg:hidden z-50">
         <FontSizeControl variant="floating" />
         <ModeToggle />
       </div>
-      
+
       {/* Absen Kelas Modal (Piket mengabsen siswa ketika guru tidak hadir) */}
       {showAbsenKelasModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1344,19 +1362,14 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAbsenKelasModal(false);
-                    setAbsenKelasJadwalId(null);
-                    setDaftarSiswaKelas([]);
-                    setAbsenSiswaData({});
-                  }}
+                  onClick={resetAbsenKelasModalState}
                   className="p-1 hover:bg-orange-700 rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            
+
             {/* Content */}
             <div className="overflow-y-auto max-h-[60vh] p-4">
               {loadingAbsenKelas ? (
@@ -1377,20 +1390,14 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const newData: {[key: number]: {status: string; keterangan: string}} = {};
-                          daftarSiswaKelas.forEach(siswa => {
-                            newData[siswa.id_siswa] = { status: 'Hadir', keterangan: '' };
-                          });
-                          setAbsenSiswaData(newData);
-                        }}
+                        onClick={handleSetSemuaSiswaHadir}
                         className="text-xs"
                       >
                         Semua Hadir
                       </Button>
                     </div>
                   </div>
-                  
+
                   {daftarSiswaKelas.map((siswa, index) => (
                     <div key={siswa.id_siswa} className="border border-border rounded-lg p-3 bg-muted/20">
                       <div className="flex items-center justify-between mb-2">
@@ -1408,16 +1415,13 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
                           {siswa.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
                         </Badge>
                       </div>
-                      
+
                       <div className="grid grid-cols-5 gap-1">
                         {['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'].map(status => (
                           <button
                             type="button"
                             key={status}
-                            onClick={() => setAbsenSiswaData(prev => ({
-                              ...prev,
-                              [siswa.id_siswa]: { ...prev[siswa.id_siswa], status }
-                            }))}
+                            onClick={() => handleUpdateAbsenSiswaStatus(siswa.id_siswa, status)}
                             className={`px-2 py-1 text-xs rounded border ${getStatusButtonClass(status, absenSiswaData[siswa.id_siswa]?.status === status)}`}
                           >
                             {status}
@@ -1429,18 +1433,13 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
                 </div>
               )}
             </div>
-            
+
             {/* Footer */}
             <div className="border-t p-4 bg-muted/20">
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowAbsenKelasModal(false);
-                    setAbsenKelasJadwalId(null);
-                    setDaftarSiswaKelas([]);
-                    setAbsenSiswaData({});
-                  }}
+                  onClick={resetAbsenKelasModalState}
                 >
                   Batal
                 </Button>
@@ -1478,4 +1477,15 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       )}
     </div>
   );
+
+  // Show loading or error states
+  if (initialLoading) {
+    return renderInitialLoadingState();
+  }
+
+  if (error) {
+    return renderErrorState(error);
+  }
+
+  return renderDashboardLayout();
 };

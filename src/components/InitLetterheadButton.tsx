@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { getApiUrl } from '@/config/api';
-import { getAuthHeaders } from '@/utils/authUtils';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 
 interface InitLetterheadButtonProps {
   onSuccess?: () => void;
@@ -20,20 +19,9 @@ const InitLetterheadButton: React.FC<InitLetterheadButtonProps> = ({ onSuccess }
     setMessage('');
 
     try {
-      const response = await fetch(getApiUrl('/api/admin/init-letterhead'), {
-        method: 'POST',
-        headers: getAuthHeaders()
+      const data = await apiCall<{ success: boolean; message: string }>('/api/admin/init-letterhead', {
+        method: 'POST'
       });
-
-      // Check if response is HTML (error page)
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/html')) {
-        setStatus('error');
-        setMessage('Server mengembalikan halaman error. Pastikan server berjalan dengan benar.');
-        return;
-      }
-
-      const data = await response.json();
 
       if (data.success) {
         setStatus('success');
@@ -47,7 +35,7 @@ const InitLetterheadButton: React.FC<InitLetterheadButtonProps> = ({ onSuccess }
       }
     } catch (error) {
       setStatus('error');
-      setMessage('Error menginisialisasi letterhead: ' + (error as Error).message);
+      setMessage('Error menginisialisasi letterhead: ' + getErrorMessage(error));
     } finally {
       setLoading(false);
     }

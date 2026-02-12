@@ -16,6 +16,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { getApiUrl } from '@/config/api';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { Checkbox } from './ui/checkbox';
 
 interface SimpleRestoreViewProps {
@@ -106,12 +107,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
   const loadAvailableBackups = async () => {
     setLoadingBackups(true);
     try {
-      const response = await fetch(getApiUrl('/api/admin/backups'), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const result = await response.json();
+      const result = await apiCall<{ success: boolean; data: typeof availableBackups }>('/api/admin/backups');
       if (result.success) {
         setAvailableBackups(result.data);
       }
@@ -206,6 +202,20 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     }
   };
 
+  const downloadSingleBackup = async (id: string): Promise<void> => {
+    try {
+      const blob = await apiCall<Blob>(`/api/admin/download-backup/${id}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-${id}.sql`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Individual download failure is non-critical
+    }
+  };
+
   const handleBatchDownload = () => {
     if (selectedBackups.size === 0) return;
     
@@ -216,25 +226,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     }
 
     selectedBackups.forEach(id => {
-       // Use fetch + blob to avoid leaking JWT token in URL
-       fetch(getApiUrl(`/api/admin/download-backup/${id}`), {
-         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-       })
-         .then(res => {
-           if (!res.ok) throw new Error('Download failed');
-           const disposition = res.headers.get('content-disposition');
-           const filename = disposition?.match(/filename="?(.+?)"?$/)?.[1] || `backup-${id}.sql`;
-           return res.blob().then(blob => ({ blob, filename }));
-         })
-         .then(({ blob, filename }) => {
-           const url = URL.createObjectURL(blob);
-           const a = document.createElement('a');
-           a.href = url;
-           a.download = filename;
-           a.click();
-           URL.revokeObjectURL(url);
-         })
-         .catch(() => { /* individual download failure is non-critical */ });
+      downloadSingleBackup(id);
     });
   };
 
@@ -253,19 +245,12 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     setError('');
 
     try {
-      const response = await fetch(getApiUrl('/api/admin/delete-backups/batch'), {
+      const result = await apiCall<{ success: boolean; message?: string; error?: string }>('/api/admin/delete-backups/batch', {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        credentials: 'include',
         body: JSON.stringify({ backupIds: Array.from(selectedBackups) })
       });
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
+      if (result.success) {
         setMessage(result.message || 'Backup terpilih berhasil dihapus');
         setSelectedBackups(new Set());
         loadAvailableBackups();
@@ -296,17 +281,11 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     setMessage('');
 
     try {
-      const response = await fetch(getApiUrl(`/api/admin/restore-backup/${backupId}`), {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        credentials: 'include'
+      const result = await apiCall<{ success: boolean; message?: string; error?: string }>(`/api/admin/restore-backup/${backupId}`, {
+        method: 'POST'
       });
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
+      if (result.success) {
         setRestoreStatus('success');
         setMessage(result.message || 'Backup berhasil dipulihkan!');
         loadAvailableBackups();

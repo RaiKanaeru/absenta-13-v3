@@ -316,13 +316,64 @@ export function ScheduleGridTable({
 
 
 
+  // Helper: Check for teacher schedule conflicts
+  const checkTeacherConflict = useCallback((guruId: number, hari: string, jamKe: number, excludeKelasId: number) => {
+    if (!matrixData) return null;
+    
+    for (const cls of matrixData.classes) {
+      if (cls.kelas_id === excludeKelasId) continue;
+      
+      const cell = cls.schedule[hari]?.[jamKe];
+      if (cell?.guru_detail?.some(g => g.guru_id === guruId)) {
+        return { kelas: cls.nama_kelas };
+      }
+    }
+    return null;
+  }, [matrixData]);
+
+  // Helper: Extract drag item ID based on type
+  const extractDragItemId = useCallback((dragItem: Teacher | Subject, dragType: 'guru' | 'mapel'): number | undefined => {
+    if (dragType === 'guru') {
+      const teacher = dragItem as Teacher;
+      return teacher.id ?? (teacher as any).id_guru;
+    }
+    const subject = dragItem as Subject;
+    return subject.id ?? (subject as any).id_mapel;
+  }, []);
+
+  // Helper: Update schedule cell with dragged item
+  const updateScheduleCellWithDragItem = useCallback((
+    existingCell: ScheduleCell,
+    dragItem: Teacher | Subject,
+    dragType: 'guru' | 'mapel'
+  ): ScheduleCell => {
+    const updatedCell = { ...existingCell };
+    
+    if (dragType === 'guru') {
+      const g = dragItem as Teacher;
+      updatedCell.guru = [g.nama];
+      updatedCell.guru_detail = [{ 
+        guru_id: g.id ?? (g as any).id_guru ?? 0, 
+        nama_guru: g.nama, 
+        kode_guru: g.nip || '' 
+      }];
+    } else if (dragType === 'mapel') {
+      const m = dragItem as Subject;
+      updatedCell.mapel = m.kode_mapel || m.nama_mapel;
+      updatedCell.mapel_id = m.id ?? (m as any).id_mapel ?? 0;
+      updatedCell.nama_mapel = m.nama_mapel;
+      updatedCell.color = getSubjectColor(m.kode_mapel);
+    }
+    
+    return updatedCell;
+  }, []);
+
   // Handle drag end
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over || !matrixData) return;
 
-    // Parse drop target: format is "kelas_id-hari-jam_ke-rowType"
     const [kelasIdStr, hari, jamKeStr, rowType] = (over.id as string).split('-');
     const kelasId = Number.parseInt(kelasIdStr);
     const jamKe = Number.parseInt(jamKeStr);
@@ -332,32 +383,16 @@ export function ScheduleGridTable({
 
     if (!dragItem) return;
 
-    // CONFLICT DETECTION LOGIC (Client-Side)
+    // Conflict detection for teachers
     if (dragType === 'guru') {
       const currentTeacher = dragItem as Teacher;
-      const guruId = currentTeacher.id || currentTeacher.id_guru;
-      
-      // Check ALL classes in matrix for this Day & Jam
-      let conflictFound = null;
-      
-      for (const cls of matrixData.classes) {
-        if (cls.kelas_id === kelasId) continue; // Skip current class (self)
-        
-        const cell = cls.schedule[hari]?.[jamKe];
-        // Check if primary guru matches
-        if (cell?.guru_detail?.some(g => g.guru_id === guruId)) {
-          conflictFound = {
-            kelas: cls.nama_kelas,
-            guru: currentTeacher.nama
-          };
-          break;
-        }
-      }
+      const guruId = (currentTeacher as any).id_guru ?? currentTeacher.id;
+      const conflict = checkTeacherConflict(guruId, hari, jamKe, kelasId);
 
-      if (conflictFound) {
+      if (conflict) {
         toast({
           title: "Potensi Bentrok Jadwal",
-          description: `Guru ${conflictFound.guru} sudah mengajar di ${conflictFound.kelas} pada jam ini!`,
+          description: `Guru ${currentTeacher.nama} sudah mengajar di ${conflict.kelas} pada jam ini!`,
           variant: "destructive",
           duration: 5000
         });
@@ -365,10 +400,7 @@ export function ScheduleGridTable({
     }
 
     // Add to pending changes
-    const dragItemId = dragType === 'guru'
-      ? ('id' in dragItem ? dragItem.id : ('id_guru' in dragItem ? dragItem.id_guru : undefined))
-      : ('id' in dragItem ? dragItem.id : ('id_mapel' in dragItem ? dragItem.id_mapel : undefined));
-
+    const dragItemId = extractDragItemId(dragItem, dragType);
     const change: PendingChange = {
       kelas_id: kelasId,
       hari,
@@ -378,54 +410,29 @@ export function ScheduleGridTable({
     };
 
     setPendingChanges(prev => {
-        // Remove existing change for same slot/type to avoid duplicates in pending
-        const filtered = prev.filter(p => !(p.kelas_id === kelasId && p.hari === hari && p.jam_ke === jamKe && p.rowType === rowType));
-        return [...filtered, change];
+      const filtered = prev.filter(p => !(p.kelas_id === kelasId && p.hari === hari && p.jam_ke === jamKe && p.rowType === rowType));
+      return [...filtered, change];
     });
     
-    // OPTIMISTIC UPDATE for Visual Feedback
+    // Optimistic update for visual feedback
     setMatrixData(prev => {
-        if (!prev) return null;
-        const newClasses = prev.classes.map(cls => {
-            if (cls.kelas_id === kelasId) {
-                const newSchedule = { ...cls.schedule };
-                if (!newSchedule[hari]) newSchedule[hari] = {};
-                
-                const existingCell = newSchedule[hari][jamKe] || {
-                    id: null,
-                    mapel: '',
-                    mapel_id: 0,
-                    ruang: '',
-                    ruang_id: 0,
-                    guru: [],
-                    guru_detail: [],
-                    color: '#fff',
-                    jenis: 'pelajaran'
-                };
+      if (!prev) return null;
+      const newClasses = prev.classes.map(cls => {
+        if (cls.kelas_id === kelasId) {
+          const newSchedule = { ...cls.schedule };
+          if (!newSchedule[hari]) newSchedule[hari] = {};
+          
+          const existingCell = newSchedule[hari][jamKe] || {
+            id: null, mapel: '', mapel_id: 0, ruang: '', ruang_id: 0,
+            guru: [], guru_detail: [], color: '#fff', jenis: 'pelajaran'
+          };
 
-                // Update specific field based on Drag Type
-                if (dragType === 'guru') {
-                    const g = dragItem as Teacher;
-                    existingCell.guru = [g.nama];
-                    existingCell.guru_detail = [{ 
-                        guru_id: g.id || g.id_guru || 0, 
-                        nama_guru: g.nama, 
-                        kode_guru: g.nip || '' 
-                    }];
-                } else if (dragType === 'mapel') {
-                    const m = dragItem as Subject;
-                    existingCell.mapel = m.kode_mapel || m.nama_mapel;
-                    existingCell.mapel_id = m.id || m.id_mapel;
-                    existingCell.nama_mapel = m.nama_mapel;
-                    existingCell.color = getSubjectColor(m.kode_mapel); // Auto config color
-                }
-                
-                newSchedule[hari][jamKe] = existingCell;
-                return { ...cls, schedule: newSchedule };
-            }
-            return cls;
-        });
-        return { ...prev, classes: newClasses };
+          newSchedule[hari][jamKe] = updateScheduleCellWithDragItem(existingCell, dragItem, dragType);
+          return { ...cls, schedule: newSchedule };
+        }
+        return cls;
+      });
+      return { ...prev, classes: newClasses };
     });
 
     const itemLabel = isTeacherItem(dragItem) ? dragItem.nama : dragItem.nama_mapel;
@@ -433,7 +440,7 @@ export function ScheduleGridTable({
       title: "Jadwal Diupdate (Draft)",
       description: `${itemLabel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
     });
-  }, [matrixData]);
+  }, [matrixData, checkTeacherConflict, extractDragItemId, updateScheduleCellWithDragItem]);
 
   // Save all changes
   const handleSaveAll = async () => {

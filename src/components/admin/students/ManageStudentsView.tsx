@@ -168,80 +168,81 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     fetchStudents();
   }, [fetchStudents]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      toast({ title: "Error", description: "Mohon perbaiki error pada form", variant: "destructive" });
-      return;
-    }
+   // Helper: Build submit data based on edit mode
+   const buildSubmitData = () => {
+     const baseData = {
+       username: formData.username,
+       password: formData.password,
+       email: formData.email,
+       status: formData.status,
+       is_perwakilan: Boolean(formData.is_perwakilan)
+     };
+     return editingId ? baseData : { ...baseData, nis: formData.nis };
+   };
 
-    setIsLoading(true);
+   // Helper: Handle submit errors with detailed extraction
+   const handleSubmitError = (error: unknown) => {
+     console.error('Error submitting student:', error);
+     const errorDetails = typeof error === 'object' && error !== null && 'details' in error
+       ? (error as { details?: unknown }).details
+       : undefined;
+     if (errorDetails) {
+       const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
+       toast({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
+     } else {
+       const message = error instanceof Error ? error.message : String(error);
+       toast({ title: "Error", description: message, variant: "destructive" });
+     }
+   };
 
-    try {
-      const url = editingId ? `/api/admin/students/${editingNis}` : '/api/admin/students';
-      const method = editingId ? 'PUT' : 'POST';
-      
-      const submitData = editingId
-        ? {
-            username: formData.username,
-            password: formData.password,
-            email: formData.email,
-            status: formData.status,
-            is_perwakilan: Boolean(formData.is_perwakilan)
-          }
-        : {
-            nis: formData.nis,
-            username: formData.username,
-            password: formData.password,
-            email: formData.email,
-            status: formData.status,
-            is_perwakilan: Boolean(formData.is_perwakilan)
-          };
+   const handleSubmit = async (e: React.FormEvent) => {
+     e.preventDefault();
+     
+     if (!validateForm()) {
+       toast({ title: "Error", description: "Mohon perbaiki error pada form", variant: "destructive" });
+       return;
+     }
 
-      await apiCall(url, {
-        method,
-        body: JSON.stringify(submitData),
-        onLogout
-      });
+     setIsLoading(true);
 
-      toast({ title: editingId ? "Data siswa berhasil diupdate!" : "Data siswa berhasil ditambahkan!" });
-      setFormData({ 
-        nama: '', 
-        nis: '', 
-        kelas_id: '', 
-        jenis_kelamin: '', 
-        telepon_orangtua: '', 
-        nomor_telepon_siswa: '', 
-        alamat: '', 
-        status: 'aktif',
-        username: '',
-        password: '',
-        email: '',
-        jabatan: 'Siswa',
-        is_perwakilan: true
-      });
-      setFormErrors({});
-      setEditingId(null);
-      setEditingNis(null);
-      setDialogOpen(false);
-      fetchStudents();
-    } catch (error: unknown) {
-      console.error('Error submitting student:', error);
-      const errorDetails = typeof error === 'object' && error !== null && 'details' in error
-        ? (error as { details?: unknown }).details
-        : undefined;
-      if (errorDetails) {
-        const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
-        toast({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
-      } else {
-        const message = error instanceof Error ? error.message : String(error);
-        toast({ title: "Error", description: message, variant: "destructive" });
-      }
-    }
+     try {
+       const url = editingId ? `/api/admin/students/${editingNis}` : '/api/admin/students';
+       const method = editingId ? 'PUT' : 'POST';
+       const submitData = buildSubmitData();
 
-    setIsLoading(false);
-  };
+       await apiCall(url, {
+         method,
+         body: JSON.stringify(submitData),
+         onLogout
+       });
+
+       toast({ title: editingId ? "Data siswa berhasil diupdate!" : "Data siswa berhasil ditambahkan!" });
+       setFormData({ 
+         nama: '', 
+         nis: '', 
+         kelas_id: '', 
+         jenis_kelamin: '', 
+         telepon_orangtua: '', 
+         nomor_telepon_siswa: '', 
+         alamat: '', 
+         status: 'aktif',
+         username: '',
+         password: '',
+         email: '',
+         jabatan: 'Siswa',
+         is_perwakilan: true
+       });
+       setFormErrors({});
+       setEditingId(null);
+       setEditingNis(null);
+       setDialogOpen(false);
+       fetchStudents();
+     } catch (error: unknown) {
+       handleSubmitError(error);
+     }
+
+     setIsLoading(false);
+   };
 
   const handleEdit = (student: Student) => {
     const rawIsPerwakilan = (student as Record<string, unknown>).is_perwakilan;

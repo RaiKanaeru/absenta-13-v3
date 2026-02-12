@@ -174,20 +174,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
   if (currentView === 'menu') {
     return (
       <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-2">
-           <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={onBack}
-            className="h-10 w-10 text-muted-foreground hover:text-primary"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Menu Laporan</h1>
-            <p className="text-muted-foreground text-sm">Pilih jenis laporan yang ingin Anda lihat</p>
-          </div>
+        {/* Header — back navigation handled by parent SubView wrapper */}
+        <div className="mb-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Menu Laporan</h1>
+          <p className="text-muted-foreground text-sm">Pilih jenis laporan yang ingin Anda lihat</p>
         </div>
 
         {/* Grid Menu */}

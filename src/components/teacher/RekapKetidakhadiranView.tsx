@@ -50,21 +50,34 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
     }
   };
 
-  const fetchData = async () => {
+  // Helper: Build query parameters
+  const buildQueryParams = () => {
+    const params = new URLSearchParams({ 
+      startDate: dateRange.startDate, 
+      endDate: dateRange.endDate,
+      reportType: reportType
+    });
+    if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+    return params;
+  };
+
+  // Helper: Validate date range
+  const validateDateRange = () => {
     if (!dateRange.startDate || !dateRange.endDate) {
-      setError('Mohon pilih periode mulai dan akhir');
-      return;
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      return false;
     }
+    return true;
+  };
+
+  const fetchData = async () => {
+    if (!validateDateRange()) return;
 
     try {
       setLoading(true);
       setError('');
-      const params = new URLSearchParams({ 
-        startDate: dateRange.startDate, 
-        endDate: dateRange.endDate,
-        reportType: reportType
-      });
-      if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+      const params = buildQueryParams();
       
       const res = await apiCall(`/api/guru/rekap-ketidakhadiran?${params.toString()}`);
       setReportData(Array.isArray(res) ? res : []);
@@ -77,12 +90,10 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
   };
 
   const downloadExcel = async () => {
-    if (!dateRange.startDate || !dateRange.endDate) {
-      const message = 'Mohon pilih periode mulai dan akhir';
-      setError(message);
+    if (!validateDateRange()) {
       toast({
         title: "Error",
-        description: message,
+        description: error,
         variant: "destructive"
       });
       return;
@@ -90,12 +101,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
 
     try {
       setExporting(true);
-      const params = new URLSearchParams({ 
-        startDate: dateRange.startDate, 
-        endDate: dateRange.endDate,
-        reportType: reportType
-      });
-      if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+      const params = buildQueryParams();
       
       const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran?${params.toString()}`, {
         responseType: 'blob'

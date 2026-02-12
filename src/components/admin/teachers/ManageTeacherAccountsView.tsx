@@ -189,73 +189,76 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     };
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate using extracted helper
-    const validationError = validateTeacherFormData(formData, !!editingId);
-    if (validationError) {
-      toast({ title: "Error", description: validationError, variant: "destructive" });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const url = editingId ? `/api/admin/guru/${editingId}` : '/api/admin/guru';
-      const method = editingId ? 'PUT' : 'POST';
-      
-      // Build submit data using helper
-      const submitData = buildTeacherSubmitData(formData);
-
-      await apiCall(url, {
-        method,
-        body: JSON.stringify(submitData),
-        onLogout
+  // Helper: Handle submit errors with detailed extraction
+  const handleSubmitError = (error: unknown) => {
+    console.error('Error submitting teacher:', error);
+    const errorDetails = typeof error === 'object' && error !== null && 'details' in error
+      ? (error as { details?: unknown }).details
+      : undefined;
+    if (errorDetails) {
+      const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
+      toast({ 
+        title: "Error Validasi", 
+        description: errorMessage, 
+        variant: "destructive" 
       });
-
-      toast({ title: editingId ? "Akun guru berhasil diupdate!" : "Akun guru berhasil ditambahkan!" });
-      setFormData({ 
-        nama: '', 
-        username: '', 
-        password: '', 
-        nip: '', 
-        mapel_id: '', 
-        email: '', 
-        no_telp: '', 
-        jenis_kelamin: '' as 'L' | 'P' | '', 
-        alamat: '', 
-        status: 'aktif' as 'aktif' | 'nonaktif'
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ 
+        title: "Error", 
+        description: message || "Gagal menyimpan data guru", 
+        variant: "destructive" 
       });
-      setEditingId(null);
-      setDialogOpen(false);
-      fetchTeachers();
-    } catch (error: unknown) {
-      console.error('Error submitting teacher:', error);
-      
-      // Tampilkan error detail dari server jika ada
-      const errorDetails = typeof error === 'object' && error !== null && 'details' in error
-        ? (error as { details?: unknown }).details
-        : undefined;
-      if (errorDetails) {
-        const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
-        toast({ 
-          title: "Error Validasi", 
-          description: errorMessage, 
-          variant: "destructive" 
-        });
-      } else {
-        const message = error instanceof Error ? error.message : String(error);
-        toast({ 
-          title: "Error", 
-          description: message || "Gagal menyimpan data guru", 
-          variant: "destructive" 
-        });
-      }
     }
-
-    setIsLoading(false);
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+     e.preventDefault();
+     
+     // Validate using extracted helper
+     const validationError = validateTeacherFormData(formData, !!editingId);
+     if (validationError) {
+       toast({ title: "Error", description: validationError, variant: "destructive" });
+       return;
+     }
+
+     setIsLoading(true);
+
+     try {
+       const url = editingId ? `/api/admin/guru/${editingId}` : '/api/admin/guru';
+       const method = editingId ? 'PUT' : 'POST';
+       
+       // Build submit data using helper
+       const submitData = buildTeacherSubmitData(formData);
+
+       await apiCall(url, {
+         method,
+         body: JSON.stringify(submitData),
+         onLogout
+       });
+
+       toast({ title: editingId ? "Akun guru berhasil diupdate!" : "Akun guru berhasil ditambahkan!" });
+       setFormData({ 
+         nama: '', 
+         username: '', 
+         password: '', 
+         nip: '', 
+         mapel_id: '', 
+         email: '', 
+         no_telp: '', 
+         jenis_kelamin: '' as 'L' | 'P' | '', 
+         alamat: '', 
+         status: 'aktif' as 'aktif' | 'nonaktif'
+       });
+       setEditingId(null);
+       setDialogOpen(false);
+       fetchTeachers();
+     } catch (error: unknown) {
+       handleSubmitError(error);
+     }
+
+     setIsLoading(false);
+   };
 
   const handleEdit = (teacher: Teacher) => {
     setFormData({

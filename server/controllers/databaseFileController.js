@@ -14,6 +14,50 @@ const SEEDER_DIR = path.resolve(process.cwd(), 'database/seeders');
 const ALLOWED_DIRS = [DB_DIR, SEEDER_DIR];
 
 /**
+ * Validate and sanitize filename for security
+ * @param {string} filename - Original filename from request
+ * @returns {string|null} Safe filename or null if invalid
+ */
+const sanitizeFilename = (filename) => {
+    const safeFilename = path.basename(filename);
+    if (safeFilename !== filename) return null; // Path traversal detected
+    if (!/^[a-zA-Z0-9._-]+$/.test(safeFilename)) return null; // Invalid chars
+    return safeFilename;
+};
+
+/**
+ * Resolve and validate target directory path
+ * @param {string} pathType - Type of path (root/seeders)
+ * @returns {string|null} Target directory or null if invalid
+ */
+const resolveTargetDir = (pathType) => {
+    if (pathType === 'root') return DB_DIR;
+    if (pathType === 'seeders') return SEEDER_DIR;
+    return null;
+};
+
+/**
+ * Check for blocked SQL patterns in content
+ * @param {string} sqlContent - SQL content to check
+ * @returns {string|null} Error message if blocked pattern found, null otherwise
+ */
+const checkBlockedSqlPatterns = (sqlContent) => {
+    const BLOCKED_SQL_PATTERNS = [
+        'drop database',
+        'drop table',
+        'truncate table',
+        'truncate ',
+    ];
+    const lowerSql = sqlContent.toLowerCase();
+    for (const pattern of BLOCKED_SQL_PATTERNS) {
+        if (lowerSql.includes(pattern)) {
+            return `Keamanan: ${pattern.trim().toUpperCase()} tidak diizinkan`;
+        }
+    }
+    return null;
+};
+
+/**
  * List all SQL files in allowed directories
  */
 export const listDatabaseFiles = async (req, res) => {
@@ -77,33 +121,27 @@ export const listDatabaseFiles = async (req, res) => {
  * Execute a specific SQL file
  */
 export const executeDatabaseFile = async (req, res) => {
-    // Fix: Use req.body for POST/PUT, but ensure consistency. 
-    // If this is GET, use query. Assuming POST for execution.
     const { filename, pathType } = req.body;
 
     if (!filename || !pathType) {
         return sendValidationError(res, 'Filename dan Path Type wajib diisi');
     }
 
-    // Security Fix: Prevent Path Traversal by enforcing basename and alphanumeric+ structure
-    const safeFilename = path.basename(filename);
-    if (safeFilename !== filename) {
-        return sendValidationError(res, 'Filename mengandung karakter ilegal (path traversal detected)');
-    }
-    
-    // Whitelist check for filename characters (alphanumeric, dot, underscore, dash)
-    if (!/^[a-zA-Z0-9._-]+$/.test(safeFilename)) {
+    // Sanitize filename
+    const safeFilename = sanitizeFilename(filename);
+    if (!safeFilename) {
         return sendValidationError(res, 'Filename mengandung karakter ilegal');
     }
 
-    let targetDir;
-    if (pathType === 'root') targetDir = DB_DIR;
-    else if (pathType === 'seeders') targetDir = SEEDER_DIR;
-    else return sendValidationError(res, 'Tipe path tidak valid');
+    // Resolve target directory
+    const targetDir = resolveTargetDir(pathType);
+    if (!targetDir) {
+        return sendValidationError(res, 'Tipe path tidak valid');
+    }
 
     const filePath = path.join(targetDir, safeFilename);
 
-    // Double Security check: Ensure file is actually in the directory (prevent ../)
+    // Security check: Ensure file is in target directory
     if (!filePath.startsWith(targetDir)) {
         return sendPermissionError(res, 'Akses ditolak: Path file tidak valid');
     }
@@ -111,26 +149,16 @@ export const executeDatabaseFile = async (req, res) => {
     try {
         // Read file
         const sqlContent = await fs.readFile(filePath, 'utf8');
-        
-        // Remove BOM if present
-        const cleanSql = sqlContent.replace(/^\uFEFF/, '');
+        const cleanSql = sqlContent.replace(/^\uFEFF/, ''); // Remove BOM
         
         if (!cleanSql.trim()) {
             return sendValidationError(res, 'File kosong');
         }
 
-        // Safety check: block destructive SQL statements
-        const BLOCKED_SQL_PATTERNS = [
-            'drop database',
-            'drop table',
-            'truncate table',
-            'truncate ',
-        ];
-        const lowerSql = cleanSql.toLowerCase();
-        for (const pattern of BLOCKED_SQL_PATTERNS) {
-            if (lowerSql.includes(pattern)) {
-                return sendPermissionError(res, `Keamanan: ${pattern.trim().toUpperCase()} tidak diizinkan`);
-            }
+        // Check for blocked SQL patterns
+        const blockedError = checkBlockedSqlPatterns(cleanSql);
+        if (blockedError) {
+            return sendPermissionError(res, blockedError);
         }
 
         // Execute

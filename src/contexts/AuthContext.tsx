@@ -161,7 +161,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    void checkExistingAuth();
+    checkExistingAuth();
   }, [checkExistingAuth]);
 
   const login = useCallback(async (credentials: Credentials) => {

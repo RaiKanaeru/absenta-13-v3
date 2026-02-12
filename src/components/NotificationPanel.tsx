@@ -59,7 +59,7 @@ export function NotificationPanel({
   onRefresh,
 }: NotificationPanelProps) {
   return (
-    <div className="absolute right-0 bottom-full mb-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-50">
+    <div className="absolute left-0 bottom-full mb-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <h3 className="text-sm font-semibold text-foreground">Notifikasi</h3>

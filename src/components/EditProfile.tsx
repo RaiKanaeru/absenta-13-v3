@@ -7,8 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 
 import { toast } from '@/hooks/use-toast';
-import { getApiUrl } from '@/config/api';
-import { getAuthToken, getAuthHeaders } from '@/utils/authUtils';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { 
   Lock, 
   Eye, 
@@ -283,50 +282,23 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
     setLoading(true);
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('Token tidak ditemukan');
-      }
-
       // Build request body using lookup pattern (reduces cognitive complexity)
       const buildRequestBody = REQUEST_BODY_BUILDERS[role];
       const requestBody = buildRequestBody ? buildRequestBody(formData) : {};
 
-      const response = await fetch(getApiUrl(`/api/${role}/update-profile`), {
+      const result = await apiCall<{ data: Record<string, unknown> }>(`/api/${role}/update-profile`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Profile update error:', errorData);
-        throw new Error(errorData.error || 'Gagal memperbarui profil');
-      }
-
-      const result = await response.json();
       toast({
         title: "Berhasil!",
         description: "Profil berhasil diperbarui"
       });
       
       // Update parent component dengan data yang benar
-      onUpdate({
-        ...userData,
-        ...result.data,
-        nama: result.data.nama,
-        username: result.data.username,
-        email: result.data.email,
-        alamat: result.data.alamat,
-        telepon_orangtua: result.data.telepon_orangtua,
-        nomor_telepon_siswa: result.data.nomor_telepon_siswa,
-        jenis_kelamin: result.data.jenis_kelamin,
-        ...(role === 'guru' && {
-          no_telepon: result.data.no_telepon,
-          mata_pelajaran: result.data.mata_pelajaran
-        })
-      });
+      const d = result.data;
+      onUpdate(buildUpdateData(userData, d, role));
       
       onClose();
     } catch (error) {
@@ -353,35 +325,23 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
 
     setLoading(true);
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('Token tidak ditemukan');
-      }
-
-      const response = await fetch(getApiUrl(`/api/${role}/change-password`), {
+      await apiCall(`/api/${role}/change-password`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
-        credentials: 'include',
         body: JSON.stringify({
           newPassword: passwordData.newPassword
         })
       });
 
-      if (response.ok) {
-        toast({
-          title: "Berhasil!",
-          description: "Password berhasil diubah"
-        });
-        
-        // Clear password form
-        setPasswordData({
-          newPassword: '',
-          confirmPassword: ''
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Gagal mengubah password');
-      }
+      toast({
+        title: "Berhasil!",
+        description: "Password berhasil diubah"
+      });
+      
+      // Clear password form
+      setPasswordData({
+        newPassword: '',
+        confirmPassword: ''
+      });
     } catch (error) {
       console.error('Error changing password:', error);
       toast({

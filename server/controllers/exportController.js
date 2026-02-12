@@ -2095,7 +2095,8 @@ export const downloadFile = async (req, res) => {
 export const exportLaporanKehadiranSiswa = async (req, res) => {
     try {
         const { kelas_id, startDate, endDate } = req.query;
-        const guruId = req.user.guru_id;
+        const guruId = req.user.guru_id; // undefined for admin
+        const isAdmin = req.user.role === 'admin';
 
         if (!kelas_id) return sendValidationError(res, 'Kelas ID wajib diisi');
         if (!startDate || !endDate) return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
@@ -2109,16 +2110,33 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
 
         if (diffDays > 62) return sendValidationError(res, 'Rentang tanggal maksimal 62 hari');
 
-        // Get mapel info
-        const [mapelInfo] = await db.execute(`
-            SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
-            FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
-        `, [guruId]);
+        // Get class name for admin view
+        const [kelasInfo] = await db.execute(`
+            SELECT nama_kelas FROM kelas WHERE id_kelas = ? LIMIT 1
+        `, [kelas_id]);
+
+        // Get mapel info (only for guru)
+        let mapelInfo = [];
+        if (!isAdmin && guruId) {
+            [mapelInfo] = await db.execute(`
+                SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
+                FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
+            `, [guruId]);
+        }
 
         // Get scheduled dates
-        const [jadwalData] = await db.execute(`
-            SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
-        `, [guruId, kelas_id]);
+        let jadwalData = [];
+        if (isAdmin) {
+            // Admin: get ALL jadwal for this class
+            [jadwalData] = await db.execute(`
+                SELECT DISTINCT j.hari FROM jadwal j WHERE j.kelas_id = ? AND j.status = 'aktif'
+            `, [kelas_id]);
+        } else {
+            // Guru: get only their jadwal
+            [jadwalData] = await db.execute(`
+                SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
+            `, [guruId, kelas_id]);
+        }
 
         // Helper to get scheduled dates based on jadwal days
         const getScheduledDates = (start, end, jadwalDays) => {
@@ -2144,13 +2162,25 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const pertemuanDates = getScheduledDates(start, end, jadwalData);
 
         // Get actual attendance dates
-        const [actualDates] = await db.execute(`
-            SELECT DISTINCT DATE(a.tanggal) as tanggal
-            FROM absensi_siswa a
-            WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
-            AND DATE(a.tanggal) BETWEEN ? AND ?
-            ORDER BY DATE(a.tanggal)
-        `, [guruId, kelas_id, startDate, endDate]);
+        let actualDates = [];
+        if (isAdmin) {
+            [actualDates] = await db.execute(`
+                SELECT DISTINCT DATE(a.tanggal) as tanggal
+                FROM absensi_siswa a
+                INNER JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+                WHERE j.kelas_id = ? AND j.status = 'aktif'
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+                ORDER BY DATE(a.tanggal)
+            `, [kelas_id, startDate, endDate]);
+        } else {
+            [actualDates] = await db.execute(`
+                SELECT DISTINCT DATE(a.tanggal) as tanggal
+                FROM absensi_siswa a
+                WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+                ORDER BY DATE(a.tanggal)
+            `, [guruId, kelas_id, startDate, endDate]);
+        }
 
         const allDates = new Set(pertemuanDates);
         actualDates.forEach(r => {
@@ -2164,35 +2194,70 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const finalDates = Array.from(allDates).sort();
 
         // Get student summary stats
-        const [siswaData] = await db.execute(`
-            SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
-                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
-                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
-                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
-                COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
-                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
-                CASE 
-                    WHEN ? = 0 THEN '0%'
-                    ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
-                END AS persentase_kehadiran
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND DATE(a.tanggal) BETWEEN ? AND ?
-                AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
-            WHERE s.kelas_id = ? AND s.status = 'aktif'
-            GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
-            ORDER BY s.nama
-        `, [finalDates.length, finalDates.length, startDate, endDate, guruId, kelas_id, kelas_id]);
+        let siswaData = [];
+        if (isAdmin) {
+            [siswaData] = await db.execute(`
+                SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+                    COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+                    COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+                    COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+                    COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+                    COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+                    CASE 
+                        WHEN ? = 0 THEN '0%'
+                        ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+                    END AS persentase_kehadiran
+                FROM siswa s
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND DATE(a.tanggal) BETWEEN ? AND ?
+                LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+                WHERE s.kelas_id = ? AND s.status = 'aktif'
+                GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+                ORDER BY s.nama
+            `, [finalDates.length, finalDates.length, startDate, endDate, kelas_id]);
+        } else {
+            [siswaData] = await db.execute(`
+                SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+                    COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+                    COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+                    COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+                    COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+                    COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+                    CASE 
+                        WHEN ? = 0 THEN '0%'
+                        ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+                    END AS persentase_kehadiran
+                FROM siswa s
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND DATE(a.tanggal) BETWEEN ? AND ?
+                    AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+                WHERE s.kelas_id = ? AND s.status = 'aktif'
+                GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+                ORDER BY s.nama
+            `, [finalDates.length, finalDates.length, startDate, endDate, guruId, kelas_id, kelas_id]);
+        }
 
         // Get detailed daily attendance
-        const [detailKehadiran] = await db.execute(`
-            SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
-            FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND DATE(a.tanggal) BETWEEN ? AND ?
-                AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
-            WHERE s.kelas_id = ? AND s.status = 'aktif'
-        `, [startDate, endDate, guruId, kelas_id, kelas_id]);
+        let detailKehadiran = [];
+        if (isAdmin) {
+            [detailKehadiran] = await db.execute(`
+                SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+                FROM siswa s
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND DATE(a.tanggal) BETWEEN ? AND ?
+                LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+                WHERE s.kelas_id = ? AND s.status = 'aktif'
+            `, [startDate, endDate, kelas_id]);
+        } else {
+            [detailKehadiran] = await db.execute(`
+                SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+                FROM siswa s
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND DATE(a.tanggal) BETWEEN ? AND ?
+                    AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+                WHERE s.kelas_id = ? AND s.status = 'aktif'
+            `, [startDate, endDate, guruId, kelas_id, kelas_id]);
+        }
 
         const attendanceMap = {};
         detailKehadiran.forEach(r => {
@@ -2208,10 +2273,16 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
-        const subtitleParts = [];
-        if (mapelInfo[0]?.nama_mapel) subtitleParts.push(`Mata Pelajaran: ${mapelInfo[0].nama_mapel}`);
-        if (mapelInfo[0]?.nama_guru) subtitleParts.push(`Guru: ${mapelInfo[0].nama_guru}`);
-        const subtitle = subtitleParts.join(' | ');
+        // Build subtitle based on role
+        let subtitle = '';
+        if (isAdmin) {
+            subtitle = `Kelas: ${kelasInfo[0]?.nama_kelas || 'Unknown'}`;
+        } else {
+            const subtitleParts = [];
+            if (mapelInfo[0]?.nama_mapel) subtitleParts.push(`Mata Pelajaran: ${mapelInfo[0].nama_mapel}`);
+            if (mapelInfo[0]?.nama_guru) subtitleParts.push(`Guru: ${mapelInfo[0].nama_guru}`);
+            subtitle = subtitleParts.join(' | ');
+        }
 
         const dateColumns = finalDates.map((dateStr) => {
             const [y, m, d] = dateStr.split('-').map(Number);

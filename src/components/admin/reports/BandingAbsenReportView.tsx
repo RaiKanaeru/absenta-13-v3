@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  FileText, CheckCircle, XCircle, AlertTriangle, Search, Filter, Calendar, ArrowLeft, Download, Loader2 
+  FileText, CheckCircle, XCircle, AlertTriangle, Search, Filter, Calendar, ArrowLeft, Download, Loader2, FileSpreadsheet 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { formatDateWIB, getCurrentDateWIB } from "@/lib/time-utils";
 import { createSessionExpiredHandler, generatePageNumbers } from '../utils/dashboardUtils';
+import { downloadExcelFromApi, downloadPdf } from '@/utils/exportUtils';
 
 interface BandingAbsenReportViewProps {
   onBack: () => void;
@@ -50,7 +51,8 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [exporting, setExporting] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   
   // Filter state
   const [statusFilter, setStatusFilter] = useState('all');
@@ -122,7 +124,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
     setIsReviewOpen(true);
   };
 
-  const handleExport = () => {
+  const handleExportExcel = async () => {
     try {
       if (!filteredData || filteredData.length === 0) {
         toast({
@@ -131,47 +133,62 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
         });
         return;
       }
-      setExporting(true);
+      setExportingExcel(true);
 
-      const exportData = filteredData.map((item, index) => ({
-        'No': index + 1,
-        'Nama Siswa': item.nama_siswa,
-        'Kelas': item.kelas,
-        'Tanggal Absen': formatDateWIB(item.tanggal || item.tanggal_absen),
-        'Alasan Banding': item.keterangan,
-        'Status': item.status,
-        'Tanggal Pengajuan': formatDateWIB(item.created_at)
-      }));
-
-      const BOM = '\uFEFF';
-      const headers = Object.keys(exportData[0]).join(',');
-      const rows = exportData.map(row => 
-        Object.values(row).map(value => 
-          typeof value === 'string' && value.includes(',') ? `"${value}"` : value
-        ).join(',')
+      await downloadExcelFromApi(
+        '/api/export/banding-absen',
+        `laporan_banding_absen_${getCurrentDateWIB()}.xlsx`,
+        {},
+        createSessionExpiredHandler(onLogout, toast as unknown as (opts: unknown) => void)
       );
-      
-      const csvContent = BOM + headers + '\n' + rows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.href = url;
-      link.download = `laporan_banding_absen_${getCurrentDateWIB()}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+
       toast({
         title: "Berhasil",
-        description: "File CSV berhasil diunduh"
+        description: "File Excel berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export error:', error);
+      console.error('Export Excel error:', error);
       toast({
         title: "Error",
-        description: "Gagal mengekspor data",
+        description: error instanceof Error ? error.message : "Gagal mengekspor data",
         variant: "destructive"
       });
     } finally {
-      setExporting(false);
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      if (!filteredData || filteredData.length === 0) {
+        toast({
+          title: "Info",
+          description: "Tidak ada data untuk diekspor."
+        });
+        return;
+      }
+      setExportingPdf(true);
+
+      await downloadPdf(
+        '/api/export/pdf/banding-absen',
+        `laporan_banding_absen_${getCurrentDateWIB()}.pdf`,
+        {},
+        createSessionExpiredHandler(onLogout, toast as unknown as (opts: unknown) => void)
+      );
+
+      toast({
+        title: "Berhasil",
+        description: "File PDF berhasil diunduh"
+      });
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Gagal mengekspor PDF",
+        variant: "destructive"
+      });
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -211,19 +228,34 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           </Button>
           <h2 className="text-2xl font-bold text-foreground">Laporan Banding Absen</h2>
         </div>
-        <Button onClick={handleExport} variant="outline" disabled={exporting}>
-          {exporting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Mengekspor...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportExcel} variant="outline" disabled={exportingExcel}>
+            {exportingExcel ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Mengekspor...
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export Excel
+              </>
+            )}
+          </Button>
+          <Button onClick={handleExportPdf} variant="outline" disabled={exportingPdf}>
+            {exportingPdf ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Mengekspor...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <Card>

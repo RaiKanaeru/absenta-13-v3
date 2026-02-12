@@ -7,6 +7,51 @@ import ExcelJS from 'exceljs';
 import { getLetterhead } from '../utils/letterheadService.js';
 
 /**
+ * Write a single data row with column mapping
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {number} rowIdx - Current row index
+ * @param {Array} columns - Column definitions
+ * @param {Object} mappedRow - Data object for row
+ */
+function writeDataRow(worksheet, rowIdx, columns, mappedRow) {
+    const row = worksheet.getRow(rowIdx);
+    columns.forEach((col, colIdx) => {
+        row.getCell(colIdx + 1).value = mappedRow[col.key];
+    });
+    row.commit();
+}
+
+/**
+ * Stream data to worksheet (async or sync)
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {AsyncIterable|Array} dataIterator - Data source
+ * @param {Array} columns - Column definitions
+ * @param {Function} rowMapper - Optional row mapper function
+ * @returns {Promise<number>} Final row index
+ */
+async function streamDataRows(worksheet, dataIterator, columns, rowMapper) {
+    let currentRowIdx = 6;
+    const isAsyncIterable = (typeof dataIterator[Symbol.asyncIterator] === 'function');
+    const isIterable = (typeof dataIterator[Symbol.iterator] === 'function');
+
+    if (isAsyncIterable) {
+        for await (const item of dataIterator) {
+            const mappedRow = rowMapper ? rowMapper(item, currentRowIdx - 6) : item;
+            writeDataRow(worksheet, currentRowIdx, columns, mappedRow);
+            currentRowIdx++;
+        }
+    } else if (Array.isArray(dataIterator) || isIterable) {
+        for (const item of dataIterator) {
+            const mappedRow = rowMapper ? rowMapper(item, currentRowIdx - 6) : item;
+            writeDataRow(worksheet, currentRowIdx, columns, mappedRow);
+            currentRowIdx++;
+        }
+    }
+    
+    return currentRowIdx;
+}
+
+/**
  * Stream Excel response directly to client
  * @param {Object} res - Express response object
  * @param {Object} options - Configuration options
@@ -49,19 +94,11 @@ export async function streamExcel(res, options) {
         width: col.width || 15
     }));
 
-    // --- 2. Write Headers & Letterhead (Complex merging not fully supported in stream without commit management) ---
-    // For streaming simplicity, we simplify the header. 
-    // Ideally, we should write rows manually to handle merges before committing.
-    
-    // Hack: We can't easily do complex merged letterheads in simple streaming without careful row management.
-    // So we will stick to a simpler header or handle it row by row.
-    
-    // Let's implement row-by-row writing for headers to support basic merging
-    
+    // --- 2. Write Headers & Letterhead ---
     // Row 1: Title
     const titleRow = worksheet.getRow(1);
     titleRow.getCell(1).value = title;
-    titleRow.commit(); // Commit immediately
+    titleRow.commit();
 
     // Row 2: Subtitle
     if (subtitle) {
@@ -96,41 +133,8 @@ export async function streamExcel(res, options) {
     headerRow.commit();
 
     // --- 3. Stream Data ---
-    let currentRowIdx = 6;
-    
-    // Check if dataIterator is array or iterable
-    const isAsyncIterable = (typeof dataIterator[Symbol.asyncIterator] === 'function');
-    const isIterable = (typeof dataIterator[Symbol.iterator] === 'function');
-
-    if (isAsyncIterable) {
-        for await (const item of dataIterator) {
-            const mappedRow = rowMapper ? rowMapper(item, currentRowIdx - 6) : item;
-            const row = worksheet.getRow(currentRowIdx);
-            
-            columns.forEach((col, colIdx) => {
-                row.getCell(colIdx + 1).value = mappedRow[col.key];
-            });
-            
-            row.commit(); // Commit row to free memory
-            currentRowIdx++;
-        }
-    } else if (Array.isArray(dataIterator) || isIterable) {
-        // Normal array processing but still row-by-row commit
-        for (const item of dataIterator) {
-            const mappedRow = rowMapper ? rowMapper(item, currentRowIdx - 6) : item;
-            const row = worksheet.getRow(currentRowIdx);
-            
-            columns.forEach((col, colIdx) => {
-                row.getCell(colIdx + 1).value = mappedRow[col.key];
-            });
-            
-            row.commit();
-            currentRowIdx++;
-        }
-    }
+    await streamDataRows(worksheet, dataIterator, columns, rowMapper);
 
     // --- 4. Finalize ---
     await workbook.commit();
-    // Note: res.end() is handled by workbook.commit() closing the stream usually, but sometimes needed.
-    // In ExcelJS stream, commit ends the stream.
 }

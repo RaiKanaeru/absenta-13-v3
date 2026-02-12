@@ -196,36 +196,12 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     
     if (diffDays < 15) {
-        let businessDays = 0;
-        const startMs = start.getTime();
-        const endMs = end.getTime();
-        const ONE_DAY_MS = 86400000;
-        for (let ts = startMs; ts <= endMs; ts += ONE_DAY_MS) {
-            const d = new Date(ts);
-            const day = d.getDay();
-            if (day !== 0 && day !== 6) businessDays++; // Exclude Sun (0) and Sat (6)
-        }
-        logger.debug('Short range - using business days calculation', { 
-            startDate, 
-            endDate, 
-            businessDays 
-        });
-        return businessDays || 1; // Prevent zero division
+        return calculateBusinessDaysInRange(start, end);
     }
 
     // For longer ranges, use kalender_akademik
-    let hariEfektifMap;
-    if (tahunPelajaran) {
-        hariEfektifMap = await getEffectiveDaysMapFromDB(tahunPelajaran);
-    } else {
-        // Derive tahun pelajaran from date range
-        const startYear = start.getFullYear();
-        const startMonth = start.getMonth() + 1;
-        const derivedTahunPelajaran = startMonth >= 7 
-            ? `${startYear}/${startYear + 1}` 
-            : `${startYear - 1}/${startYear}`;
-        hariEfektifMap = await getEffectiveDaysMapFromDB(derivedTahunPelajaran);
-    }
+    const academicYear = tahunPelajaran || deriveAcademicYear(start);
+    const hariEfektifMap = await getEffectiveDaysMapFromDB(academicYear);
 
     let totalDays = 0;
     const MAX_ITERATIONS = 60; // Max 5 years
@@ -248,18 +224,7 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
         const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
         const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
         
-        if (monthStart >= start && monthEnd <= end) {
-            // Full month - use map value
-            totalDays += hariEfektifMap[monthIndex] || DEFAULT_HARI_EFEKTIF_MAP[monthIndex] || 20;
-        } else {
-            // Partial month - calculate proportionally
-            const daysInMonth = monthEnd.getDate();
-            const effectiveStart = monthStart < start ? start.getDate() : 1;
-            const effectiveEnd = monthEnd > end ? end.getDate() : daysInMonth;
-            const proportion = (effectiveEnd - effectiveStart + 1) / daysInMonth;
-            const monthEffectiveDays = hariEfektifMap[monthIndex] || DEFAULT_HARI_EFEKTIF_MAP[monthIndex] || 20;
-            totalDays += Math.round(monthEffectiveDays * proportion);
-        }
+        totalDays += calculateMonthEffectiveDays(monthStart, monthEnd, start, end, hariEfektifMap);
     }
 
     if (iterationCount >= MAX_ITERATIONS) {
@@ -324,42 +289,70 @@ export const calculateAttendancePercentage = (hadirCount, totalEffectiveDays, op
 };
 
 /**
- * Calculate absence percentage with validation
- * @param {number} absenceCount - Number of days absent (S + I + A)
- * @param {number} totalEffectiveDays - Total effective days
- * @param {Object} [options] - Options for logging
- * @returns {{ketidakhadiran: number, kehadiran: number, capped: boolean}}
+ * Calculate business days in a short date range (< 15 days)
+ * @param {Date} start - Start date
+ * @param {Date} end - End date
+ * @returns {number} Number of business days
  */
-export const calculateAbsencePercentage = (absenceCount, totalEffectiveDays, options = {}) => {
-    const { context = '' } = options;
+const calculateBusinessDaysInRange = (start, end) => {
+    let businessDays = 0;
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const ONE_DAY_MS = 86400000;
     
-    if (totalEffectiveDays <= 0) {
-        logger.warn('Total effective days is zero or negative', {
-            totalEffectiveDays,
-            context
-        });
-        return { ketidakhadiran: 0, kehadiran: 100, capped: false };
+    for (let ts = startMs; ts <= endMs; ts += ONE_DAY_MS) {
+        const d = new Date(ts);
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) businessDays++; // Exclude Sun (0) and Sat (6)
     }
-
-    const persenKetidakhadiran = (absenceCount / totalEffectiveDays) * 100;
-    const persenKehadiran = 100 - persenKetidakhadiran;
     
-    let capped = false;
-    if (persenKetidakhadiran > 100 || persenKehadiran < 0) {
-        logger.warn('Absence calculation anomaly detected', {
-            absenceCount,
-            totalEffectiveDays,
-            persenKetidakhadiran: persenKetidakhadiran.toFixed(2),
-            context
-        });
-        capped = true;
-    }
+    logger.debug('Short range - using business days calculation', { 
+        startDate: start.toISOString().split('T')[0], 
+        endDate: end.toISOString().split('T')[0], 
+        businessDays 
+    });
+    
+    return businessDays || 1; // Prevent zero division
+};
 
-    return {
-        ketidakhadiran: Number(Math.min(persenKetidakhadiran, 100).toFixed(2)),
-        kehadiran: Number(Math.max(persenKehadiran, 0).toFixed(2)),
-        capped
-    };
+/**
+ * Derive academic year from date range
+ * @param {Date} start - Start date
+ * @returns {string} Academic year (e.g., "2024/2025")
+ */
+const deriveAcademicYear = (start) => {
+    const startYear = start.getFullYear();
+    const startMonth = start.getMonth() + 1;
+    return startMonth >= 7 
+        ? `${startYear}/${startYear + 1}` 
+        : `${startYear - 1}/${startYear}`;
+};
+
+/**
+ * Calculate effective days for a single month
+ * @param {Date} monthStart - Start of month
+ * @param {Date} monthEnd - End of month
+ * @param {Date} rangeStart - Range start date
+ * @param {Date} rangeEnd - Range end date
+ * @param {Object} hariEfektifMap - Effective days map
+ * @returns {number} Effective days for this month
+ */
+const calculateMonthEffectiveDays = (monthStart, monthEnd, rangeStart, rangeEnd, hariEfektifMap) => {
+    const monthIndex = monthStart.getMonth() + 1; // 1-12
+    
+    // Full month within range
+    if (monthStart >= rangeStart && monthEnd <= rangeEnd) {
+        return hariEfektifMap[monthIndex] || DEFAULT_HARI_EFEKTIF_MAP[monthIndex] || 20;
+    }
+    
+    // Partial month - calculate proportionally
+    const daysInMonth = monthEnd.getDate();
+    const effectiveStart = monthStart < rangeStart ? rangeStart.getDate() : 1;
+    const effectiveEnd = monthEnd > rangeEnd ? rangeEnd.getDate() : daysInMonth;
+    const proportion = (effectiveEnd - effectiveStart + 1) / daysInMonth;
+    const monthEffectiveDays = hariEfektifMap[monthIndex] || DEFAULT_HARI_EFEKTIF_MAP[monthIndex] || 20;
+    
+    return Math.round(monthEffectiveDays * proportion);
 };
 
 /**

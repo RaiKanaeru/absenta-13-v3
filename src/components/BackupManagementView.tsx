@@ -19,7 +19,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar, Download, Archive, Trash2, RefreshCw, CheckCircle, Clock, Database, FileSpreadsheet, Settings, Play, Pause, RotateCcw, Info, Zap } from 'lucide-react';
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
-import { getApiUrl } from '@/config/api';
 import { useToast } from '../hooks/use-toast';
 
 interface BackupInfo {
@@ -182,12 +181,12 @@ function buildBackupConfig(
 ): { endpoint: string; payload: object } {
     if (backupType === 'semester') {
         return {
-            endpoint: getApiUrl('/api/admin/create-semester-backup'),
+            endpoint: '/api/admin/create-semester-backup',
             payload: { semester: selectedSemester, year: selectedYear }
         };
     }
     return {
-        endpoint: getApiUrl('/api/admin/create-date-backup'),
+        endpoint: '/api/admin/create-date-backup',
         payload: { startDate: selectedDate, endDate: selectedEndDate || selectedDate }
     };
 }
@@ -466,14 +465,13 @@ const BackupManagementView: React.FC = () => {
                 backupType, selectedSemester, selectedYear, selectedDate, selectedEndDate
             );
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error('Failed to create backup');
+            const result = await apiCall<{ data?: { backupId?: string } }>(
+                endpoint,
+                {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                }
+            );
 
             // Progress simulation using extracted calculator
             const progressInterval = setInterval(() => {
@@ -484,8 +482,6 @@ const BackupManagementView: React.FC = () => {
                 });
             }, 1500);
 
-            const result = await response.json() as { data?: { backupId?: string } };
-            
             setTimeout(() => {
                 setBackupProgress(DEFAULT_BACKUP_PROGRESS);
                 setShowCreateDialog(false);
@@ -503,29 +499,23 @@ const BackupManagementView: React.FC = () => {
 
     const downloadBackup = async (backupId: string) => {
         try {
-            const response = await fetch(getApiUrl(`/api/admin/download-backup/${backupId}`), {
-                credentials: 'include'
+            const blob = await apiCall<Blob>(`/api/admin/download-backup/${backupId}`, {
+                responseType: 'blob'
             });
             
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = globalThis.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${backupId}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                globalThis.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                toast({
-                    title: "Berhasil",
-                    description: "Backup berhasil diunduh",
-                });
-            } else {
-                const errorData = await response.json() as { message: string };
-                throw new Error(errorData.message || 'Failed to download backup');
-            }
+            const url = globalThis.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${backupId}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            globalThis.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            toast({
+                title: "Berhasil",
+                description: "Backup berhasil diunduh",
+            });
         } catch (error) {
             console.error('Error downloading backup:', error);
             toast({

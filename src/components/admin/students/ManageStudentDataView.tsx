@@ -81,46 +81,49 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
     fetchClasses();
   }, [fetchStudentsData, fetchClasses]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // === VALIDASI CLIENT-SIDE (konsisten dengan Tambah Akun Siswa) ===
+  // Helper: Validate form data
+  const validateStudentForm = (data: typeof formData): string | null => {
     // Required fields
-    if (!formData.nis || !formData.nama) {
-      toast({ title: "Error", description: "NIS dan Nama wajib diisi!", variant: "destructive" });
-      return;
+    if (!data.nis || !data.nama) {
+      return "NIS dan Nama wajib diisi!";
     }
 
     // NIS format: 8-20 digit angka
-    if (!/^\d{8,20}$/.test(formData.nis)) {
-      toast({ title: "Error", description: "NIS harus berupa angka 8-20 digit!", variant: "destructive" });
-      return;
+    if (!/^\d{8,20}$/.test(data.nis)) {
+      return "NIS harus berupa angka 8-20 digit!";
     }
 
     // Email format (jika diisi)
-    if (formData.email && formData.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      toast({ title: "Error", description: "Format email tidak valid!", variant: "destructive" });
-      return;
+    if (data.email && data.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      return "Format email tidak valid!";
     }
 
     // Telepon siswa format (jika diisi)
-    if (formData.nomor_telepon_siswa && formData.nomor_telepon_siswa.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.nomor_telepon_siswa.trim())) {
-      toast({ title: "Error", description: "Nomor telepon siswa harus berupa angka, maksimal 20 karakter!", variant: "destructive" });
-      return;
+    if (data.nomor_telepon_siswa && data.nomor_telepon_siswa.trim() !== '' && !/^[\d+]{1,20}$/.test(data.nomor_telepon_siswa.trim())) {
+      return "Nomor telepon siswa harus berupa angka, maksimal 20 karakter!";
     }
 
     // Telepon orangtua format (jika diisi)
-    if (formData.telepon_orangtua && formData.telepon_orangtua.trim() !== '' && !/^[\d+]{1,20}$/.test(formData.telepon_orangtua.trim())) {
-      toast({ title: "Error", description: "Nomor telepon orangtua harus berupa angka, maksimal 20 karakter!", variant: "destructive" });
-      return;
+    if (data.telepon_orangtua && data.telepon_orangtua.trim() !== '' && !/^[\d+]{1,20}$/.test(data.telepon_orangtua.trim())) {
+      return "Nomor telepon orangtua harus berupa angka, maksimal 20 karakter!";
     }
 
     // Username format (jika diisi - untuk perwakilan kelas)
-    if (formData.username && formData.username.trim() !== '' && !/^[a-zA-Z0-9._-]{4,32}$/.test(formData.username)) {
-      toast({ title: "Error", description: "Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip!", variant: "destructive" });
+    if (data.username && data.username.trim() !== '' && !/^[a-zA-Z0-9._-]{4,32}$/.test(data.username)) {
+      return "Username harus 4-32 karakter, hanya huruf, angka, titik, underscore, dan strip!";
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const validationError = validateStudentForm(formData);
+    if (validationError) {
+      toast({ title: "Error", description: validationError, variant: "destructive" });
       return;
     }
-    // === END VALIDASI ===
 
     setIsLoading(true);
 

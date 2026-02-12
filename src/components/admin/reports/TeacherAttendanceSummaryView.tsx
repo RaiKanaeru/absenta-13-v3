@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  FileText, Search, Download, ArrowLeft, AlertCircle, Loader2 
+  FileText, Search, Download, ArrowLeft, AlertCircle, Loader2, FileSpreadsheet 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { getCurrentDateWIB } from "@/lib/time-utils";
 import { createSessionExpiredHandler, generatePageNumbers } from '../utils/dashboardUtils';
 import { ReportDataRow } from '@/types/dashboard';
+import { downloadExcelFromApi, downloadPdf } from '@/utils/exportUtils';
 
 interface TeacherAttendanceSummaryViewProps {
   onBack: () => void;
@@ -25,11 +26,33 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
     const [tahun, setTahun] = useState(new Date().getFullYear());
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
-    const [exporting, setExporting] = useState(false);
+    const [exportingExcel, setExportingExcel] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
 
     // Tambah state untuk sorting dan filtering
     const [searchValues, setSearchValues] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+    // Helper: Calculate date range based on periode
+    const calculateDateRange = (periode: string, bulan: number, tahun: number) => {
+        let startDate: string;
+        let endDate: string;
+        
+        if (periode === 'bulanan') {
+            const start = new Date(tahun, bulan - 1, 1);
+            const end = new Date(tahun, bulan, 0);
+            startDate = start.toISOString().split('T')[0];
+            endDate = end.toISOString().split('T')[0];
+        } else if (periode === 'semester') {
+            const isSemester1 = bulan >= 7;
+            startDate = isSemester1 ? `${tahun}-07-01` : `${tahun}-01-01`;
+            endDate = isSemester1 ? `${tahun}-12-31` : `${tahun}-06-30`;
+        } else {
+            startDate = `${tahun}-01-01`;
+            endDate = `${tahun}-12-31`;
+        }
+        return { startDate, endDate };
+    };
 
     useEffect(() => {
         fetchReportData();
@@ -39,31 +62,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
     const fetchReportData = async () => {
         setLoading(true);
         try {
-            // Calculate startDate and endDate from periode/bulan/tahun
-            let startDate: string;
-            let endDate: string;
-            
-            if (periode === 'bulanan') {
-                // Start of month to end of month
-                const start = new Date(tahun, bulan - 1, 1);
-                const end = new Date(tahun, bulan, 0); // Last day of month
-                startDate = start.toISOString().split('T')[0];
-                endDate = end.toISOString().split('T')[0];
-            } else if (periode === 'semester') {
-                // Semester 1: Juli - Desember, Semester 2: Januari - Juni
-                const isSemester1 = bulan >= 7; // If bulan >= 7, it's semester 1
-                if (isSemester1) {
-                    startDate = `${tahun}-07-01`;
-                    endDate = `${tahun}-12-31`;
-                } else {
-                    startDate = `${tahun}-01-01`;
-                    endDate = `${tahun}-06-30`;
-                }
-            } else {
-                // Tahunan: full year
-                startDate = `${tahun}-01-01`;
-                endDate = `${tahun}-12-31`;
-            }
+            const { startDate, endDate } = calculateDateRange(periode, bulan, tahun);
             
             const data = await apiCall<ReportDataRow[]>(`/api/admin/teacher-summary?startDate=${startDate}&endDate=${endDate}`, {
                  onLogout: createSessionExpiredHandler(onLogout, toast as unknown as (opts: unknown) => void)
@@ -121,7 +120,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
         setCurrentPage(page);
     };
 
-    const handleExportReport = () => {
+    const handleExportExcel = async () => {
         if (!reportData.length) {
             toast({
                 title: "Info",
@@ -131,43 +130,65 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
         }
 
         try {
-            setExporting(true);
-            // Prepare CSV content
-            const headers = ['No', 'Nama', 'NIP', 'Hadir', 'Izin', 'Sakit', 'Tidak Hadir', 'Persentase'];
-            const rows = filteredData.map((item, index) => [
-                index + 1,
-                `"${item.nama}"`,
-                `"${item.nip}"`,
-                item.hadir,
-                item.izin,
-                item.sakit,
-                item.alpa, // Menggunakan field 'alpa' untuk Tidak Hadir sesuai mapel
-                `"${item.presentase}"`
-            ]);
+            setExportingExcel(true);
+            const { startDate, endDate } = calculateDateRange(periode, bulan, tahun);
 
-            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `rekap_absensi_guru_${periode}_${getCurrentDateWIB()}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            await downloadExcelFromApi(
+                '/api/export/teacher-summary',
+                `rekap_absensi_guru_${periode}_${getCurrentDateWIB()}.xlsx`,
+                { startDate, endDate },
+                createSessionExpiredHandler(onLogout, toast as unknown as (opts: unknown) => void)
+            );
+
             toast({
                 title: "Berhasil",
-                description: "File CSV berhasil diunduh"
+                description: "File Excel berhasil diunduh"
             });
         } catch (err) {
             console.error('Export error:', err);
             toast({
                 title: "Error",
-                description: "Gagal mengekspor laporan",
+                description: err instanceof Error ? err.message : "Gagal mengekspor laporan",
                 variant: 'destructive'
             });
         } finally {
-            setExporting(false);
+            setExportingExcel(false);
+        }
+    };
+
+    const handleExportPdf = async () => {
+        if (!reportData.length) {
+            toast({
+                title: "Info",
+                description: "Tidak ada data untuk diekspor",
+            });
+            return;
+        }
+
+        try {
+            setExportingPdf(true);
+            const { startDate, endDate } = calculateDateRange(periode, bulan, tahun);
+
+            await downloadPdf(
+                '/api/export/pdf/teacher-summary',
+                `rekap_absensi_guru_${periode}_${getCurrentDateWIB()}.pdf`,
+                { startDate, endDate },
+                createSessionExpiredHandler(onLogout, toast as unknown as (opts: unknown) => void)
+            );
+
+            toast({
+                title: "Berhasil",
+                description: "File PDF berhasil diunduh"
+            });
+        } catch (err) {
+            console.error('Export PDF error:', err);
+            toast({
+                title: "Error",
+                description: err instanceof Error ? err.message : "Gagal mengekspor PDF",
+                variant: 'destructive'
+            });
+        } finally {
+            setExportingPdf(false);
         }
     };
 
@@ -181,19 +202,34 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                     </Button>
                     <h2 className="text-2xl font-bold text-foreground">Rekapitulasi Absensi Guru</h2>
                 </div>
-                <Button onClick={handleExportReport} variant="outline" disabled={!reportData.length || exporting}>
-                    {exporting ? (
-                        <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Mengekspor...
-                        </>
-                    ) : (
-                        <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Export CSV
-                        </>
-                    )}
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={handleExportExcel} variant="outline" disabled={!reportData.length || exportingExcel}>
+                        {exportingExcel ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Mengekspor...
+                            </>
+                        ) : (
+                            <>
+                                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                Export Excel
+                            </>
+                        )}
+                    </Button>
+                    <Button onClick={handleExportPdf} variant="outline" disabled={!reportData.length || exportingPdf}>
+                        {exportingPdf ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Mengekspor...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="w-4 h-4 mr-2" />
+                                Export PDF
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             <Card>

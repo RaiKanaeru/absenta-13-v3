@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getApiUrl } from '@/config/api';
-import { getAuthToken, getAuthHeaders } from '@/utils/authUtils';
+import { apiCall } from '@/utils/apiClient';
 
 export interface LetterheadConfig {
   enabled: boolean;
@@ -63,25 +62,12 @@ export function useLetterhead(reportKey?: string) {
       setLoading(true);
       setError(null);
 
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('Token tidak ditemukan');
-      }
-
       // Gunakan endpoint baru yang mendukung reportKey
-      const url = reportKey 
-        ? getApiUrl(`/api/admin/letterhead?reportKey=${encodeURIComponent(reportKey)}`)
-        : getApiUrl('/api/admin/letterhead');
+      const endpoint = reportKey 
+        ? `/api/admin/letterhead?reportKey=${encodeURIComponent(reportKey)}`
+        : '/api/admin/letterhead';
         
-      const response = await fetch(url, {
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await apiCall<{ success: boolean; data: LetterheadConfig; error?: string }>(endpoint);
       
       if (data.success && data.data) {
         const config = data.data as LetterheadConfig;
