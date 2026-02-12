@@ -151,26 +151,21 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         setIsLoading(true);
         
         const [schedulesData, teachersData, subjectsData, classesData, roomsData] = await Promise.all([
-          apiCall('/api/admin/jadwal', { onLogout }).catch(err => {
-            console.error('Error fetching schedules:', getErrorMessage(err));
+          apiCall('/api/admin/jadwal', { onLogout }).catch(() => {
             return [];
           }),
           apiCall('/api/admin/guru', { onLogout }).then(response => {
             return response;
-          }).catch(err => {
-            console.error('Error fetching teachers:', getErrorMessage(err));
+          }).catch(() => {
             return [];
           }),
-          apiCall('/api/admin/mapel', { onLogout }).catch(err => {
-            console.error('Error fetching subjects:', getErrorMessage(err));
+          apiCall('/api/admin/mapel', { onLogout }).catch(() => {
             return [];
           }),
-          apiCall('/api/admin/classes', { onLogout }).catch(err => {
-            console.error('Error fetching classes:', getErrorMessage(err));
+          apiCall('/api/admin/classes', { onLogout }).catch(() => {
             return [];
           }),
-          apiCall('/api/admin/ruang', { onLogout }).catch(err => {
-            console.error('Error fetching rooms:', getErrorMessage(err));
+          apiCall('/api/admin/ruang', { onLogout }).catch(() => {
             return [];
           })
         ]);
@@ -181,14 +176,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         setClasses(Array.isArray(classesData) ? classesData : []);
         setRooms(Array.isArray(roomsData) ? roomsData : []);
         
-      } catch (error) {
-        console.error('Error loading data:', getErrorMessage(error));
-        toast({
-          title: "Error",
-          description: "Gagal memuat data. Silakan refresh halaman.",
-          variant: "destructive"
-        });
-      } finally {
+       } catch (error) {
+         toast({
+           title: "Error",
+           description: "Gagal memuat data. Silakan refresh halaman.",
+           variant: "destructive"
+         });
+       } finally {
         setIsLoading(false);
       }
     };
@@ -200,15 +194,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     try {
       const data = await JadwalService.getJadwal('admin');
       setSchedules(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error refreshing schedules:', getErrorMessage(error));
-      try {
-        const data = await apiCall('/api/admin/jadwal', { onLogout });
-        setSchedules(Array.isArray(data) ? data : []);
-      } catch (fallbackError) {
-        console.error('Fallback error:', getErrorMessage(fallbackError));
-      }
-    }
+     } catch (error) {
+       try {
+         const data = await apiCall('/api/admin/jadwal', { onLogout });
+         setSchedules(Array.isArray(data) ? data : []);
+       } catch (fallbackError) {
+       }
+     }
   };
 
   const generateTimeSlots = (startTime: string, endTime: string, startJamKe: number, hours: number) => {

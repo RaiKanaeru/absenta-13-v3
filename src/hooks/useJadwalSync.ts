@@ -43,11 +43,10 @@ export const useJadwalSync = (role: string, siswaId?: number, tanggal?: string) 
         data = await JadwalService.getJadwal(role);
         setJadwal(Array.isArray(data) ? data : []);
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message || 'Gagal memuat jadwal');
-      console.error('Error refreshing jadwal:', err);
-    } finally {
+     } catch (err: unknown) {
+       const message = err instanceof Error ? err.message : String(err);
+       setError(message || 'Gagal memuat jadwal');
+     } finally {
       setIsLoading(false);
     }
   }, [role, siswaId, tanggal]);

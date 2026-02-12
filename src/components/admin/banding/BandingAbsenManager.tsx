@@ -54,7 +54,6 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
       const data = await apiCall(url, { onLogout });
       setRequests(data as BandingRequest[]);
     } catch (error: unknown) {
-      console.error('Failed to fetch banding requests:', error);
       toast({
         title: "Gagal memuat data",
         description: getErrorMessage(error) || "Terjadi kesalahan",
@@ -105,7 +104,6 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
         description: "File Excel berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export error:', error);
       toast({
         title: "Gagal Export",
         description: getErrorMessage(error) || "Gagal mengunduh file Excel",
@@ -143,7 +141,6 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
         description: "File PDF berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export PDF error:', error);
       toast({
         title: "Gagal Export PDF",
         description: getErrorMessage(error) || "Gagal mengunduh file PDF",

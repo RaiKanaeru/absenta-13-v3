@@ -115,7 +115,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
       setPertemuanDates(res.pertemuan_dates || []);
       setPeriode(res.periode || null);
     } catch (err) {
-      console.error('Error fetching report data:', err);
+      toast({ variant: "destructive", title: "Gagal memuat data laporan", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError(err instanceof Error ? err.message : 'Gagal memuat data laporan');
     } finally {
       setLoading(false);
@@ -165,7 +165,6 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading excel:', err);
       const message = 'Gagal mengunduh file Excel';
       setError(message);
       toast({
@@ -201,7 +200,6 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
         description: "File PDF berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading PDF:', err);
       toast({
         title: "Error",
         description: "Gagal mengunduh file PDF",

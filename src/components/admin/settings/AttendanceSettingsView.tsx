@@ -49,7 +49,6 @@ export const AttendanceSettingsView: React.FC<Readonly<AttendanceSettingsViewPro
         alpha_voids_day: data.alpha_voids_day?.value === 'true'
       });
     } catch (error) {
-      console.error('Failed to fetch settings:', error);
       toast({
         title: "Gagal memuat pengaturan",
         description: getErrorMessage(error) || "Terjadi kesalahan saat mengambil data",
@@ -87,7 +86,6 @@ export const AttendanceSettingsView: React.FC<Readonly<AttendanceSettingsViewPro
         variant: "default" // Success green usually default or specific success variant depending on theme
       });
     } catch (error) {
-      console.error('Failed to save settings:', error);
       toast({
         title: "Gagal menyimpang",
         description: getErrorMessage(error),

@@ -113,7 +113,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Failed to load letterhead config:', response.status, errorData);
         toast({
           title: "Error",
           description: errorData.error || `Gagal memuat konfigurasi kop laporan (${response.status})`,
@@ -121,7 +120,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         });
       }
     } catch (error) {
-      console.error('Error loading letterhead config:', error);
       toast({
         title: "Error",
         description: "Terjadi kesalahan saat memuat konfigurasi",
@@ -213,7 +211,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         throw new Error(errorData.error || 'Gagal menyimpan konfigurasi');
       }
     } catch (error) {
-      console.error('Error saving letterhead config:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan",
@@ -285,7 +282,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
           try {
             await deleteOldLogoFile(currentUrl);
           } catch (deleteError) {
-            console.warn('Could not delete old file:', deleteError);
+            // Old file deletion failed, continue with upload
             // Continue with upload even if old file deletion fails
           }
         }
@@ -301,7 +298,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         };
       }
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      // Upload error — returned to caller
       return {
         success: false,
         error: 'Terjadi kesalahan saat upload file'
@@ -325,10 +322,10 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
       if (response.ok) {
         // File deleted successfully
       } else {
-        console.warn('Could not delete old file');
+        // Old file deletion failed, non-critical
       }
     } catch (error) {
-      console.warn('Error deleting old file:', error);
+      // Old file deletion error, non-critical
     }
   };
 
@@ -380,7 +377,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         throw new Error(errorData.error || 'Gagal menghapus logo');
       }
     } catch (error) {
-      console.error('Error deleting logo:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Terjadi kesalahan saat menghapus logo",

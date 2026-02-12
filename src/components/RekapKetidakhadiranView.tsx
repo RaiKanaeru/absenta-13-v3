@@ -58,10 +58,9 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       const data = await apiCall('/api/kelas');
 
       setClasses(data);
-    } catch (error) {
-      console.error('Error fetching classes:', error);
-      setError(error instanceof Error ? error.message : 'Gagal memuat data kelas');
-    }
+     } catch (error) {
+       setError(error instanceof Error ? error.message : 'Gagal memuat data kelas');
+     }
   }, []);
 
   // Fetch students by class
@@ -74,10 +73,9 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       const data = await apiCall(`/api/admin/students-by-class/${kelasId}`);
 
       setStudents(data);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      setError(error instanceof Error ? error.message : 'Gagal memuat data siswa');
-    } finally {
+     } catch (error) {
+       setError(error instanceof Error ? error.message : 'Gagal memuat data siswa');
+     } finally {
       setLoading(false);
     }
   }, []);
@@ -111,11 +109,10 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
 
       const data = await apiCall(`/api/admin/rekap-ketidakhadiran?${params}`);
 
-      setPresensiData(data);
-    } catch (error) {
-      console.error('Error fetching presensi data:', error);
-      setError(error instanceof Error ? error.message : 'Gagal memuat data presensi');
-    } finally {
+       setPresensiData(data);
+     } catch (error) {
+       setError(error instanceof Error ? error.message : 'Gagal memuat data presensi');
+     } finally {
       setLoading(false);
     }
   }, []);
@@ -229,15 +226,14 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
         title: "Berhasil",
         description: "Data berhasil diekspor ke Excel",
       });
-    } catch (error) {
-      console.error('Export error:', error);
-      const message = getErrorMessage(error) || "Gagal mengekspor data ke Excel";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
+     } catch (error) {
+       const message = getErrorMessage(error) || "Gagal mengekspor data ke Excel";
+       toast({
+         title: "Error",
+         description: message,
+         variant: "destructive",
+       });
+     } finally {
       setLoading(false);
     }
   };
@@ -283,15 +279,14 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
         title: "Berhasil",
         description: "Data berhasil diekspor ke PDF",
       });
-    } catch (error) {
-      console.error('Export PDF error:', error);
-      const message = getErrorMessage(error) || "Gagal mengekspor data ke PDF";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
+     } catch (error) {
+       const message = getErrorMessage(error) || "Gagal mengekspor data ke PDF";
+       toast({
+         title: "Error",
+         description: message,
+         variant: "destructive",
+       });
+     } finally {
       setLoading(false);
     }
   };

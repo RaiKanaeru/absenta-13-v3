@@ -70,7 +70,7 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
       const res = await apiCall(`/api/guru/banding-absen-history?${params.toString()}`);
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.error('Error fetching banding absen history:', err);
+      toast({ variant: "destructive", title: "Gagal memuat riwayat banding", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError(getErrorMessage(err) || 'Gagal memuat data riwayat banding absen');
     } finally {
       setLoading(false);
@@ -114,7 +114,6 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading Excel:', err);
       const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
       setError(message);
       toast({

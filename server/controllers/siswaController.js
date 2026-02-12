@@ -197,7 +197,7 @@ async function processValidationResults(promises, checks) {
         }
     } catch (validationError) {
         // Log validation error but return user-friendly message
-        console.error('Validation query error:', validationError.message);
+        logger.error('Validation query error', validationError, { context: 'validateSiswaPayload' });
         errors.push('Gagal memvalidasi data');
     }
     

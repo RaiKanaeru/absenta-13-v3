@@ -98,7 +98,6 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
 
         setHistoryData(grouped);
       } catch (error) {
-        console.error('Error fetching history:', error);
         toast({ 
           title: "Error", 
           description: "Gagal memuat riwayat absensi", 

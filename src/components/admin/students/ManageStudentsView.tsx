@@ -111,7 +111,6 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       if (error instanceof Error && error.name === 'AbortError') {
         return;
       }
-      console.error('Error fetching students:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
     } finally {
@@ -129,7 +128,6 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       const data = await apiCall<Kelas[]>('/api/admin/classes', { onLogout });
       setClasses(data);
     } catch (error: unknown) {
-      console.error('Error fetching classes:', error);
       // Don't show error toast for classes as it's not critical
     }
   }, [onLogout]);
@@ -182,8 +180,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
 
    // Helper: Handle submit errors with detailed extraction
    const handleSubmitError = (error: unknown) => {
-     console.error('Error submitting student:', error);
-     const errorDetails = typeof error === 'object' && error !== null && 'details' in error
+      const errorDetails = typeof error === 'object' && error !== null && 'details' in error
        ? (error as { details?: unknown }).details
        : undefined;
      if (errorDetails) {
@@ -283,7 +280,6 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       toast({ title: `Data siswa ${nama} (NIS: ${nis}) berhasil dihapus` });
       fetchStudents();
     } catch (error: unknown) {
-      console.error('Error deleting student:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
     }

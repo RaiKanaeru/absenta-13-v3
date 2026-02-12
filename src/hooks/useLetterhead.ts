@@ -81,15 +81,14 @@ export function useLetterhead(reportKey?: string) {
       } else {
         throw new Error(data.error || 'Gagal memuat konfigurasi kop laporan');
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat memuat konfigurasi';
-      setError(errorMessage);
-      console.error('Error fetching letterhead:', err);
-      
-      // Fallback ke default jika gagal
-      setLetterhead(DEFAULT_LETTERHEAD);
-      return DEFAULT_LETTERHEAD;
-    } finally {
+     } catch (err) {
+       const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat memuat konfigurasi';
+       setError(errorMessage);
+       
+       // Fallback ke default jika gagal
+       setLetterhead(DEFAULT_LETTERHEAD);
+       return DEFAULT_LETTERHEAD;
+     } finally {
       setLoading(false);
     }
   }, [reportKey]);

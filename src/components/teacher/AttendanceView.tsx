@@ -64,7 +64,6 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       setAttendance(initialAttendance);
       setNotes(initialNotes);
     } catch (error) {
-      console.error('Error fetching students by date:', error);
       toast({ 
         title: "Error", 
         description: "Gagal memuat data siswa untuk tanggal tersebut", 
@@ -93,7 +92,6 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         setAttendance(initialAttendance);
         setNotes(initialNotes);
       } catch (error) {
-        console.error('Error fetching students:', error);
         const errMsg = getErrorMessage(error);
         let errorMessage = "Gagal memuat daftar siswa";
         
@@ -208,7 +206,6 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       
       globalThis.location.reload();
     } catch (error) {
-      console.error('Error submitting attendance:', error);
       toast({ 
         title: "Error", 
         description: (error as Error).message, 

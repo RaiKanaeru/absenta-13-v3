@@ -7,6 +7,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import ErrorBoundary from "./ErrorBoundary";
 import { apiCall } from '@/utils/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from "@/hooks/use-toast";
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationBell } from '@/components/NotificationBell';
 import {
@@ -135,7 +136,11 @@ export const AdminDashboard = () => {
           });
         }
       } catch (error) {
-        console.error("Failed to load admin profile:", error);
+        toast({
+          variant: "destructive",
+          title: "Gagal memuat profil admin",
+          description: error instanceof Error ? error.message : "Terjadi kesalahan",
+        });
         // Fallback to AuthContext user data
         if (user) {
           setUserData({

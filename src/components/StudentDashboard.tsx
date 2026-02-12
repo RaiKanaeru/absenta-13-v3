@@ -226,7 +226,8 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
           }
         }
       } catch (error) {
-        console.error('Error fetching siswa info:', error);
+        // Silent fail - siswa info is supplementary
+        void error;
       }
     };
 
@@ -319,7 +320,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setAdaTugasData(initialAdaTugas);
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat jadwal hari ini.');
-      console.error('Error loading jadwal hari ini:', message);
       toast({
         title: "Error memuat jadwal",
         description: message,
@@ -430,7 +430,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setAdaTugasData(initialAdaTugas);
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat jadwal berdasarkan tanggal.');
-      console.error('Error loading jadwal banding by date:', message);
       toast({
         title: "Error memuat jadwal",
         description: message,
@@ -461,7 +460,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setRiwayatData(data);
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat riwayat kehadiran.');
-      console.error('Error loading riwayat:', message);
       toast({
         title: "Error memuat riwayat",
         description: message,
@@ -506,7 +504,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setBandingAbsen(data);
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat data banding absen.');
-      console.error('Error loading banding absen:', message);
       toast({
         title: "Error memuat banding",
         description: message,
@@ -536,7 +533,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setDaftarSiswa(data);
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat data siswa.');
-      console.error('Error loading daftar siswa:', message);
       toast({
         title: "Error memuat data siswa",
         description: message,
@@ -579,7 +575,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setFormBanding(prev => ({ ...prev, siswa_banding: newSiswaBanding }));
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat status kehadiran siswa.');
-      console.error('Error loading siswa status by id:', message);
       toast({
         title: "Error memuat status",
         description: message,
@@ -693,7 +688,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       loadJadwalHariIni();
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal menyimpan kehadiran guru.');
-      console.error('Error submitting kehadiran:', message);
       toast({
         title: "Gagal menyimpan",
         description: message,
@@ -767,7 +761,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       }
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal memuat daftar siswa.');
-      console.error('Error loading students for piket attendance:', message);
       toast({
         title: "Error",
         description: message,
@@ -819,7 +812,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       setAbsenSiswaData({});
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal menyimpan absensi siswa.');
-      console.error('Error submitting piket attendance:', message);
       toast({
         title: "Error",
         description: message,
@@ -923,7 +915,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal menyimpan status kehadiran.');
-      console.error('Error updating status:', message);
       
       // Rollback ke state sebelumnya
       setKehadiranData(prev => ({
@@ -1053,7 +1044,6 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
       loadBandingAbsen();
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal mengirim pengajuan banding absen.');
-      console.error('Error submitting banding absen:', message);
       toast({
         title: "Gagal mengirim",
         description: message,

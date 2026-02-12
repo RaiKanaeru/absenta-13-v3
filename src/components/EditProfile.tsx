@@ -302,7 +302,6 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
       
       onClose();
     } catch (error) {
-      console.error('Error updating profile:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : 'Terjadi kesalahan saat memperbarui profil',
@@ -343,7 +342,6 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
         confirmPassword: ''
       });
     } catch (error) {
-      console.error('Error changing password:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : 'Terjadi kesalahan saat mengubah password',

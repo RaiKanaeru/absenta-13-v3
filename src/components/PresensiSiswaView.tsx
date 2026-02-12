@@ -43,7 +43,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
 
       setClasses(data);
     } catch (error) {
-      console.error('Error fetching classes:', error);
+      toast({ variant: "destructive", title: "Gagal memuat kelas", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
       setError(error instanceof Error ? error.message : 'Gagal memuat data kelas');
     }
   }, []);
@@ -59,7 +59,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
 
       setStudents(data);
     } catch (error) {
-      console.error('Error fetching students:', error);
+      toast({ variant: "destructive", title: "Gagal memuat siswa", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
       setError(error instanceof Error ? error.message : 'Gagal memuat data siswa');
     } finally {
       setLoading(false);
@@ -83,7 +83,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
 
       setPresensiData(data);
     } catch (error) {
-      console.error('Error fetching presensi data:', error);
+      toast({ variant: "destructive", title: "Gagal memuat presensi", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
       setError(error instanceof Error ? error.message : 'Gagal memuat data presensi');
     } finally {
       setLoading(false);
@@ -201,7 +201,6 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
         description: "Data presensi berhasil diekspor ke Excel",
       });
     } catch (error) {
-      console.error('Export error:', error);
       const message = getErrorMessage(error) || "Gagal mengekspor data presensi ke Excel";
       toast({
         title: "Error",
@@ -242,7 +241,6 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
         description: "Data presensi berhasil diekspor ke PDF",
       });
     } catch (error) {
-      console.error('Export PDF error:', error);
       const message = getErrorMessage(error) || "Gagal mengekspor data presensi ke PDF";
       toast({
         title: "Error",

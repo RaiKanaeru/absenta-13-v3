@@ -24,7 +24,8 @@ dotenv.config();
 /** Secret key untuk signing JWT token - WAJIB diset via environment variable */
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    console.error('FATAL: JWT_SECRET environment variable is not set');
+    // Logger not yet initialized at this point, use process.stderr directly
+    process.stderr.write('FATAL: JWT_SECRET environment variable is not set\n');
     process.exit(1);
 }
 const logger = createLogger('Auth');

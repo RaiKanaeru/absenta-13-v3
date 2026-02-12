@@ -55,11 +55,9 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
         // Legacy format: direct array
         setStudentsData(response);
       } else {
-        console.warn('Unexpected response format from /api/admin/students-data:', response);
         setStudentsData([]);
       }
     } catch (error: unknown) {
-      console.error('Error fetching students data:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
     }
@@ -70,7 +68,6 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       const data = await apiCall<Kelas[]>('/api/admin/kelas', { onLogout });
       setClasses(data);
     } catch (error: unknown) {
-      console.error('Error fetching classes:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data kelas", description: message, variant: "destructive" });
     }
@@ -155,7 +152,6 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       setEditingId(null);
       fetchStudentsData();
     } catch (error: unknown) {
-      console.error('Error submitting student data:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error", description: message, variant: "destructive" });
     }
@@ -194,7 +190,6 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       toast({ title: `Data siswa ${nama} berhasil dihapus` });
       fetchStudentsData();
     } catch (error: unknown) {
-      console.error('Error deleting student data:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
     }

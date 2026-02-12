@@ -33,7 +33,6 @@ export const ManageClassesView = ({
       const data = await apiCall("/api/admin/kelas", { onLogout });
       setClasses(data as Kelas[]);
     } catch (error) {
-      console.error("Error fetching classes:", error instanceof Error ? error.message : String(error));
       toast({
         title: "Error memuat kelas",
         description: error instanceof Error ? error.message : String(error),
@@ -80,7 +79,6 @@ export const ManageClassesView = ({
       setEditingId(null);
       fetchClasses();
     } catch (error) {
-      console.error("Error submitting class:", error);
       toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
     }
 
@@ -104,10 +102,9 @@ export const ManageClassesView = ({
 
       toast({ title: `Kelas ${nama} berhasil dihapus` });
       fetchClasses();
-    } catch (error) {
-      console.error("Error deleting class:", error);
-      toast({ title: "Error menghapus kelas", description: getErrorMessage(error), variant: "destructive" });
-    }
+     } catch (error) {
+       toast({ title: "Error menghapus kelas", description: getErrorMessage(error), variant: "destructive" });
+     }
   };
 
   const filteredClasses = classes.filter((kelas) => {

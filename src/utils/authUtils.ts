@@ -8,12 +8,11 @@
  * Handles mobile browsers where localStorage may be unavailable
  */
 export const getAuthToken = (): string | null => {
-  try {
-    return localStorage.getItem('token') || sessionStorage.getItem('token');
-  } catch (error) {
-    console.error('Error accessing storage:', error);
-    return null;
-  }
+   try {
+     return localStorage.getItem('token') || sessionStorage.getItem('token');
+   } catch (error) {
+     return null;
+   }
 };
 
 /**
@@ -55,30 +54,29 @@ export const hasAuthToken = (): boolean => {
  * @param token - The token to store
  */
 export const setAuthToken = (token: string): void => {
-  try {
-    localStorage.setItem('token', token);
-  } catch (error) {
-    console.error('localStorage failed, trying sessionStorage:', error);
-    try {
-      sessionStorage.setItem('token', token);
-    } catch (sessionError) {
-      console.error('Both localStorage and sessionStorage failed:', sessionError);
-    }
-  }
+   try {
+     localStorage.setItem('token', token);
+   } catch (error) {
+     try {
+       sessionStorage.setItem('token', token);
+     } catch (sessionError) {
+       // Both storage methods failed silently
+     }
+   }
 };
 
 /**
  * Clear authentication token from all storage
  */
 export const clearAuthToken = (): void => {
-  try {
-    localStorage.removeItem('token');
-    localStorage.removeItem('authToken');
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('authToken');
-  } catch (error) {
-    console.error('Error clearing tokens:', error);
-  }
+   try {
+     localStorage.removeItem('token');
+     localStorage.removeItem('authToken');
+     sessionStorage.removeItem('token');
+     sessionStorage.removeItem('authToken');
+   } catch (error) {
+     // Storage clear failed silently
+   }
 };
 
 export default {

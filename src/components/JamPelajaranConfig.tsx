@@ -63,7 +63,7 @@ const JamPelajaranConfig: React.FC = () => {
                 setSelectedKelasId(data[0].id_kelas);
             }
         } catch (error) {
-            console.error('Error fetching kelas:', error);
+            toast({ variant: "destructive", title: "Gagal memuat kelas", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
         }
     }, [selectedKelasId]);
 
@@ -91,7 +91,7 @@ const JamPelajaranConfig: React.FC = () => {
                 await loadDefaultJam();
             }
         } catch (error) {
-            console.error('Error fetching jam pelajaran:', error);
+            toast({ variant: "destructive", title: "Gagal memuat jam pelajaran", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
             await loadDefaultJam();
         } finally {
             setLoading(false);
@@ -116,7 +116,7 @@ const JamPelajaranConfig: React.FC = () => {
                 setJamPelajaran(result.data);
             }
         } catch (error) {
-            console.error('Error loading default jam:', error);
+            toast({ variant: "destructive", title: "Gagal memuat jam default", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
         }
     };
 

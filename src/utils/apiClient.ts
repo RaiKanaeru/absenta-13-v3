@@ -178,11 +178,9 @@ export const apiCall = async <T = unknown>(endpoint: string, options: ApiCallOpt
             const apiError = createApiErrorFromResponse(response, responseData);
 
             if (response.status === 401 && onLogout) {
-                console.warn('Session expired, triggering logout...');
                 setTimeout(() => onLogout(), 1500);
             }
 
-            console.error('API Error:', { endpoint, status: response.status, message: apiError.message });
             throw apiError;
 
         } catch (error) {
@@ -190,7 +188,6 @@ export const apiCall = async <T = unknown>(endpoint: string, options: ApiCallOpt
             if (error instanceof ApiError) throw error;
             
             if (attempt < retries) {
-                console.warn(`Retry ${attempt + 1}/${retries} for ${endpoint} after ${retryDelay}ms`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }

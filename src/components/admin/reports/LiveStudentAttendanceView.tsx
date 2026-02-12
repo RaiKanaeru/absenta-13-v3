@@ -384,7 +384,6 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
         description: "File CSV berhasil diunduh"
       });
     } catch (error: unknown) {
-      console.error('❌ Error exporting live student attendance:', error);
       const message = error instanceof Error ? error.message : String(error);
         toast({
           title: "Error",

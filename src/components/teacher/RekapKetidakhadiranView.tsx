@@ -82,7 +82,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       const res = await apiCall(`/api/guru/rekap-ketidakhadiran?${params.toString()}`);
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.error('Error fetching rekap ketidakhadiran:', err);
+      toast({ variant: "destructive", title: "Gagal memuat data rekap", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError(err instanceof Error ? err.message : 'Gagal memuat data rekap ketidakhadiran');
     } finally {
       setLoading(false);
@@ -117,7 +117,6 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading Excel:', err);
       const message = 'Gagal mengunduh file Excel';
       setError(message);
       toast({

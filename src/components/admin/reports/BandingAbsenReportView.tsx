@@ -75,7 +75,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
       });
       setBandingData(data);
     } catch (error: unknown) {
-      console.error('Error fetching banding data:', error);
+      toast({ variant: "destructive", title: "Gagal memuat data banding", description: error instanceof Error ? (error as Error).message : "Terjadi kesalahan" });
       const message = error instanceof Error ? error.message : String(error);
       setError('Gagal memuat data banding: ' + message);
     } finally {
@@ -147,7 +147,6 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
         description: "File Excel berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export Excel error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Gagal mengekspor data",
@@ -181,7 +180,6 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
         description: "File PDF berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export PDF error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Gagal mengekspor PDF",

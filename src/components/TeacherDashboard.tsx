@@ -278,7 +278,6 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
         }
       } catch (error) {
         const message = getErrorMessage(error);
-        console.error('Failed to load latest profile data:', message);
         toast({
           title: "Gagal memuat profil",
           description: message,
@@ -354,7 +353,6 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
       setSchedules(schedulesWithStatus);
     } catch (error) {
       const message = getErrorMessage(error);
-      console.error('Error fetching schedules:', message);
       toast({ title: 'Error memuat jadwal', description: message, variant: 'destructive' });
       setSchedules([]);
     } finally {

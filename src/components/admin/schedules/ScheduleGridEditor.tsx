@@ -169,8 +169,7 @@ export function ScheduleGridEditor({
 
       setMatrixData(response.data || null);
       setPendingChanges([]);
-    } catch (error) {
-      console.error('Error fetching matrix:', error);
+    } catch {
       toast({ title: "Error", description: "Gagal memuat data jadwal", variant: "destructive" });
     } finally {
       setIsLoading(false);

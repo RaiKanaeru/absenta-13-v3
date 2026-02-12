@@ -48,7 +48,6 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
         setTeachersData([]);
       }
     } catch (error: unknown) {
-      console.error('Error fetching teachers data:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
     }
@@ -59,7 +58,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
       const data = await apiCall<Subject[]>('/api/admin/mapel', { onLogout });
       setSubjects(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
-      console.error('Error fetching subjects:', error);
+      // Don't show error toast for subjects as it's not critical
     }
   }, [onLogout]);
 
@@ -114,7 +113,6 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
       setEditingId(null);
       fetchTeachersData();
     } catch (error: unknown) {
-      console.error('Error submitting teacher data:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error", description: message, variant: "destructive" });
     }
@@ -149,7 +147,6 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
       toast({ title: `Data guru ${nama} berhasil dihapus` });
       fetchTeachersData();
     } catch (error: unknown) {
-      console.error('Error deleting teacher data:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error menghapus data guru", description: message, variant: "destructive" });
     }

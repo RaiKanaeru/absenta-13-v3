@@ -57,7 +57,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       const res = await apiCall(`/api/guru/presensi-siswa-smkn13?${params.toString()}`);
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.error('Error fetching presensi siswa SMKN 13:', err);
+      toast({ variant: "destructive", title: "Gagal memuat data presensi", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError(getErrorMessage(err) || 'Gagal memuat data presensi siswa');
     } finally {
       setLoading(false);
@@ -98,7 +98,6 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading Excel:', err);
       const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
       setError(message);
       toast({

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { getApiUrl } from '@/config/api';
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { toast } from '@/hooks/use-toast';
 import { Checkbox } from './ui/checkbox';
 
 interface SimpleRestoreViewProps {
@@ -112,7 +113,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
         setAvailableBackups(result.data);
       }
     } catch (err) {
-      console.error('Failed to load backups', err);
+      toast({ variant: "destructive", title: "Gagal memuat backup", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
     } finally {
       setLoadingBackups(false);
     }
@@ -259,7 +260,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
         loadAvailableBackups();
       }
     } catch (err) {
-      console.error('Error deleting backups:', err);
+      toast({ variant: "destructive", title: "Gagal menghapus backup", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError('Terjadi kesalahan saat menghapus backup');
     } finally {
       setBatchActionLoading(false);
@@ -294,7 +295,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
         setError(result.error || result.message || 'Gagal memulihkan backup');
       }
     } catch (err) {
-      console.error('Error restoring backup:', err);
+      toast({ variant: "destructive", title: "Gagal memulihkan backup", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setRestoreStatus('error');
       setError('Terjadi kesalahan saat memulihkan backup');
     } finally {

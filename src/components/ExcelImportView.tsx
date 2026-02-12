@@ -120,7 +120,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         description: "Template berhasil didownload"
       });
     } catch (error) {
-      console.error('Download template error:', error);
       toast({
         title: "Error",
         description: getErrorMessage(error) || "Gagal download template",
@@ -155,7 +154,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         description: `Ditemukan ${result.valid} baris valid dan ${result.invalid} baris invalid`
       });
     } catch (error) {
-      console.error('Error validating file:', error);
       toast({
         title: "Error",
         description: "Gagal memvalidasi file",
@@ -185,7 +183,6 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         description: `Berhasil memproses ${result.processed || result.inserted_or_updated || result.inserted} baris data`
       });
     } catch (error) {
-      console.error('Error importing file:', error);
       toast({
         title: "Error",
         description: "Gagal mengimpor file",

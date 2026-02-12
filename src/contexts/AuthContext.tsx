@@ -82,7 +82,6 @@ const fetchProfileByRole = async (role: string): Promise<Record<string, unknown>
     const data = (await response.json()) as Record<string, unknown>;
     return data.success ? data : null;
   } catch (error) {
-    console.error("Fetch profile error:", error);
     return null;
   }
 };
@@ -205,7 +204,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error(extractErrorMessage(result));
       }
     } catch (error) {
-      console.error("Login error:", error);
       const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan saat login";
       setError(errorMessage);
 
@@ -235,7 +233,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "Anda telah keluar dari sistem",
       });
     } catch (error) {
-      console.error("Logout error (forced logout):", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal logout",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan saat logout",
+      });
       clearAuthToken();
       setUser(null);
       setError(null);

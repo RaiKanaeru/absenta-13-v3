@@ -20,7 +20,6 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
       const data = await apiCall('/api/admin/live-summary', { onLogout });
       setLiveData(data as LiveData);
     } catch (error) {
-      console.error('Error fetching live data:', error);
       // Only show toast on first error to avoid spam during polling
       toast({
         title: "Gagal memuat data live",

@@ -67,7 +67,6 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
           setBandingList(Array.isArray(response) ? response : []);
         }
       } catch (error) {
-        console.error('Error fetching banding absen:', error);
         toast({ 
           title: "Error", 
           description: "Gagal memuat data banding absen", 
@@ -123,7 +122,6 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
         setTotalAll(response.totalAll || 0);
       }
     } catch (error) {
-      console.error('Error responding to banding absen:', error);
       toast({ 
         title: "Error", 
         description: (error as Error).message, 

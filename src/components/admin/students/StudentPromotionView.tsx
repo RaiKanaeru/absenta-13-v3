@@ -156,7 +156,6 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       const data = await apiCall('/api/admin/kelas', { onLogout });
       setClasses(data);
     } catch (error) {
-      console.error('Error fetching classes:', error);
       toast({ title: "Error memuat data kelas", description: getErrorMessage(error), variant: "destructive" });
     }
   }, [onLogout]);
@@ -179,7 +178,6 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
         // Legacy format: direct array
         studentsArray = response;
       } else {
-        console.warn('Unexpected response format from /api/admin/students-data:', response);
         setStudents([]);
         toast({ 
           title: "Error Format Data", 
@@ -199,7 +197,6 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       setStudents(filteredStudents);
       setSelectedStudents(new Set()); // Reset selection
     } catch (error) {
-      console.error('Error fetching students:', error);
       toast({ title: "Error memuat data siswa", description: getErrorMessage(error), variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -433,7 +430,6 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
       await fetchStudents(fromClassId);
       
     } catch (error) {
-      console.error('Error promoting students:', error);
       
       // Error handling yang lebih spesifik
       const errorMessage = getErrorMessage(error);

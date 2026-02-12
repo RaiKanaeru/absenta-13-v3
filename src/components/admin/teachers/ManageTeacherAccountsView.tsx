@@ -113,7 +113,6 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
         return;
       }
       
-      console.error('Error fetching teachers:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
     } finally {
@@ -131,7 +130,6 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       const subjectData = Array.isArray(response) ? response : response.data || [];
       setSubjects(subjectData);
     } catch (error: unknown) {
-      console.error('Error fetching subjects:', error);
       // Don't show error toast for subjects as it's not critical
     }
   }, [onLogout]);
@@ -190,9 +188,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
   };
 
   // Helper: Handle submit errors with detailed extraction
-  const handleSubmitError = (error: unknown) => {
-    console.error('Error submitting teacher:', error);
-    const errorDetails = typeof error === 'object' && error !== null && 'details' in error
+   const handleSubmitError = (error: unknown) => {
+     const errorDetails = typeof error === 'object' && error !== null && 'details' in error
       ? (error as { details?: unknown }).details
       : undefined;
     if (errorDetails) {
@@ -292,7 +289,6 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       toast({ title: `Akun guru ${nama} berhasil dihapus` });
       fetchTeachers();
     } catch (error: unknown) {
-      console.error('Error deleting teacher:', error);
       const message = error instanceof Error ? error.message : String(error);
       toast({ title: "Error menghapus akun guru", description: message, variant: "destructive" });
     }

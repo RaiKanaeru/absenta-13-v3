@@ -64,7 +64,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       const res = await apiCall(`/api/guru/attendance-summary?${params.toString()}`);
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.error('Error fetching report data:', err);
+      toast({ variant: "destructive", title: "Gagal memuat data laporan", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError('Gagal memuat data laporan');
     } finally {
       setLoading(false);
@@ -100,7 +100,6 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
         description: "File Excel berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading excel:', err);
       const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
       setError(message);
       toast({
@@ -144,7 +143,6 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
         description: "File format SMKN 13 berhasil diunduh"
       });
     } catch (err) {
-      console.error('Error downloading SMKN 13 format:', err);
       const message = getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13';
       setError(message);
       toast({

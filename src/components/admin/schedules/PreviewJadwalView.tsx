@@ -67,7 +67,7 @@ const validateExcelBlob = (blob: Blob): void => {
     throw new Error('Server mengembalikan file kosong');
   }
   if (!blob.type.includes('spreadsheetml') && !blob.type.includes('excel')) {
-    console.warn('Unexpected blob type:', blob.type);
+    // Non-critical: unexpected blob type, skip silently
   }
 };
 
@@ -386,7 +386,6 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                     alt="Logo Kiri" 
                     className="h-12 lg:h-16 object-contain"
                     onError={(e) => {
-                      console.warn('Logo kiri gagal dimuat:', letterhead.logoLeftUrl);
                       e.currentTarget.style.display = 'none';
                     }}
                   />
@@ -398,7 +397,6 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                     alt="Logo Kanan" 
                     className="h-12 lg:h-16 object-contain"
                     onError={(e) => {
-                      console.warn('Logo kanan gagal dimuat:', letterhead.logoRightUrl);
                       e.currentTarget.style.display = 'none';
                     }}
                   />

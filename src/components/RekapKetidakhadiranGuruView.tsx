@@ -101,7 +101,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
       setRekapData(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching rekap data:', error);
+      toast({ variant: "destructive", title: "Gagal memuat rekap", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
       setError(error instanceof Error ? error.message : 'Gagal memuat data rekap');
     } finally {
       setLoading(false);
@@ -129,7 +129,6 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         description: "File Excel berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export error:', error);
       const message = getErrorMessage(error) || "Gagal mengunduh file Excel";
       toast({
         title: "Error",
@@ -162,7 +161,6 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         description: "File Excel SMKN 13 berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export error:', error);
       const message = getErrorMessage(error) || "Gagal mengunduh file Excel SMKN 13";
       toast({
         title: "Error",
@@ -186,7 +184,6 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         description: "File PDF berhasil diunduh"
       });
     } catch (error) {
-      console.error('Export PDF error:', error);
       const message = getErrorMessage(error) || "Gagal mengunduh file PDF";
       toast({
         title: "Error",

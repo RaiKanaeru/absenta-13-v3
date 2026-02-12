@@ -37,14 +37,13 @@ export const ManageSubjectsView = ({
     try {
       const data = await apiCall("/api/admin/mapel", { onLogout });
       setSubjects(data as Subject[]);
-    } catch (error) {
-      console.error("Error fetching subjects:", error instanceof Error ? error.message : String(error));
-      toast({
-        title: "Error memuat mata pelajaran",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
-    }
+     } catch (error) {
+       toast({
+         title: "Error memuat mata pelajaran",
+         description: error instanceof Error ? error.message : String(error),
+         variant: "destructive",
+       });
+     }
   }, [onLogout]);
 
   useEffect(() => {
@@ -89,14 +88,13 @@ export const ManageSubjectsView = ({
       });
       setEditingId(null);
       fetchSubjects();
-    } catch (error) {
-      console.error("Error submitting subject:", error instanceof Error ? error.message : String(error));
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
-    }
+     } catch (error) {
+       toast({
+         title: "Error",
+         description: error instanceof Error ? error.message : String(error),
+         variant: "destructive",
+       });
+     }
 
     setIsLoading(false);
   };
@@ -123,14 +121,13 @@ export const ManageSubjectsView = ({
 
       toast({ title: `Mata pelajaran ${nama} berhasil dihapus` });
       fetchSubjects();
-    } catch (error) {
-      console.error("Error deleting subject:", error);
-      toast({
-        title: "Error menghapus mata pelajaran",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    }
+     } catch (error) {
+       toast({
+         title: "Error menghapus mata pelajaran",
+         description: getErrorMessage(error),
+         variant: "destructive",
+       });
+     }
   };
 
   const filteredSubjects = subjects.filter((subject) => {

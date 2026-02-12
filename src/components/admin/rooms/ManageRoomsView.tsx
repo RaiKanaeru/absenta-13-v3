@@ -42,7 +42,6 @@ export const ManageRoomsView = ({
       const response = await apiCall("/api/admin/ruang", { onLogout });
       setRooms(response as Room[]);
     } catch (error) {
-      console.error("Error fetching rooms:", error);
       toast({
         title: "Error memuat data ruang",
         description: getErrorMessage(error),

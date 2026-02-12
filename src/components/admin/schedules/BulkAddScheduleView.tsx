@@ -154,9 +154,8 @@ export function BulkAddScheduleView({
       const conflictList = response.data?.conflicts ?? response.conflicts ?? [];
       setConflicts(conflictList);
       setShowPreview(true);
-    } catch (error) {
+    } catch {
       // If API doesn't exist yet, just show preview without conflict check
-      console.warn('Conflict check API not available, proceeding without check');
       setShowPreview(true);
     } finally {
       setIsLoading(false);
