@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 
 import { toast } from '@/hooks/use-toast';
-import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { apiCall } from '@/utils/apiClient';
 import { 
   Lock, 
   Eye, 

@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { getWIBTime } from "@/lib/time-utils";
 import { JadwalService } from "@/services/jadwalService";
 import { getActivityTypeLabel } from '@/utils/statusMaps';
-import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { apiCall } from '@/utils/apiClient';
 import { Teacher, Subject, Kelas, Schedule, Room } from '@/types/dashboard';
 import {
   Users,

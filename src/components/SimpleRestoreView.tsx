@@ -16,7 +16,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { getApiUrl } from '@/config/api';
-import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { apiCall } from '@/utils/apiClient';
 import { toast } from '@/hooks/use-toast';
 import { Checkbox } from './ui/checkbox';
 
