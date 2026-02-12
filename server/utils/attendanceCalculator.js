@@ -390,6 +390,43 @@ export const clearAttendanceCache = (tahunPelajaran = null) => {
     }
 };
 
+/**
+ * Calculate absence (ketidakhadiran) percentage and attendance (kehadiran) percentage
+ * Returns both metrics for compatibility
+ * @param {number} tidakHadirCount - Total tidak hadir count (sakit + izin + alpa)
+ * @param {number} totalEffectiveDays - Total effective school days
+ * @returns {{ketidakhadiran: number, kehadiran: number, capped: boolean}}
+ */
+export const calculateAbsencePercentage = (tidakHadirCount, totalEffectiveDays) => {
+    if (totalEffectiveDays <= 0) {
+        logger.warn('Total effective days is zero or negative in calculateAbsencePercentage', {
+            totalEffectiveDays
+        });
+        return { ketidakhadiran: 0, kehadiran: 100, capped: false };
+    }
+
+    const rawKetidakhadiran = (tidakHadirCount / totalEffectiveDays) * 100;
+    let capped = false;
+
+    if (rawKetidakhadiran > 100) {
+        logger.warn('Absence percentage exceeds 100% - possible data inconsistency', {
+            tidakHadirCount,
+            totalEffectiveDays,
+            rawKetidakhadiran: rawKetidakhadiran.toFixed(2)
+        });
+        capped = true;
+    }
+
+    const ketidakhadiran = Math.min(rawKetidakhadiran, 100);
+    const kehadiran = Math.max(100 - ketidakhadiran, 0);
+
+    return {
+        ketidakhadiran: Number(ketidakhadiran.toFixed(2)),
+        kehadiran: Number(kehadiran.toFixed(2)),
+        capped
+    };
+};
+
 // Export default map for backward compatibility
 export const DEFAULT_EFFECTIVE_DAYS = { ...DEFAULT_HARI_EFEKTIF_MAP };
 
