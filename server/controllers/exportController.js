@@ -70,10 +70,9 @@ const mapStatusToCode = (status) => {
 /**
  * Build schedule content lines for Excel cell (S2004 - extracted to avoid deep nesting)
  * @param {Object} schedule - Schedule object
- * @param {Function} parseGuruList - Function to parse guru list
  * @returns {string} Formatted schedule content
  */
-const buildScheduleContentLines = (schedule, parseGuruList) => {
+const buildScheduleContentLines = (schedule) => {
     const lines = [
         schedule.nama_guru,
         ...(schedule.nama_mapel ? [schedule.nama_mapel] : []),
@@ -88,6 +87,90 @@ const buildScheduleContentLines = (schedule, parseGuruList) => {
         }
     }
     return lines.join('\n');
+};
+
+/**
+ * Parse serialized guru_list value into guru objects.
+ * @param {string|null|undefined} guruList - Serialized guru list
+ * @returns {Array<{id:number,name:string}>} Parsed guru entries
+ */
+const parseGuruList = (guruList) => {
+    if (!guruList) {
+        return [];
+    }
+
+    return guruList
+        .split('||')
+        .map((item) => {
+            const [id, name] = item.split(':');
+            return { id: Number.parseInt(id, 10), name: name || 'Unknown' };
+        })
+        .filter((guru) => guru.name);
+};
+
+/** @returns {string[]} Sorted unique class names from schedules */
+const getUniqueClassNames = (schedules) => [...new Set(schedules.map((s) => s.nama_kelas))].sort();
+
+/**
+ * Build day schedules for one class and day, sorted by jam_ke.
+ * @param {Array<Object>} schedules - All schedules
+ * @param {string} className - Class name
+ * @param {string} day - Day name
+ * @returns {Array<Object>} Filtered day schedules
+ */
+const getDaySchedulesForClass = (schedules, className, day) => schedules
+    .filter((s) => s.nama_kelas === className && s.hari === day)
+    .sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
+
+/** @returns {string|null} Grid cell color based on schedule activity */
+const getScheduleCellColor = (schedule) => {
+    const activity = (schedule.jenis_aktivitas || '').toLowerCase();
+    const mapelName = (schedule.nama_mapel || '').toLowerCase();
+
+    if (activity === 'upacara' || mapelName.includes('upacara')) {
+        return 'FFFFF00';
+    }
+    if (activity === 'istirahat' || mapelName.includes('istirahat')) {
+        return 'FFFFC0CB';
+    }
+    if (schedule.jenis_aktivitas === 'kbm') {
+        return 'FFFFFFFF';
+    }
+
+    return null;
+};
+
+/**
+ * Fill mapel/ruang/guru cells for a schedule in master grid rows.
+ * @param {Object} mapelRow - ExcelJS row for mapel
+ * @param {Object} ruangRow - ExcelJS row for ruang
+ * @param {Object} guruRow - ExcelJS row for guru
+ * @param {Object} schedule - Schedule row
+ * @param {number} colIdx - Target column index
+ */
+const fillGridScheduleCells = (mapelRow, ruangRow, guruRow, schedule, colIdx) => {
+    const cellColor = getScheduleCellColor(schedule);
+    const fill = cellColor
+        ? { type: 'pattern', pattern: 'solid', fgColor: { argb: cellColor } }
+        : null;
+
+    const mapelCell = mapelRow.getCell(colIdx);
+    mapelCell.value = schedule.nama_mapel;
+    if (fill) {
+        mapelCell.fill = fill;
+    }
+
+    const ruangCell = ruangRow.getCell(colIdx);
+    ruangCell.value = schedule.kode_ruang;
+    if (fill) {
+        ruangCell.fill = fill;
+    }
+
+    const guruCell = guruRow.getCell(colIdx);
+    guruCell.value = schedule.nama_guru;
+    if (fill) {
+        guruCell.fill = fill;
+    }
 };
 
 // ================================================
@@ -147,6 +230,521 @@ const applyCellStyle = (cell, style) => {
 
 /** SQL query to get class name by ID (S1192 duplicate literal) */
 const SQL_GET_KELAS_NAME_BY_ID = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
+
+const ALLOWED_DOWNLOAD_TYPES = new Set(['student-attendance', 'teacher-attendance', 'analytics-report']);
+
+const BULAN_NAMES_LONG = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+/**
+ * Resolve report period from either date range or month/year input.
+ * @param {string|undefined} rawStartDate - Raw start date from query
+ * @param {string|undefined} rawEndDate - Raw end date from query
+ * @param {string|undefined} bulan - Month number from query
+ * @param {string|undefined} tahun - Year from query
+ * @returns {{ startDate: string, endDate: string }|null} Normalized period or null if invalid
+ */
+const resolveRekapKetidakhadiranPeriod = (rawStartDate, rawEndDate, bulan, tahun) => {
+    if (rawStartDate && rawEndDate) {
+        return { startDate: rawStartDate, endDate: rawEndDate };
+    }
+
+    if (!bulan || !tahun) {
+        return null;
+    }
+
+    const startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+    const lastDay = new Date(tahun, bulan, 0);
+    const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+    return { startDate, endDate };
+};
+
+/**
+ * Build SQL and params for ketidakhadiran report.
+ * @param {string} tipe - Report type (guru|siswa)
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @param {string|undefined} kelasId - Optional class id
+ * @returns {{ query: string, params: Array<string> }} Query definition
+ */
+const buildRekapKetidakhadiranQuery = (tipe, startDate, endDate, kelasId) => {
+    if (tipe === 'guru') {
+        return {
+            query: `
+                SELECT 
+                    g.nama,
+                    g.nip,
+                    COUNT(CASE WHEN ag.status = 'Sakit' THEN 1 END) as sakit,
+                    COUNT(CASE WHEN ag.status = 'Izin' THEN 1 END) as izin,
+                    COUNT(CASE WHEN ag.status = 'Tidak Hadir' THEN 1 END) as alpha,
+                    COUNT(CASE WHEN ag.status IN ('Sakit', 'Izin', 'Tidak Hadir') THEN 1 END) as total_tidak_hadir
+                FROM guru g
+                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
+                    AND ag.tanggal BETWEEN ? AND ?
+                GROUP BY g.id_guru, g.nama, g.nip
+                ORDER BY g.nama
+            `,
+            params: [startDate, endDate]
+        };
+    }
+
+    let query = `
+        SELECT 
+            s.nama,
+            s.nis,
+            k.nama_kelas as kelas,
+            COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+            COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+            COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpha,
+            COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as total_tidak_hadir
+        FROM siswa s
+        JOIN kelas k ON s.kelas_id = k.id_kelas
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+            AND a.tanggal BETWEEN ? AND ?
+        WHERE 1=1
+    `;
+    const params = [startDate, endDate];
+
+    if (kelasId) {
+        query += ' AND s.kelas_id = ?';
+        params.push(kelasId);
+    }
+
+    query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
+    return { query, params };
+};
+
+/**
+ * Get column schema for ketidakhadiran export.
+ * @param {string} tipe - Report type
+ * @returns {Array<object>} Excel column definitions
+ */
+const getRekapKetidakhadiranColumns = (tipe) => {
+    if (tipe === 'guru') {
+        return [
+            { key: 'no', label: 'No', width: 5, align: 'center' },
+            { key: 'nama', label: 'Nama', width: 30, align: 'left' },
+            { key: 'nip', label: 'NIP', width: 20, align: 'left' },
+            { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
+            { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
+            { key: 'alpha', label: 'Alpha', width: 8, align: 'center', format: 'number' },
+            { key: 'total_tidak_hadir', label: 'Total Tidak Hadir', width: 18, align: 'center', format: 'number' }
+        ];
+    }
+
+    return [
+        { key: 'no', label: 'No', width: 5, align: 'center' },
+        { key: 'nama', label: 'Nama', width: 30, align: 'left' },
+        { key: 'nis', label: 'NIS', width: 15, align: 'center' },
+        { key: 'kelas', label: 'Kelas', width: 12, align: 'center' },
+        { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
+        { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
+        { key: 'alpha', label: 'Alpha', width: 8, align: 'center', format: 'number' },
+        { key: 'total_tidak_hadir', label: 'Total Tidak Hadir', width: 18, align: 'center', format: 'number' }
+    ];
+};
+
+/**
+ * Build period label for ketidakhadiran export.
+ * @param {string|undefined} bulan - Month number
+ * @param {string|undefined} tahun - Year
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @returns {string} Formatted period text
+ */
+const getRekapKetidakhadiranPeriodLabel = (bulan, tahun, startDate, endDate) => {
+    if (bulan && tahun) {
+        return `${BULAN_NAMES_LONG[Number.parseInt(bulan, 10)]} ${tahun}`;
+    }
+    return `${startDate} - ${endDate}`;
+};
+
+/**
+ * Build export filename for ketidakhadiran report.
+ * @param {string} tipe - Report type
+ * @param {string|undefined} bulan - Month number
+ * @param {string|undefined} tahun - Year
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @returns {string} Filename for response header
+ */
+const buildRekapKetidakhadiranFilename = (tipe, bulan, tahun, startDate, endDate) => {
+    if (bulan && tahun) {
+        return `Rekap_Ketidakhadiran_${tipe}_${BULAN_NAMES_LONG[Number.parseInt(bulan, 10)]}_${tahun}.xlsx`;
+    }
+    return `Rekap_Ketidakhadiran_${tipe}_${startDate}_${endDate}.xlsx`;
+};
+
+/**
+ * Build normalized download filters from request payload.
+ * @param {Object} payload - Request payload
+ * @returns {{ downloadType: string, normalizedFilters: Object }} Normalized request values
+ */
+const buildDownloadRequestContext = (payload) => {
+    const { type, filters, startDate, endDate, kelas_id, mapel_id, guru_id, semester, year } = payload;
+    const downloadType = type || 'student-attendance';
+    const normalizedFilters = {
+        ...(filters && typeof filters === 'object' ? filters : {})
+    };
+
+    if (!filters) {
+        if (startDate) normalizedFilters.tanggal_mulai = startDate;
+        if (endDate) normalizedFilters.tanggal_selesai = endDate;
+        if (kelas_id) normalizedFilters.kelas_id = kelas_id;
+        if (mapel_id) normalizedFilters.mapel_id = mapel_id;
+        if (guru_id) normalizedFilters.guru_id = guru_id;
+        if (semester) normalizedFilters.semester = semester;
+        if (year) normalizedFilters.year = year;
+    }
+
+    return { downloadType, normalizedFilters };
+};
+
+/**
+ * Validate filters required for specific download type.
+ * @param {string} downloadType - Target download type
+ * @param {Object} normalizedFilters - Parsed filters
+ * @returns {string|null} Validation error message or null
+ */
+const validateDownloadFilters = (downloadType, normalizedFilters) => {
+    if (['student-attendance', 'teacher-attendance'].includes(downloadType)) {
+        if (!normalizedFilters.tanggal_mulai || !normalizedFilters.tanggal_selesai) {
+            return 'Tanggal mulai dan akhir wajib diisi';
+        }
+    }
+
+    if (downloadType === 'analytics-report') {
+        if (!normalizedFilters.semester || !normalizedFilters.year) {
+            return 'Semester dan tahun wajib diisi';
+        }
+    }
+
+    return null;
+};
+
+/**
+ * Apply role-based filter restrictions for download requests.
+ * @param {string} downloadType - Target download type
+ * @param {string} userRole - Role from auth context
+ * @param {number|undefined} guruId - Authenticated guru id
+ * @param {Object} normalizedFilters - Parsed filters object
+ */
+const applyRoleBasedDownloadFilters = (downloadType, userRole, guruId, normalizedFilters) => {
+    if (downloadType === 'teacher-attendance' && userRole !== 'admin') {
+        normalizedFilters.guru_id = guruId;
+    }
+};
+
+/**
+ * Parse and validate date range for laporan kehadiran siswa export.
+ * @param {string} startDate - Start date (yyyy-mm-dd)
+ * @param {string} endDate - End date (yyyy-mm-dd)
+ * @returns {{ start: Date, end: Date, diffDays: number }} Parsed date range details
+ */
+const parseLaporanDateRange = (startDate, endDate) => {
+    const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+    const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay);
+    const end = new Date(eYear, eMonth - 1, eDay);
+    const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+    return { start, end, diffDays };
+};
+
+/**
+ * Get mapel and guru information for subtitle in laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @returns {Promise<Array<Object>>} Mapel and guru rows
+ */
+const getLaporanMapelInfo = async (isAdmin, guruId) => {
+    if (isAdmin || !guruId) {
+        return [];
+    }
+
+    const [mapelInfo] = await db.execute(`
+        SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
+        FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
+    `, [guruId]);
+    return mapelInfo;
+};
+
+/**
+ * Get jadwal day rows for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @returns {Promise<Array<Object>>} Jadwal rows containing hari
+ */
+const getLaporanJadwalData = async (isAdmin, guruId, kelasId) => {
+    if (isAdmin) {
+        const [jadwalData] = await db.execute(`
+            SELECT DISTINCT j.hari FROM jadwal j WHERE j.kelas_id = ? AND j.status = 'aktif'
+        `, [kelasId]);
+        return jadwalData;
+    }
+
+    const [jadwalData] = await db.execute(`
+        SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
+    `, [guruId, kelasId]);
+    return jadwalData;
+};
+
+/**
+ * Build scheduled dates between start and end based on jadwal days.
+ * @param {Date} start - Start date object
+ * @param {Date} end - End date object
+ * @param {Array<Object>} jadwalDays - Jadwal rows with hari field
+ * @returns {string[]} Array of yyyy-mm-dd date strings
+ */
+const getScheduledDates = (start, end, jadwalDays) => {
+    const dates = [];
+    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const endTime = end.getTime();
+    let currentTime = start.getTime();
+
+    while (currentTime <= endTime) {
+        const currentDate = new Date(currentTime);
+        const dayName = dayNames[currentDate.getDay()];
+        if (jadwalDays.some((j) => j.hari === dayName)) {
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            dates.push(`${year}-${month}-${day}`);
+        }
+        currentTime += 24 * 60 * 60 * 1000;
+    }
+
+    return dates;
+};
+
+/**
+ * Fetch actual attendance date rows for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @returns {Promise<Array<Object>>} Rows with tanggal values
+ */
+const getActualAttendanceDates = async (isAdmin, guruId, kelasId, startDate, endDate) => {
+    if (isAdmin) {
+        const [actualDates] = await db.execute(`
+            SELECT DISTINCT DATE(a.tanggal) as tanggal
+            FROM absensi_siswa a
+            INNER JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+            WHERE j.kelas_id = ? AND j.status = 'aktif'
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            ORDER BY DATE(a.tanggal)
+        `, [kelasId, startDate, endDate]);
+        return actualDates;
+    }
+
+    const [actualDates] = await db.execute(`
+        SELECT DISTINCT DATE(a.tanggal) as tanggal
+        FROM absensi_siswa a
+        WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+        AND DATE(a.tanggal) BETWEEN ? AND ?
+        ORDER BY DATE(a.tanggal)
+    `, [guruId, kelasId, startDate, endDate]);
+    return actualDates;
+};
+
+/**
+ * Convert MySQL DATE value to yyyy-mm-dd safely.
+ * @param {Date|string} value - Date-like value from DB
+ * @returns {string} Formatted date string
+ */
+const toDateString = (value) => {
+    const d = new Date(value);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Merge scheduled dates with actual attendance dates.
+ * @param {string[]} scheduledDates - Scheduled date strings
+ * @param {Array<Object>} actualDates - Actual rows from DB
+ * @returns {string[]} Sorted unique date strings
+ */
+const buildFinalDates = (scheduledDates, actualDates) => {
+    const allDates = new Set(scheduledDates);
+    actualDates.forEach((row) => {
+        if (row.tanggal) {
+            allDates.add(toDateString(row.tanggal));
+        }
+    });
+    return Array.from(allDates).sort();
+};
+
+/**
+ * Fetch siswa summary rows for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @param {number} totalDates - Count of effective dates
+ * @returns {Promise<Array<Object>>} Summary rows per student
+ */
+const getLaporanSiswaData = async (isAdmin, guruId, kelasId, startDate, endDate, totalDates) => {
+    if (isAdmin) {
+        const [siswaData] = await db.execute(`
+            SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+                COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+                CASE 
+                    WHEN ? = 0 THEN '0%'
+                    ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+                END AS persentase_kehadiran
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+            LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+            GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+            ORDER BY s.nama
+        `, [totalDates, totalDates, startDate, endDate, kelasId]);
+        return siswaData;
+    }
+
+    const [siswaData] = await db.execute(`
+        SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+            COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+            COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+            COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+            COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+            COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+            CASE 
+                WHEN ? = 0 THEN '0%'
+                ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+            END AS persentase_kehadiran
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+        WHERE s.kelas_id = ? AND s.status = 'aktif'
+        GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+        ORDER BY s.nama
+    `, [totalDates, totalDates, startDate, endDate, guruId, kelasId, kelasId]);
+    return siswaData;
+};
+
+/**
+ * Fetch detailed attendance rows per student and date.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @returns {Promise<Array<Object>>} Detail attendance rows
+ */
+const getLaporanDetailKehadiran = async (isAdmin, guruId, kelasId, startDate, endDate) => {
+    if (isAdmin) {
+        const [detailKehadiran] = await db.execute(`
+            SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+            LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+        `, [startDate, endDate, kelasId]);
+        return detailKehadiran;
+    }
+
+    const [detailKehadiran] = await db.execute(`
+        SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+        WHERE s.kelas_id = ? AND s.status = 'aktif'
+    `, [startDate, endDate, guruId, kelasId, kelasId]);
+    return detailKehadiran;
+};
+
+/**
+ * Create student-date attendance map from detailed rows.
+ * @param {Array<Object>} detailKehadiran - Detail attendance rows
+ * @returns {Object} Nested map keyed by siswa id and date string
+ */
+const buildAttendanceMap = (detailKehadiran) => {
+    const attendanceMap = {};
+    detailKehadiran.forEach((row) => {
+        if (!attendanceMap[row.id_siswa]) {
+            attendanceMap[row.id_siswa] = {};
+        }
+        if (row.tanggal && row.status) {
+            attendanceMap[row.id_siswa][toDateString(row.tanggal)] = row.status;
+        }
+    });
+    return attendanceMap;
+};
+
+/**
+ * Build subtitle string for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {Array<Object>} kelasInfo - Class rows
+ * @param {Array<Object>} mapelInfo - Mapel rows
+ * @returns {string} Export subtitle
+ */
+const buildLaporanSubtitle = (isAdmin, kelasInfo, mapelInfo) => {
+    if (isAdmin) {
+        return `Kelas: ${kelasInfo[0]?.nama_kelas || 'Unknown'}`;
+    }
+
+    const subtitleParts = [];
+    if (mapelInfo[0]?.nama_mapel) subtitleParts.push(`Mata Pelajaran: ${mapelInfo[0].nama_mapel}`);
+    if (mapelInfo[0]?.nama_guru) subtitleParts.push(`Guru: ${mapelInfo[0].nama_guru}`);
+    return subtitleParts.join(' | ');
+};
+
+/**
+ * Build date columns for laporan kehadiran siswa export.
+ * @param {string[]} finalDates - Final attendance dates
+ * @returns {Array<Object>} Date-based column definitions
+ */
+const buildDateColumns = (finalDates) => finalDates.map((dateStr) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dayNumber = new Date(y, m - 1, d).getDate();
+    return {
+        key: `d_${dateStr.replaceAll('-', '_')}`,
+        label: String(dayNumber),
+        width: 5,
+        align: 'center'
+    };
+});
+
+/**
+ * Build export rows for laporan kehadiran siswa workbook.
+ * @param {Array<Object>} siswaData - Student summary rows
+ * @param {string[]} finalDates - Final attendance dates
+ * @param {Object} attendanceMap - Student-date attendance map
+ * @returns {Array<Object>} Excel rows
+ */
+const buildLaporanExportRows = (siswaData, finalDates, attendanceMap) => siswaData.map((siswa, idx) => {
+    const row = {
+        no: idx + 1,
+        nama: siswa.nama,
+        nis: siswa.nis || '-',
+        lp: siswa.jenis_kelamin || '-'
+    };
+
+    finalDates.forEach((dateStr) => {
+        const attendanceStatus = attendanceMap[siswa.id_siswa]?.[dateStr];
+        row[`d_${dateStr.replaceAll('-', '_')}`] = mapStatusToCode(attendanceStatus);
+    });
+
+    row.hadir = siswa.total_hadir;
+    row.izin = siswa.total_izin;
+    row.sakit = siswa.total_sakit;
+    row.alpa = siswa.total_alpa;
+    row.dispen = siswa.total_dispen;
+    row.persentase = siswa.persentase_kehadiran;
+
+    return row;
+});
 
 // NOTE: addLetterheadToWorksheet, addReportTitle, addHeaders are imported from excelLetterhead.js
 // at line ~608 for exports that use them. Top-level imports removed to avoid redeclaration.
@@ -453,66 +1051,15 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
  */
 export const exportRekapKetidakhadiran = async (req, res) => {
     try {
-        const { kelas_id, bulan, tahun, tipe = 'siswa', startDate: rawStartDate, endDate: rawEndDate, reportType } = req.query;
+        const { kelas_id, bulan, tahun, tipe = 'siswa', startDate: rawStartDate, endDate: rawEndDate } = req.query;
 
-        let startDate, endDate;
-
-        // Support both formats: (bulan + tahun) OR (startDate + endDate)
-        if (rawStartDate && rawEndDate) {
-            startDate = rawStartDate;
-            endDate = rawEndDate;
-        } else if (bulan && tahun) {
-            startDate = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
-            const lastDay = new Date(tahun, bulan, 0);
-            endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
-        } else {
+        const period = resolveRekapKetidakhadiranPeriod(rawStartDate, rawEndDate, bulan, tahun);
+        if (!period) {
             return sendValidationError(res, 'Periode wajib diisi (startDate+endDate atau bulan+tahun)');
         }
+        const { startDate, endDate } = period;
 
-        let query, params;
-        
-        if (tipe === 'guru') {
-            query = `
-                SELECT 
-                    g.nama,
-                    g.nip,
-                    COUNT(CASE WHEN ag.status = 'Sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN ag.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN ag.status = 'Tidak Hadir' THEN 1 END) as alpha,
-                    COUNT(CASE WHEN ag.status IN ('Sakit', 'Izin', 'Tidak Hadir') THEN 1 END) as total_tidak_hadir
-                FROM guru g
-                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id 
-                    AND ag.tanggal BETWEEN ? AND ?
-                GROUP BY g.id_guru, g.nama, g.nip
-                ORDER BY g.nama
-            `;
-            params = [startDate, endDate];
-        } else {
-            query = `
-                SELECT 
-                    s.nama,
-                    s.nis,
-                    k.nama_kelas as kelas,
-                    COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
-                    COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
-                    COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpha,
-                    COUNT(CASE WHEN a.status IN ('Sakit', 'Izin', 'Alpa') THEN 1 END) as total_tidak_hadir
-                FROM siswa s
-                JOIN kelas k ON s.kelas_id = k.id_kelas
-                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                    AND a.tanggal BETWEEN ? AND ?
-                WHERE 1=1
-            `;
-            params = [startDate, endDate];
-            
-            if (kelas_id) {
-                query += ' AND s.kelas_id = ?';
-                params.push(kelas_id);
-            }
-            
-            query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
-        }
-
+        const { query, params } = buildRekapKetidakhadiranQuery(tipe, startDate, endDate, kelas_id);
         const [rows] = await db.execute(query, params);
 
         // Use buildExcel helper with letterhead
@@ -520,25 +1067,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const reportKey = tipe === 'guru' ? REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU : REPORT_KEYS.REKAP_KETIDAKHADIRAN_SISWA;
         const letterhead = await getLetterhead({ reportKey });
 
-        // Define columns based on type
-        const columns = tipe === 'guru' ? [
-            { key: 'no', label: 'No', width: 5, align: 'center' },
-            { key: 'nama', label: 'Nama', width: 30, align: 'left' },
-            { key: 'nip', label: 'NIP', width: 20, align: 'left' },
-            { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
-            { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
-            { key: 'alpha', label: 'Alpha', width: 8, align: 'center', format: 'number' },
-            { key: 'total_tidak_hadir', label: 'Total Tidak Hadir', width: 18, align: 'center', format: 'number' }
-        ] : [
-            { key: 'no', label: 'No', width: 5, align: 'center' },
-            { key: 'nama', label: 'Nama', width: 30, align: 'left' },
-            { key: 'nis', label: 'NIS', width: 15, align: 'center' },
-            { key: 'kelas', label: 'Kelas', width: 12, align: 'center' },
-            { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
-            { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
-            { key: 'alpha', label: 'Alpha', width: 8, align: 'center', format: 'number' },
-            { key: 'total_tidak_hadir', label: 'Total Tidak Hadir', width: 18, align: 'center', format: 'number' }
-        ];
+        const columns = getRekapKetidakhadiranColumns(tipe);
 
         // Prepare data
         const reportData = rows.map((row, index) => ({
@@ -546,14 +1075,9 @@ export const exportRekapKetidakhadiran = async (req, res) => {
             ...row
         }));
 
-        const bulanNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
-                           'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
         // Build title and period
         const title = tipe === 'guru' ? 'Rekap Ketidakhadiran Guru' : 'Rekap Ketidakhadiran Siswa';
-        const reportPeriod = bulan && tahun 
-            ? `${bulanNames[parseInt(bulan)]} ${tahun}`
-            : `${startDate} - ${endDate}`;
+        const reportPeriod = getRekapKetidakhadiranPeriodLabel(bulan, tahun, startDate, endDate);
 
         // Generate Excel with letterhead
         const workbook = await buildExcel({
@@ -565,13 +1089,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
             rows: reportData
         });
 
-        // Generate filename
-        let filename;
-        if (bulan && tahun) {
-            filename = `Rekap_Ketidakhadiran_${tipe}_${bulanNames[parseInt(bulan)]}_${tahun}.xlsx`;
-        } else {
-            filename = `Rekap_Ketidakhadiran_${tipe}_${startDate}_${endDate}.xlsx`;
-        }
+        const filename = buildRekapKetidakhadiranFilename(tipe, bulan, tahun, startDate, endDate);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -1460,6 +1978,310 @@ export const exportAdminAttendance = async (req, res) => {
     }
 };
 
+const MATRIX_HEADER_STYLE = {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } },
+    font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+    }
+};
+
+const MATRIX_KELAS_STYLE = {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } },
+    font: { bold: true, size: 10 },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+    }
+};
+
+const MATRIX_CELL_BORDER = {
+    top: { style: 'thin', color: { argb: 'FF000000' } },
+    left: { style: 'thin', color: { argb: 'FF000000' } },
+    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+    right: { style: 'thin', color: { argb: 'FF000000' } }
+};
+
+/**
+ * Render matrix header row cells.
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {number} rowNumber - Header row number
+ * @param {string[]} daysOfWeek - Day labels
+ */
+const renderMatrixHeaderRow = (worksheet, rowNumber, daysOfWeek) => {
+    const headerRow = worksheet.getRow(rowNumber);
+    ['KELAS', ...daysOfWeek].forEach((header, idx) => {
+        const cell = headerRow.getCell(idx + 1);
+        cell.value = header;
+        cell.fill = MATRIX_HEADER_STYLE.fill;
+        cell.font = MATRIX_HEADER_STYLE.font;
+        cell.alignment = MATRIX_HEADER_STYLE.alignment;
+        cell.border = MATRIX_HEADER_STYLE.border;
+    });
+    headerRow.height = 25;
+};
+
+/**
+ * Render one class row for jadwal matrix.
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {number} rowNumber - Target row number
+ * @param {string} className - Class name
+ * @param {string[]} daysOfWeek - Day labels
+ * @param {Array<Object>} schedules - All schedules
+ * @returns {number} Suggested row height
+ */
+const renderMatrixClassRow = (worksheet, rowNumber, className, daysOfWeek, schedules) => {
+    const dataRow = worksheet.getRow(rowNumber);
+    const kelasCell = dataRow.getCell(1);
+    kelasCell.value = className;
+    kelasCell.fill = MATRIX_KELAS_STYLE.fill;
+    kelasCell.font = MATRIX_KELAS_STYLE.font;
+    kelasCell.alignment = MATRIX_KELAS_STYLE.alignment;
+    kelasCell.border = MATRIX_KELAS_STYLE.border;
+
+    let maxSlots = 1;
+
+    daysOfWeek.forEach((day, dayIndex) => {
+        const daySchedules = getDaySchedulesForClass(schedules, className, day);
+        const cell = dataRow.getCell(dayIndex + 2);
+
+        if (daySchedules.length === 0) {
+            cell.value = '-';
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = MATRIX_CELL_BORDER;
+            cell.font = { size: 9, color: { argb: 'FF9CA3AF' } };
+            return;
+        }
+
+        maxSlots = Math.max(maxSlots, daySchedules.length);
+        const contentParts = daySchedules.map((schedule) => buildScheduleContentLines(schedule));
+
+        cell.value = contentParts.join('\n\n────────────\n\n');
+        cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+        cell.border = MATRIX_CELL_BORDER;
+        cell.font = { size: 9 };
+
+        if (daySchedules.some((schedule) => schedule.is_multi_guru)) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+        }
+    });
+
+    return Math.max(60, maxSlots * 70);
+};
+
+/**
+ * Initialize day configuration object for grid export.
+ * @param {string[]} days - Day labels
+ * @returns {Record<string, {maxJam:number,slots:Object,startCol?:number,endCol?:number}>} Day configuration
+ */
+const createGridDayConfig = (days) => {
+    const dayConfig = {};
+    days.forEach((day) => {
+        dayConfig[day] = { maxJam: 0, slots: {} };
+    });
+    return dayConfig;
+};
+
+/**
+ * Update day config statistics from schedule rows.
+ * @param {Record<string, {maxJam:number,slots:Object}>} dayConfig - Day config map
+ * @param {Array<Object>} schedules - Schedule rows
+ */
+const hydrateGridDayConfig = (dayConfig, schedules) => {
+    schedules.forEach((schedule) => {
+        if (!dayConfig[schedule.hari]) {
+            return;
+        }
+
+        dayConfig[schedule.hari].maxJam = Math.max(dayConfig[schedule.hari].maxJam, schedule.jam_ke);
+        if (!dayConfig[schedule.hari].slots[schedule.jam_ke]) {
+            dayConfig[schedule.hari].slots[schedule.jam_ke] = `${formatTime(schedule.jam_mulai)}-${formatTime(schedule.jam_selesai)}`;
+        }
+    });
+};
+
+/**
+ * Build active days and column mapping for grid export.
+ * @param {string[]} days - All candidate days
+ * @param {Record<string, {maxJam:number,slots:Object,startCol?:number,endCol?:number}>} dayConfig - Day config map
+ * @returns {{ activeDays: string[], colMap: Record<string, number>, totalCols: number }} Layout metadata
+ */
+const buildGridColumnLayout = (days, dayConfig) => {
+    const activeDays = days.filter((day) => dayConfig[day].maxJam > 0);
+    const colMap = {};
+    let colOffset = 4;
+
+    activeDays.forEach((day) => {
+        const width = dayConfig[day].maxJam;
+        dayConfig[day].startCol = colOffset;
+        dayConfig[day].endCol = colOffset + width - 1;
+
+        for (let slot = 1; slot <= width; slot++) {
+            colMap[`${day}-${slot}`] = colOffset + slot - 1;
+        }
+
+        colOffset += width;
+    });
+
+    return { activeDays, colMap, totalCols: colOffset - 1 };
+};
+
+/**
+ * Render fixed grid header labels for NO/KELAS/DATA.
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {number} currentRow - Header top row number
+ * @param {Object} dayRow - ExcelJS day row
+ */
+const renderGridFixedHeaders = (worksheet, currentRow, dayRow) => {
+    ['NO', 'KELAS', 'DATA'].forEach((label, idx) => {
+        const cell = dayRow.getCell(idx + 1);
+        cell.value = label;
+        worksheet.mergeCells(currentRow, idx + 1, currentRow + 2, idx + 1);
+        applyStyle(cell, excelStyles.header);
+    });
+};
+
+/**
+ * Render dynamic day, jam and time headers in grid export.
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {Object} dayRow - Day header row
+ * @param {Object} jamRow - Jam ke row
+ * @param {Object} timeRow - Time range row
+ * @param {string[]} activeDays - Active days
+ * @param {Record<string, {maxJam:number,slots:Object,startCol:number,endCol:number}>} dayConfig - Day config
+ * @param {number} currentRow - Header top row
+ */
+const renderGridDynamicHeaders = (worksheet, dayRow, jamRow, timeRow, activeDays, dayConfig, currentRow) => {
+    activeDays.forEach((day, idx) => {
+        const config = dayConfig[day];
+        const dayCell = dayRow.getCell(config.startCol);
+        dayCell.value = day.toUpperCase();
+        worksheet.mergeCells(currentRow, config.startCol, currentRow, config.endCol);
+
+        const dayColor = idx % 2 === 0 ? 'FFFDE047' : 'FF86EFAC';
+        applyStyle(dayCell, {
+            ...excelStyles.header,
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: dayColor } },
+            font: { bold: true, color: { argb: 'FF000000' } }
+        });
+
+        for (let slot = 1; slot <= config.maxJam; slot++) {
+            const colIdx = config.startCol + slot - 1;
+            const jamCell = jamRow.getCell(colIdx);
+            jamCell.value = slot;
+            applyStyle(jamCell, {
+                ...excelStyles.subHeader,
+                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: dayColor } }
+            });
+
+            const timeCell = timeRow.getCell(colIdx);
+            timeCell.value = config.slots[slot] || '-';
+            applyStyle(timeCell, {
+                ...excelStyles.subHeader,
+                font: { size: 8 },
+                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: dayColor } }
+            });
+        }
+    });
+};
+
+/** @returns {Record<string, Array<Object>>} Schedules grouped by class name */
+const groupSchedulesByClass = (schedules) => {
+    const classGroups = {};
+    schedules.forEach((schedule) => {
+        if (!classGroups[schedule.nama_kelas]) {
+            classGroups[schedule.nama_kelas] = [];
+        }
+        classGroups[schedule.nama_kelas].push(schedule);
+    });
+    return classGroups;
+};
+
+/**
+ * Render fixed cells for one class block in grid export.
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {Object} mapelRow - Mapel row
+ * @param {Object} ruangRow - Ruang row
+ * @param {Object} guruRow - Guru row
+ * @param {number} startRow - Start row index
+ * @param {number} classIndex - Display class index
+ * @param {string} className - Class name
+ */
+const renderGridClassFixedCells = (worksheet, mapelRow, ruangRow, guruRow, startRow, classIndex, className) => {
+    const noCell = mapelRow.getCell(1);
+    noCell.value = classIndex;
+    worksheet.mergeCells(startRow, 1, startRow + 2, 1);
+    applyStyle(noCell, excelStyles.cellCenter);
+
+    const kelasCell = mapelRow.getCell(2);
+    kelasCell.value = className;
+    worksheet.mergeCells(startRow, 2, startRow + 2, 2);
+    applyStyle(kelasCell, { ...excelStyles.cellCenter, font: { bold: true } });
+
+    mapelRow.getCell(3).value = 'MAPEL';
+    ruangRow.getCell(3).value = 'RUANG';
+    guruRow.getCell(3).value = 'GURU';
+    [mapelRow, ruangRow, guruRow].forEach((row) => {
+        applyStyle(row.getCell(3), excelStyles.cell);
+    });
+};
+
+/**
+ * Render schedule cells for one class block in grid export.
+ * @param {Object} mapelRow - Mapel row
+ * @param {Object} ruangRow - Ruang row
+ * @param {Object} guruRow - Guru row
+ * @param {Array<Object>} classSchedules - Class schedules
+ * @param {Record<string, number>} colMap - Column map
+ */
+const renderGridClassSchedules = (mapelRow, ruangRow, guruRow, classSchedules, colMap) => {
+    classSchedules.forEach((schedule) => {
+        const colIdx = colMap[`${schedule.hari}-${schedule.jam_ke}`];
+        if (!colIdx) {
+            return;
+        }
+        fillGridScheduleCells(mapelRow, ruangRow, guruRow, schedule, colIdx);
+    });
+};
+
+/**
+ * Apply borders/alignment to data cells in class block.
+ * @param {Object} mapelRow - Mapel row
+ * @param {Object} ruangRow - Ruang row
+ * @param {Object} guruRow - Guru row
+ * @param {number} totalCols - Last column index
+ */
+const styleGridClassDataCells = (mapelRow, ruangRow, guruRow, totalCols) => {
+    for (let colIdx = 4; colIdx <= totalCols; colIdx++) {
+        [mapelRow, ruangRow, guruRow].forEach((dataRow) => {
+            const cell = dataRow.getCell(colIdx);
+            cell.border = borders.thin;
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        });
+    }
+};
+
+/**
+ * Apply fixed column widths for grid export.
+ * @param {Object} worksheet - ExcelJS worksheet
+ * @param {number} totalCols - Last used column index
+ */
+const applyGridColumnWidths = (worksheet, totalCols) => {
+    worksheet.getColumn(1).width = 5;
+    worksheet.getColumn(2).width = 12;
+    worksheet.getColumn(3).width = 10;
+    for (let i = 4; i <= totalCols; i++) {
+        worksheet.getColumn(i).width = 15;
+    }
+};
+
 // ================================================
 // JADWAL EXPORTS - Migrated from server_modern.js
 // ================================================
@@ -1490,38 +2312,6 @@ export const exportJadwalMatrix = async (req, res) => {
         const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const totalCols = daysOfWeek.length + 1;
 
-        // Style definitions
-        const headerStyle = {
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } },
-            font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
-            alignment: { horizontal: 'center', vertical: 'middle' },
-            border: {
-                top: { style: 'thin', color: { argb: 'FF000000' } },
-                left: { style: 'thin', color: { argb: 'FF000000' } },
-                bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                right: { style: 'thin', color: { argb: 'FF000000' } }
-            }
-        };
-
-        const kelasStyle = {
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } },
-            font: { bold: true, size: 10 },
-            alignment: { horizontal: 'center', vertical: 'middle' },
-            border: {
-                top: { style: 'thin', color: { argb: 'FF000000' } },
-                left: { style: 'thin', color: { argb: 'FF000000' } },
-                bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                right: { style: 'thin', color: { argb: 'FF000000' } }
-            }
-        };
-
-        const cellBorder = {
-            top: { style: 'thin', color: { argb: 'FF000000' } },
-            left: { style: 'thin', color: { argb: 'FF000000' } },
-            bottom: { style: 'thin', color: { argb: 'FF000000' } },
-            right: { style: 'thin', color: { argb: 'FF000000' } }
-        };
-
         // Add letterhead
         let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
 
@@ -1530,73 +2320,15 @@ export const exportJadwalMatrix = async (req, res) => {
         currentRow++;
 
         // Matrix headers with styling
-        const headerRow = worksheet.getRow(currentRow);
-        ['KELAS', ...daysOfWeek].forEach((header, idx) => {
-            const cell = headerRow.getCell(idx + 1);
-            cell.value = header;
-            cell.fill = headerStyle.fill;
-            cell.font = headerStyle.font;
-            cell.alignment = headerStyle.alignment;
-            cell.border = headerStyle.border;
-        });
-        headerRow.height = 25;
+        renderMatrixHeaderRow(worksheet, currentRow, daysOfWeek);
         currentRow++;
 
-        // Helper function to parse guru_list
-        const parseGuruList = (guruList) => {
-            if (!guruList) return [];
-            return guruList.split('||').map(item => {
-                const [id, name] = item.split(':');
-                return { id: Number.parseInt(id), name: name || 'Unknown' };
-            }).filter(g => g.name);
-        };
-
         // Matrix data with proper styling
-        const uniqueClasses = [...new Set(schedules.map(s => s.nama_kelas))].sort();
+        const uniqueClasses = getUniqueClassNames(schedules);
         
-        uniqueClasses.forEach(className => {
-            const dataRow = worksheet.getRow(currentRow);
-            
-            // Kelas column
-            const kelasCell = dataRow.getCell(1);
-            kelasCell.value = className;
-            kelasCell.fill = kelasStyle.fill;
-            kelasCell.font = kelasStyle.font;
-            kelasCell.alignment = kelasStyle.alignment;
-            kelasCell.border = kelasStyle.border;
-
-            let maxSlots = 1;
-
-            daysOfWeek.forEach((day, dayIndex) => {
-                const daySchedules = schedules
-                    .filter(s => s.nama_kelas === className && s.hari === day)
-                    .sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
-                
-                const cell = dataRow.getCell(dayIndex + 2);
-                
-                if (daySchedules.length > 0) {
-                    maxSlots = Math.max(maxSlots, daySchedules.length);
-                    
-                    // Use file-level helper function (S2004 - avoid deep nesting)
-                    const contentParts = daySchedules.map(s => buildScheduleContentLines(s, parseGuruList));
-                    
-                    cell.value = contentParts.join('\n\n────────────\n\n');
-                    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
-                    cell.border = cellBorder;
-                    cell.font = { size: 9 };
-                    
-                    if (daySchedules.some(s => s.is_multi_guru)) {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
-                    }
-                } else {
-                    cell.value = '-';
-                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    cell.border = cellBorder;
-                    cell.font = { size: 9, color: { argb: 'FF9CA3AF' } };
-                }
-            });
-
-            dataRow.height = Math.max(60, maxSlots * 70);
+        uniqueClasses.forEach((className) => {
+            const rowHeight = renderMatrixClassRow(worksheet, currentRow, className, daysOfWeek, schedules);
+            worksheet.getRow(currentRow).height = rowHeight;
             currentRow++;
         });
 
@@ -1635,8 +2367,10 @@ export const exportJadwalGrid = async (req, res) => {
 
         const schedules = await ExportService.getJadwalMatrix(kelas_id, hari);
         // Ensure nama_guru prioritizes kode_guru if available
-        schedules.forEach(s => {
-            if (s.kode_guru) s.nama_guru = s.kode_guru;
+        schedules.forEach((schedule) => {
+            if (schedule.kode_guru) {
+                schedule.nama_guru = schedule.kode_guru;
+            }
         });
 
         if (schedules.length === 0) {
@@ -1649,23 +2383,8 @@ export const exportJadwalGrid = async (req, res) => {
 
         // 1. Analyze Data to determine Columns (Max Jam per Day)
         const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-        const dayConfig = {};
-        
-        // Default minimal slots if no data
-        days.forEach(d => { dayConfig[d] = { maxJam: 0, slots: {} }; });
-
-        schedules.forEach(s => {
-            if (dayConfig[s.hari]) {
-                dayConfig[s.hari].maxJam = Math.max(dayConfig[s.hari].maxJam, s.jam_ke);
-                // Store time string for header
-                if (!dayConfig[s.hari].slots[s.jam_ke]) {
-                    dayConfig[s.hari].slots[s.jam_ke] = `${formatTime(s.jam_mulai)}-${formatTime(s.jam_selesai)}`;
-                }
-            }
-        });
-
-        // Filter days that have data (or keep all standard school days)
-        const activeDays = days.filter(d => dayConfig[d].maxJam > 0);
+        const dayConfig = createGridDayConfig(days);
+        hydrateGridDayConfig(dayConfig, schedules);
 
         // 2. Setup Headers
         // Row A: Letterhead (handled by helper)
@@ -1674,22 +2393,7 @@ export const exportJadwalGrid = async (req, res) => {
         // Row D: "1", "2"...   "1", "2"...
         // Row E: "07.00"...    "07.00"...
 
-        // Calculate total columns
-        // Fixed: No, Kelas, Jenis (3 cols)
-        let colOffset = 4; // Start after fixed cols
-        const colMap = {}; // Maps "Hari-Jam" to Column Index
-
-        activeDays.forEach(day => {
-            const width = dayConfig[day].maxJam;
-            dayConfig[day].startCol = colOffset;
-            dayConfig[day].endCol = colOffset + width - 1;
-            
-            for (let i = 1; i <= width; i++) {
-                colMap[`${day}-${i}`] = colOffset + i - 1;
-            }
-            colOffset += width;
-        });
-        const totalCols = colOffset - 1;
+        const { activeDays, colMap, totalCols } = buildGridColumnLayout(days, dayConfig);
 
         // Add Letterhead
         let currentRow = await addLetterheadToWorksheet(workbook, worksheet, letterhead, totalCols);
@@ -1703,55 +2407,17 @@ export const exportJadwalGrid = async (req, res) => {
         const jamRow = worksheet.getRow(currentRow + 1);
         const timeRow = worksheet.getRow(currentRow + 2);
 
-        // Fixed Headers
-        ['NO', 'KELAS', 'DATA'].forEach((label, idx) => {
-            const cell = dayRow.getCell(idx + 1);
-            cell.value = label;
-            worksheet.mergeCells(currentRow, idx + 1, currentRow + 2, idx + 1);
-            applyStyle(cell, excelStyles.header);
-        });
-
-        // Dynamic Day Headers
-        activeDays.forEach((day, idx) => {
-            const config = dayConfig[day];
-            
-            // Day Label (Merged)
-            const dayCell = dayRow.getCell(config.startCol);
-            dayCell.value = day.toUpperCase();
-            worksheet.mergeCells(currentRow, config.startCol, currentRow, config.endCol);
-            
-            // Styling based on day (Alternating colors for distinction)
-            const dayColor = idx % 2 === 0 ? 'FFFDE047' : 'FF86EFAC'; // Yellow / Green
-            applyStyle(dayCell, { ...excelStyles.header, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: dayColor } }, font: { bold: true, color: { argb: 'FF000000' } } });
-
-            // Slot Headers
-            for (let j = 1; j <= config.maxJam; j++) {
-                const colIdx = config.startCol + j - 1;
-                
-                // Jam Ke
-                const jamCell = jamRow.getCell(colIdx);
-                jamCell.value = j;
-                applyStyle(jamCell, { ...excelStyles.subHeader, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: dayColor } } });
-
-                // Time Range
-                const timeCell = timeRow.getCell(colIdx);
-                timeCell.value = config.slots[j] || '-';
-                applyStyle(timeCell, { ...excelStyles.subHeader, font: { size: 8 }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: dayColor } } });
-            }
-        });
+        renderGridFixedHeaders(worksheet, currentRow, dayRow);
+        renderGridDynamicHeaders(worksheet, dayRow, jamRow, timeRow, activeDays, dayConfig, currentRow);
 
         currentRow += 3;
 
         // 3. Process Data Rows (3 Rows per Class)
         // Group by Kelas
-        const classGroups = {};
-        schedules.forEach(s => {
-            if (!classGroups[s.nama_kelas]) classGroups[s.nama_kelas] = [];
-            classGroups[s.nama_kelas].push(s);
-        });
+        const classGroups = groupSchedulesByClass(schedules);
 
         let no = 1;
-        Object.keys(classGroups).sort().forEach(className => {
+        Object.keys(classGroups).sort().forEach((className) => {
             const classSchedules = classGroups[className];
             const startRow = currentRow;
             
@@ -1760,74 +2426,15 @@ export const exportJadwalGrid = async (req, res) => {
             const ruangRow = worksheet.getRow(currentRow + 1);
             const guruRow = worksheet.getRow(currentRow + 2);
 
-            // Fixed Columns Data
-            // No
-            const noCell = mapelRow.getCell(1);
-            noCell.value = no++;
-            worksheet.mergeCells(startRow, 1, startRow + 2, 1);
-            applyStyle(noCell, excelStyles.cellCenter);
-
-            // Kelas
-            const kelasCell = mapelRow.getCell(2);
-            kelasCell.value = className;
-            worksheet.mergeCells(startRow, 2, startRow + 2, 2);
-            applyStyle(kelasCell, { ...excelStyles.cellCenter, font: { bold: true } });
-
-            // Labels
-            mapelRow.getCell(3).value = 'MAPEL';
-            ruangRow.getCell(3).value = 'RUANG';
-            guruRow.getCell(3).value = 'GURU';
-            [mapelRow, ruangRow, guruRow].forEach(r => { applyStyle(r.getCell(3), excelStyles.cell); });
-
-            // Populate Data Cells
-            classSchedules.forEach(s => {
-                const colIdx = colMap[`${s.hari}-${s.jam_ke}`];
-                if (colIdx) {
-                    // Check for special events (Upacara, Istirahat)
-                    let cellColor = null;
-                    const activity = (s.jenis_aktivitas || '').toLowerCase();
-                    const mapelName = (s.nama_mapel || '').toLowerCase();
-
-                    if (activity === 'upacara' || mapelName.includes('upacara')) cellColor = 'FFFFF00'; // Yellow
-                    else if (activity === 'istirahat' || mapelName.includes('istirahat')) cellColor = 'FFFFC0CB'; // Pink
-                    else if (s.jenis_aktivitas === 'kbm') cellColor = 'FFFFFFFF'; // White
-
-                    // Mapel
-                    const cellM = mapelRow.getCell(colIdx);
-                    cellM.value = s.nama_mapel;
-                    if (cellColor) cellM.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cellColor } };
-                    
-                    // Ruang
-                    const cellR = ruangRow.getCell(colIdx);
-                    cellR.value = s.kode_ruang;
-                    if (cellColor) cellR.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cellColor } };
-
-                    // Guru
-                    const cellG = guruRow.getCell(colIdx);
-                    cellG.value = s.nama_guru;
-                    if (cellColor) cellG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cellColor } };
-                }
-            });
-
-            // Styling for data cells
-            for (let colIdx = 4; colIdx <= totalCols; colIdx++) {
-                [mapelRow, ruangRow, guruRow].forEach(dataRow => {
-                    const cell = dataRow.getCell(colIdx);
-                    cell.border = borders.thin;
-                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                });
-            }
+            renderGridClassFixedCells(worksheet, mapelRow, ruangRow, guruRow, startRow, no++, className);
+            renderGridClassSchedules(mapelRow, ruangRow, guruRow, classSchedules, colMap);
+            styleGridClassDataCells(mapelRow, ruangRow, guruRow, totalCols);
 
             currentRow += 3;
         });
 
         // Set Column Widths
-        worksheet.getColumn(1).width = 5;  // No
-        worksheet.getColumn(2).width = 12; // Kelas
-        worksheet.getColumn(3).width = 10; // Type
-        for (let i = 4; i <= totalCols; i++) {
-            worksheet.getColumn(i).width = 15; // Time slots
-        }
+        applyGridColumnWidths(worksheet, totalCols);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="Master_Jadwal_Grid_${Date.now()}.xlsx"`);
@@ -1934,47 +2541,25 @@ export const exportJadwalPrint = async (req, res) => {
  */
 export const requestExcelDownload = async (req, res) => {
     try {
-        const { type, filters, startDate, endDate, kelas_id, mapel_id, guru_id, semester, year } = req.body;
         const userId = req.user.id;
         const userRole = req.user.role;
+
         if (!globalThis.downloadQueue) {
             return sendServiceUnavailableError(res, 'Download queue tidak tersedia');
         }
 
-        const downloadType = type || 'student-attendance';
-        const normalizedFilters = {
-            ...(filters && typeof filters === 'object' ? filters : {})
-        };
+        const { downloadType, normalizedFilters } = buildDownloadRequestContext(req.body);
 
-        if (!filters) {
-            if (startDate) normalizedFilters.tanggal_mulai = startDate;
-            if (endDate) normalizedFilters.tanggal_selesai = endDate;
-            if (kelas_id) normalizedFilters.kelas_id = kelas_id;
-            if (mapel_id) normalizedFilters.mapel_id = mapel_id;
-            if (guru_id) normalizedFilters.guru_id = guru_id;
-            if (semester) normalizedFilters.semester = semester;
-            if (year) normalizedFilters.year = year;
-        }
-
-        if (!['student-attendance', 'teacher-attendance', 'analytics-report'].includes(downloadType)) {
+        if (!ALLOWED_DOWNLOAD_TYPES.has(downloadType)) {
             return sendValidationError(res, 'Jenis download tidak valid', { type: downloadType });
         }
 
-        if (downloadType === 'student-attendance' || downloadType === 'teacher-attendance') {
-            if (!normalizedFilters.tanggal_mulai || !normalizedFilters.tanggal_selesai) {
-                return sendValidationError(res, 'Tanggal mulai dan akhir wajib diisi');
-            }
+        const validationError = validateDownloadFilters(downloadType, normalizedFilters);
+        if (validationError) {
+            return sendValidationError(res, validationError);
         }
 
-        if (downloadType === 'teacher-attendance' && userRole !== 'admin') {
-            normalizedFilters.guru_id = req.user.guru_id;
-        }
-
-        if (downloadType === 'analytics-report') {
-            if (!normalizedFilters.semester || !normalizedFilters.year) {
-                return sendValidationError(res, 'Semester dan tahun wajib diisi');
-            }
-        }
+        applyRoleBasedDownloadFilters(downloadType, userRole, req.user.guru_id, normalizedFilters);
 
         const job = await globalThis.downloadQueue.addExcelDownloadJob({
             type: downloadType,
@@ -2101,12 +2686,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         if (!kelas_id) return sendValidationError(res, 'Kelas ID wajib diisi');
         if (!startDate || !endDate) return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi');
 
-        // Parse dates manually to avoid timezone issues
-        const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
-        const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
-        const start = new Date(sYear, sMonth - 1, sDay);
-        const end = new Date(eYear, eMonth - 1, eDay);
-        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+        const { start, end, diffDays } = parseLaporanDateRange(startDate, endDate);
 
         if (diffDays > 62) return sendValidationError(res, 'Rentang tanggal maksimal 62 hari');
 
@@ -2115,185 +2695,20 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
             SELECT nama_kelas FROM kelas WHERE id_kelas = ? LIMIT 1
         `, [kelas_id]);
 
-        // Get mapel info (only for guru)
-        let mapelInfo = [];
-        if (!isAdmin && guruId) {
-            [mapelInfo] = await db.execute(`
-                SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
-                FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
-            `, [guruId]);
-        }
-
-        // Get scheduled dates
-        let jadwalData = [];
-        if (isAdmin) {
-            // Admin: get ALL jadwal for this class
-            [jadwalData] = await db.execute(`
-                SELECT DISTINCT j.hari FROM jadwal j WHERE j.kelas_id = ? AND j.status = 'aktif'
-            `, [kelas_id]);
-        } else {
-            // Guru: get only their jadwal
-            [jadwalData] = await db.execute(`
-                SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
-            `, [guruId, kelas_id]);
-        }
-
-        // Helper to get scheduled dates based on jadwal days
-        const getScheduledDates = (start, end, jadwalDays) => {
-            const dates = [];
-            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const endTime = end.getTime();
-            let currentTime = start.getTime();
-            
-            while (currentTime <= endTime) {
-                const currentDate = new Date(currentTime);
-                const dayName = dayNames[currentDate.getDay()];
-                if (jadwalDays.some(j => j.hari === dayName)) {
-                    const year = currentDate.getFullYear();
-                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(currentDate.getDate()).padStart(2, '0');
-                    dates.push(`${year}-${month}-${day}`);
-                }
-                currentTime += 24 * 60 * 60 * 1000;
-            }
-            return dates;
-        };
-
+        const mapelInfo = await getLaporanMapelInfo(isAdmin, guruId);
+        const jadwalData = await getLaporanJadwalData(isAdmin, guruId, kelas_id);
         const pertemuanDates = getScheduledDates(start, end, jadwalData);
-
-        // Get actual attendance dates
-        let actualDates = [];
-        if (isAdmin) {
-            [actualDates] = await db.execute(`
-                SELECT DISTINCT DATE(a.tanggal) as tanggal
-                FROM absensi_siswa a
-                INNER JOIN jadwal j ON j.id_jadwal = a.jadwal_id
-                WHERE j.kelas_id = ? AND j.status = 'aktif'
-                AND DATE(a.tanggal) BETWEEN ? AND ?
-                ORDER BY DATE(a.tanggal)
-            `, [kelas_id, startDate, endDate]);
-        } else {
-            [actualDates] = await db.execute(`
-                SELECT DISTINCT DATE(a.tanggal) as tanggal
-                FROM absensi_siswa a
-                WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
-                AND DATE(a.tanggal) BETWEEN ? AND ?
-                ORDER BY DATE(a.tanggal)
-            `, [guruId, kelas_id, startDate, endDate]);
-        }
-
-        const allDates = new Set(pertemuanDates);
-        actualDates.forEach(r => {
-            if (r.tanggal) {
-                // Format date manually for MySQL DATE type
-                const d = new Date(r.tanggal);
-                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                allDates.add(dateStr);
-            }
-        });
-        const finalDates = Array.from(allDates).sort();
-
-        // Get student summary stats
-        let siswaData = [];
-        if (isAdmin) {
-            [siswaData] = await db.execute(`
-                SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
-                    COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
-                    COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
-                    COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
-                    COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
-                    COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
-                    CASE 
-                        WHEN ? = 0 THEN '0%'
-                        ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
-                    END AS persentase_kehadiran
-                FROM siswa s
-                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                    AND DATE(a.tanggal) BETWEEN ? AND ?
-                LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
-                WHERE s.kelas_id = ? AND s.status = 'aktif'
-                GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
-                ORDER BY s.nama
-            `, [finalDates.length, finalDates.length, startDate, endDate, kelas_id]);
-        } else {
-            [siswaData] = await db.execute(`
-                SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
-                    COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
-                    COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
-                    COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
-                    COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
-                    COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
-                    CASE 
-                        WHEN ? = 0 THEN '0%'
-                        ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
-                    END AS persentase_kehadiran
-                FROM siswa s
-                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                    AND DATE(a.tanggal) BETWEEN ? AND ?
-                    AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
-                WHERE s.kelas_id = ? AND s.status = 'aktif'
-                GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
-                ORDER BY s.nama
-            `, [finalDates.length, finalDates.length, startDate, endDate, guruId, kelas_id, kelas_id]);
-        }
-
-        // Get detailed daily attendance
-        let detailKehadiran = [];
-        if (isAdmin) {
-            [detailKehadiran] = await db.execute(`
-                SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
-                FROM siswa s
-                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                    AND DATE(a.tanggal) BETWEEN ? AND ?
-                LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
-                WHERE s.kelas_id = ? AND s.status = 'aktif'
-            `, [startDate, endDate, kelas_id]);
-        } else {
-            [detailKehadiran] = await db.execute(`
-                SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
-                FROM siswa s
-                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                    AND DATE(a.tanggal) BETWEEN ? AND ?
-                    AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
-                WHERE s.kelas_id = ? AND s.status = 'aktif'
-            `, [startDate, endDate, guruId, kelas_id, kelas_id]);
-        }
-
-        const attendanceMap = {};
-        detailKehadiran.forEach(r => {
-            if (!attendanceMap[r.id_siswa]) attendanceMap[r.id_siswa] = {};
-            if (r.tanggal && r.status) {
-                // Format date safely - handles both Date objects and strings from MySQL
-                const d = new Date(r.tanggal);
-                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                attendanceMap[r.id_siswa][dateStr] = r.status;
-            }
-        });
+        const actualDates = await getActualAttendanceDates(isAdmin, guruId, kelas_id, startDate, endDate);
+        const finalDates = buildFinalDates(pertemuanDates, actualDates);
+        const siswaData = await getLaporanSiswaData(isAdmin, guruId, kelas_id, startDate, endDate, finalDates.length);
+        const detailKehadiran = await getLaporanDetailKehadiran(isAdmin, guruId, kelas_id, startDate, endDate);
+        const attendanceMap = buildAttendanceMap(detailKehadiran);
 
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
-        // Build subtitle based on role
-        let subtitle = '';
-        if (isAdmin) {
-            subtitle = `Kelas: ${kelasInfo[0]?.nama_kelas || 'Unknown'}`;
-        } else {
-            const subtitleParts = [];
-            if (mapelInfo[0]?.nama_mapel) subtitleParts.push(`Mata Pelajaran: ${mapelInfo[0].nama_mapel}`);
-            if (mapelInfo[0]?.nama_guru) subtitleParts.push(`Guru: ${mapelInfo[0].nama_guru}`);
-            subtitle = subtitleParts.join(' | ');
-        }
-
-        const dateColumns = finalDates.map((dateStr) => {
-            const [y, m, d] = dateStr.split('-').map(Number);
-            const dayNumber = new Date(y, m - 1, d).getDate();
-            return {
-                key: `d_${dateStr.replaceAll('-', '_')}`,
-                label: String(dayNumber),
-                width: 5,
-                align: 'center'
-            };
-        });
+        const subtitle = buildLaporanSubtitle(isAdmin, kelasInfo, mapelInfo);
+        const dateColumns = buildDateColumns(finalDates);
 
         const columns = [
             { key: 'no', label: 'No', width: 6, align: 'center', format: 'number' },
@@ -2309,28 +2724,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
             { key: 'persentase', label: '%', width: 8, align: 'center' }
         ];
 
-        const exportRows = siswaData.map((s, idx) => {
-            const row = {
-                no: idx + 1,
-                nama: s.nama,
-                nis: s.nis || '-',
-                lp: s.jenis_kelamin || '-'
-            };
-
-            finalDates.forEach((dateStr) => {
-                const attendanceStatus = attendanceMap[s.id_siswa]?.[dateStr];
-                row[`d_${dateStr.replaceAll('-', '_')}`] = mapStatusToCode(attendanceStatus);
-            });
-
-            row.hadir = s.total_hadir;
-            row.izin = s.total_izin;
-            row.sakit = s.total_sakit;
-            row.alpa = s.total_alpa;
-            row.dispen = s.total_dispen;
-            row.persentase = s.persentase_kehadiran;
-
-            return row;
-        });
+        const exportRows = buildLaporanExportRows(siswaData, finalDates, attendanceMap);
 
         const workbook = await buildExcel({
             title: 'LAPORAN KEHADIRAN SISWA',

@@ -34,11 +34,574 @@ interface StudentDashboardProps {
   };
 }
 
+type AbsenKelasStudent = {
+  id_siswa: number;
+  nis: string;
+  nama: string;
+  jenis_kelamin: string;
+  jabatan: string;
+  attendance_status: string;
+  keterangan: string;
+};
+
+type AbsenSiswaDataMap = { [key: number]: { status: string; keterangan: string } };
+
+const ABSEN_STATUS_OPTIONS = ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'] as const;
+
+const isDesktopViewport = (): boolean => window.innerWidth >= 1024;
+
+interface StudentSidebarProps {
+  locationPathname: string;
+  sidebarOpen: boolean;
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  navigate: ReturnType<typeof useNavigate>;
+  userName: string;
+  onLogout: () => void;
+  onEditProfile: () => void;
+  notifications: ReturnType<typeof useNotifications>['notifications'];
+  unreadCount: number;
+  notifLoading: boolean;
+  notifRefresh: ReturnType<typeof useNotifications>['refresh'];
+}
+
+const StudentSidebar = ({
+  locationPathname,
+  sidebarOpen,
+  setSidebarOpen,
+  navigate,
+  userName,
+  onLogout,
+  onEditProfile,
+  notifications,
+  unreadCount,
+  notifLoading,
+  notifRefresh,
+}: StudentSidebarProps): React.ReactElement => {
+  const showLabel = sidebarOpen || isDesktopViewport();
+
+  return (
+    <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
+      sidebarOpen ? 'w-64' : 'w-16'
+    } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center'}`}>
+          <div className="p-2 rounded-lg">
+            <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
+          </div>
+          {showLabel && <span className="font-bold text-xl text-foreground">ABSENTA</span>}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden p-1"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <nav className="p-4 space-y-2">
+        <Button
+          variant={locationPathname === '/siswa' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/siswa' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/siswa');
+            setSidebarOpen(false);
+          }}
+        >
+          <Clock className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Kehadiran</span>}
+        </Button>
+        <Button
+          variant={locationPathname === '/siswa/banding' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/siswa/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/siswa/banding');
+            setSidebarOpen(false);
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Banding Absen</span>}
+        </Button>
+        <Button
+          variant={locationPathname === '/siswa/riwayat' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/siswa/riwayat' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/siswa/riwayat');
+            setSidebarOpen(false);
+          }}
+        >
+          <History className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Riwayat</span>}
+        </Button>
+      </nav>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
+        {showLabel && (
+          <div className="mb-4 flex items-center gap-2">
+            <FontSizeControl variant="compact" />
+            <ModeToggle />
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              isLoading={notifLoading}
+              onRefresh={notifRefresh}
+            />
+          </div>
+        )}
+
+        <div className={`flex items-center space-x-3 mb-3 ${showLabel ? '' : 'justify-center'}`}>
+          <div className="bg-primary/10 p-2 rounded-full">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          {showLabel && (
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">{userName}</p>
+              <p className="text-xs text-muted-foreground">Perwakilan Kelas</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Button
+            onClick={onEditProfile}
+            variant="outline"
+            size="sm"
+            className={`w-full ${showLabel ? '' : 'px-2'}`}
+          >
+            <Settings className="h-4 w-4" />
+            {showLabel && <span className="ml-2">Edit Profil</span>}
+          </Button>
+
+          <Button
+            onClick={onLogout}
+            variant="outline"
+            size="sm"
+            className={`w-full ${showLabel ? '' : 'px-2'}`}
+          >
+            <LogOut className="h-4 w-4" />
+            {showLabel && <span className="ml-2">Keluar</span>}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface StudentMainHeaderProps {
+  userName: string;
+  onOpenSidebar: () => void;
+}
+
+const StudentMainHeader = ({ userName, onOpenSidebar }: StudentMainHeaderProps): React.ReactElement => (
+  <>
+    <div className="flex items-center justify-between mb-6 lg:hidden">
+      <Button variant="outline" size="sm" onClick={onOpenSidebar}>
+        <Menu className="h-4 w-4" />
+      </Button>
+      <h1 className="text-xl font-bold">Dashboard Siswa</h1>
+      <div className="w-10"></div>
+    </div>
+
+    <div className="hidden lg:flex justify-between items-center mb-8">
+      <div>
+        <h1 className="text-4xl font-bold text-foreground">Dashboard Siswa</h1>
+        <p className="text-muted-foreground mt-2">Selamat datang, {userName}!</p>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Badge variant="secondary" className="bg-primary/10 text-primary">
+          {formatDateOnly(getWIBTime())}
+        </Badge>
+      </div>
+    </div>
+  </>
+);
+
+interface StudentDashboardRoutesProps {
+  loading: boolean;
+  isEditMode: boolean;
+  kelasInfo: string;
+  selectedDate: string;
+  minDate: string;
+  maxDate: string;
+  jadwalHariIni: JadwalHariIni[];
+  jadwalBerdasarkanTanggal: JadwalHariIni[];
+  kehadiranData: KehadiranData;
+  adaTugasData: { [key: number]: boolean };
+  isUpdatingStatus: string | null;
+  toggleEditMode: () => void;
+  handleDateChange: (newDate: string) => void;
+  updateKehadiranStatus: (key: string | number, status: string) => Promise<void>;
+  updateKehadiranKeterangan: (key: string | number, keterangan: string) => void;
+  setAdaTugasData: React.Dispatch<React.SetStateAction<{ [key: number]: boolean }>>;
+  submitKehadiran: () => Promise<void>;
+  openAbsenKelasModal: (jadwalId: number, guruNama: string) => Promise<void>;
+  riwayatData: RiwayatData[];
+  riwayatPage: number;
+  setRiwayatPage: React.Dispatch<React.SetStateAction<number>>;
+  detailRiwayat: RiwayatJadwal | null;
+  setDetailRiwayat: React.Dispatch<React.SetStateAction<RiwayatJadwal | null>>;
+  bandingAbsen: BandingAbsen[];
+  expandedBanding: number | null;
+  setExpandedBanding: React.Dispatch<React.SetStateAction<number | null>>;
+  showFormBanding: boolean;
+  setShowFormBanding: React.Dispatch<React.SetStateAction<boolean>>;
+  formBanding: {
+    jadwal_id: string;
+    tanggal_absen: string;
+    siswa_banding: {
+      nama: string;
+      status_asli: StatusType;
+      status_diajukan: StatusType;
+      alasan_banding: string;
+    }[];
+  };
+  setFormBanding: React.Dispatch<React.SetStateAction<{
+    jadwal_id: string;
+    tanggal_absen: string;
+    siswa_banding: {
+      nama: string;
+      status_asli: StatusType;
+      status_diajukan: StatusType;
+      alasan_banding: string;
+    }[];
+  }>>;
+  setJadwalBerdasarkanTanggal: React.Dispatch<React.SetStateAction<JadwalHariIni[]>>;
+  loadingJadwal: boolean;
+  selectedSiswaId: number | null;
+  setSelectedSiswaId: React.Dispatch<React.SetStateAction<number | null>>;
+  daftarSiswa: Array<{ id?: number; id_siswa?: number; nama: string }>;
+  bandingAbsenPage: number;
+  setBandingAbsenPage: React.Dispatch<React.SetStateAction<number>>;
+  itemsPerPage: number;
+  submitBandingAbsen: (e: React.FormEvent) => Promise<void>;
+  loadJadwalBandingByDate: (tanggal: string) => Promise<void>;
+  loadSiswaStatusById: (idSiswa: number, tanggal: string, jadwalId: string) => Promise<void>;
+}
+
+const StudentDashboardRoutes = (props: StudentDashboardRoutesProps): React.ReactElement => (
+  <Routes>
+    <Route
+      index
+      element={
+        <KehadiranTab
+          loading={props.loading}
+          isEditMode={props.isEditMode}
+          kelasInfo={props.kelasInfo}
+          selectedDate={props.selectedDate}
+          minDate={props.minDate}
+          maxDate={props.maxDate}
+          jadwalHariIni={props.jadwalHariIni}
+          jadwalBerdasarkanTanggal={props.jadwalBerdasarkanTanggal}
+          kehadiranData={props.kehadiranData}
+          adaTugasData={props.adaTugasData}
+          isUpdatingStatus={props.isUpdatingStatus}
+          toggleEditMode={props.toggleEditMode}
+          handleDateChange={props.handleDateChange}
+          updateKehadiranStatus={props.updateKehadiranStatus}
+          updateKehadiranKeterangan={props.updateKehadiranKeterangan}
+          setAdaTugasData={props.setAdaTugasData}
+          submitKehadiran={props.submitKehadiran}
+          openAbsenKelasModal={props.openAbsenKelasModal}
+        />
+      }
+    />
+    <Route
+      path="riwayat"
+      element={
+        <RiwayatTab
+          riwayatData={props.riwayatData}
+          riwayatPage={props.riwayatPage}
+          setRiwayatPage={props.setRiwayatPage}
+          detailRiwayat={props.detailRiwayat}
+          setDetailRiwayat={props.setDetailRiwayat}
+        />
+      }
+    />
+    <Route
+      path="banding"
+      element={
+        <BandingAbsenTab
+          bandingAbsen={props.bandingAbsen}
+          expandedBanding={props.expandedBanding}
+          setExpandedBanding={props.setExpandedBanding}
+          showFormBanding={props.showFormBanding}
+          setShowFormBanding={props.setShowFormBanding}
+          formBanding={props.formBanding}
+          setFormBanding={props.setFormBanding}
+          jadwalBerdasarkanTanggal={props.jadwalBerdasarkanTanggal}
+          setJadwalBerdasarkanTanggal={props.setJadwalBerdasarkanTanggal}
+          loadingJadwal={props.loadingJadwal}
+          selectedSiswaId={props.selectedSiswaId}
+          setSelectedSiswaId={props.setSelectedSiswaId}
+          daftarSiswa={props.daftarSiswa}
+          bandingAbsenPage={props.bandingAbsenPage}
+          setBandingAbsenPage={props.setBandingAbsenPage}
+          itemsPerPage={props.itemsPerPage}
+          submitBandingAbsen={props.submitBandingAbsen}
+          loadJadwalBandingByDate={props.loadJadwalBandingByDate}
+          loadSiswaStatusById={props.loadSiswaStatusById}
+        />
+      }
+    />
+  </Routes>
+);
+
+interface AbsenStatusButtonsProps {
+  selectedStatus?: string;
+  onSelectStatus: (status: string) => void;
+}
+
+const AbsenStatusButtons = ({ selectedStatus, onSelectStatus }: AbsenStatusButtonsProps): React.ReactElement => (
+  <div className="grid grid-cols-5 gap-1">
+    {ABSEN_STATUS_OPTIONS.map((status) => (
+      <button
+        type="button"
+        key={status}
+        onClick={() => onSelectStatus(status)}
+        className={`px-2 py-1 text-xs rounded border ${getStatusButtonClass(status, selectedStatus === status)}`}
+      >
+        {status}
+      </button>
+    ))}
+  </div>
+);
+
+interface AbsenKelasStudentRowProps {
+  siswa: AbsenKelasStudent;
+  index: number;
+  selectedStatus?: string;
+  onUpdateStatus: (idSiswa: number, status: string) => void;
+}
+
+const AbsenKelasStudentRow = ({
+  siswa,
+  index,
+  selectedStatus,
+  onUpdateStatus,
+}: AbsenKelasStudentRowProps): React.ReactElement => (
+  <div className="border border-border rounded-lg p-3 bg-muted/20">
+    <div className="flex items-center justify-between mb-2">
+      <div>
+        <span className="text-xs text-muted-foreground mr-2">{index + 1}.</span>
+        <span className="font-medium text-foreground">{siswa.nama}</span>
+        <span className="text-xs text-muted-foreground ml-2">({siswa.nis})</span>
+        {siswa.jabatan && <Badge variant="secondary" className="ml-2 text-xs">{siswa.jabatan}</Badge>}
+      </div>
+      <Badge
+        className={`text-xs ${
+          siswa.jenis_kelamin === 'L'
+            ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400'
+            : 'bg-pink-500/15 text-pink-700 dark:text-pink-400'
+        } border-0`}
+      >
+        {siswa.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+      </Badge>
+    </div>
+
+    <AbsenStatusButtons
+      selectedStatus={selectedStatus}
+      onSelectStatus={(status) => onUpdateStatus(siswa.id_siswa, status)}
+    />
+  </div>
+);
+
+interface StudentAbsenKelasModalProps {
+  show: boolean;
+  loadingAbsenKelas: boolean;
+  daftarSiswaKelas: AbsenKelasStudent[];
+  absenSiswaData: AbsenSiswaDataMap;
+  absenKelasGuruNama: string;
+  onClose: () => void;
+  onSetSemuaSiswaHadir: () => void;
+  onUpdateStatus: (idSiswa: number, status: string) => void;
+  onSubmit: () => Promise<void>;
+}
+
+const StudentAbsenKelasModal = ({
+  show,
+  loadingAbsenKelas,
+  daftarSiswaKelas,
+  absenSiswaData,
+  absenKelasGuruNama,
+  onClose,
+  onSetSemuaSiswaHadir,
+  onUpdateStatus,
+  onSubmit,
+}: StudentAbsenKelasModalProps): React.ReactElement | null => {
+  if (!show) {
+    return null;
+  }
+
+  const hasStudents = daftarSiswaKelas.length > 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        <div className="bg-orange-600 text-white p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Absensi Siswa</h2>
+              <p className="text-sm text-orange-100">Guru {absenKelasGuruNama} tidak hadir - Diabsen oleh Piket</p>
+            </div>
+            <button type="button" onClick={onClose} className="p-1 hover:bg-orange-700 rounded">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto max-h-[60vh] p-4">
+          {loadingAbsenKelas && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+              <span className="ml-2">Memuat daftar siswa...</span>
+            </div>
+          )}
+
+          {!loadingAbsenKelas && !hasStudents && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
+              <p>Tidak ada siswa ditemukan</p>
+            </div>
+          )}
+
+          {!loadingAbsenKelas && hasStudents && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                <span>Total: {daftarSiswaKelas.length} siswa</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={onSetSemuaSiswaHadir} className="text-xs">
+                    Semua Hadir
+                  </Button>
+                </div>
+              </div>
+
+              {daftarSiswaKelas.map((siswa, index) => (
+                <AbsenKelasStudentRow
+                  key={siswa.id_siswa}
+                  siswa={siswa}
+                  index={index}
+                  selectedStatus={absenSiswaData[siswa.id_siswa]?.status}
+                  onUpdateStatus={onUpdateStatus}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t p-4 bg-muted/20">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Batal
+            </Button>
+            <Button
+              onClick={onSubmit}
+              disabled={loadingAbsenKelas || !hasStudents}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {loadingAbsenKelas ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Simpan Absensi
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+type KehadiranDataWithFlags = {
+  [key: string]: { status: string; keterangan: string; ada_tugas: boolean; guru_id?: number };
+};
+
+const validateMultiGuruAttendanceCompleteness = (
+  jadwalData: JadwalHariIni[],
+  kehadiranData: KehadiranData
+): string | null => {
+  const multiGuruJadwal = jadwalData.filter((jadwal) => jadwal.is_multi_guru && jadwal.is_absenable);
+  const providedKeys = Object.keys(kehadiranData);
+
+  for (const jadwal of multiGuruJadwal) {
+    if (!jadwal.guru_list || jadwal.guru_list.length === 0) {
+      continue;
+    }
+
+    const expectedKeys = jadwal.guru_list.map((guru) => `${jadwal.id_jadwal}-${guru.id_guru}`);
+    const missingTeachers = expectedKeys.filter((key) => !providedKeys.includes(key));
+
+    if (missingTeachers.length > 0) {
+      return jadwal.nama_mapel;
+    }
+  }
+
+  return null;
+};
+
+const buildKehadiranDataWithFlags = (
+  kehadiranData: KehadiranData,
+  adaTugasData: { [key: number]: boolean }
+): KehadiranDataWithFlags => {
+  const kehadiranDataWithFlags: KehadiranDataWithFlags = {};
+
+  Object.keys(kehadiranData).forEach((key) => {
+    if (key.includes('-')) {
+      const [, guruId] = key.split('-');
+      kehadiranDataWithFlags[key] = {
+        status: kehadiranData[key].status,
+        keterangan: kehadiranData[key].keterangan,
+        ada_tugas: adaTugasData[key] || false,
+        guru_id: Number.parseInt(guruId)
+      };
+      return;
+    }
+
+    const jadwalIdNum = Number.parseInt(key);
+    kehadiranDataWithFlags[jadwalIdNum] = {
+      status: kehadiranData[jadwalIdNum].status,
+      keterangan: kehadiranData[jadwalIdNum].keterangan,
+      ada_tugas: adaTugasData[jadwalIdNum] || false,
+      guru_id: kehadiranData[jadwalIdNum].guru_id
+    };
+  });
+
+  return kehadiranDataWithFlags;
+};
+
+const handleKehadiranStatusUpdateError = (
+  key: string | number,
+  previousState: KehadiranData[string] | undefined,
+  message: string,
+  setKehadiranData: React.Dispatch<React.SetStateAction<KehadiranData>>
+): void => {
+  setKehadiranData((prev) => ({
+    ...prev,
+    [key]: previousState || {
+      status: 'Hadir',
+      keterangan: ''
+    }
+  }));
+
+  toast({
+    title: 'Gagal Menyimpan',
+    description: message,
+    variant: 'destructive',
+    duration: 4000
+  });
+};
 
 export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
   const { logout } = useAuth();
   const onLogout = useCallback(() => {
-    void logout();
+    logout();
   }, [logout]);
 
   // Notifications (siswa — uses userData.id since siswaId is derived later)
@@ -225,10 +788,9 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
             // Implementation specific
           }
         }
-      } catch (error) {
-        // Silent fail - siswa info is supplementary
-        void error;
-      }
+      } catch {
+         // Silent fail - siswa info is supplementary
+       }
     };
 
     getSiswaInfo();
@@ -606,62 +1168,25 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
     setLoading(true);
     try {
-      // Validate multi-guru schedules - check if all teachers are being attended
       const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
-      const multiGuruJadwal = jadwalData.filter(jadwal => jadwal.is_multi_guru && jadwal.is_absenable);
-      
-      for (const jadwal of multiGuruJadwal) {
-        if (jadwal.guru_list && jadwal.guru_list.length > 0) {
-          const expectedKeys = jadwal.guru_list.map(guru => `${jadwal.id_jadwal}-${guru.id_guru}`);
-          const providedKeys = Object.keys(kehadiranData);
-          const missingTeachers = expectedKeys.filter(key => !providedKeys.includes(key));
-          
-          if (missingTeachers.length > 0) {
-            toast({
-              title: "Validasi Gagal",
-              description: `Jadwal ${jadwal.nama_mapel} memerlukan absensi untuk semua guru. Silakan lengkapi absensi untuk semua guru terlebih dahulu.`,
-              variant: "destructive"
-            });
-            setLoading(false);
-            return;
-          }
-        }
-      }
+      const missingAttendanceMapel = validateMultiGuruAttendanceCompleteness(jadwalData, kehadiranData);
 
-      // Prepare kehadiran data with ada_tugas flags for multi-guru support
-      const kehadiranDataWithFlags: {[key: string]: {status: string; keterangan: string; ada_tugas: boolean; guru_id?: number}} = {};
-      Object.keys(kehadiranData).forEach(key => {
-        // Check if this is a multi-guru key (format: "jadwalId-guruId")
-        if (key.includes('-')) {
-          const [, guruId] = key.split('-'); // jadwalId unused, only guruId needed
-          kehadiranDataWithFlags[key] = {
-            status: kehadiranData[key].status,
-            keterangan: kehadiranData[key].keterangan,
-            ada_tugas: adaTugasData[key] || false,
-            guru_id: Number.parseInt(guruId)
-          };
-        } else {
-          // Single guru format
-          const jadwalIdNum = Number.parseInt(key);
-          kehadiranDataWithFlags[jadwalIdNum] = {
-            status: kehadiranData[jadwalIdNum].status,
-            keterangan: kehadiranData[jadwalIdNum].keterangan,
-            ada_tugas: adaTugasData[jadwalIdNum] || false,
-            guru_id: kehadiranData[jadwalIdNum].guru_id // Include guru_id if available
-          };
-        }
-      });
+      if (missingAttendanceMapel) {
+        toast({
+          title: 'Validasi Gagal',
+          description: `Jadwal ${missingAttendanceMapel} memerlukan absensi untuk semua guru. Silakan lengkapi absensi untuk semua guru terlebih dahulu.`,
+          variant: 'destructive'
+        });
+        setLoading(false);
+        return;
+      }
 
       const requestData = {
         siswa_id: siswaId,
-        kehadiran_data: kehadiranDataWithFlags,
+        kehadiran_data: buildKehadiranDataWithFlags(kehadiranData, adaTugasData),
         tanggal_absen: selectedDate
       };
-      
-    
-    
-    
-      
+
       const result = await apiRequest<{ success?: boolean; message?: string; error?: unknown }>(
         '/api/siswa/submit-kehadiran-guru',
         {
@@ -672,26 +1197,25 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
       if (isFailureResponse(result)) {
         toast({
-          title: "Gagal menyimpan",
-          description: getResponseErrorText(result, "Gagal menyimpan kehadiran guru."),
-          variant: "destructive"
+          title: 'Gagal menyimpan',
+          description: getResponseErrorText(result, 'Gagal menyimpan kehadiran guru.'),
+          variant: 'destructive'
         });
         return;
       }
 
       toast({
-        title: "Berhasil",
-        description: result?.message || "Data kehadiran guru berhasil disimpan"
+        title: 'Berhasil',
+        description: result?.message || 'Data kehadiran guru berhasil disimpan'
       });
 
-      // Reload jadwal to get updated status
       loadJadwalHariIni();
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal menyimpan kehadiran guru.');
       toast({
-        title: "Gagal menyimpan",
+        title: 'Gagal menyimpan',
         description: message,
-        variant: "destructive"
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -915,23 +1439,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
     } catch (error) {
       const message = resolveErrorMessage(error, 'Gagal menyimpan status kehadiran.');
-      
-      // Rollback ke state sebelumnya
-      setKehadiranData(prev => ({
-        ...prev,
-        [key]: previousState || {
-          status: 'Hadir',
-          keterangan: ''
-        }
-      }));
-
-      // Tampilkan error notification
-      toast({
-        title: "Gagal Menyimpan",
-        description: message,
-        variant: "destructive",
-        duration: 4000
-      });
+      handleKehadiranStatusUpdateError(key, previousState, message, setKehadiranData);
     } finally {
       // Clear updating state
       setIsUpdatingStatus(null);
@@ -1134,329 +1642,86 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
 
   const renderDashboardLayout = (): React.ReactElement => (
     <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
-        sidebarOpen ? 'w-64' : 'w-16'
-      } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center'}`}>
-            <div className="p-2 rounded-lg">
-              <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
-            </div>
-            {(sidebarOpen || window.innerWidth >= 1024) && (
-              <span className="font-bold text-xl text-foreground">
-                ABSENTA
-              </span>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-1"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      <StudentSidebar
+        locationPathname={location.pathname}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        navigate={navigate}
+        userName={currentUserData.nama}
+        onLogout={onLogout}
+        onEditProfile={() => setShowEditProfile(true)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        notifLoading={notifLoading}
+        notifRefresh={notifRefresh}
+      />
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-2">
-          <Button
-            variant={location.pathname === '/siswa' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/siswa' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/siswa'); setSidebarOpen(false); }}
-          >
-            <Clock className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Kehadiran</span>}
-          </Button>
-          <Button
-            variant={location.pathname === '/siswa/banding' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/siswa/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/siswa/banding'); setSidebarOpen(false); }}
-          >
-            <MessageCircle className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Banding Absen</span>}
-          </Button>
-          <Button
-            variant={location.pathname === '/siswa/riwayat' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/siswa/riwayat' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/siswa/riwayat'); setSidebarOpen(false); }}
-          >
-            <History className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat</span>}
-          </Button>
-        </nav>
-
-        {/* User Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
-{/* Font Size Control - Above Profile */}
-          {(sidebarOpen || window.innerWidth >= 1024) && (
-            <div className="mb-4 flex items-center gap-2">
-              <FontSizeControl variant="compact" />
-              <ModeToggle />
-              <NotificationBell
-                notifications={notifications}
-                unreadCount={unreadCount}
-                isLoading={notifLoading}
-                onRefresh={notifRefresh}
-              />
-            </div>
-          )}
-
-          <div className={`flex items-center space-x-3 mb-3 ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'justify-center'}`}>
-            <div className="bg-primary/10 p-2 rounded-full">
-              <User className="h-4 w-4 text-primary" />
-            </div>
-            {(sidebarOpen || window.innerWidth >= 1024) && (
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{currentUserData.nama}</p>
-                <p className="text-xs text-muted-foreground">Perwakilan Kelas</p>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Button
-              onClick={() => setShowEditProfile(true)}
-              variant="outline"
-              size="sm"
-              className={`w-full ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
-            >
-              <Settings className="h-4 w-4" />
-              {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Edit Profil</span>}
-            </Button>
-
-            <Button
-              onClick={onLogout}
-              variant="outline"
-              size="sm"
-              className={`w-full ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
-            >
-              <LogOut className="h-4 w-4" />
-              {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Keluar</span>}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       <div className="lg:ml-64">
         <div className="p-4 lg:p-6">
-          {/* Mobile Header */}
-          <div className="flex items-center justify-between mb-6 lg:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-bold">Dashboard Siswa</h1>
-            <div className="w-10"></div> {/* Spacer for alignment */}
-          </div>
-
-          {/* Desktop Header */}
-          <div className="hidden lg:flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">
-                Dashboard Siswa
-              </h1>
-              <p className="text-muted-foreground mt-2">Selamat datang, {currentUserData.nama}!</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-primary/10 text-primary">
-                {formatDateOnly(getWIBTime())}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Content */}
-          <Routes>
-            <Route index element={
-              <KehadiranTab
-                loading={loading}
-                isEditMode={isEditMode}
-                kelasInfo={kelasInfo}
-                selectedDate={selectedDate}
-                minDate={minDate}
-                maxDate={maxDate}
-                jadwalHariIni={jadwalHariIni}
-                jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
-                kehadiranData={kehadiranData}
-                adaTugasData={adaTugasData}
-                isUpdatingStatus={isUpdatingStatus}
-                toggleEditMode={toggleEditMode}
-                handleDateChange={handleDateChange}
-                updateKehadiranStatus={updateKehadiranStatus}
-                updateKehadiranKeterangan={updateKehadiranKeterangan}
-                setAdaTugasData={setAdaTugasData}
-                submitKehadiran={submitKehadiran}
-                openAbsenKelasModal={openAbsenKelasModal}
-              />
-            } />
-            <Route path="riwayat" element={
-              <RiwayatTab
-                riwayatData={riwayatData}
-                riwayatPage={riwayatPage}
-                setRiwayatPage={setRiwayatPage}
-                detailRiwayat={detailRiwayat}
-                setDetailRiwayat={setDetailRiwayat}
-              />
-            } />
-            <Route path="banding" element={
-              <BandingAbsenTab
-                bandingAbsen={bandingAbsen}
-                expandedBanding={expandedBanding}
-                setExpandedBanding={setExpandedBanding}
-                showFormBanding={showFormBanding}
-                setShowFormBanding={setShowFormBanding}
-                formBanding={formBanding}
-                setFormBanding={setFormBanding}
-                jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
-                setJadwalBerdasarkanTanggal={setJadwalBerdasarkanTanggal}
-                loadingJadwal={loadingJadwal}
-                selectedSiswaId={selectedSiswaId}
-                setSelectedSiswaId={setSelectedSiswaId}
-                daftarSiswa={daftarSiswa}
-                bandingAbsenPage={bandingAbsenPage}
-                setBandingAbsenPage={setBandingAbsenPage}
-                itemsPerPage={itemsPerPage}
-                submitBandingAbsen={submitBandingAbsen}
-                loadJadwalBandingByDate={loadJadwalBandingByDate}
-                loadSiswaStatusById={loadSiswaStatusById}
-              />
-            } />
-          </Routes>
+          <StudentMainHeader userName={currentUserData.nama} onOpenSidebar={() => setSidebarOpen(true)} />
+          <StudentDashboardRoutes
+            loading={loading}
+            isEditMode={isEditMode}
+            kelasInfo={kelasInfo}
+            selectedDate={selectedDate}
+            minDate={minDate}
+            maxDate={maxDate}
+            jadwalHariIni={jadwalHariIni}
+            jadwalBerdasarkanTanggal={jadwalBerdasarkanTanggal}
+            kehadiranData={kehadiranData}
+            adaTugasData={adaTugasData}
+            isUpdatingStatus={isUpdatingStatus}
+            toggleEditMode={toggleEditMode}
+            handleDateChange={handleDateChange}
+            updateKehadiranStatus={updateKehadiranStatus}
+            updateKehadiranKeterangan={updateKehadiranKeterangan}
+            setAdaTugasData={setAdaTugasData}
+            submitKehadiran={submitKehadiran}
+            openAbsenKelasModal={openAbsenKelasModal}
+            riwayatData={riwayatData}
+            riwayatPage={riwayatPage}
+            setRiwayatPage={setRiwayatPage}
+            detailRiwayat={detailRiwayat}
+            setDetailRiwayat={setDetailRiwayat}
+            bandingAbsen={bandingAbsen}
+            expandedBanding={expandedBanding}
+            setExpandedBanding={setExpandedBanding}
+            showFormBanding={showFormBanding}
+            setShowFormBanding={setShowFormBanding}
+            formBanding={formBanding}
+            setFormBanding={setFormBanding}
+            setJadwalBerdasarkanTanggal={setJadwalBerdasarkanTanggal}
+            loadingJadwal={loadingJadwal}
+            selectedSiswaId={selectedSiswaId}
+            setSelectedSiswaId={setSelectedSiswaId}
+            daftarSiswa={daftarSiswa}
+            bandingAbsenPage={bandingAbsenPage}
+            setBandingAbsenPage={setBandingAbsenPage}
+            itemsPerPage={itemsPerPage}
+            submitBandingAbsen={submitBandingAbsen}
+            loadJadwalBandingByDate={loadJadwalBandingByDate}
+            loadSiswaStatusById={loadSiswaStatusById}
+          />
         </div>
       </div>
 
-{/* Floating Font Size Control for Mobile */}
       <div className="fixed bottom-4 right-4 flex items-center gap-2 lg:hidden z-50">
         <FontSizeControl variant="floating" />
         <ModeToggle />
       </div>
 
-      {/* Absen Kelas Modal (Piket mengabsen siswa ketika guru tidak hadir) */}
-      {showAbsenKelasModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            {/* Header */}
-            <div className="bg-orange-600 text-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">Absensi Siswa</h2>
-                  <p className="text-sm text-orange-100">
-                    Guru {absenKelasGuruNama} tidak hadir - Diabsen oleh Piket
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetAbsenKelasModalState}
-                  className="p-1 hover:bg-orange-700 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+      <StudentAbsenKelasModal
+        show={showAbsenKelasModal}
+        loadingAbsenKelas={loadingAbsenKelas}
+        daftarSiswaKelas={daftarSiswaKelas}
+        absenSiswaData={absenSiswaData}
+        absenKelasGuruNama={absenKelasGuruNama}
+        onClose={resetAbsenKelasModalState}
+        onSetSemuaSiswaHadir={handleSetSemuaSiswaHadir}
+        onUpdateStatus={handleUpdateAbsenSiswaStatus}
+        onSubmit={submitAbsenKelas}
+      />
 
-            {/* Content */}
-            <div className="overflow-y-auto max-h-[60vh] p-4">
-              {loadingAbsenKelas ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-                  <span className="ml-2">Memuat daftar siswa...</span>
-                </div>
-              ) : daftarSiswaKelas.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                  <p>Tidak ada siswa ditemukan</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                    <span>Total: {daftarSiswaKelas.length} siswa</span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleSetSemuaSiswaHadir}
-                        className="text-xs"
-                      >
-                        Semua Hadir
-                      </Button>
-                    </div>
-                  </div>
-
-                  {daftarSiswaKelas.map((siswa, index) => (
-                    <div key={siswa.id_siswa} className="border border-border rounded-lg p-3 bg-muted/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <span className="text-xs text-muted-foreground mr-2">{index + 1}.</span>
-                          <span className="font-medium text-foreground">{siswa.nama}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({siswa.nis})</span>
-                          {siswa.jabatan && (
-                            <Badge variant="secondary" className="ml-2 text-xs">{siswa.jabatan}</Badge>
-                          )}
-                        </div>
-                        <Badge className={`text-xs ${
-                          siswa.jenis_kelamin === 'L' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' : 'bg-pink-500/15 text-pink-700 dark:text-pink-400'
-                        } border-0`}>
-                          {siswa.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-5 gap-1">
-                        {['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'].map(status => (
-                          <button
-                            type="button"
-                            key={status}
-                            onClick={() => handleUpdateAbsenSiswaStatus(siswa.id_siswa, status)}
-                            className={`px-2 py-1 text-xs rounded border ${getStatusButtonClass(status, absenSiswaData[siswa.id_siswa]?.status === status)}`}
-                          >
-                            {status}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="border-t p-4 bg-muted/20">
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={resetAbsenKelasModalState}
-                >
-                  Batal
-                </Button>
-                <Button
-                  onClick={submitAbsenKelas}
-                  disabled={loadingAbsenKelas || daftarSiswaKelas.length === 0}
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  {loadingAbsenKelas ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Simpan Absensi
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Profile Modal */}
       {showEditProfile && (
         <EditProfile
           userData={currentUserData}

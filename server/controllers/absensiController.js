@@ -99,6 +99,13 @@ function mapAttendanceStatus(status, terlambat = false, ada_tugas = false) {
     return { finalStatus, isLate, hasTask };
 }
 
+function getTeacherStatusFlags(status, terlambat = false, ada_tugas = false) {
+    const isLate = terlambat && status === 'Hadir' ? 1 : 0;
+    const hasTask = ada_tugas && ['Tidak Hadir', 'Alpa', 'Izin', 'Sakit'].includes(status) ? 1 : 0;
+
+    return { isLate, hasTask };
+}
+
 /**
  * Parses attendance data from request body
  */
@@ -158,6 +165,128 @@ async function validatePiketAccess(pool, siswa_pencatat_id, jadwal_id) {
 
     return { kelasId };
 }
+
+/**
+ * Validates that a jadwal belongs to current user's class.
+ * @param {import('mysql2/promise').Pool} pool - Database pool
+ * @param {number|string} jadwal_id - Jadwal id
+ * @param {number|string} kelasId - User class id
+ * @returns {Promise<{error?: string, permissionError?: boolean}>} Validation result
+ */
+const validateJadwalForUserClass = async (pool, jadwal_id, kelasId) => {
+    const [jadwalRows] = await pool.execute(
+        'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? LIMIT 1',
+        [jadwal_id]
+    );
+
+    if (jadwalRows.length === 0) {
+        return { error: 'Jadwal tidak ditemukan' };
+    }
+
+    if (jadwalRows[0].kelas_id !== kelasId) {
+        return { error: 'Jadwal tidak sesuai dengan kelas Anda', permissionError: true };
+    }
+
+    return {};
+};
+
+/**
+ * Resolve target date and validate piket only submits for today.
+ * @param {string|undefined} tanggal_absen - Optional target date from request
+ * @returns {{ targetDate: string, dateError: string|null }} Date result
+ */
+const resolvePiketTargetDate = (tanggal_absen) => {
+    const targetDate = tanggal_absen || getMySQLDateWIB();
+    const todayStr = getMySQLDateWIB();
+
+    if (targetDate !== todayStr) {
+        return {
+            targetDate,
+            dateError: `Absensi oleh piket hanya bisa dilakukan untuk hari ini (${todayStr}). Tanggal yang diminta: ${targetDate}`
+        };
+    }
+
+    return { targetDate, dateError: null };
+};
+
+/**
+ * Process all attendance records and return processed count.
+ * @param {import('mysql2/promise').PoolConnection} connection - Transaction connection
+ * @param {Object} attendance_data - Attendance payload keyed by student id
+ * @param {number|string} jadwal_id - Jadwal id
+ * @param {string} targetDate - Attendance date
+ * @param {number|string} siswa_pencatat_id - Recorder siswa id
+ * @param {string} waktuAbsen - Attendance timestamp
+ * @returns {Promise<number>} Number of records successfully processed
+ */
+const processPiketAttendanceBatch = async (
+    connection,
+    attendance_data,
+    jadwal_id,
+    targetDate,
+    siswa_pencatat_id,
+    waktuAbsen
+) => {
+    let processed = 0;
+
+    for (const [studentId, data] of Object.entries(attendance_data)) {
+        const success = await processStudentAttendanceRecord(
+            connection,
+            studentId,
+            data,
+            jadwal_id,
+            targetDate,
+            siswa_pencatat_id,
+            waktuAbsen
+        );
+        if (success) {
+            processed++;
+        }
+    }
+
+    return processed;
+};
+
+/**
+ * Execute transactional submit flow for piket attendance.
+ * @param {import('mysql2/promise').Pool} pool - Database pool
+ * @param {Object} attendance_data - Attendance payload keyed by student id
+ * @param {number|string} jadwal_id - Jadwal id
+ * @param {string} targetDate - Attendance date
+ * @param {number|string} siswa_pencatat_id - Recorder siswa id
+ * @returns {Promise<number>} Number of processed attendance rows
+ */
+const submitPiketAttendanceTransaction = async (
+    pool,
+    attendance_data,
+    jadwal_id,
+    targetDate,
+    siswa_pencatat_id
+) => {
+    const connection = await pool.getConnection();
+    const waktuAbsen = getMySQLDateTimeWIB();
+
+    try {
+        await connection.beginTransaction();
+
+        const processed = await processPiketAttendanceBatch(
+            connection,
+            attendance_data,
+            jadwal_id,
+            targetDate,
+            siswa_pencatat_id,
+            waktuAbsen
+        );
+
+        await connection.commit();
+        return processed;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
 
 /**
  * Validates if guru is absent (required for piket to submit)
@@ -469,7 +598,9 @@ export async function submitStudentAttendance(req, res) {
             );
             
             const existingMap = new Map();
-            existingRows.forEach(row => existingMap.set(row.siswa_id, row.id));
+            existingRows.forEach((row) => {
+                existingMap.set(row.siswa_id, row.id);
+            });
 
             const updates = [];
             const inserts = [];
@@ -1050,25 +1181,18 @@ export async function submitStudentAttendanceByPiket(req, res) {
         }
 
         if (req.user.kelas_id) {
-            const [jadwalRows] = await db.execute(
-                'SELECT kelas_id FROM jadwal WHERE id_jadwal = ? LIMIT 1',
-                [jadwal_id]
-            );
-            if (jadwalRows.length === 0) {
-                return sendNotFoundError(res, 'Jadwal tidak ditemukan');
-            }
-            if (jadwalRows[0].kelas_id !== req.user.kelas_id) {
-                return sendPermissionError(res, 'Jadwal tidak sesuai dengan kelas Anda');
+            const jadwalClassValidation = await validateJadwalForUserClass(db, jadwal_id, req.user.kelas_id);
+            if (jadwalClassValidation.error) {
+                return jadwalClassValidation.permissionError
+                    ? sendPermissionError(res, jadwalClassValidation.error)
+                    : sendNotFoundError(res, jadwalClassValidation.error);
             }
         }
 
-        const targetDate = tanggal_absen || getMySQLDateWIB();
-
-        const todayStr = getMySQLDateWIB();
-
         // Step 2: Validate date (only today allowed for piket)
-        if (targetDate !== todayStr) {
-            return sendValidationError(res, `Absensi oleh piket hanya bisa dilakukan untuk hari ini (${todayStr}). Tanggal yang diminta: ${targetDate}`);
+        const { targetDate, dateError } = resolvePiketTargetDate(tanggal_absen);
+        if (dateError) {
+            return sendValidationError(res, dateError);
         }
 
         // Step 3: Validate piket access to this jadwal
@@ -1086,42 +1210,27 @@ export async function submitStudentAttendanceByPiket(req, res) {
         }
 
         // Step 5: Process attendance records
-        const connection = await db.getConnection();
-        const waktuAbsen = getMySQLDateTimeWIB();
-        let processed = 0;
+        const processed = await submitPiketAttendanceTransaction(
+            db,
+            attendance_data,
+            jadwal_id,
+            targetDate,
+            siswa_pencatat_id
+        );
 
-        try {
-            await connection.beginTransaction();
+        log.success('SubmitStudentAttendanceByPiket', {
+            siswa_pencatat_id,
+            jadwal_id,
+            processed,
+            targetDate
+        });
 
-            for (const [studentId, data] of Object.entries(attendance_data)) {
-                const success = await processStudentAttendanceRecord(
-                    connection, studentId, data, jadwal_id, targetDate, siswa_pencatat_id, waktuAbsen
-                );
-                if (success) processed++;
-            }
-
-            await connection.commit();
-
-            log.success('SubmitStudentAttendanceByPiket', { 
-                siswa_pencatat_id, 
-                jadwal_id, 
-                processed, 
-                targetDate 
-            });
-
-            res.json({
-                success: true,
-                message: `Absensi ${processed} siswa berhasil disimpan oleh piket`,
-                processed,
-                date: targetDate
-            });
-
-        } catch (error) {
-            await connection.rollback();
-            throw error;
-        } finally {
-            connection.release();
-        }
+        res.json({
+            success: true,
+            message: `Absensi ${processed} siswa berhasil disimpan oleh piket`,
+            processed,
+            date: targetDate
+        });
 
     } catch (error) {
         log.dbError('submitStudentAttendanceByPiket', error, { siswa_pencatat_id, jadwal_id });
@@ -1177,16 +1286,8 @@ export async function updateTeacherStatus(req, res) {
         const targetDate = tanggal_absen || getMySQLDateWIB();
         
         // Map status with flags
-        let finalStatus = status;
-        let isLate = 0;
-        let hasTask = 0;
-
-        if (terlambat && status === 'Hadir') {
-            isLate = 1;
-        }
-        if (ada_tugas && ['Tidak Hadir', 'Alpa', 'Izin', 'Sakit'].includes(status)) {
-            hasTask = 1;
-        }
+        const finalStatus = status;
+        const { isLate, hasTask } = getTeacherStatusFlags(status, terlambat, ada_tugas);
 
         // Check if record exists
         const [existing] = await db.execute(
@@ -1459,4 +1560,3 @@ export async function getStudentAttendanceStatus(req, res) {
         return sendDatabaseError(res, error, 'Gagal memuat status kehadiran');
     }
 }
-

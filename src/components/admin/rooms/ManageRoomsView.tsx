@@ -176,9 +176,17 @@ export const ManageRoomsView = ({
   const filteredRooms = rooms.filter(
     (room) =>
       room.kode_ruang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (room.nama_ruang && room.nama_ruang.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (room.lokasi && room.lokasi.toLowerCase().includes(searchTerm.toLowerCase()))
+      room.nama_ruang?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      room.lokasi?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  let submitLabel = "Tambah";
+  if (editingId) {
+    submitLabel = "Perbarui";
+  }
+  if (isLoading) {
+    submitLabel = "Menyimpan...";
+  }
 
   if (showImport) {
     return <ExcelImportView entityType="ruang" entityName="Ruang Kelas" onBack={() => setShowImport(false)} />;
@@ -459,7 +467,7 @@ export const ManageRoomsView = ({
                 Batal
               </Button>
               <Button type="submit" disabled={isLoading} className="text-sm">
-                {isLoading ? "Menyimpan..." : editingId ? "Perbarui" : "Tambah"}
+                {submitLabel}
               </Button>
             </DialogFooter>
           </form>

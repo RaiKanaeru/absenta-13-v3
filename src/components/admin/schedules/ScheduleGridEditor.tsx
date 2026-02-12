@@ -538,7 +538,7 @@ export function ScheduleGridEditor({
                               }}
                             >
                               <DroppableCell kelasId={row.kelas_id} jamKe={slot.jam_ke} isDisabled={slot.jenis !== 'pelajaran'}>
-                                {cell && cell.jenis_aktivitas === 'pelajaran' && (
+                                {cell?.jenis_aktivitas === 'pelajaran' && (
                                   <div className="p-1 text-[10px] leading-tight space-y-1">
                                     <div className="font-bold truncate text-primary">{cell.nama_mapel}</div>
                                     <div className="text-muted-foreground truncate">{cell.nama_guru}</div>

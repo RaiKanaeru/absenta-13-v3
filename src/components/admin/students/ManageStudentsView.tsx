@@ -287,7 +287,6 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
 
   // Server-side pagination - no client-side filtering
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startIndex = (currentPage - 1) * pageSize;
   const pagedStudents = students; // Server already returns paginated data
 
   if (showImport) {

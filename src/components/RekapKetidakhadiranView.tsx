@@ -4,10 +4,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Download, Search, Users, Calendar, BarChart3, FileText } from 'lucide-react';
+import { ArrowLeft, Search, Users, Calendar, BarChart3, FileText } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
+import { useExcelDownload } from '@/hooks/useExcelDownload';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { ErrorAlert } from '@/components/shared/ErrorAlert';
 
 import { ReportLetterhead } from './ui/report-letterhead';
 import { ReportSummary } from './ui/report-summary';
@@ -32,6 +34,99 @@ interface PresensiData {
   }[];
 }
 
+const shouldShowRekapTable = (
+  selectedKelas: string,
+  selectedTahun: string,
+  studentsLength: number,
+  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  selectedBulan: string,
+  selectedTanggalAwal: string,
+  selectedTanggalAkhir: string,
+) => {
+  if (!selectedKelas || !selectedTahun || studentsLength === 0) {
+    return false;
+  }
+
+  if (viewMode === 'tahunan') {
+    return true;
+  }
+
+  if (viewMode === 'bulanan') {
+    return Boolean(selectedBulan);
+  }
+
+  return Boolean(selectedTanggalAwal && selectedTanggalAkhir);
+};
+
+/**
+ * Determine if presensi data fetch should occur based on view mode and selected values
+ */
+const shouldFetchPresensiData = (
+  selectedKelas: string,
+  selectedTahun: string,
+  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  selectedBulan: string,
+  selectedTanggalAwal: string,
+  selectedTanggalAkhir: string,
+): boolean => {
+  if (!selectedKelas || !selectedTahun) return false;
+
+  if (viewMode === 'bulanan') return Boolean(selectedBulan);
+  if (viewMode === 'tanggal') return Boolean(selectedTanggalAwal && selectedTanggalAkhir);
+  return true; // tahunan
+};
+
+/**
+ * Build URL search params for presensi API based on view mode
+ */
+const buildPresensiParams = (
+  kelasId: string,
+  tahun: string,
+  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  bulan?: string,
+  tanggalAwal?: string,
+  tanggalAkhir?: string,
+): URLSearchParams => {
+  const params = new URLSearchParams({
+    kelas_id: kelasId,
+    tahun: tahun,
+  });
+
+  if (viewMode === 'bulanan' && bulan) {
+    params.append('bulan', bulan);
+  }
+
+  if (viewMode === 'tanggal' && tanggalAwal && tanggalAkhir) {
+    params.append('tanggal_awal', tanggalAwal);
+    params.append('tanggal_akhir', tanggalAkhir);
+  }
+
+  return params;
+};
+
+/**
+ * Build export filename with class, year and period info
+ */
+const buildExportFileName = (
+  baseFileName: string,
+  kelasName: string,
+  tahun: string,
+  viewMode: 'tahunan' | 'bulanan' | 'tanggal',
+  selectedBulan?: string,
+  selectedTanggalAwal?: string,
+  selectedTanggalAkhir?: string,
+): string => {
+  let fileName = `${baseFileName}_${kelasName}_${tahun}`;
+
+  if (viewMode === 'bulanan' && selectedBulan) {
+    fileName += `_${selectedBulan}`;
+  } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
+    fileName += `_${selectedTanggalAwal}_${selectedTanggalAkhir}`;
+  }
+
+  return fileName;
+};
+
 const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => void }> = ({ onBack, onLogout }) => {
   const [selectedKelas, setSelectedKelas] = useState<string>('');
   const [selectedTahun, setSelectedTahun] = useState<string>(new Date().getFullYear().toString());
@@ -44,6 +139,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
   const [presensiData, setPresensiData] = useState<PresensiData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { downloadExcel, exporting } = useExcelDownload();
 
   // Use letterhead hook for consistent kop laporan
   const { letterhead } = useLetterhead('REPORT_REKAP_KETIDAKHADIRAN');
@@ -55,7 +151,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
   const fetchClasses = useCallback(async () => {
     try {
       setError(null);
-      const data = await apiCall('/api/kelas');
+      const data = await apiCall<Kelas[]>('/api/kelas');
 
       setClasses(data);
      } catch (error) {
@@ -70,7 +166,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     try {
       setLoading(true);
       setError(null);
-      const data = await apiCall(`/api/admin/students-by-class/${kelasId}`);
+      const data = await apiCall<Siswa[]>(`/api/admin/students-by-class/${kelasId}`);
 
       setStudents(data);
      } catch (error) {
@@ -80,64 +176,46 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     }
   }, []);
 
-  // Fetch presensi data
-  const fetchPresensiData = useCallback(async (kelasId: string, tahun: string, bulan?: string, tanggalAwal?: string, tanggalAkhir?: string) => {
-    if (!kelasId || !tahun) return;
+   // Fetch presensi data
+   const fetchPresensiData = useCallback(async (kelasId: string, tahun: string, bulan?: string, tanggalAwal?: string, tanggalAkhir?: string) => {
+     if (!kelasId || !tahun) return;
 
-    // Validasi urutan tanggal untuk mode tanggal
-    if (tanggalAwal && tanggalAkhir && new Date(tanggalAkhir) < new Date(tanggalAwal)) {
-      setError('Tanggal akhir harus setelah tanggal awal');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setError(null);
-      const params = new URLSearchParams({
-        kelas_id: kelasId,
-        tahun: tahun
-      });
+     // Validasi urutan tanggal untuk mode tanggal
+     if (tanggalAwal && tanggalAkhir && new Date(tanggalAkhir) < new Date(tanggalAwal)) {
+       setError('Tanggal akhir harus setelah tanggal awal');
+       return;
+     }
+     
+     try {
+       setLoading(true);
+       setError(null);
+       const params = buildPresensiParams(kelasId, tahun, viewMode, bulan, tanggalAwal, tanggalAkhir);
 
-      if (bulan) {
-        params.append('bulan', bulan);
-      }
+       const data = await apiCall<PresensiData[]>(`/api/admin/rekap-ketidakhadiran?${params}`);
 
-      if (tanggalAwal && tanggalAkhir) {
-        params.append('tanggal_awal', tanggalAwal);
-        params.append('tanggal_akhir', tanggalAkhir);
-      }
+        setPresensiData(data);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Gagal memuat data presensi');
+      } finally {
+       setLoading(false);
+     }
+   }, [viewMode]);
 
-      const data = await apiCall(`/api/admin/rekap-ketidakhadiran?${params}`);
+   useEffect(() => {
+     fetchClasses();
+   }, [fetchClasses]);
 
-       setPresensiData(data);
-     } catch (error) {
-       setError(error instanceof Error ? error.message : 'Gagal memuat data presensi');
-     } finally {
-      setLoading(false);
-    }
-  }, []);
+   useEffect(() => {
+     if (selectedKelas) {
+       fetchStudents(selectedKelas);
+     }
+   }, [selectedKelas, fetchStudents]);
 
-  useEffect(() => {
-    fetchClasses();
-  }, [fetchClasses]);
-
-  useEffect(() => {
-    if (selectedKelas) {
-      fetchStudents(selectedKelas);
-    }
-  }, [selectedKelas, fetchStudents]);
-
-  useEffect(() => {
-    if (selectedKelas && selectedTahun) {
-      if (viewMode === 'bulanan' && selectedBulan) {
-        fetchPresensiData(selectedKelas, selectedTahun, selectedBulan);
-      } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
-        fetchPresensiData(selectedKelas, selectedTahun, undefined, selectedTanggalAwal, selectedTanggalAkhir);
-      } else if (viewMode === 'tahunan') {
-        fetchPresensiData(selectedKelas, selectedTahun);
-      }
-    }
-  }, [selectedKelas, selectedTahun, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir, viewMode, fetchPresensiData]);
+   useEffect(() => {
+     if (shouldFetchPresensiData(selectedKelas, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir)) {
+       fetchPresensiData(selectedKelas, selectedTahun, viewMode === 'bulanan' ? selectedBulan : undefined, viewMode === 'tanggal' ? selectedTanggalAwal : undefined, viewMode === 'tanggal' ? selectedTanggalAkhir : undefined);
+     }
+   }, [selectedKelas, selectedTahun, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir, viewMode, fetchPresensiData]);
 
   // Get presensi data for specific student and month
   const getPresensiForStudent = (siswaId: number, monthNumber: number) => {
@@ -170,128 +248,76 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     return 100 - getTotalPersentaseKetidakhadiran(siswaId);
   };
 
-  // Export to Excel
-  const handleExportExcel = async () => {
-    if (!selectedKelas || !selectedTahun) {
-      toast({
-        title: "Error",
-        description: "Pilih kelas dan tahun terlebih dahulu",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        kelas_id: selectedKelas,
-        tahun: selectedTahun,
-      });
-      
-      if (viewMode === 'bulanan' && selectedBulan) {
-        params.append('bulan', selectedBulan);
-      }
-      
-      if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
-        params.append('tanggal_awal', selectedTanggalAwal);
-        params.append('tanggal_akhir', selectedTanggalAkhir);
-      }
-
-      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-siswa?${params.toString()}`, {
-        responseType: 'blob',
-        onLogout
-      });
-      const url = globalThis.URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = url;
-      
-      const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
-      let fileName = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${selectedTahun}`;
-      
-      if (viewMode === 'bulanan' && selectedBulan) {
-        fileName += `_${selectedBulan}`;
-      } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
-        fileName += `_${selectedTanggalAwal}_${selectedTanggalAkhir}`;
-      }
-      
-      fileName += '.xlsx';
-      
-      downloadLink.download = fileName;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(downloadLink);
-
-      toast({
-        title: "Berhasil",
-        description: "Data berhasil diekspor ke Excel",
-      });
-     } catch (error) {
-       const message = getErrorMessage(error) || "Gagal mengekspor data ke Excel";
+   // Export to Excel
+   const handleExportExcel = async () => {
+     if (!selectedKelas || !selectedTahun) {
        toast({
          title: "Error",
-         description: message,
+         description: "Pilih kelas dan tahun terlebih dahulu",
          variant: "destructive",
        });
-     } finally {
-      setLoading(false);
-    }
-  };
+       return;
+     }
 
-  const handleExportPdf = async () => {
-    if (!selectedKelas || !selectedTahun) {
-      toast({
-        title: "Error",
-        description: "Pilih kelas dan tahun terlebih dahulu",
-        variant: "destructive",
-      });
-      return;
-    }
+     const params = buildPresensiParams(selectedKelas, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir);
+     const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
+     const fileName = buildExportFileName('Rekap_Ketidakhadiran_Siswa', kelasName, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir);
 
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        kelas_id: selectedKelas,
-        tahun: selectedTahun,
-      });
+     await downloadExcel({
+       endpoint: '/api/export/rekap-ketidakhadiran-siswa',
+       params,
+       fileName: `${fileName}.xlsx`,
+       successMessage: 'Data berhasil diekspor ke Excel',
+       fallbackErrorMessage: 'Gagal mengekspor data ke Excel',
+       onLogout,
+     });
+   };
 
-      if (viewMode === 'bulanan' && selectedBulan) {
-        params.append('bulan', selectedBulan);
-      }
-
-      if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
-        params.append('tanggal_awal', selectedTanggalAwal);
-        params.append('tanggal_akhir', selectedTanggalAkhir);
-      }
-
-      const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
-      let fileName = `Rekap_Ketidakhadiran_Siswa_${kelasName}_${selectedTahun}`;
-
-      if (viewMode === 'bulanan' && selectedBulan) {
-        fileName += `_${selectedBulan}`;
-      } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
-        fileName += `_${selectedTanggalAwal}_${selectedTanggalAkhir}`;
-      }
-
-      await downloadPdf('/api/export/pdf/rekap-ketidakhadiran-siswa', fileName, params, onLogout);
-
-      toast({
-        title: "Berhasil",
-        description: "Data berhasil diekspor ke PDF",
-      });
-     } catch (error) {
-       const message = getErrorMessage(error) || "Gagal mengekspor data ke PDF";
+   const handleExportPdf = async () => {
+     if (!selectedKelas || !selectedTahun) {
        toast({
          title: "Error",
-         description: message,
+         description: "Pilih kelas dan tahun terlebih dahulu",
          variant: "destructive",
        });
-     } finally {
-      setLoading(false);
-    }
-  };
+       return;
+     }
+
+     try {
+       setLoading(true);
+       const params = buildPresensiParams(selectedKelas, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir);
+       const kelasName = classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas || 'Unknown';
+       const fileName = buildExportFileName('Rekap_Ketidakhadiran_Siswa', kelasName, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir);
+
+       await downloadPdf('/api/export/pdf/rekap-ketidakhadiran-siswa', fileName, params, onLogout);
+
+       toast({
+         title: "Berhasil",
+         description: "Data berhasil diekspor ke PDF",
+       });
+      } catch (error) {
+        const message = getErrorMessage(error) || "Gagal mengekspor data ke PDF";
+        toast({
+          title: "Error",
+          description: message,
+          variant: "destructive",
+        });
+      } finally {
+       setLoading(false);
+     }
+   };
 
   // Use the shared getEffectiveDays from academic-constants instead of local function
+
+  const shouldRenderRekapTable = shouldShowRekapTable(
+    selectedKelas,
+    selectedTahun,
+    students.length,
+    viewMode,
+    selectedBulan,
+    selectedTanggalAwal,
+    selectedTanggalAkhir,
+  );
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -299,6 +325,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
       <div className="flex items-center justify-between mb-8">
         <div>
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
@@ -316,15 +343,14 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
+          <ExportButton
             onClick={handleExportExcel}
+            loading={exporting}
             disabled={loading || !selectedKelas || !selectedTahun}
             className="flex items-center gap-2"
             variant="outline"
-          >
-            <Download className="w-4 h-4" />
-            {loading ? 'Exporting...' : 'Export Excel'}
-          </Button>
+            loadingLabel="Exporting..."
+          />
           <Button
             onClick={handleExportPdf}
             disabled={loading || !selectedKelas || !selectedTahun}
@@ -436,14 +462,13 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
 
       {/* Error Display */}
       {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-6">
+          <ErrorAlert message={error} />
+        </div>
       )}
 
       {/* Rekap Table */}
-      {selectedKelas && selectedTahun && students.length > 0 && (viewMode === 'tahunan' || (viewMode === 'bulanan' && selectedBulan) || (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir)) && (
+      {shouldRenderRekapTable && (
         <Card>
           <CardHeader>
             <CardTitle>

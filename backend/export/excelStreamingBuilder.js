@@ -4,7 +4,51 @@
  */
 
 import ExcelJS from 'exceljs';
-import { getLetterhead } from '../utils/letterheadService.js';
+
+/**
+ * Apply row mapper or return item as-is
+ * @param {*} item - Data item
+ * @param {Function|undefined} rowMapper - Mapper function
+ * @param {number} rowIndex - Current row index
+ * @returns {Object} Mapped row data
+ */
+function applyRowMapper(item, rowMapper, rowIndex) {
+    return rowMapper ? rowMapper(item, rowIndex - 6) : item;
+}
+
+function writeMappedRow(worksheet, columns, mappedRow, rowIndex) {
+    const row = worksheet.getRow(rowIndex);
+
+    columns.forEach((col, colIdx) => {
+        row.getCell(colIdx + 1).value = mappedRow[col.key];
+    });
+
+    row.commit();
+}
+
+async function streamAsyncRows(dataIterator, rowMapper, worksheet, columns, startRowIdx) {
+    let currentRowIdx = startRowIdx;
+
+    for await (const item of dataIterator) {
+        const mappedRow = applyRowMapper(item, rowMapper, currentRowIdx);
+        writeMappedRow(worksheet, columns, mappedRow, currentRowIdx);
+        currentRowIdx += 1;
+    }
+
+    return currentRowIdx;
+}
+
+function streamIterableRows(dataIterator, rowMapper, worksheet, columns, startRowIdx) {
+    let currentRowIdx = startRowIdx;
+
+    for (const item of dataIterator) {
+        const mappedRow = applyRowMapper(item, rowMapper, currentRowIdx);
+        writeMappedRow(worksheet, columns, mappedRow, currentRowIdx);
+        currentRowIdx += 1;
+    }
+
+    return currentRowIdx;
+}
 
 /**
  * Stream Excel response directly to client
@@ -13,7 +57,6 @@ import { getLetterhead } from '../utils/letterheadService.js';
  * @param {string} options.title - Main title
  * @param {string} options.subtitle - Subtitle
  * @param {string} options.reportPeriod - Report period string
- * @param {Object} options.letterhead - Letterhead configuration
  * @param {Array} options.columns - Column definitions
  * @param {AsyncIterable|Array} options.dataIterator - Async iterator or array of data rows
  * @param {Function} options.rowMapper - Function to map data item to row object
@@ -23,7 +66,6 @@ export async function streamExcel(res, options) {
         title,
         subtitle,
         reportPeriod,
-        letterhead = {},
         columns = [],
         dataIterator,
         rowMapper
@@ -94,29 +136,9 @@ export async function streamExcel(res, options) {
     const isIterable = dataIterator && typeof dataIterator[Symbol.iterator] === 'function';
 
     if (isAsyncIterable) {
-        for await (const item of dataIterator) {
-            const mappedRow = rowMapper ? rowMapper(item, currentRowIdx - 6) : item;
-            const row = worksheet.getRow(currentRowIdx);
-
-            columns.forEach((col, colIdx) => {
-                row.getCell(colIdx + 1).value = mappedRow[col.key];
-            });
-
-            row.commit();
-            currentRowIdx++;
-        }
+        currentRowIdx = await streamAsyncRows(dataIterator, rowMapper, worksheet, columns, currentRowIdx);
     } else if (Array.isArray(dataIterator) || isIterable) {
-        for (const item of dataIterator) {
-            const mappedRow = rowMapper ? rowMapper(item, currentRowIdx - 6) : item;
-            const row = worksheet.getRow(currentRowIdx);
-
-            columns.forEach((col, colIdx) => {
-                row.getCell(colIdx + 1).value = mappedRow[col.key];
-            });
-
-            row.commit();
-            currentRowIdx++;
-        }
+        currentRowIdx = streamIterableRows(dataIterator, rowMapper, worksheet, columns, currentRowIdx);
     }
 
     // --- 4. Finalize ---

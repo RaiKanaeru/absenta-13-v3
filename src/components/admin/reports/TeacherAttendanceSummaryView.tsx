@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,87 @@ interface TeacherAttendanceSummaryViewProps {
   onLogout: () => void;
 }
 
+const getAttendanceBadgeVariant = (presentase: ReportDataRow['presentase']): 'default' | 'secondary' | 'destructive' => {
+    const percentage = parseFloat(String(presentase).replace('%', ''));
+
+    if (percentage >= 85) {
+        return 'default';
+    }
+
+    if (percentage >= 70) {
+        return 'secondary';
+    }
+
+    return 'destructive';
+};
+
+const buildPaginationItems = (currentPage: number, totalPages: number) => {
+    let ellipsisCount = 0;
+
+    return generatePageNumbers(currentPage, totalPages).map((page) => {
+        if (typeof page === 'number') {
+            return { key: `page-${page}`, value: page };
+        }
+
+        ellipsisCount += 1;
+        return { key: `ellipsis-${ellipsisCount}`, value: page };
+    });
+};
+
+const calculateDateRange = (periode: string, bulan: number, tahun: number) => {
+    let startDate: string;
+    let endDate: string;
+
+    if (periode === 'bulanan') {
+        const start = new Date(tahun, bulan - 1, 1);
+        const end = new Date(tahun, bulan, 0);
+        startDate = start.toISOString().split('T')[0];
+        endDate = end.toISOString().split('T')[0];
+    } else if (periode === 'semester') {
+        const isSemester1 = bulan >= 7;
+        startDate = isSemester1 ? `${tahun}-07-01` : `${tahun}-01-01`;
+        endDate = isSemester1 ? `${tahun}-12-31` : `${tahun}-06-30`;
+    } else {
+        startDate = `${tahun}-01-01`;
+        endDate = `${tahun}-12-31`;
+    }
+
+    return { startDate, endDate };
+};
+
+/**
+ * Filter report data by search query (name or NIP)
+ */
+const filterReportData = (data: ReportDataRow[], searchQuery: string): ReportDataRow[] => {
+    if (!searchQuery) return data;
+    
+    const lowerSearch = searchQuery.toLowerCase();
+    return data.filter(item => 
+        String(item.nama).toLowerCase().includes(lowerSearch) ||
+        String(item.nip).toLowerCase().includes(lowerSearch)
+    );
+};
+
+/**
+ * Sort filtered data by key and direction
+ */
+const sortReportData = (
+    data: ReportDataRow[],
+    sortConfig: { key: string; direction: 'asc' | 'desc' } | null
+): ReportDataRow[] => {
+    if (!sortConfig) return data;
+
+    return data.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+};
+ 
 export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryViewProps> = ({ onBack, onLogout }) => {
     const [reportData, setReportData] = useState<ReportDataRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -33,33 +114,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
     const [searchValues, setSearchValues] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-    // Helper: Calculate date range based on periode
-    const calculateDateRange = (periode: string, bulan: number, tahun: number) => {
-        let startDate: string;
-        let endDate: string;
-        
-        if (periode === 'bulanan') {
-            const start = new Date(tahun, bulan - 1, 1);
-            const end = new Date(tahun, bulan, 0);
-            startDate = start.toISOString().split('T')[0];
-            endDate = end.toISOString().split('T')[0];
-        } else if (periode === 'semester') {
-            const isSemester1 = bulan >= 7;
-            startDate = isSemester1 ? `${tahun}-07-01` : `${tahun}-01-01`;
-            endDate = isSemester1 ? `${tahun}-12-31` : `${tahun}-06-30`;
-        } else {
-            startDate = `${tahun}-01-01`;
-            endDate = `${tahun}-12-31`;
-        }
-        return { startDate, endDate };
-    };
-
-    useEffect(() => {
-        fetchReportData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportData uses periode, bulan, tahun which are already in deps
-    }, [periode, bulan, tahun, onLogout]);
-
-    const fetchReportData = async () => {
+    const fetchReportData = useCallback(async () => {
         setLoading(true);
         try {
             const { startDate, endDate } = calculateDateRange(periode, bulan, tahun);
@@ -77,7 +132,11 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
         } finally {
             setLoading(false);
         }
-    };
+    }, [periode, bulan, tahun, onLogout]);
+
+    useEffect(() => {
+        fetchReportData();
+    }, [fetchReportData]);
 
     const handleSort = (key: string) => {
       let direction: 'asc' | 'desc' = 'asc';
@@ -87,32 +146,16 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
       setSortConfig({ key, direction });
     };
 
-    // Filter & Sort Logic
-    const filteredData = React.useMemo(() => {
-      let data = [...reportData];
-
-      if (searchValues) {
-        const lowerSearch = searchValues.toLowerCase();
-        data = data.filter(item => 
-          String(item.nama).toLowerCase().includes(lowerSearch) ||
-          String(item.nip).toLowerCase().includes(lowerSearch)
-        );
-      }
-
-      if (sortConfig) {
-        data.sort((a, b) => {
-          if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-          return 0;
-        });
-      }
-
-      return data;
-    }, [reportData, searchValues, sortConfig]);
+     // Filter & Sort Logic
+     const filteredData = React.useMemo(() => {
+       const filtered = filterReportData(reportData, searchValues);
+       return sortReportData(filtered, sortConfig);
+     }, [reportData, searchValues, sortConfig]);
 
     // Pagination
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
     const currentData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const paginationItems = buildPaginationItems(currentPage, totalPages);
     
     // Page handler
     const handlePageChange = (page: number) => {
@@ -242,8 +285,9 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                 <CardContent>
                     <div className="flex flex-col md:flex-row gap-4 mb-6">
                         <div className="w-full md:w-48">
-                            <label className="text-sm font-medium mb-1 block">Periode</label>
+                            <label htmlFor="periode-select" className="text-sm font-medium mb-1 block">Periode</label>
                             <select
+                                id="periode-select"
                                 className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
                                 value={periode}
                                 onChange={(e) => {
@@ -260,8 +304,9 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         
                         {periode === 'bulanan' && (
                             <div className="w-full md:w-48">
-                                <label className="text-sm font-medium mb-1 block">Bulan</label>
+                                <label htmlFor="bulan-select" className="text-sm font-medium mb-1 block">Bulan</label>
                                 <select
+                                    id="bulan-select"
                                     className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
                                     value={bulan}
                                     onChange={(e) => setBulan(parseInt(e.target.value))}
@@ -276,8 +321,9 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         )}
 
                         <div className="w-full md:w-48">
-                            <label className="text-sm font-medium mb-1 block">Tahun</label>
+                            <label htmlFor="tahun-select" className="text-sm font-medium mb-1 block">Tahun</label>
                             <select
+                                id="tahun-select"
                                 className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
                                 value={tahun}
                                 onChange={(e) => setTahun(parseInt(e.target.value))}
@@ -289,10 +335,11 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         </div>
                         
                         <div className="w-full md:w-64">
-                             <label className="text-sm font-medium mb-1 block">Cari Guru</label>
+                             <label htmlFor="guru-search" className="text-sm font-medium mb-1 block">Cari Guru</label>
                              <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <input 
+                                    id="guru-search"
                                     type="text" 
                                     placeholder="Nama atau NIP..." 
                                     className="w-full pl-10 pr-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground placeholder:text-muted-foreground"
@@ -303,12 +350,17 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                         </div>
                     </div>
 
-                    {loading ? (
-                        <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        </div>
-                    ) : reportData.length > 0 ? (
-                        <>
+                    {(() => {
+                        if (loading) {
+                            return (
+                                <div className="flex justify-center py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                </div>
+                            );
+                        }
+                        if (reportData.length > 0) {
+                            return (
+                                <>
                             <div className="overflow-x-auto border rounded-lg">
                                 <Table>
                                     <TableHeader>
@@ -331,7 +383,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                     </TableHeader>
                                     <TableBody>
                                         {currentData.map((row, idx) => (
-                                            <TableRow key={idx}>
+                                            <TableRow key={`${row.nip}-${row.nama}`}>
                                                 <TableCell>{(currentPage - 1) * itemsPerPage + idx + 1}</TableCell>
                                                 <TableCell className="font-medium">{row.nama}</TableCell>
                                                 <TableCell>{row.nip}</TableCell>
@@ -340,10 +392,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                                 <TableCell className="text-blue-600 dark:text-blue-400">{row.sakit}</TableCell>
                                                 <TableCell className="text-destructive font-bold">{row.alpa}</TableCell>
                                                 <TableCell>
-                                                    <Badge variant={
-                                                        parseFloat(String(row.presentase).replace('%', '')) >= 85 ? 'default' : 
-                                                        parseFloat(String(row.presentase).replace('%', '')) >= 70 ? 'secondary' : 'destructive'
-                                                    }>
+                                                    <Badge variant={getAttendanceBadgeVariant(row.presentase)}>
                                                         {row.presentase}
                                                     </Badge>
                                                 </TableCell>
@@ -368,15 +417,15 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                         >
                                             Sebelumnya
                                         </Button>
-                                        {generatePageNumbers(currentPage, totalPages).map((p, i) => (
+                                        {paginationItems.map((item) => (
                                             <Button
-                                                key={i}
-                                                variant={p === currentPage ? "default" : "outline"}
+                                                key={item.key}
+                                                variant={item.value === currentPage ? "default" : "outline"}
                                                 size="sm"
-                                                onClick={() => typeof p === 'number' && handlePageChange(p)}
-                                                disabled={typeof p !== 'number'}
+                                                onClick={() => typeof item.value === 'number' && handlePageChange(item.value)}
+                                                disabled={typeof item.value !== 'number'}
                                             >
-                                                {p}
+                                                {item.value}
                                             </Button>
                                         ))}
                                         <Button
@@ -390,13 +439,17 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                     </div>
                                 </div>
                             )}
-                        </>
-                    ) : (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>Tidak ada data laporan untuk periode ini</p>
-                        </div>
-                    )}
+                                </>
+                            );
+                        }
+
+                        return (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                <p>Tidak ada data laporan untuk periode ini</p>
+                            </div>
+                        );
+                    })()}
                 </CardContent>
             </Card>
         </div>

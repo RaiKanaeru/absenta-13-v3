@@ -133,11 +133,19 @@ export const ManageSubjectsView = ({
   const filteredSubjects = subjects.filter((subject) => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      (subject.nama_mapel && subject.nama_mapel.toLowerCase().includes(searchLower)) ||
-      (subject.kode_mapel && subject.kode_mapel.toLowerCase().includes(searchLower)) ||
-      (subject.deskripsi && subject.deskripsi.toLowerCase().includes(searchLower))
+      subject.nama_mapel?.toLowerCase().includes(searchLower) ||
+      subject.kode_mapel?.toLowerCase().includes(searchLower) ||
+      subject.deskripsi?.toLowerCase().includes(searchLower)
     );
   });
+
+  let submitLabel = "Tambah";
+  if (editingId) {
+    submitLabel = "Update";
+  }
+  if (isLoading) {
+    submitLabel = "Menyimpan...";
+  }
 
   if (showImport) {
     return <ExcelImportView entityType="mapel" entityName="Mata Pelajaran" onBack={() => setShowImport(false)} />;
@@ -237,7 +245,7 @@ export const ManageSubjectsView = ({
 
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-sm">
-                {isLoading ? "Menyimpan..." : editingId ? "Update" : "Tambah"}
+                {submitLabel}
               </Button>
               {editingId && (
                 <Button

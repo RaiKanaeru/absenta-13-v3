@@ -284,6 +284,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
           } catch (deleteError) {
             // Old file deletion failed, continue with upload
             // Continue with upload even if old file deletion fails
+            console.error('ReportLetterheadSettings: Failed to delete old logo file', deleteError);
           }
         }
         
@@ -309,7 +310,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
   const deleteOldLogoFile = async (fileUrl: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(getApiUrl('/api/admin/letterhead/delete-file'), {
+      await fetch(getApiUrl('/api/admin/letterhead/delete-file'), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -318,14 +319,9 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         credentials: 'include',
         body: JSON.stringify({ fileUrl })
       });
-
-      if (response.ok) {
-        // File deleted successfully
-      } else {
-        // Old file deletion failed, non-critical
-      }
     } catch (error) {
       // Old file deletion error, non-critical
+      console.error('ReportLetterheadSettings: Failed to delete old letterhead file', error);
     }
   };
 

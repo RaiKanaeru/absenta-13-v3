@@ -171,7 +171,13 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
         ]);
         
         setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
-        setTeachers(Array.isArray(teachersData?.data) ? teachersData.data : Array.isArray(teachersData) ? teachersData : []);
+        let normalizedTeachers: Teacher[] = [];
+        if (Array.isArray(teachersData?.data)) {
+          normalizedTeachers = teachersData.data;
+        } else if (Array.isArray(teachersData)) {
+          normalizedTeachers = teachersData;
+        }
+        setTeachers(normalizedTeachers);
         setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
         setClasses(Array.isArray(classesData) ? classesData : []);
         setRooms(Array.isArray(roomsData) ? roomsData : []);
@@ -199,6 +205,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
          const data = await apiCall('/api/admin/jadwal', { onLogout });
          setSchedules(Array.isArray(data) ? data : []);
        } catch (fallbackError) {
+         console.error('ManageSchedulesView: Failed to load schedules', fallbackError);
        }
      }
   };
@@ -749,7 +756,11 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
 
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="text-sm">
-                {isLoading ? 'Processing...' : (editingId ? 'Update Jadwal' : `Tambah ${consecutiveHours} Jam Pelajaran`)}
+                {(() => {
+                  if (isLoading) return 'Processing...';
+                  if (editingId) return 'Update Jadwal';
+                  return `Tambah ${consecutiveHours} Jam Pelajaran`;
+                })()}
               </Button>
               {editingId && (
                 <Button type="button" variant="outline" onClick={resetForm} className="text-sm">
@@ -856,12 +867,17 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
             )}
           </div>
           
-          {schedules.length === 0 ? (
+          {(() => {
+            if (schedules.length === 0) {
+              return (
             <div className="text-center py-6">
               <Calendar className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Belum ada jadwal</p>
             </div>
-          ) : filteredSchedules.length === 0 ? (
+              );
+            }
+            if (filteredSchedules.length === 0) {
+              return (
             <div className="text-center py-6">
               <Search className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Tidak ada jadwal yang sesuai dengan filter</p>
@@ -877,7 +893,9 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                 Reset Filter
               </Button>
             </div>
-          ) : (
+              );
+            }
+            return (
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
@@ -1087,7 +1105,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
               ))}
             </div>
             </>
-          )}
+            );
+          })()}
         </Card>
       </div>
     </div>

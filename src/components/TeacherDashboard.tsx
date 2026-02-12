@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
 import { Routes, Route, useNavigate, useLocation, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -167,6 +167,428 @@ interface BandingAbsenTeacher {
   jam_selesai?: string;
 }
 
+type TeacherApiRequest = <T,>(endpoint: string, options?: Parameters<typeof apiCall>[1]) => Promise<T>;
+
+type SetSchedules = Dispatch<SetStateAction<Schedule[]>>;
+type SetLoading = Dispatch<SetStateAction<boolean>>;
+
+const isDesktopViewport = (): boolean => window.innerWidth >= 1024;
+
+const parseScheduleResponse = (response: unknown): Schedule[] | null => {
+  if (Array.isArray(response)) {
+    return response as Schedule[];
+  }
+
+  const data = (response as { data?: unknown })?.data;
+  if (Array.isArray(data)) {
+    return data as Schedule[];
+  }
+
+  return null;
+};
+
+const getScheduleStatus = (currentTime: number, jamMulai: string, jamSelesai: string): ScheduleStatus => {
+  const [startHour, startMinute] = String(jamMulai).split(':').map(Number);
+  const [endHour, endMinute] = String(jamSelesai).split(':').map(Number);
+  const startTime = startHour * 60 + startMinute;
+  const endTime = endHour * 60 + endMinute;
+
+  if (currentTime < startTime) return 'upcoming';
+  if (currentTime <= endTime) return 'current';
+  return 'completed';
+};
+
+const buildTodaySchedules = (list: RawSchedule[]): Schedule[] => {
+  const now = getWIBTime();
+  const todayName = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    timeZone: 'Asia/Jakarta'
+  }).format(now);
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  return list
+    .filter((schedule) => (schedule.hari || '').toLowerCase() === todayName.toLowerCase())
+    .map((schedule) => ({
+      id: schedule.id ?? schedule.id_jadwal ?? schedule.jadwal_id ?? 0,
+      nama_mapel: schedule.nama_mapel ?? schedule.mapel ?? '',
+      hari: schedule.hari,
+      jam_mulai: schedule.jam_mulai,
+      jam_selesai: schedule.jam_selesai,
+      nama_kelas: schedule.nama_kelas ?? schedule.kelas ?? '',
+      status: getScheduleStatus(currentTime, schedule.jam_mulai, schedule.jam_selesai),
+      jenis_aktivitas: schedule.jenis_aktivitas,
+      is_absenable: schedule.is_absenable,
+      keterangan_khusus: schedule.keterangan_khusus,
+      is_multi_guru: schedule.is_multi_guru,
+      other_teachers: schedule.other_teachers,
+      kode_ruang: schedule.kode_ruang,
+      nama_ruang: schedule.nama_ruang,
+      lokasi: schedule.lokasi,
+    }));
+};
+
+const loadLatestTeacherProfile = async (
+  apiRequest: TeacherApiRequest,
+  setCurrentUserData: Dispatch<SetStateAction<TeacherDashboardProps['userData']>>
+): Promise<void> => {
+  try {
+    const profileResponse = await apiRequest<{
+      success?: boolean;
+      id?: number;
+      username?: string;
+      nama?: string;
+      role?: string;
+      guru_id?: number;
+      nip?: string;
+      mata_pelajaran?: string;
+      alamat?: string;
+      no_telepon?: string;
+      jenis_kelamin?: string;
+      email?: string;
+      message?: string;
+      error?: unknown;
+    }>('/api/guru/info');
+
+    if (!profileResponse?.success) {
+      toast({
+        title: 'Gagal memuat profil',
+        description: profileResponse?.message || 'Data profil guru tidak tersedia.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setCurrentUserData({
+      id: profileResponse.id,
+      username: profileResponse.username,
+      nama: profileResponse.nama,
+      role: profileResponse.role,
+      guru_id: profileResponse.guru_id,
+      nip: profileResponse.nip,
+      mapel: profileResponse.mata_pelajaran,
+      alamat: profileResponse.alamat,
+      no_telepon: profileResponse.no_telepon,
+      jenis_kelamin: profileResponse.jenis_kelamin as 'L' | 'P',
+      mata_pelajaran: profileResponse.mata_pelajaran,
+      email: profileResponse.email
+    } as TeacherDashboardProps['userData']);
+  } catch (error) {
+    toast({
+      title: 'Gagal memuat profil',
+      description: getErrorMessage(error),
+      variant: 'destructive'
+    });
+  }
+};
+
+const showSessionExpiredToast = (): void => {
+  toast({
+    title: 'Sesi Berakhir',
+    description: 'Sesi login Anda telah berakhir. Silakan login kembali.',
+    variant: 'destructive'
+  });
+};
+
+const createTeacherApiRequest = (handleSessionExpired: () => void): TeacherApiRequest => {
+  return async <T,>(endpoint: string, options: Parameters<typeof apiCall>[1] = {}) => {
+    return apiCall<T>(endpoint, { onLogout: handleSessionExpired, ...options });
+  };
+};
+
+const showInvalidScheduleToast = (): void => {
+  toast({
+    title: 'Error memuat jadwal',
+    description: 'Format data jadwal tidak valid.',
+    variant: 'destructive'
+  });
+};
+
+const showScheduleFetchErrorToast = (error: unknown): void => {
+  toast({
+    title: 'Error memuat jadwal',
+    description: getErrorMessage(error),
+    variant: 'destructive'
+  });
+};
+
+const fetchTeacherSchedules = async (
+  apiRequest: TeacherApiRequest,
+  hasTeacherIdentity: boolean,
+  setIsLoading: SetLoading,
+  setSchedules: SetSchedules
+): Promise<void> => {
+  if (!hasTeacherIdentity) return;
+
+  try {
+    setIsLoading(true);
+    const res = await apiRequest<unknown>('/api/guru/jadwal');
+    const list = parseScheduleResponse(res);
+
+    if (!list) {
+      showInvalidScheduleToast();
+      setSchedules([]);
+      return;
+    }
+
+    setSchedules(buildTodaySchedules(list as RawSchedule[]));
+  } catch (error) {
+    showScheduleFetchErrorToast(error);
+    setSchedules([]);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+interface TeacherAttendanceRouteWrapperProps {
+  isLoading: boolean;
+  schedules: Schedule[];
+  user: TeacherDashboardProps['userData'];
+}
+
+const TeacherAttendanceRouteWrapper = ({
+  isLoading,
+  schedules,
+  user,
+}: TeacherAttendanceRouteWrapperProps) => {
+  const { scheduleId } = useParams();
+  const navigate = useNavigate();
+  const schedule = schedules.find((item) => item.id === Number(scheduleId));
+
+  if (isLoading) {
+    return <div className="flex justify-center p-8">Loading...</div>;
+  }
+
+  if (!schedule) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground mb-4">Jadwal tidak ditemukan</p>
+        <Button onClick={() => navigate('/guru')}>Kembali ke Jadwal</Button>
+      </div>
+    );
+  }
+
+  return <AttendanceView schedule={schedule} user={user} onBack={() => navigate('/guru')} />;
+};
+
+interface TeacherSidebarProps {
+  locationPathname: string;
+  sidebarOpen: boolean;
+  setSidebarOpen: Dispatch<SetStateAction<boolean>>;
+  navigate: ReturnType<typeof useNavigate>;
+  userName: string;
+  onLogout: () => void;
+  onEditProfile: () => void;
+  notifications: ReturnType<typeof useNotifications>['notifications'];
+  unreadCount: number;
+  notifLoading: boolean;
+  notifRefresh: ReturnType<typeof useNotifications>['refresh'];
+}
+
+const TeacherSidebar = ({
+  locationPathname,
+  sidebarOpen,
+  setSidebarOpen,
+  navigate,
+  userName,
+  onLogout,
+  onEditProfile,
+  notifications,
+  unreadCount,
+  notifLoading,
+  notifRefresh,
+}: TeacherSidebarProps) => {
+  const showLabel = sidebarOpen || isDesktopViewport();
+
+  return (
+    <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
+      sidebarOpen ? 'w-64' : 'w-16'
+    } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center'}`}>
+          <div className="p-2 rounded-lg">
+            <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
+          </div>
+          {showLabel && <span className="font-bold text-xl text-foreground">ABSENTA</span>}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden p-1"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <nav className="p-4 space-y-2">
+        <Button
+          variant={locationPathname === '/guru' || locationPathname.startsWith('/guru/schedule') ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru' && !locationPathname.startsWith('/guru/schedule') ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/guru');
+            setSidebarOpen(false);
+          }}
+        >
+          <Clock className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Jadwal Hari Ini</span>}
+        </Button>
+        <Button
+          variant={locationPathname === '/guru/banding' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/guru/banding');
+            setSidebarOpen(false);
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Banding Absen</span>}
+        </Button>
+        <Button
+          variant={locationPathname === '/guru/banding-history' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru/banding-history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/guru/banding-history');
+            setSidebarOpen(false);
+          }}
+        >
+          <History className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Riwayat Banding</span>}
+        </Button>
+        <Button
+          variant={locationPathname === '/guru/history' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'ml-2'} ${locationPathname !== '/guru/history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/guru/history');
+            setSidebarOpen(false);
+          }}
+        >
+          <History className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Riwayat Absensi</span>}
+        </Button>
+        <Button
+          variant={locationPathname === '/guru/reports' ? 'default' : 'ghost'}
+          className={`w-full justify-start ${showLabel ? '' : 'px-2'} ${locationPathname !== '/guru/reports' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
+          onClick={() => {
+            navigate('/guru/reports');
+            setSidebarOpen(false);
+          }}
+        >
+          <ClipboardList className="h-4 w-4" />
+          {showLabel && <span className="ml-2">Laporan</span>}
+        </Button>
+      </nav>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
+        {showLabel && (
+          <div className="mb-4 flex items-center gap-2">
+            <FontSizeControl variant="compact" />
+            <ModeToggle />
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              isLoading={notifLoading}
+              onRefresh={notifRefresh}
+            />
+          </div>
+        )}
+
+        <div className={`flex items-center space-x-3 mb-3 ${showLabel ? '' : 'justify-center'}`}>
+          <div className="bg-primary/10 p-2 rounded-full">
+            <Settings className="h-4 w-4 text-primary" />
+          </div>
+          {showLabel && (
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">{userName}</p>
+              <p className="text-xs text-muted-foreground">Guru</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Button
+            onClick={onEditProfile}
+            variant="outline"
+            size="sm"
+            className={`w-full ${showLabel ? '' : 'px-2'}`}
+          >
+            <Settings className="h-4 w-4" />
+            {showLabel && <span className="ml-2">Edit Profil</span>}
+          </Button>
+
+          <Button
+            onClick={onLogout}
+            variant="outline"
+            size="sm"
+            className={`w-full ${showLabel ? '' : 'px-2'}`}
+          >
+            <LogOut className="h-4 w-4" />
+            {showLabel && <span className="ml-2">Keluar</span>}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface TeacherMainHeaderProps {
+  userName: string;
+  onOpenSidebar: () => void;
+}
+
+const TeacherMainHeader = ({ userName, onOpenSidebar }: TeacherMainHeaderProps) => (
+  <>
+    <div className="flex items-center justify-between mb-6 lg:hidden">
+      <Button variant="outline" size="sm" onClick={onOpenSidebar}>
+        <Menu className="h-4 w-4" />
+      </Button>
+      <h1 className="text-xl font-bold">Dashboard Guru</h1>
+      <div className="w-10"></div>
+    </div>
+
+    <div className="hidden lg:flex justify-between items-center mb-8">
+      <div>
+        <h1 className="text-4xl font-bold text-foreground">Dashboard Guru</h1>
+        <p className="text-muted-foreground mt-2">Selamat datang, {userName}!</p>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Badge variant="secondary" className="bg-primary/10 text-primary">
+          {formatDateOnly(getWIBTime())}
+        </Badge>
+      </div>
+    </div>
+  </>
+);
+
+interface TeacherDashboardRoutesProps {
+  schedules: Schedule[];
+  isLoading: boolean;
+  user: TeacherDashboardProps['userData'];
+}
+
+const TeacherDashboardRoutes = ({ schedules, isLoading, user }: TeacherDashboardRoutesProps) => {
+  const navigate = useNavigate();
+
+  return (
+    <Routes>
+      <Route
+        index
+        element={
+          <ScheduleListView
+            schedules={schedules.filter((schedule) => schedule.hari === new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(new Date()))}
+            onSelectSchedule={(schedule) => navigate(`/guru/schedule/${schedule.id}`)}
+            isLoading={isLoading}
+          />
+        }
+      />
+      <Route path="schedule/:scheduleId" element={<TeacherAttendanceRouteWrapper isLoading={isLoading} schedules={schedules} user={user} />} />
+      <Route path="banding" element={<BandingAbsenView user={user} />} />
+      <Route path="reports" element={<LaporanKehadiranSiswaView user={user} />} />
+      <Route path="banding-history" element={<RiwayatBandingAbsenView user={user} />} />
+      <Route path="history" element={<HistoryView user={user} />} />
+    </Routes>
+  );
+};
+
 // Main TeacherDashboard Component
 export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
   const { logout } = useAuth();
@@ -188,20 +610,11 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
   const [currentUserData, setCurrentUserData] = useState<TeacherDashboardProps['userData']>(userData);
 
   const handleSessionExpired = useCallback(() => {
-    toast({
-      title: "Sesi Berakhir",
-      description: "Sesi login Anda telah berakhir. Silakan login kembali.",
-      variant: "destructive"
-    });
+    showSessionExpiredToast();
     onLogout();
   }, [onLogout]);
 
-  const apiRequest = useCallback(
-    async <T,>(endpoint: string, options: Parameters<typeof apiCall>[1] = {}) => {
-      return apiCall<T>(endpoint, { onLogout: handleSessionExpired, ...options });
-    },
-    [handleSessionExpired]
-  );
+  const apiRequest = useMemo(() => createTeacherApiRequest(handleSessionExpired), [handleSessionExpired]);
 
   const user = currentUserData;
 
@@ -209,156 +622,15 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
     setCurrentUserData(updatedData);
   };
 
-  const AttendanceRouteWrapper = () => {
-    const { scheduleId } = useParams();
-    const schedule = schedules.find(s => s.id === Number(scheduleId));
-
-    if (isLoading) {
-      return <div className="flex justify-center p-8">Loading...</div>;
-    }
-
-    if (!schedule) {
-      return (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground mb-4">Jadwal tidak ditemukan</p>
-          <Button onClick={() => navigate('/guru')}>Kembali ke Jadwal</Button>
-        </div>
-      );
-    }
-
-    return <AttendanceView schedule={schedule} user={user} onBack={() => navigate('/guru')} />;
-  };
-
-  // Load latest profile data on component mount
   useEffect(() => {
-    const loadLatestProfile = async () => {
-      try {
-        const profileResponse = await apiRequest<{
-          success?: boolean;
-          id?: number;
-          username?: string;
-          nama?: string;
-          role?: string;
-          guru_id?: number;
-          nip?: string;
-          mata_pelajaran?: string;
-          alamat?: string;
-          no_telepon?: string;
-          jenis_kelamin?: string;
-          email?: string;
-          message?: string;
-          error?: unknown;
-        }>('/api/guru/info');
-
-        if (!profileResponse?.success) {
-          toast({
-            title: "Gagal memuat profil",
-            description: profileResponse?.message || "Data profil guru tidak tersedia.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        if (profileResponse.success) {
-          setCurrentUserData({
-            id: profileResponse.id,
-            username: profileResponse.username,
-            nama: profileResponse.nama,
-            role: profileResponse.role,
-            guru_id: profileResponse.guru_id,
-            nip: profileResponse.nip,
-            mapel: profileResponse.mata_pelajaran,
-            // Tambahkan field yang hilang untuk form edit profil
-            alamat: profileResponse.alamat,
-            no_telepon: profileResponse.no_telepon,
-            jenis_kelamin: profileResponse.jenis_kelamin as 'L' | 'P',
-            mata_pelajaran: profileResponse.mata_pelajaran,
-            email: profileResponse.email
-          } as TeacherDashboardProps['userData']);
-        }
-      } catch (error) {
-        const message = getErrorMessage(error);
-        toast({
-          title: "Gagal memuat profil",
-          description: message,
-          variant: "destructive"
-        });
-      }
-    };
-
-    loadLatestProfile();
+    void loadLatestTeacherProfile(apiRequest, setCurrentUserData);
   }, [apiRequest]);
 
-  // Fetch schedules
+  const hasTeacherIdentity = Boolean(user.guru_id || user.id);
+
   const fetchSchedules = useCallback(async () => {
-    if (!user.guru_id && !user.id) return;
-    try {
-      setIsLoading(true);
-      // Gunakan endpoint backend yang tersedia: /api/guru/jadwal (auth user diambil dari token)
-      const res = await apiRequest(`/api/guru/jadwal`);
-      const list: Schedule[] = Array.isArray(res)
-        ? res
-        : (Array.isArray((res as { data?: unknown })?.data) ? (res as { data: Schedule[] }).data : []);
-
-      if (!Array.isArray(res) && !Array.isArray((res as { data?: unknown })?.data)) {
-        toast({
-          title: "Error memuat jadwal",
-          description: "Format data jadwal tidak valid.",
-          variant: "destructive"
-        });
-        setSchedules([]);
-        return;
-      }
-
-      // Filter hanya jadwal hari ini dan hitung status berdasar waktu sekarang
-      const now = getWIBTime();
-      const todayName = new Intl.DateTimeFormat('id-ID', { 
-        weekday: 'long',
-        timeZone: 'Asia/Jakarta'
-      }).format(now);
-      const todayList = (list as RawSchedule[]).filter((s) => (s.hari || '').toLowerCase() === todayName.toLowerCase());
-
-      const currentTime = now.getHours() * 60 + now.getMinutes();
-
-      const schedulesWithStatus = todayList.map((schedule: RawSchedule) => {
-        const [startHour, startMinute] = String(schedule.jam_mulai).split(':').map(Number);
-        const [endHour, endMinute] = String(schedule.jam_selesai).split(':').map(Number);
-        const startTime = startHour * 60 + startMinute;
-        const endTime = endHour * 60 + endMinute;
-
-        let status: ScheduleStatus;
-        if (currentTime < startTime) status = 'upcoming';
-        else if (currentTime <= endTime) status = 'current';
-        else status = 'completed';
-
-        return {
-          id: schedule.id ?? schedule.id_jadwal ?? schedule.jadwal_id ?? 0,
-          nama_mapel: schedule.nama_mapel ?? schedule.mapel ?? '',
-          hari: schedule.hari,
-          jam_mulai: schedule.jam_mulai,
-          jam_selesai: schedule.jam_selesai,
-          nama_kelas: schedule.nama_kelas ?? schedule.kelas ?? '',
-          status,
-          jenis_aktivitas: schedule.jenis_aktivitas,
-          is_absenable: schedule.is_absenable,
-          keterangan_khusus: schedule.keterangan_khusus,
-          is_multi_guru: schedule.is_multi_guru,
-          other_teachers: schedule.other_teachers,
-          kode_ruang: schedule.kode_ruang,
-          nama_ruang: schedule.nama_ruang,
-          lokasi: schedule.lokasi,
-        } as Schedule;
-      });
-
-      setSchedules(schedulesWithStatus);
-    } catch (error) {
-      const message = getErrorMessage(error);
-      toast({ title: 'Error memuat jadwal', description: message, variant: 'destructive' });
-      setSchedules([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user.guru_id, user.id, apiRequest]);
+    await fetchTeacherSchedules(apiRequest, hasTeacherIdentity, setIsLoading, setSchedules);
+  }, [apiRequest, hasTeacherIdentity]);
 
   useEffect(() => {
     fetchSchedules();
@@ -366,177 +638,24 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-card border-r border-border shadow-xl transition-all duration-300 z-40 ${
-        sidebarOpen ? 'w-64' : 'w-16'
-      } lg:w-64 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className={`flex items-center space-x-3 ${sidebarOpen ? '' : 'justify-center'}`}>
-            <div className="p-2 rounded-lg">
-              <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
-            </div>
-            {(sidebarOpen || window.innerWidth >= 1024) && (
-              <span className="font-bold text-xl text-foreground">
-                ABSENTA
-              </span>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-1"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      <TeacherSidebar
+        locationPathname={location.pathname}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        navigate={navigate}
+        userName={user.nama}
+        onLogout={onLogout}
+        onEditProfile={() => setShowEditProfile(true)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        notifLoading={notifLoading}
+        notifRefresh={notifRefresh}
+      />
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-2">
-          <Button
-            variant={location.pathname === '/guru' || location.pathname.startsWith('/guru/schedule') ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru' && !location.pathname.startsWith('/guru/schedule') ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/guru'); setSidebarOpen(false); }}
-          >
-            <Clock className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Jadwal Hari Ini</span>}
-          </Button>
-          <Button
-            variant={location.pathname === '/guru/banding' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru/banding' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/guru/banding'); setSidebarOpen(false); }}
-          >
-            <MessageCircle className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Banding Absen</span>}
-          </Button>
-          <Button
-            variant={location.pathname === '/guru/banding-history' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru/banding-history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/guru/banding-history'); setSidebarOpen(false); }}
-          >
-            <History className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat Banding</span>}
-          </Button>
-          <Button
-            variant={location.pathname === '/guru/history' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'ml-2'} ${location.pathname !== '/guru/history' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/guru/history'); setSidebarOpen(false); }}
-          >
-            <History className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Riwayat Absensi</span>}
-          </Button>
-          <Button
-            variant={location.pathname === '/guru/reports' ? "default" : "ghost"}
-            className={`w-full justify-start ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'} ${location.pathname !== '/guru/reports' ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-            onClick={() => { navigate('/guru/reports'); setSidebarOpen(false); }}
-          >
-            <ClipboardList className="h-4 w-4" />
-            {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Laporan</span>}
-          </Button>
-        </nav>
-
-        {/* User Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-card">
-{/* Font Size Control - Above Profile */}
-           {(sidebarOpen || window.innerWidth >= 1024) && (
-            <div className="mb-4 flex items-center gap-2">
-              <FontSizeControl variant="compact" />
-              <ModeToggle />
-              <NotificationBell
-                notifications={notifications}
-                unreadCount={unreadCount}
-                isLoading={notifLoading}
-                onRefresh={notifRefresh}
-              />
-            </div>
-          )}
-          
-          <div className={`flex items-center space-x-3 mb-3 ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'justify-center'}`}>
-            <div className="bg-primary/10 p-2 rounded-full">
-              <Settings className="h-4 w-4 text-primary" />
-            </div>
-            {(sidebarOpen || window.innerWidth >= 1024) && (
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{user.nama}</p>
-                <p className="text-xs text-muted-foreground">Guru</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <Button
-              onClick={() => setShowEditProfile(true)}
-              variant="outline"
-              size="sm"
-              className={`w-full ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
-            >
-              <Settings className="h-4 w-4" />
-              {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Edit Profil</span>}
-            </Button>
-            
-            <Button
-              onClick={onLogout}
-              variant="outline"
-              size="sm"
-              className={`w-full ${sidebarOpen || window.innerWidth >= 1024 ? '' : 'px-2'}`}
-            >
-              <LogOut className="h-4 w-4" />
-              {(sidebarOpen || window.innerWidth >= 1024) && <span className="ml-2">Keluar</span>}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       <div className="lg:ml-64">
         <div className="p-4 lg:p-6">
-          {/* Mobile Header */}
-          <div className="flex items-center justify-between mb-6 lg:hidden">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-bold">Dashboard Guru</h1>
-            <div className="w-10"></div> {/* Spacer for alignment */}
-          </div>
-
-          {/* Desktop Header */}
-          <div className="hidden lg:flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">
-                Dashboard Guru
-              </h1>
-              <p className="text-muted-foreground mt-2">Selamat datang, {user.nama}!</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-primary/10 text-primary">
-                {formatDateOnly(getWIBTime())}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Content */}
-          <Routes>
-            <Route
-              index
-              element={
-                <ScheduleListView
-                  schedules={schedules.filter(s => s.hari === new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(new Date()))}
-                  onSelectSchedule={(schedule) => navigate(`/guru/schedule/${schedule.id}`)}
-                  isLoading={isLoading}
-                />
-              }
-            />
-            <Route path="schedule/:scheduleId" element={<AttendanceRouteWrapper />} />
-            <Route path="banding" element={<BandingAbsenView user={user} />} />
-            <Route path="reports" element={<LaporanKehadiranSiswaView user={user} />} />
-            <Route path="banding-history" element={<RiwayatBandingAbsenView user={user} />} />
-            <Route path="history" element={<HistoryView user={user} />} />
-          </Routes>
+          <TeacherMainHeader userName={user.nama} onOpenSidebar={() => setSidebarOpen(true)} />
+          <TeacherDashboardRoutes schedules={schedules} isLoading={isLoading} user={user} />
         </div>
       </div>
       

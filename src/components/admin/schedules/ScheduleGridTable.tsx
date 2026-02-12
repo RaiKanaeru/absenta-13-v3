@@ -286,7 +286,7 @@ export function ScheduleGridTable({
       .filter(t => t.status === 'aktif')
       .filter(t => 
         t.nama.toLowerCase().includes(term) || 
-        (t.nip && t.nip.includes(term))
+        (t.nip?.includes(term))
       )
       .slice(0, 30);
   }, [teachers, searchTerm]);
@@ -298,7 +298,7 @@ export function ScheduleGridTable({
       .filter(s => s.status === 'aktif')
       .filter(s => 
         s.nama_mapel.toLowerCase().includes(term) || 
-        (s.kode_mapel && s.kode_mapel.toLowerCase().includes(term))
+        (s.kode_mapel?.toLowerCase().includes(term))
       )
       .slice(0, 30);
   }, [subjects, searchTerm]);
@@ -489,11 +489,14 @@ export function ScheduleGridTable({
       ? cell.color 
       : getSubjectColor(cell.mapel, cell.color);
 
-    const content = rowType === 'MAPEL' 
-      ? cell.mapel 
-      : rowType === 'RUANG' 
-        ? cell.ruang 
-        : cell.guru?.join(', ') || '';
+    let content = '';
+    if (rowType === 'MAPEL') {
+      content = cell.mapel;
+    } else if (rowType === 'RUANG') {
+      content = cell.ruang;
+    } else {
+      content = cell.guru?.join(', ') || '';
+    }
 
     return (
       <div 
@@ -804,6 +807,8 @@ export function ScheduleGridTable({
                             const isSlotSpecial = slot.jenis !== 'pelajaran';
                             const isCellSpecial = cell?.isSpecial;
                             const isSpecial = isSlotSpecial || isCellSpecial;
+                            const specialCellColor = isSlotSpecial ? 'hsl(var(--primary) / 0.18)' : undefined;
+                            const cellBackgroundColor = cell ? getSubjectColor(cell.mapel, cell.color) : specialCellColor;
 
                             // LOGIC FOR ROW SPANNING (MATCHING EXCEL IMAGE)
                             // If special event:
@@ -818,7 +823,7 @@ export function ScheduleGridTable({
                                     rowSpan={3}
                                     className="border p-0 h-full text-center align-middle font-bold text-xs"
                                     style={{ 
-                                      backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : (isSlotSpecial ? 'hsl(var(--primary) / 0.18)' : undefined) 
+                                      backgroundColor: cellBackgroundColor
                                       // Default orange for breaks if no specific color
                                     }}
                                   >

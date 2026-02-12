@@ -109,8 +109,16 @@ export const ManageClassesView = ({
 
   const filteredClasses = classes.filter((kelas) => {
     const searchLower = searchTerm.toLowerCase();
-    return kelas.nama_kelas && kelas.nama_kelas.toLowerCase().includes(searchLower);
+    return kelas.nama_kelas?.toLowerCase().includes(searchLower);
   });
+
+  let submitLabel = "Tambah";
+  if (editingId) {
+    submitLabel = "Update";
+  }
+  if (isLoading) {
+    submitLabel = "Menyimpan...";
+  }
 
   if (showImport) {
     return <ExcelImportView entityType="kelas" entityName="Kelas" onBack={() => setShowImport(false)} />;
@@ -166,7 +174,7 @@ export const ManageClassesView = ({
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full">
               <Button type="submit" disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700 text-sm">
-                {isLoading ? "Menyimpan..." : editingId ? "Update" : "Tambah"}
+                {submitLabel}
               </Button>
               {editingId && (
                 <Button
