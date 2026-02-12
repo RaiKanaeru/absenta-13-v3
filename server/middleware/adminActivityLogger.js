@@ -49,7 +49,7 @@ export const adminActivityLogger = (req, res, next) => {
             // Try to find numeric ID in URL
             if (parts.length >= 5) {
                 const possibleId = Number(parts[4]);
-                if (!isNaN(possibleId)) {
+                if (!Number.isNaN(possibleId)) {
                     targetId = possibleId;
                 }
             }

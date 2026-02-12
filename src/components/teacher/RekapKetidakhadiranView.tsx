@@ -112,19 +112,20 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       link.download = `rekap-ketidakhadiran-${reportType}-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
       link.click();
       
-      toast({
-        title: "Berhasil!",
-        description: "File Excel berhasil diunduh"
-      });
-    } catch (err) {
-      const message = 'Gagal mengunduh file Excel';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
+       toast({
+         title: "Berhasil!",
+         description: "File Excel berhasil diunduh"
+       });
+     } catch (err) {
+       console.error('RekapKetidakhadiranView: Failed to export Excel', err);
+       const message = 'Gagal mengunduh file Excel';
+       setError(message);
+       toast({
+         title: "Error",
+         description: message,
+         variant: "destructive"
+       });
+     } finally {
       setExporting(false);
     }
   };

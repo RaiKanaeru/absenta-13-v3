@@ -214,18 +214,16 @@ export const calculateEffectiveDaysForRange = async (startDate, endDate, tahunPe
     const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
     const iterationCount = Math.min(totalMonths, MAX_ITERATIONS);
 
-    for (let i = 0; i < iterationCount; i++) {
-        const current = new Date(startYear, startMonth + i, 1);
-        if (current > end) break;
-        
-        const monthIndex = current.getMonth() + 1; // 1-12
-        
-        // Check if this month is fully within range
-        const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
-        const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
-        
-        totalDays += calculateMonthEffectiveDays(monthStart, monthEnd, start, end, hariEfektifMap);
-    }
+     for (let i = 0; i < iterationCount; i++) {
+         const current = new Date(startYear, startMonth + i, 1);
+         if (current > end) break;
+         
+         // Check if this month is fully within range
+         const monthStart = new Date(current.getFullYear(), current.getMonth(), 1);
+         const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+         
+         totalDays += calculateMonthEffectiveDays(monthStart, monthEnd, start, end, hariEfektifMap);
+     }
 
     if (iterationCount >= MAX_ITERATIONS) {
         logger.warn('Safety breaker triggered in calculateEffectiveDaysForRange', {

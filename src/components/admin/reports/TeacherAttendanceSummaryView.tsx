@@ -124,6 +124,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
             });
             setReportData(data);
         } catch (error) {
+            console.error('TeacherAttendanceSummaryView: Failed to load teacher report', error);
             toast({
                 title: "Error",
                 description: "Gagal memuat data laporan guru",
@@ -187,6 +188,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                 description: "File Excel berhasil diunduh"
             });
         } catch (err) {
+            console.error('TeacherAttendanceSummaryView: Failed to export Excel', err);
             toast({
                 title: "Error",
                 description: err instanceof Error ? err.message : "Gagal mengekspor laporan",
@@ -222,6 +224,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                 description: "File PDF berhasil diunduh"
             });
         } catch (err) {
+            console.error('TeacherAttendanceSummaryView: Failed to export PDF', err);
             toast({
                 title: "Error",
                 description: err instanceof Error ? err.message : "Gagal mengekspor PDF",

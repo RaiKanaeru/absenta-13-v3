@@ -71,6 +71,11 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
     riwayatPage * RIWAYAT_ITEMS_PER_PAGE,
   );
 
+  const getJadwalKey = (hariTanggal: string, jadwal: RiwayatJadwal): string => {
+    const jadwalId = jadwal.id_jadwal ?? `${jadwal.jam_ke}-${jadwal.jam_mulai}-${jadwal.jam_selesai}`;
+    return `${hariTanggal}-${jadwalId}`;
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* Header yang mobile responsive */}
@@ -94,10 +99,10 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
 
       {/* Card layout untuk mobile */}
       <div className="block lg:hidden">
-        {paginatedData.map((hari, index) => {
+        {paginatedData.map((hari) => {
           const uniqueJadwal = deduplicateJadwal(hari.jadwal);
           return (
-            <Card key={index} className="mb-4">
+            <Card key={hari.tanggal} className="mb-4">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Calendar className="w-4 h-4" />
@@ -105,8 +110,8 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {uniqueJadwal.map((jadwal, jadwalIndex) => (
-                  <div key={jadwalIndex} className="border rounded-lg p-3 space-y-3">
+                {uniqueJadwal.map((jadwal) => (
+                  <div key={getJadwalKey(hari.tanggal, jadwal)} className="border rounded-lg p-3 space-y-3">
                     {/* Header jadwal */}
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-xs">Jam ke-{jadwal.jam_ke}</Badge>
@@ -138,7 +143,7 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
                             Multi-Guru ({jadwal.guru_list.length})
                           </Badge>
                           <div className="space-y-1">
-                            {jadwal.guru_list.map((guru, idx: number) => (
+                            {jadwal.guru_list.map((guru) => (
                               <div key={`guru-multi-${guru.id_guru}-${guru.nama_guru}`} className="flex items-center gap-2">
                                 <Badge 
                                   variant="outline" 
@@ -199,7 +204,7 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
                               Alpa: {jadwal.total_alpa}
                             </Badge>
                           )}
-                          {jadwal.total_tidak_hadir && jadwal.total_tidak_hadir > 0 && (
+                          {jadwal.total_tidak_hadir > 0 && (
                             <Badge className="bg-muted text-muted-foreground text-xs">
                               Tidak Hadir: {jadwal.total_tidak_hadir}
                             </Badge>
@@ -217,10 +222,10 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
 
       {/* Tabel untuk desktop */}
       <div className="hidden lg:block">
-        {paginatedData.map((hari, index) => {
+        {paginatedData.map((hari) => {
           const uniqueJadwal = deduplicateJadwal(hari.jadwal);
           return (
-            <Card key={index}>
+            <Card key={hari.tanggal}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
@@ -243,8 +248,8 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {uniqueJadwal.map((jadwal, jadwalIndex) => (
-                        <TableRow key={jadwalIndex}>
+                      {uniqueJadwal.map((jadwal) => (
+                        <TableRow key={getJadwalKey(hari.tanggal, jadwal)}>
                           <TableCell>
                             <Badge variant="outline">Jam ke-{jadwal.jam_ke}</Badge>
                           </TableCell>
@@ -266,7 +271,7 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
                                     </Badge>
                                   </div>
                                   <div className="space-y-1">
-                                    {jadwal.guru_list.map((guru, idx: number) => (
+                                    {jadwal.guru_list.map((guru) => (
                                       <div key={`guru-table-${guru.id_guru}-${guru.nama_guru}`} className="flex items-center gap-2">
                                         <Badge 
                                           variant="outline" 
@@ -324,7 +329,7 @@ export const RiwayatTab: React.FC<RiwayatTabProps> = ({
                                   A:{jadwal.total_alpa}
                                 </Badge>
                               )}
-                              {jadwal.total_tidak_hadir && jadwal.total_tidak_hadir > 0 && (
+                              {jadwal.total_tidak_hadir > 0 && (
                                 <Badge className="bg-muted text-muted-foreground text-xs w-fit">
                                   TH:{jadwal.total_tidak_hadir}
                                 </Badge>

@@ -95,13 +95,13 @@ const getCellText = (cell) => {
 };
 
 const parseTimePart = (value) => {
-    const raw = normalizeText(value).replace(/\./g, ':');
-    const match = raw.match(/(\d{1,2})[:](\d{2})/);
-    if (!match) return '';
-    const hour = String(match[1]).padStart(2, '0');
-    const minute = match[2];
-    return `${hour}:${minute}`;
-};
+     const raw = normalizeText(value).replace(/\./g, ':');
+     const match = raw.match(/(\d{1,2}):(\d{2})/);
+     if (!match) return '';
+     const hour = String(match[1]).padStart(2, '0');
+     const minute = match[2];
+     return `${hour}:${minute}`;
+ };
 
 const parseTimeRange = (value) => {
     const raw = normalizeText(value).replace(/–/g, '-');
@@ -316,96 +316,98 @@ const parseScheduleColumns = (worksheet, layout) => {
     return columnMeta;
 };
 
-const processScheduleSlot = (meta, rows, context, refMaps, jamSlotMap, jadwalList, errors, rowIdx) => {
-    const { mapelRow, ruangRow, guruRow } = rows;
-    const { kelasId, kelasName, tahunAjaran } = context;
+const processScheduleSlot = (meta, rows, context, refMaps, collections) => {
+     const { mapelRow, ruangRow, guruRow } = rows;
+     const { kelasId, kelasName, tahunAjaran } = context;
+     const { jamSlotMap, jadwalList, errors, rowIdx } = collections;
 
-    const mapelRaw = normalizeText(getCellText(mapelRow.getCell(meta.col)));
-    const ruangRaw = normalizeText(getCellText(ruangRow.getCell(meta.col)));
-    const guruRaw = normalizeText(getCellText(guruRow.getCell(meta.col)));
+     const mapelRaw = normalizeText(getCellText(mapelRow.getCell(meta.col)));
+     const ruangRaw = normalizeText(getCellText(ruangRow.getCell(meta.col)));
+     const guruRaw = normalizeText(getCellText(guruRow.getCell(meta.col)));
 
-    const slotType = detectSlotType(mapelRaw);
-    const slotKey = `${kelasId}|${meta.day}|${meta.jam_ke}`;
-    const existingSlot = jamSlotMap.get(slotKey);
-    if (!existingSlot || (existingSlot.jenis === 'pelajaran' && slotType.jenis !== 'pelajaran')) {
-        jamSlotMap.set(slotKey, {
-            kelas_id: kelasId,
-            hari: meta.day,
-            jam_ke: meta.jam_ke,
-            jam_mulai: meta.jam_mulai,
-            jam_selesai: meta.jam_selesai,
-            jenis: slotType.jenis,
-            label: slotType.label,
-            tahun_ajaran: tahunAjaran
-        });
-    }
+     const slotType = detectSlotType(mapelRaw);
+     const slotKey = `${kelasId}|${meta.day}|${meta.jam_ke}`;
+     const existingSlot = jamSlotMap.get(slotKey);
+     if (!existingSlot || (existingSlot.jenis === 'pelajaran' && slotType.jenis !== 'pelajaran')) {
+         jamSlotMap.set(slotKey, {
+             kelas_id: kelasId,
+             hari: meta.day,
+             jam_ke: meta.jam_ke,
+             jam_mulai: meta.jam_mulai,
+             jam_selesai: meta.jam_selesai,
+             jenis: slotType.jenis,
+             label: slotType.label,
+             tahun_ajaran: tahunAjaran
+         });
+     }
 
-    if (!mapelRaw) return;
-    if (slotType.jenis !== 'pelajaran') return;
+     if (!mapelRaw) return;
+     if (slotType.jenis !== 'pelajaran') return;
 
-    const mapelId = findMapelId(mapelRaw, refMaps.mapelCodeMap, refMaps.mapelNameMap);
-    if (!mapelId) {
-        errors.push({ index: rowIdx, errors: [`Mapel tidak ditemukan: ${mapelRaw}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
-        return;
-    }
+     const mapelId = findMapelId(mapelRaw, refMaps.mapelCodeMap, refMaps.mapelNameMap);
+     if (!mapelId) {
+         errors.push({ index: rowIdx, errors: [`Mapel tidak ditemukan: ${mapelRaw}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
+         return;
+     }
 
-    const guruId = findGuruId(guruRaw, refMaps.guruMap);
-    if (!guruId) {
-        errors.push({ index: rowIdx, errors: [`Guru tidak ditemukan: ${guruRaw || '-'}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
-        return;
-    }
+     const guruId = findGuruId(guruRaw, refMaps.guruMap);
+     if (!guruId) {
+         errors.push({ index: rowIdx, errors: [`Guru tidak ditemukan: ${guruRaw || '-'}`], data: { kelas: kelasName, mapel: mapelRaw, hari: meta.day, jam_ke: meta.jam_ke } });
+         return;
+     }
 
-    const ruangId = findRuangId(ruangRaw, refMaps.ruangMap);
+     const ruangId = findRuangId(ruangRaw, refMaps.ruangMap);
 
-    jadwalList.push({
-        kelas_id: kelasId,
-        mapel_id: mapelId,
-        guru_id: guruId,
-        ruang_id: ruangId,
-        hari: meta.day,
-        jam_ke: meta.jam_ke,
-        jam_mulai: meta.jam_mulai,
-        jam_selesai: meta.jam_selesai,
-        jenis_aktivitas: 'pelajaran',
-        is_absenable: 1,
-        keterangan_khusus: null,
-        status: 'aktif',
-        guru_ids: [guruId]
-    });
-};
+     jadwalList.push({
+         kelas_id: kelasId,
+         mapel_id: mapelId,
+         guru_id: guruId,
+         ruang_id: ruangId,
+         hari: meta.day,
+         jam_ke: meta.jam_ke,
+         jam_mulai: meta.jam_mulai,
+         jam_selesai: meta.jam_selesai,
+         jenis_aktivitas: 'pelajaran',
+         is_absenable: 1,
+         keterangan_khusus: null,
+         status: 'aktif',
+         guru_ids: [guruId]
+     });
+ };
 
 const processScheduleRows = (worksheet, layout, columnMeta, refMaps, tahunAjaran) => {
-    const { timeRowIndex, kelasCol, jamKeLabelCol } = layout;
-    const jamSlotMap = new Map();
-    const jadwalList = [];
-    const errors = [];
-    const rowCount = worksheet.rowCount || 0;
+     const { timeRowIndex, kelasCol, jamKeLabelCol } = layout;
+     const jamSlotMap = new Map();
+     const jadwalList = [];
+     const errors = [];
+     const rowCount = worksheet.rowCount || 0;
 
-    for (let rowIdx = timeRowIndex + 1; rowIdx <= rowCount; rowIdx++) {
-        const row = worksheet.getRow(rowIdx);
-        const kelasName = normalizeText(getCellText(row.getCell(kelasCol)));
-        const marker = normalizeText(getCellText(row.getCell(jamKeLabelCol))).toUpperCase();
+     for (let rowIdx = timeRowIndex + 1; rowIdx <= rowCount; rowIdx++) {
+         const row = worksheet.getRow(rowIdx);
+         const kelasName = normalizeText(getCellText(row.getCell(kelasCol)));
+         const marker = normalizeText(getCellText(row.getCell(jamKeLabelCol))).toUpperCase();
 
-        if (!kelasName || marker !== 'MAPEL') continue;
+         if (!kelasName || marker !== 'MAPEL') continue;
 
-        const kelasKey = normalizeCompactKey(kelasName);
-        const kelasId = refMaps.kelasMap.get(kelasKey);
-        if (!kelasId) {
-            errors.push({ index: rowIdx, errors: [`Kelas tidak ditemukan: ${kelasName}`], data: { kelas: kelasName } });
-            continue;
-        }
+         const kelasKey = normalizeCompactKey(kelasName);
+         const kelasId = refMaps.kelasMap.get(kelasKey);
+         if (!kelasId) {
+             errors.push({ index: rowIdx, errors: [`Kelas tidak ditemukan: ${kelasName}`], data: { kelas: kelasName } });
+             continue;
+         }
 
-        const mapelRow = row;
-        const ruangRow = worksheet.getRow(rowIdx + 1);
-        const guruRow = worksheet.getRow(rowIdx + 2);
+         const mapelRow = row;
+         const ruangRow = worksheet.getRow(rowIdx + 1);
+         const guruRow = worksheet.getRow(rowIdx + 2);
 
-        for (const meta of columnMeta) {
-            processScheduleSlot(meta, { mapelRow, ruangRow, guruRow }, { kelasId, kelasName, tahunAjaran }, refMaps, jamSlotMap, jadwalList, errors, rowIdx);
-        }
-        rowIdx += 2;
-    }
-    return { jamSlotMap, jadwalList, errors };
-};
+         for (const meta of columnMeta) {
+             processScheduleSlot(meta, { mapelRow, ruangRow, guruRow }, { kelasId, kelasName, tahunAjaran }, refMaps, { jamSlotMap, jadwalList, errors, rowIdx });
+         }
+         // Skip the next 2 rows (ruang and guru rows) by incrementing loop counter
+         rowIdx += 2;
+     }
+     return { jamSlotMap, jadwalList, errors };
+ };
 
 /**
  * Parse manual schedule sheet into jam slots and jadwal rows.

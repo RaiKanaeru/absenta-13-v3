@@ -63,16 +63,17 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
           setTotalPages(response.totalPages || 1);
           setTotalPending(response.totalPending || 0);
           setTotalAll(response.totalAll || 0);
-        } else {
-          setBandingList(Array.isArray(response) ? response : []);
-        }
-      } catch (error) {
-        toast({ 
-          title: "Error", 
-          description: "Gagal memuat data banding absen", 
-          variant: "destructive" 
-        });
-      } finally {
+         } else {
+           setBandingList(Array.isArray(response) ? response : []);
+         }
+       } catch (error) {
+         console.error('BandingAbsenView: Failed to load banding data', error);
+         toast({ 
+           title: "Error", 
+           description: "Gagal memuat data banding absen", 
+           variant: "destructive" 
+         });
+       } finally {
         setLoading(false);
       }
     };

@@ -180,16 +180,23 @@ export const KehadiranTab: React.FC<KehadiranTabProps> = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-3 sm:space-y-4">
-            {loading && isEditMode ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-muted-foreground">Memuat jadwal...</span>
-              </div>
-            ) : isEditMode && jadwalBerdasarkanTanggal.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Tidak ada jadwal untuk tanggal {selectedDate}</p>
-              </div>
-            ) : (() => {
+            {(() => {
+              if (loading && isEditMode) {
+                return (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-muted-foreground">Memuat jadwal...</span>
+                  </div>
+                );
+              }
+              if (isEditMode && jadwalBerdasarkanTanggal.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Tidak ada jadwal untuk tanggal {selectedDate}</p>
+                  </div>
+                );
+              }
+              return (() => {
               // Group by jadwal_id to handle multi-guru properly
               const jadwalData = isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni;
               
@@ -273,6 +280,90 @@ export const KehadiranTab: React.FC<KehadiranTabProps> = ({
               }
 
               // Jadwal normal yang bisa diabsen
+              let guruAttendanceForm: React.ReactNode;
+              if (jadwal.is_multi_guru) {
+                if (jadwal.guru_list && jadwal.guru_list.length > 0) {
+                  guruAttendanceForm = (
+                    <div className="space-y-3 sm:space-y-4">
+                      <Label className="text-sm font-medium text-foreground mb-3 block">
+                        Status Kehadiran Guru (Multi-Guru):
+                      </Label>
+                      {jadwal.guru_list.map((guru) => {
+                        const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
+                        return (
+                          <GuruAttendanceCard
+                            key={guruKey}
+                            guru={guru}
+                            jadwalId={jadwal.id_jadwal}
+                            kehadiranStatus={kehadiranData[guruKey]?.status || ''}
+                            kehadiranKeterangan={kehadiranData[guruKey]?.keterangan || ''}
+                            isUpdating={isUpdatingStatus === guruKey}
+                            onStatusChange={updateKehadiranStatus}
+                            onKeteranganChange={updateKehadiranKeterangan}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                } else {
+                  guruAttendanceForm = (
+                    <div className="p-3 border rounded bg-yellow-50 border-yellow-200 text-sm text-yellow-800">
+                      Jadwal ini multi-guru namun daftar guru belum tersedia. Silakan refresh/ulang sampai daftar guru tampil.
+                    </div>
+                  );
+                }
+              } else {
+                guruAttendanceForm = (
+                  <div>
+                    <Label className="text-sm font-medium text-foreground mb-3 block">
+                      Status Kehadiran Guru:
+                    </Label>
+                    <RadioGroup 
+                      value={kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || ''} 
+                      onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
+                      disabled={isUpdatingStatus === String(jadwal.id_jadwal)}
+                    >
+                      {isUpdatingStatus === String(jadwal.id_jadwal) && (
+                        <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
+                          <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                          Menyimpan...
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Hadir" id={`hadir-${jadwal.id_jadwal}`} />
+                          <Label htmlFor={`hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            Hadir
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${jadwal.id_jadwal}`} />
+                          <Label htmlFor={`tidak_hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                            <XCircle className="w-4 h-4 text-red-600" />
+                            Tidak Hadir
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Izin" id={`izin-${jadwal.id_jadwal}`} />
+                          <Label htmlFor={`izin-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                            <User className="w-4 h-4 text-yellow-600" />
+                            Izin
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Sakit" id={`sakit-${jadwal.id_jadwal}`} />
+                          <Label htmlFor={`sakit-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
+                            <BookOpen className="w-4 h-4 text-blue-600" />
+                            Sakit
+                          </Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                );
+              }
+
               return (
                 <div key={jadwal.id_jadwal} className="border rounded-lg p-3 sm:p-4">
                   <div className="mb-4">
@@ -321,84 +412,7 @@ export const KehadiranTab: React.FC<KehadiranTabProps> = ({
                   </div>
 
                 <div className="space-y-3 sm:space-y-4">
-                  {/* Multi-guru form */}
-                  {jadwal.is_multi_guru ? (
-                    (jadwal.guru_list && jadwal.guru_list.length > 0) ? (
-                    <div className="space-y-3 sm:space-y-4">
-                      <Label className="text-sm font-medium text-foreground mb-3 block">
-                        Status Kehadiran Guru (Multi-Guru):
-                      </Label>
-                      {jadwal.guru_list.map((guru) => {
-                        const guruKey = `${jadwal.id_jadwal}-${guru.id_guru}`;
-                        return (
-                          <GuruAttendanceCard
-                            key={guruKey}
-                            guru={guru}
-                            jadwalId={jadwal.id_jadwal}
-                            kehadiranStatus={kehadiranData[guruKey]?.status || ''}
-                            kehadiranKeterangan={kehadiranData[guruKey]?.keterangan || ''}
-                            isUpdating={isUpdatingStatus === guruKey}
-                            onStatusChange={updateKehadiranStatus}
-                            onKeteranganChange={updateKehadiranKeterangan}
-                          />
-                        );
-                      })}
-                    </div>
-                    ) : (
-                      <div className="p-3 border rounded bg-yellow-50 border-yellow-200 text-sm text-yellow-800">
-                        Jadwal ini multi-guru namun daftar guru belum tersedia. Silakan refresh/ulang sampai daftar guru tampil.
-                      </div>
-                    )
-                  ) : (
-                    /* Single guru form */
-                    <div>
-                      <Label className="text-sm font-medium text-foreground mb-3 block">
-                        Status Kehadiran Guru:
-                      </Label>
-                      <RadioGroup 
-                        value={kehadiranData[jadwal.id_jadwal]?.status || jadwal.status_kehadiran || ''} 
-                        onValueChange={(value) => updateKehadiranStatus(jadwal.id_jadwal, value)}
-                        disabled={isUpdatingStatus === String(jadwal.id_jadwal)}
-                      >
-                        {isUpdatingStatus === String(jadwal.id_jadwal) && (
-                          <div className="text-xs text-blue-600 flex items-center gap-1 mb-2">
-                            <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                            Menyimpan...
-                          </div>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Hadir" id={`hadir-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              Hadir
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Tidak Hadir" id={`tidak_hadir-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`tidak_hadir-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                              <XCircle className="w-4 h-4 text-red-600" />
-                              Tidak Hadir
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Izin" id={`izin-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`izin-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                              <User className="w-4 h-4 text-yellow-600" />
-                              Izin
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Sakit" id={`sakit-${jadwal.id_jadwal}`} />
-                            <Label htmlFor={`sakit-${jadwal.id_jadwal}`} className="flex items-center gap-2 text-sm">
-                              <BookOpen className="w-4 h-4 text-blue-600" />
-                              Sakit
-                            </Label>
-                          </div>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  )}
+                  {guruAttendanceForm}
 
                   {/* Opsi Ada Tugas */}
                   {(kehadiranData[jadwal.id_jadwal]?.status === 'Tidak Hadir' || 
@@ -459,6 +473,7 @@ export const KehadiranTab: React.FC<KehadiranTabProps> = ({
               </div>
               );
               });
+              })();
             })()}
           </div>
 

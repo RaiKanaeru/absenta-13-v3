@@ -152,14 +152,15 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
       toast({
         title: "Validasi Selesai",
         description: `Ditemukan ${result.valid} baris valid dan ${result.invalid} baris invalid`
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal memvalidasi file",
-        variant: "destructive"
-      });
-    } finally {
+       });
+     } catch (error) {
+       console.error('ExcelImportView: Failed to validate file', error);
+       toast({
+         title: "Error",
+         description: "Gagal memvalidasi file",
+         variant: "destructive"
+       });
+     } finally {
       setIsValidating(false);
     }
   };
@@ -177,18 +178,19 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
         body: formData
       });
 
-      setImportResult(result);
-      toast({
-        title: "Import Berhasil",
-        description: `Berhasil memproses ${result.processed || result.inserted_or_updated || result.inserted} baris data`
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal mengimpor file",
-        variant: "destructive"
-      });
-    } finally {
+       setImportResult(result);
+       toast({
+         title: "Import Berhasil",
+         description: `Berhasil memproses ${result.processed || result.inserted_or_updated || result.inserted} baris data`
+       });
+     } catch (error) {
+       console.error('ExcelImportView: Failed to import file', error);
+       toast({
+         title: "Error",
+         description: "Gagal mengimpor file",
+         variant: "destructive"
+       });
+     } finally {
       setIsUploading(false);
     }
   };

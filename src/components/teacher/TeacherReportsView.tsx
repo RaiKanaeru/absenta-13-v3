@@ -10,11 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { useExcelDownload } from "@/hooks/useExcelDownload";
+import { ExportButton } from "@/components/shared/ExportButton";
+import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { formatDateOnly, getMonthRangeWIB } from "@/lib/time-utils";
-import { ArrowLeft, Filter, FileText, Search, Download, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Filter, FileText, Search } from "lucide-react";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
-import { getErrorMessage } from "@/utils/apiClient";
 import ExcelPreview from '../ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
 
@@ -30,8 +32,8 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [exporting, setExporting] = useState(false);
-  const [exportingSmkn13, setExportingSmkn13] = useState(false);
+  const { downloadExcel: downloadAttendanceExcel, exporting } = useExcelDownload();
+  const { downloadExcel: downloadSmkn13Excel, exporting: exportingSmkn13 } = useExcelDownload();
 
   useEffect(() => {
     (async ()=>{
@@ -82,34 +84,15 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       });
       return;
     }
-    try {
-      setExporting(true);
-      const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
-      if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
-      const blob = await apiCall<Blob>(`/api/guru/download-attendance-excel?${params.toString()}`, {
-        responseType: 'blob'
-      });
-      const link = document.createElement('a');
-      const url = globalThis.URL.createObjectURL(blob);
-      link.href = url;
-      link.download = `laporan-kehadiran-siswa-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
-      link.click();
-      globalThis.URL.revokeObjectURL(url);
-      toast({
-        title: "Berhasil",
-        description: "File Excel berhasil diunduh"
-      });
-    } catch (err) {
-      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setExporting(false);
-    }
+    const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
+    if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+
+    await downloadAttendanceExcel({
+      endpoint: '/api/guru/download-attendance-excel',
+      params,
+      fileName: `laporan-kehadiran-siswa-${dateRange.startDate}-${dateRange.endDate}.xlsx`,
+      onError: setError,
+    });
   };
 
   const downloadSMKN13Format = async () => {
@@ -123,36 +106,17 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       });
       return;
     }
-    try {
-      setExportingSmkn13(true);
-      const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
-      if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
-      
-      const blob = await apiCall<Blob>(`/api/export/ringkasan-kehadiran-siswa-smkn13?${params.toString()}`, {
-        responseType: 'blob'
-      });
-      const link = document.createElement('a');
-      const url = globalThis.URL.createObjectURL(blob);
-      link.href = url;
-      link.download = `laporan-kehadiran-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
-      link.click();
-      globalThis.URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Berhasil",
-        description: "File format SMKN 13 berhasil diunduh"
-      });
-    } catch (err) {
-      const message = getErrorMessage(err) || 'Gagal mengunduh file format SMKN 13';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setExportingSmkn13(false);
-    }
+    const params = new URLSearchParams({ startDate: dateRange.startDate, endDate: dateRange.endDate });
+    if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+
+    await downloadSmkn13Excel({
+      endpoint: '/api/export/ringkasan-kehadiran-siswa-smkn13',
+      params,
+      fileName: `laporan-kehadiran-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`,
+      successMessage: 'File format SMKN 13 berhasil diunduh',
+      fallbackErrorMessage: 'Gagal mengunduh file format SMKN 13',
+      onError: setError,
+    });
   };
 
   return (
@@ -168,12 +132,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
       </div>
 
       {error && (
-        <Card className="p-4 border-destructive/20 bg-destructive/10">
-          <div className="flex items-center gap-2 text-destructive">
-            <XCircle className="w-5 h-5" />
-            <p className="font-medium">{error}</p>
-          </div>
-        </Card>
+        <ErrorAlert message={error} />
       )}
 
       <Card>
@@ -305,23 +264,12 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3">
-                <Button 
+                <ExportButton
                   onClick={downloadSMKN13Format}
+                  loading={exportingSmkn13}
+                  label="Export Format SMK 13"
                   className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={exportingSmkn13}
-                >
-                  {exportingSmkn13 ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Mengekspor...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Format SMK 13
-                    </>
-                  )}
-                </Button>
+                />
 <div className="text-sm text-muted-foreground">
                   Format resmi dengan header sekolah dan styling profesional
                 </div>

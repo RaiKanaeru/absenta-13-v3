@@ -160,19 +160,20 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
       link.click();
       globalThis.URL.revokeObjectURL(url);
       
-      toast({
-        title: "Berhasil!",
-        description: "File Excel berhasil diunduh"
-      });
-    } catch (err) {
-      const message = 'Gagal mengunduh file Excel';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
+       toast({
+         title: "Berhasil!",
+         description: "File Excel berhasil diunduh"
+       });
+     } catch (err) {
+       console.error('LaporanKehadiranSiswaView: Failed to export Excel', err);
+       const message = 'Gagal mengunduh file Excel';
+       setError(message);
+       toast({
+         title: "Error",
+         description: message,
+         variant: "destructive"
+       });
+     } finally {
       setExporting(false);
     }
   };
@@ -195,17 +196,18 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
         `laporan-kehadiran-siswa-${startDate}-${endDate}.pdf`,
         { kelas_id: selectedKelas, startDate, endDate }
       );
-      toast({
-        title: "Berhasil!",
-        description: "File PDF berhasil diunduh"
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Gagal mengunduh file PDF",
-        variant: "destructive"
-      });
-    } finally {
+       toast({
+         title: "Berhasil!",
+         description: "File PDF berhasil diunduh"
+       });
+     } catch (err) {
+       console.error('LaporanKehadiranSiswaView: Failed to export PDF', err);
+       toast({
+         title: "Error",
+         description: "Gagal mengunduh file PDF",
+         variant: "destructive"
+       });
+     } finally {
       setExportingPdf(false);
     }
   };

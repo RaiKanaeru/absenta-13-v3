@@ -1,8 +1,8 @@
 import mysql from 'mysql2/promise';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'node:url';
 
 // Setup dirname for ESM
 const __filename = fileURLToPath(import.meta.url);

@@ -504,7 +504,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
           {/* Filter and Search Controls */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
-<label className="block text-sm font-medium text-foreground mb-2">
+<label htmlFor="student-live-search" className="block text-sm font-medium text-foreground mb-2">
                 Pencarian (Nama atau NIS)
                 {searchQuery === '' && (
                   <span className="text-xs text-muted-foreground ml-2">
@@ -518,6 +518,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                 )}
               </label>
               <input
+                id="student-live-search"
                 type="text"
                 placeholder="Cari berdasarkan nama atau NIS..."
                 value={searchQuery}
@@ -526,10 +527,11 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
               />
             </div>
             <div className="sm:w-48">
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label htmlFor="student-live-class-filter" className="block text-sm font-medium text-foreground mb-2">
                 Filter Kelas
               </label>
               <select
+                id="student-live-class-filter"
                 value={selectedKelas}
                 onChange={(e) => setSelectedKelas(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"

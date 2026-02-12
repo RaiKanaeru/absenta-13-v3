@@ -312,13 +312,12 @@ export const exportRekapKetidakhadiranGuruPdf = wrapPdfExport(async (req, res) =
         ORDER BY g.nama
     `;
 
-    const [rows] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
-    const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
-    const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru.js');
-
-    // Build simplified rekap data — column schema has: no, nama, nip, mata_pelajaran, ruang, periode, hadir, izin, sakit, alpa, total, presentase
-    // But the yearly report just uses monthly sums. We adapt the schema columns to match the actual data shape.
-    // Use the rekap-ketidakhadiran-siswa style columns (monthly) instead:
+     const [rows] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
+     const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
+ 
+     // Build simplified rekap data — column schema has: no, nama, nip, mata_pelajaran, ruang, periode, hadir, izin, sakit, alpa, total, presentase
+     // But the yearly report just uses monthly sums. We adapt the schema columns to match the actual data shape.
+     // Use the rekap-ketidakhadiran-siswa style columns (monthly) instead:
     const monthlyColumns = [
         { key: 'no', label: 'No', width: 5, align: 'center' },
         { key: 'nama', label: 'Nama Guru', width: 25, align: 'left' },

@@ -96,14 +96,15 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
           });
         });
 
-        setHistoryData(grouped);
-      } catch (error) {
-        toast({ 
-          title: "Error", 
-          description: "Gagal memuat riwayat absensi", 
-          variant: "destructive" 
-        });
-      } finally {
+         setHistoryData(grouped);
+       } catch (error) {
+         console.error('HistoryView: Failed to load history data', error);
+         toast({ 
+           title: "Error", 
+           description: "Gagal memuat riwayat absensi", 
+           variant: "destructive" 
+         });
+       } finally {
         setLoading(false);
       }
     };

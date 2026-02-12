@@ -114,15 +114,25 @@ export const AdminDashboard = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [userData, setUserData] = useState<AdminProfileData | null>(null);
 
+  const handleLogout = React.useCallback(() => {
+    logout().catch((error) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal logout",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan",
+      });
+    });
+  }, [logout]);
+
   // Notifications (admin — no userId needed)
   const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
-    useNotifications({ role: 'admin', onLogout: logout });
+    useNotifications({ role: 'admin', onLogout: handleLogout });
 
   // Load detailed admin profile data for sidebar + EditProfile
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const profileResponse = await apiCall('/api/admin/info', { onLogout: logout }) as
+        const profileResponse = await apiCall('/api/admin/info', { onLogout: handleLogout }) as
           AdminProfileData & { success?: boolean };
         if (profileResponse.success !== false) {
           setUserData({
@@ -154,7 +164,7 @@ export const AdminDashboard = () => {
     };
 
     loadProfile();
-  }, [logout, user]);
+  }, [handleLogout, user]);
 
   const handleUpdateProfile = (updatedData: AdminProfileData) => {
     setUserData(prevData => ({
@@ -199,21 +209,27 @@ export const AdminDashboard = () => {
 
         {/* Navigation - flex-1 with min-h-0 for proper flex shrinking */}
         <nav className="p-4 space-y-2 flex-1 min-h-0 overflow-y-auto">
-          {menuItems.map((item) => (
-            <Button
-              key={item.id}
-              variant={location.pathname === `/admin/${item.path}` ? "default" : "ghost"}
-              className={`w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${location.pathname !== `/admin/${item.path}` ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`}
-              onClick={() => {
-                navigate(item.path);
-                setSidebarOpen(false);
-              }}
-            >
-              <item.icon className="h-4 w-4" />
-              {sidebarOpen && <span className="ml-2 block lg:hidden">{item.title}</span>}
-              <span className="ml-2 hidden lg:block">{item.title}</span>
-            </Button>
-          ))}
+          {menuItems.map((item) => {
+            const itemPath = `/admin/${item.path}`;
+            const isActive = location.pathname === itemPath;
+            const buttonClassName = `w-full justify-start ${sidebarOpen ? '' : 'px-2 lg:px-3'} ${!isActive ? 'text-muted-foreground hover:text-foreground font-medium' : ''}`;
+
+            return (
+              <Button
+                key={item.id}
+                variant={isActive ? "default" : "ghost"}
+                className={buttonClassName}
+                onClick={() => {
+                  navigate(item.path);
+                  setSidebarOpen(false);
+                }}
+              >
+                <item.icon className="h-4 w-4" />
+                {sidebarOpen && <span className="ml-2 block lg:hidden">{item.title}</span>}
+                <span className="ml-2 hidden lg:block">{item.title}</span>
+              </Button>
+            );
+          })}
         </nav>
 
         {/* User Info - shrink-0 to keep at bottom */}
@@ -262,7 +278,7 @@ export const AdminDashboard = () => {
             </Button>
 
             <Button
-              onClick={logout}
+              onClick={handleLogout}
               variant="outline"
               size="sm"
               className={`w-full ${sidebarOpen ? '' : 'px-2 lg:px-3'}`}
@@ -301,7 +317,7 @@ export const AdminDashboard = () => {
                   <p className="text-muted-foreground mt-2">ABSENTA - Sistem Absensi Sekolah</p>
                 </div>
                 <React.Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
-                  <LiveSummaryView onLogout={logout} />
+                  <LiveSummaryView onLogout={handleLogout} />
                 </React.Suspense>
                 {/* Menu Grid */}
                 <div>

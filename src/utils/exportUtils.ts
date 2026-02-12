@@ -21,11 +21,12 @@ export async function downloadPdf(
   params?: URLSearchParams | Record<string, string>,
   onLogout?: () => void
 ): Promise<void> {
-  const queryString = params instanceof URLSearchParams
-    ? params.toString()
-    : params
-      ? new URLSearchParams(params).toString()
-      : '';
+  let queryString = '';
+  if (params instanceof URLSearchParams) {
+    queryString = params.toString();
+  } else if (params) {
+    queryString = new URLSearchParams(params).toString();
+  }
 
   const url = queryString ? `${endpoint}?${queryString}` : endpoint;
 
@@ -60,11 +61,12 @@ export async function downloadExcelFromApi(
   params?: URLSearchParams | Record<string, string>,
   onLogout?: () => void
 ): Promise<void> {
-  const queryString = params instanceof URLSearchParams
-    ? params.toString()
-    : params
-      ? new URLSearchParams(params).toString()
-      : '';
+  let queryString = '';
+  if (params instanceof URLSearchParams) {
+    queryString = params.toString();
+  } else if (params) {
+    queryString = new URLSearchParams(params).toString();
+  }
 
   const url = queryString ? `${endpoint}?${queryString}` : endpoint;
 

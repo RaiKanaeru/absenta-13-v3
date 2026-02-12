@@ -81,14 +81,14 @@ export function createSummaryRow(data, columns, label = 'TOTAL') {
     const summary = { no: '', nama: label };
     
     // Attendance column keys that should be summed
-    const numericKeys = ['sakit', 'izin', 'alpa', 'hadir', 'dispen', 'total', 
-                         'S', 'I', 'A', 'H', 'D', 
-                         'jul', 'agt', 'sep', 'okt', 'nov', 'des',
-                         'jan', 'feb', 'mar', 'apr', 'mei', 'jun',
-                         'total_ketidakhadiran', 'total_kehadiran'];
+    const numericKeys = new Set(['sakit', 'izin', 'alpa', 'hadir', 'dispen', 'total', 
+                                 'S', 'I', 'A', 'H', 'D', 
+                                 'jul', 'agt', 'sep', 'okt', 'nov', 'des',
+                                 'jan', 'feb', 'mar', 'apr', 'mei', 'jun',
+                                 'total_ketidakhadiran', 'total_kehadiran']);
     
     columns.forEach(col => {
-        if (numericKeys.includes(col.key)) {
+        if (numericKeys.has(col.key)) {
             summary[col.key] = data.reduce((sum, row) => sum + (Number(row[col.key]) || 0), 0);
         }
     });
@@ -109,10 +109,10 @@ export function createAverageRow(data, columns, label = 'RATA-RATA') {
     if (data.length === 0) return average;
     
     // Percentage column keys that should be averaged
-    const percentageKeys = ['persentase', 'presentase', 'persentase_kehadiran', 'persentase_ketidakhadiran'];
+    const percentageKeys = new Set(['persentase', 'presentase', 'persentase_kehadiran', 'persentase_ketidakhadiran']);
     
     columns.forEach(col => {
-        if (percentageKeys.includes(col.key)) {
+        if (percentageKeys.has(col.key)) {
             const sum = data.reduce((total, row) => total + (Number(row[col.key]) || 0), 0);
             average[col.key] = Number((sum / data.length).toFixed(2));
         }

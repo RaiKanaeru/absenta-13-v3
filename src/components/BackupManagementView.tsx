@@ -479,12 +479,13 @@ const BackupManagementView: React.FC = () => {
                 setShowCreateDialog(false);
                 loadBackups();
                 toast({ title: "Berhasil", description: `Backup berhasil dibuat: ${result.data?.backupId || 'Backup'}` });
-            }, 10000);
+         }, 10000);
 
-        } catch (error) {
-            setBackupProgress(DEFAULT_BACKUP_PROGRESS);
-            toast({ title: "Error", description: "Gagal membuat backup", variant: "destructive" });
-        }
+         } catch (error) {
+             setBackupProgress(DEFAULT_BACKUP_PROGRESS);
+             console.error('BackupManagementView: Failed to create backup', error);
+             toast({ title: "Error", description: "Gagal membuat backup", variant: "destructive" });
+         }
     };
 
 

@@ -218,7 +218,7 @@ function formatValue(value, col) {
 
     if (col.format === 'date' && value) {
         const date = new Date(value);
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
             return date.toLocaleDateString('id-ID');
         }
     }

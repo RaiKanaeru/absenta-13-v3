@@ -59,6 +59,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
       setSubjects(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       // Don't show error toast for subjects as it's not critical
+      console.error('ManageTeacherDataView: Failed to load subjects', error);
     }
   }, [onLogout]);
 

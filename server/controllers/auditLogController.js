@@ -10,8 +10,8 @@ const logger = createLogger('AuditLog');
  */
 export const getAuditLogs = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        const page = Number.parseInt(req.query.page, 10) || 1;
+        const limit = Number.parseInt(req.query.limit, 10) || 20;
         const offset = (page - 1) * limit;
         
         const { search, action, target, startDate, endDate, adminId } = req.query;

@@ -58,6 +58,24 @@ export const BandingAbsenTab: React.FC<BandingAbsenTabProps> = ({
   loadJadwalBandingByDate,
   loadSiswaStatusById,
 }) => {
+  let jadwalPlaceholder = "Pilih jadwal pelajaran...";
+  if (formBanding.tanggal_absen === '') {
+    jadwalPlaceholder = "Pilih tanggal absen terlebih dahulu...";
+  } else if (loadingJadwal) {
+    jadwalPlaceholder = "Memuat jadwal...";
+  }
+
+  let jadwalOptions: React.ReactNode = null;
+  if (jadwalBerdasarkanTanggal && jadwalBerdasarkanTanggal.length > 0) {
+    jadwalOptions = jadwalBerdasarkanTanggal.map((j) => (
+      <option key={j.id_jadwal} value={j.id_jadwal}>
+        {j.nama_mapel} ({j.jam_mulai}-{j.jam_selesai}) - {j.nama_guru}
+      </option>
+    ));
+  } else if (formBanding.tanggal_absen && !loadingJadwal) {
+    jadwalOptions = <option value="" disabled>Tidak ada jadwal untuk tanggal ini</option>;
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* Header - Mobile Responsive */}
@@ -134,21 +152,8 @@ export const BandingAbsenTab: React.FC<BandingAbsenTabProps> = ({
                   }}
                   disabled={formBanding.tanggal_absen === '' || loadingJadwal}
                 >
-                  <option value="">
-                    {formBanding.tanggal_absen === ''
-                      ? "Pilih tanggal absen terlebih dahulu..." 
-                      : loadingJadwal 
-                        ? "Memuat jadwal..." 
-                        : "Pilih jadwal pelajaran..."
-                    }
-                  </option>
-                  {jadwalBerdasarkanTanggal && jadwalBerdasarkanTanggal.length > 0 ? jadwalBerdasarkanTanggal.map(j => (
-                    <option key={j.id_jadwal} value={j.id_jadwal}>
-                      {j.nama_mapel} ({j.jam_mulai}-{j.jam_selesai}) - {j.nama_guru}
-                    </option>
-                  )) : formBanding.tanggal_absen && !loadingJadwal ? (
-                    <option value="" disabled>Tidak ada jadwal untuk tanggal ini</option>
-                  ) : null}
+                  <option value="">{jadwalPlaceholder}</option>
+                  {jadwalOptions}
                 </select>
               </div>
             </div>

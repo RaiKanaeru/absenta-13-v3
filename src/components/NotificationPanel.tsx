@@ -58,6 +58,46 @@ export function NotificationPanel({
   isLoading,
   onRefresh,
 }: NotificationPanelProps) {
+  let bodyContent: React.ReactNode;
+  if (isLoading && notifications.length === 0) {
+    bodyContent = (
+      <div className="flex items-center justify-center py-8 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        <span className="text-sm">Memuat…</span>
+      </div>
+    );
+  } else if (notifications.length === 0) {
+    bodyContent = (
+      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+        <BellOff className="h-8 w-8 mb-2 opacity-40" />
+        <span className="text-sm">Tidak ada notifikasi</span>
+      </div>
+    );
+  } else {
+    bodyContent = (
+      <ul className="divide-y divide-border">
+        {notifications.map((item) => (
+          <li key={item.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
+            <p className="text-sm text-foreground leading-snug">{item.message}</p>
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-xs text-muted-foreground">
+                {relativeTime(item.timestamp)}
+              </span>
+              <span
+                className={cn(
+                  'text-xs font-medium px-2 py-0.5 rounded-full capitalize',
+                  statusBadgeClass(item.status),
+                )}
+              >
+                {item.status}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <div className="absolute left-0 bottom-full mb-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-50">
       {/* Header */}
@@ -79,38 +119,7 @@ export function NotificationPanel({
 
       {/* Body */}
       <div className="max-h-80 overflow-y-auto">
-        {isLoading && notifications.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-            <span className="text-sm">Memuat…</span>
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <BellOff className="h-8 w-8 mb-2 opacity-40" />
-            <span className="text-sm">Tidak ada notifikasi</span>
-          </div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {notifications.map((item) => (
-              <li key={item.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
-                <p className="text-sm text-foreground leading-snug">{item.message}</p>
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-xs text-muted-foreground">
-                    {relativeTime(item.timestamp)}
-                  </span>
-                  <span
-                    className={cn(
-                      'text-xs font-medium px-2 py-0.5 rounded-full capitalize',
-                      statusBadgeClass(item.status),
-                    )}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        {bodyContent}
       </div>
     </div>
   );

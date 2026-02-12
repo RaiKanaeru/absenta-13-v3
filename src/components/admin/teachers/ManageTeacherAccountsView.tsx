@@ -131,6 +131,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       setSubjects(subjectData);
     } catch (error: unknown) {
       // Don't show error toast for subjects as it's not critical
+      console.error('ManageTeacherAccountsView: Failed to load subjects', error);
     }
   }, [onLogout]);
 

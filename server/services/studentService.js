@@ -76,7 +76,7 @@ export const getStudentsPaginated = async (page = 1, limit = 15, search = '') =>
     
     // Use parameterized query for LIMIT/OFFSET to prevent SQL injection
     query += ` ORDER BY s.nama ASC LIMIT ? OFFSET ?`;
-    const queryParams = [...params, parseInt(limit, 10), parseInt(offset, 10)];
+    const queryParams = [...params, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
     
     const [rows] = await db.query(query, queryParams);
     const [countResult] = await db.query(countQuery, params);

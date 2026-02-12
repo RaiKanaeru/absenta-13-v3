@@ -99,6 +99,84 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = ({ onLo
     setPeriod(newPeriod);
   };
 
+  let chartBody: React.ReactNode;
+  if (error) {
+    chartBody = (
+      <div className="text-center py-8 text-muted-foreground">
+        <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50 text-destructive" />
+        <p className="text-sm text-destructive">{error}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchChartData(period)}
+          className="mt-3"
+        >
+          Coba Lagi
+        </Button>
+      </div>
+    );
+  } else if (chartData.length === 0) {
+    chartBody = (
+      <div className="text-center py-8 text-muted-foreground">
+        <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p>Belum ada data kehadiran untuk periode ini</p>
+      </div>
+    );
+  } else {
+    chartBody = (
+      <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <AreaChart
+          data={chartData}
+          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="gradientHadir" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--color-hadir)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--color-hadir)" stopOpacity={0.05} />
+            </linearGradient>
+            <linearGradient id="gradientTidakHadir" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--color-tidakHadir)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--color-tidakHadir)" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            fontSize={12}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            fontSize={12}
+            allowDecimals={false}
+          />
+          <ChartTooltip
+            content={<ChartTooltipContent />}
+          />
+          <ChartLegend content={<ChartLegendContent />} />
+          <Area
+            dataKey="hadir"
+            type="monotone"
+            fill="url(#gradientHadir)"
+            stroke="var(--color-hadir)"
+            strokeWidth={2}
+          />
+          <Area
+            dataKey="tidakHadir"
+            type="monotone"
+            fill="url(#gradientTidakHadir)"
+            stroke="var(--color-tidakHadir)"
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ChartContainer>
+    );
+  }
+
   return (
     <Card className="lg:col-span-3 border-0 shadow-sm">
       <CardHeader className="border-b bg-sky-500/10 dark:bg-sky-500/20">
@@ -136,76 +214,7 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = ({ onLo
               <p className="mt-2 text-sm text-muted-foreground">Memuat grafik...</p>
             </div>
           </div>
-        ) : error ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchChartData(period)}
-              className="mt-3"
-            >
-              Coba Lagi
-            </Button>
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Belum ada data kehadiran untuk periode ini</p>
-          </div>
-        ) : (
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="gradientHadir" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-hadir)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--color-hadir)" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="gradientTidakHadir" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-tidakHadir)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--color-tidakHadir)" stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={12}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={12}
-                allowDecimals={false}
-              />
-              <ChartTooltip
-                content={<ChartTooltipContent />}
-              />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Area
-                dataKey="hadir"
-                type="monotone"
-                fill="url(#gradientHadir)"
-                stroke="var(--color-hadir)"
-                strokeWidth={2}
-              />
-              <Area
-                dataKey="tidakHadir"
-                type="monotone"
-                fill="url(#gradientTidakHadir)"
-                stroke="var(--color-tidakHadir)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ChartContainer>
-        )}
+        ) : chartBody}
       </CardContent>
     </Card>
   );

@@ -64,6 +64,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       setAttendance(initialAttendance);
       setNotes(initialNotes);
     } catch (error) {
+      console.error('AttendanceView: Failed to load student data', error);
       toast({ 
         title: "Error", 
         description: "Gagal memuat data siswa untuk tanggal tersebut", 

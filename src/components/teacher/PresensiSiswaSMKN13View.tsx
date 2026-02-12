@@ -12,8 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
+import { useExcelDownload } from "@/hooks/useExcelDownload";
+import { ExportButton } from "@/components/shared/ExportButton";
+import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { formatDateWIB } from "@/lib/time-utils";
-import { FileText, Search, Download, ArrowLeft, Loader2 } from "lucide-react";
+import { FileText, Search, ArrowLeft } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
@@ -30,7 +33,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [exporting, setExporting] = useState(false);
+  const { downloadExcel, exporting } = useExcelDownload();
 
   useEffect(() => {
     (async ()=>{
@@ -64,7 +67,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
     }
   };
 
-  const downloadExcel = async () => {
+  const handleDownloadExcel = async () => {
     if (!dateRange.startDate || !dateRange.endDate) {
       const message = 'Mohon pilih periode mulai dan akhir';
       setError(message);
@@ -75,39 +78,18 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       });
       return;
     }
-    try {
-      setExporting(true);
-      const params = new URLSearchParams({ 
-        startDate: dateRange.startDate, 
-        endDate: dateRange.endDate 
-      });
-      if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
-      
-      const blob = await apiCall<Blob>(`/api/export/presensi-siswa-smkn13?${params.toString()}`, {
-        responseType: 'blob'
-      });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.href = url;
-      link.download = `presensi-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Berhasil",
-        description: "File Excel berhasil diunduh"
-      });
-    } catch (err) {
-      const message = getErrorMessage(err) || 'Gagal mengunduh file Excel';
-      setError(message);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setExporting(false);
-    }
+    const params = new URLSearchParams({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    });
+    if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+
+    await downloadExcel({
+      endpoint: '/api/export/presensi-siswa-smkn13',
+      params,
+      fileName: `presensi-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`,
+      onError: setError,
+    });
   };
 
   return (
@@ -169,9 +151,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       </Card>
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <p className="text-destructive">{error}</p>
-        </div>
+        <ErrorAlert message={error} />
       )}
 
       {reportData.length > 0 && (
@@ -183,19 +163,11 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                   <FileText className="w-5 h-5" />
                   Presensi Siswa SMK 13
                 </CardTitle>
-                <Button onClick={downloadExcel} className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={exporting}>
-                  {exporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Mengekspor...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Excel
-                    </>
-                  )}
-                </Button>
+                <ExportButton
+                  onClick={handleDownloadExcel}
+                  loading={exporting}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                />
               </div>
             </CardHeader>
             <CardContent>

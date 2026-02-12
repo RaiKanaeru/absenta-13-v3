@@ -129,6 +129,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
       setClasses(data);
     } catch (error: unknown) {
       // Don't show error toast for classes as it's not critical
+      console.error('ManageStudentsView: Failed to load classes', error);
     }
   }, [onLogout]);
 

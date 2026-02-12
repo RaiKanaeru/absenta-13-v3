@@ -504,13 +504,14 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
             {/* Filter and Search Controls */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="flex-1">
-<label className="block text-sm font-medium text-foreground mb-2">
+<label htmlFor="teacher-live-search" className="block text-sm font-medium text-foreground mb-2">
                   Pencarian (Nama, NIP, atau Mata Pelajaran){' '}
                   <span className="text-xs text-muted-foreground ml-2">
                     (Menampilkan semua guru yang sesuai kriteria pencarian)
                   </span>
                 </label>
                 <input
+                  id="teacher-live-search"
                   type="text"
                   placeholder="Cari berdasarkan nama, NIP, atau mata pelajaran..."
                   value={searchQuery}
@@ -519,10 +520,11 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                 />
               </div>
               <div className="sm:w-48">
-<label className="block text-sm font-medium text-foreground mb-2">
+<label htmlFor="teacher-live-subject-filter" className="block text-sm font-medium text-foreground mb-2">
                   Filter Mata Pelajaran
                 </label>
                 <select
+                  id="teacher-live-subject-filter"
                   value={selectedMapel}
                   onChange={(e) => setSelectedMapel(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"

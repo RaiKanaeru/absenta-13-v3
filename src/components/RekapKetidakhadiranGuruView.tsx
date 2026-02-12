@@ -4,10 +4,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Download, Search, Users, Calendar, BarChart3, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, Search, Users, Calendar, BarChart3, Loader2, FileText } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { useLetterhead } from '../hooks/useLetterhead';
+import { useExcelDownload } from '@/hooks/useExcelDownload';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { ErrorAlert } from '@/components/shared/ErrorAlert';
 
 import { ReportLetterhead } from './ui/report-letterhead';
 import { ReportSummary } from './ui/report-summary';
@@ -69,6 +71,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const { downloadExcel, exporting: excelExporting } = useExcelDownload();
 
   // Use letterhead hook for consistent kop laporan
   const { letterhead } = useLetterhead('REPORT_REKAP_KETIDAKHADIRAN_GURU');
@@ -109,67 +112,25 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
   }, []);
 
   const handleExportExcel = async () => {
-    try {
-      setExporting(true);
-      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru?tahun=${selectedTahun}`, {
-        responseType: 'blob',
-        onLogout
-      });
-      const url = globalThis.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Berhasil",
-        description: "File Excel berhasil diunduh"
-      });
-    } catch (error) {
-      const message = getErrorMessage(error) || "Gagal mengunduh file Excel";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setExporting(false);
-    }
+    const params = new URLSearchParams({ tahun: selectedTahun });
+    await downloadExcel({
+      endpoint: '/api/export/rekap-ketidakhadiran-guru',
+      params,
+      fileName: `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`,
+      onLogout,
+    });
   };
 
   const handleExportSMKN13 = async () => {
-    try {
-      setExporting(true);
-      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru-smkn13?tahun=${selectedTahun}`, {
-        responseType: 'blob',
-        onLogout
-      });
-      const url = globalThis.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Berhasil",
-        description: "File Excel SMKN 13 berhasil diunduh"
-      });
-    } catch (error) {
-      const message = getErrorMessage(error) || "Gagal mengunduh file Excel SMKN 13";
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    } finally {
-      setExporting(false);
-    }
+    const params = new URLSearchParams({ tahun: selectedTahun });
+    await downloadExcel({
+      endpoint: '/api/export/rekap-ketidakhadiran-guru-smkn13',
+      params,
+      fileName: `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`,
+      successMessage: 'File Excel SMKN 13 berhasil diunduh',
+      fallbackErrorMessage: 'Gagal mengunduh file Excel SMKN 13',
+      onLogout,
+    });
   };
 
 
@@ -251,6 +212,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       <div className="flex items-center justify-between mb-8">
         <div>
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
@@ -268,31 +230,20 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
+          <ExportButton
             onClick={handleExportExcel}
+            loading={excelExporting}
             disabled={loading || !selectedTahun || exporting}
             className="flex items-center gap-2"
             variant="outline"
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Mengekspor...
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                Export Excel
-              </>
-            )}
-          </Button>
+          />
           <Button
             onClick={handleExportPdf}
-            disabled={loading || !selectedTahun || exporting}
+            disabled={loading || !selectedTahun || exporting || excelExporting}
             className="flex items-center gap-2"
             variant="outline"
           >
-            {exporting ? (
+            {exporting || excelExporting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Mengekspor...
@@ -390,10 +341,9 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
       {/* Error Display */}
       {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-6">
+          <ErrorAlert message={error} />
+        </div>
       )}
 
       {/* Rekap Table */}

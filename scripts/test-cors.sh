@@ -20,10 +20,10 @@ BOLD='\033[1m'
 # Configuration
 ENV="${1:-local}"
 
-if [ "$ENV" = "production" ]; then
+if [[ "$ENV" = "production" ]]; then
     API_URL="https://api.absenta13.my.id"
     ORIGIN="https://absenta13.my.id"
-elif [ "$ENV" = "local" ]; then
+elif [[ "$ENV" = "local" ]]; then
     API_URL="http://localhost:3001"
     ORIGIN="http://localhost:5173"
 else
@@ -54,7 +54,7 @@ log_test() {
     
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
-    if [ "$passed" = "true" ]; then
+    if [[ "$passed" = "true" ]]; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
         echo -e "  ${GREEN}✓ PASS${NC} - $details"
         TEST_RESULTS+=("PASS: $test_name")
@@ -73,7 +73,7 @@ echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━�
 
 HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/health" --connect-timeout 10 2>/dev/null)
 
-if [ "$HEALTH_RESPONSE" = "200" ]; then
+if [[ "$HEALTH_RESPONSE" = "200" ]]; then
     log_test "Server Health" "true" "Server responding (HTTP $HEALTH_RESPONSE)"
 else
     log_test "Server Health" "false" "Server not responding (HTTP $HEALTH_RESPONSE)"
@@ -107,14 +107,14 @@ echo -e "    Access-Control-Allow-Origin: ${CYAN}${CORS_ORIGIN:-'(not set)'}${NC
 echo -e "    Access-Control-Allow-Credentials: ${CYAN}${CORS_CREDS:-'(not set)'}${NC}"
 echo -e "    X-CORS-Status: ${CYAN}${CORS_STATUS:-'(not set)'}${NC}"
 
-if [ -n "$CORS_ERROR" ]; then
+if [[ -n "$CORS_ERROR" ]]; then
     echo -e "    X-CORS-Error-Code: ${RED}${CORS_ERROR}${NC}"
 fi
 
 # Check if origin matches
-if [ "$CORS_ORIGIN" = "$ORIGIN" ]; then
+if [[ "$CORS_ORIGIN" = "$ORIGIN" ]]; then
     log_test "Origin Match" "true" "Origin header correctly set to $ORIGIN"
-elif [ -z "$CORS_ORIGIN" ]; then
+elif [[ -z "$CORS_ORIGIN" ]]; then
     log_test "Origin Match" "false" "Access-Control-Allow-Origin header MISSING"
     echo -e "    ${YELLOW}→ This is the main CORS error cause!${NC}"
 else
@@ -122,7 +122,7 @@ else
 fi
 
 # Check credentials
-if [ "$CORS_CREDS" = "true" ]; then
+if [[ "$CORS_CREDS" = "true" ]]; then
     log_test "Credentials" "true" "Credentials allowed"
 else
     log_test "Credentials" "false" "Credentials header missing or not 'true'"
@@ -153,18 +153,18 @@ echo -e "    Allow-Methods: ${CYAN}${PREFLIGHT_METHODS:-'(not set)'}${NC}"
 echo -e "    Allow-Headers: ${CYAN}${PREFLIGHT_HEADERS_ALLOWED:-'(not set)'}${NC}"
 
 # Check status
-if [ "$PREFLIGHT_STATUS" = "204" ] || [ "$PREFLIGHT_STATUS" = "200" ]; then
+if [[ "$PREFLIGHT_STATUS" = "204" ]] || [[ "$PREFLIGHT_STATUS" = "200" ]]; then
     log_test "Preflight Status" "true" "Status $PREFLIGHT_STATUS (OK)"
 else
     log_test "Preflight Status" "false" "Status $PREFLIGHT_STATUS (expected 204 or 200)"
     
     # Check for error body
-    if [ -f /tmp/cors_preflight_body.txt ] && [ -s /tmp/cors_preflight_body.txt ]; then
+    if [[ -f /tmp/cors_preflight_body.txt ]] && [[ -s /tmp/cors_preflight_body.txt ]]; then
         ERROR_BODY=$(cat /tmp/cors_preflight_body.txt)
         ERROR_CODE=$(echo "$ERROR_BODY" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)
         ERROR_TITLE=$(echo "$ERROR_BODY" | grep -o '"title":"[^"]*"' | cut -d'"' -f4)
         
-        if [ -n "$ERROR_CODE" ]; then
+        if [[ -n "$ERROR_CODE" ]]; then
             echo -e "    ${RED}Error Code: $ERROR_CODE${NC}"
             echo -e "    ${RED}Error: $ERROR_TITLE${NC}"
         fi
@@ -204,18 +204,18 @@ echo -e "  Debug Response:"
 echo -e "    Status: ${CYAN}$DEBUG_STATUS${NC}"
 echo -e "    Allowed: ${CYAN}$DEBUG_ALLOWED${NC}"
 
-if [ -n "$DEBUG_ERROR_CODE" ] && [ "$DEBUG_ERROR_CODE" != "null" ]; then
+if [[ -n "$DEBUG_ERROR_CODE" ]] && [[ "$DEBUG_ERROR_CODE" != "null" ]]; then
     echo -e "    Error Code: ${RED}$DEBUG_ERROR_CODE${NC}"
 fi
 
-if [ "$DEBUG_ALLOWED" = "true" ]; then
+if [[ "$DEBUG_ALLOWED" = "true" ]]; then
     log_test "Debug Endpoint" "true" "Origin is allowed according to debug endpoint"
 else
     log_test "Debug Endpoint" "false" "Origin is BLOCKED - Error: $DEBUG_ERROR_CODE"
     
     # Show suggestions if available
     SUGGESTIONS=$(echo "$DEBUG_RESPONSE" | grep -o '"suggestions":\[[^]]*\]' | sed 's/"suggestions":\[//;s/\]$//')
-    if [ -n "$SUGGESTIONS" ]; then
+    if [[ -n "$SUGGESTIONS" ]]; then
         echo -e "    ${YELLOW}Suggestions:${NC}"
         echo "$SUGGESTIONS" | tr ',' '\n' | sed 's/"//g' | while read -r suggestion; do
             echo -e "      → $suggestion"
@@ -238,9 +238,9 @@ ORIGIN_COUNT=$(echo "$FULL_HEADERS" | grep -ci "^access-control-allow-origin:")
 
 echo -e "  Access-Control-Allow-Origin header count: ${CYAN}$ORIGIN_COUNT${NC}"
 
-if [ "$ORIGIN_COUNT" -eq 1 ]; then
+if [[ "$ORIGIN_COUNT" -eq 1 ]]; then
     log_test "No Duplicates" "true" "Exactly 1 CORS origin header (correct)"
-elif [ "$ORIGIN_COUNT" -eq 0 ]; then
+elif [[ "$ORIGIN_COUNT" -eq 0 ]]; then
     log_test "No Duplicates" "false" "NO CORS origin headers found!"
 else
     log_test "No Duplicates" "false" "DUPLICATE HEADERS DETECTED ($ORIGIN_COUNT headers)"
@@ -267,7 +267,7 @@ echo -e "  Testing with malicious origin: ${CYAN}$MALICIOUS_ORIGIN${NC}"
 echo -e "    X-CORS-Status: ${CYAN}${SECURITY_STATUS:-'(not set)'}${NC}"
 echo -e "    Allow-Origin: ${CYAN}${SECURITY_CORS:-'(not set/null)'}${NC}"
 
-if [ "$SECURITY_CORS" = "$MALICIOUS_ORIGIN" ]; then
+if [[ "$SECURITY_CORS" = "$MALICIOUS_ORIGIN" ]]; then
     log_test "Security Check" "false" "SECURITY ISSUE: Malicious origin was ALLOWED!"
     echo -e "    ${RED}⚠️  WARNING: Server allows any origin!${NC}"
 else
@@ -288,7 +288,7 @@ TEST_RESULT=$(echo "$TEST_ORIGIN_RESPONSE" | grep -o '"result":"[^"]*"' | cut -d
 echo -e "  Testing origin via API: ${CYAN}$ORIGIN${NC}"
 echo -e "    Result: ${CYAN}$TEST_RESULT${NC}"
 
-if [ "$TEST_RESULT" = "ALLOWED" ]; then
+if [[ "$TEST_RESULT" = "ALLOWED" ]]; then
     log_test "Origin Test API" "true" "Origin test endpoint confirms allowed"
 else
     log_test "Origin Test API" "false" "Origin test endpoint reports: $TEST_RESULT"
@@ -302,7 +302,7 @@ echo -e "${BLUE}╔════════════════════�
 echo -e "${BLUE}║${NC}                        ${BOLD}SUMMARY${NC}                              ${BLUE}║${NC}"
 echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${NC}"
 
-if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
+if [[ $PASSED_TESTS -eq $TOTAL_TESTS ]]; then
     echo -e "${BLUE}║${NC}  ${GREEN}✓ All $TOTAL_TESTS tests passed! CORS is working correctly.${NC}"
 else
     echo -e "${BLUE}║${NC}  ${YELLOW}$PASSED_TESTS/$TOTAL_TESTS tests passed${NC}"
@@ -328,7 +328,7 @@ echo ""
 rm -f /tmp/cors_preflight_body.txt
 
 # Exit with appropriate code
-if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
+if [[ $PASSED_TESTS -eq $TOTAL_TESTS ]]; then
     exit 0
 else
     exit 1
