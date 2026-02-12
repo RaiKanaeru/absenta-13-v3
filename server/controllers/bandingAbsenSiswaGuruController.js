@@ -286,6 +286,8 @@ export const respondBandingAbsen = async (req, res) => {
 
     log.requestStart('RespondBanding', { bandingId, status_banding, guruId });
 
+    const connection = await db.getConnection();
+    
     try {
         if (!validateUserContext(req, res)) {
             return;
@@ -303,8 +305,11 @@ export const respondBandingAbsen = async (req, res) => {
 
         const tanggalKeputusanWIB = getMySQLDateTimeWIB();
 
-        const [accessRows] = await db.execute(
-            `SELECT ba.id_banding
+        await connection.beginTransaction();
+
+        // Check access and get banding details
+        const [bandingRows] = await connection.execute(
+            `SELECT ba.id_banding, ba.siswa_id, ba.jadwal_id, ba.tanggal_absen, ba.status_diajukan, ba.status_banding
              FROM pengajuan_banding_absen ba
              JOIN jadwal j ON ba.jadwal_id = j.id_jadwal
              WHERE ba.id_banding = ?
@@ -316,28 +321,81 @@ export const respondBandingAbsen = async (req, res) => {
             [bandingId, guruId, guruId]
         );
 
-        if (accessRows.length === 0) {
+        if (bandingRows.length === 0) {
+            await connection.rollback();
             log.warn('RespondBanding - forbidden', { bandingId, guruId });
             return sendPermissionError(res, 'Anda tidak diizinkan memproses banding ini');
         }
 
-        const [result] = await db.execute(
+        const banding = bandingRows[0];
+
+        // Prevent re-processing already decided banding
+        if (banding.status_banding !== 'pending') {
+            await connection.rollback();
+            log.warn('RespondBanding - already processed', { bandingId, currentStatus: banding.status_banding });
+            return sendValidationError(res, `Banding ini sudah ${banding.status_banding}. Tidak dapat diubah lagi.`);
+        }
+
+        // 1. Update banding status
+        const [updateBandingResult] = await connection.execute(
             `UPDATE pengajuan_banding_absen 
              SET status_banding = ?, catatan_guru = ?, tanggal_keputusan = ?, diproses_oleh = ?
              WHERE id_banding = ?`,
             [status_banding, catatan_guru || '', tanggalKeputusanWIB, guruId, bandingId]
         );
 
-        if (result.affectedRows === 0) {
-            log.warn('RespondBanding - not found', { bandingId });
-            return sendNotFoundError(res, 'Banding absen tidak ditemukan');
+        if (updateBandingResult.affectedRows === 0) {
+            await connection.rollback();
+            log.warn('RespondBanding - update failed', { bandingId });
+            return sendNotFoundError(res, 'Gagal memperbarui status banding');
         }
 
-        log.success('RespondBanding', { bandingId, status_banding });
-        return sendSuccessResponse(res, { id: bandingId }, `Banding absen berhasil ${status_banding === 'disetujui' ? 'disetujui' : 'ditolak'}`);
+        // 2. If approved, sync attendance status to absensi_siswa
+        if (status_banding === 'disetujui') {
+            const [updateAbsensiResult] = await connection.execute(
+                `UPDATE absensi_siswa
+                 SET status_kehadiran = ?
+                 WHERE siswa_id = ? AND jadwal_id = ? AND tanggal = ?`,
+                [banding.status_diajukan, banding.siswa_id, banding.jadwal_id, banding.tanggal_absen]
+            );
+
+            if (updateAbsensiResult.affectedRows === 0) {
+                log.warn('RespondBanding - absensi record not found, will create new', { 
+                    siswaId: banding.siswa_id, 
+                    jadwalId: banding.jadwal_id, 
+                    tanggal: banding.tanggal_absen 
+                });
+
+                // If no existing attendance record, insert one with approved status
+                await connection.execute(
+                    `INSERT INTO absensi_siswa (siswa_id, jadwal_id, tanggal, status_kehadiran)
+                     VALUES (?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE status_kehadiran = VALUES(status_kehadiran)`,
+                    [banding.siswa_id, banding.jadwal_id, banding.tanggal_absen, banding.status_diajukan]
+                );
+
+                log.info('RespondBanding - created new absensi record', { 
+                    siswaId: banding.siswa_id, 
+                    newStatus: banding.status_diajukan 
+                });
+            } else {
+                log.info('RespondBanding - synced attendance status', { 
+                    siswaId: banding.siswa_id, 
+                    newStatus: banding.status_diajukan 
+                });
+            }
+        }
+
+        await connection.commit();
+
+        log.success('RespondBanding', { bandingId, status_banding, syncedToAbsensi: status_banding === 'disetujui' });
+        return sendSuccessResponse(res, { id: bandingId }, `Banding absen berhasil ${status_banding === 'disetujui' ? 'disetujui' : 'ditolak'}${status_banding === 'disetujui' ? ' dan status kehadiran telah diperbarui' : ''}`);
     } catch (error) {
-        log.dbError('update', error, { bandingId });
+        await connection.rollback();
+        log.dbError('transaction', error, { bandingId });
         return sendDatabaseError(res, error, 'Gagal memproses banding absen');
+    } finally {
+        connection.release();
     }
 };
 
