@@ -369,7 +369,7 @@ export const buildTahunPelajaran = (year) => {
  * @returns {{startYear: number, endYear: number}}
  */
 export const parseTahunPelajaran = (tahunPelajaran) => {
-    const parts = tahunPelajaran.split(/[\/\-]/);
+    const parts = tahunPelajaran.split(/[/-]/);
     return {
         startYear: Number.parseInt(parts[0]),
         endYear: Number.parseInt(parts[1])

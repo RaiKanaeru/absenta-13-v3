@@ -1348,7 +1348,7 @@ export async function getClassAttendanceHistory(req, res) {
     }
 
     // Validate self access
-    if (!validateSelfAccess(req, res, parseInt(siswa_id), 'siswa_id')) {
+    if (!validateSelfAccess(req, res, Number.parseInt(siswa_id, 10), 'siswa_id')) {
         return;
     }
 
@@ -1398,7 +1398,7 @@ export async function getClassAttendanceHistory(req, res) {
             WHERE j.kelas_id = ? ${dateFilter}
             ORDER BY ag.tanggal DESC, j.jam_mulai ASC
             LIMIT ?
-        `, [...params, parseInt(limit)]);
+        `, [...params, Number.parseInt(limit, 10)]);
 
         // Calculate statistics
         const stats = {
@@ -1451,7 +1451,7 @@ export async function getStudentAttendanceStatus(req, res) {
     }
 
     // Validate self access
-    if (!validateSelfAccess(req, res, parseInt(siswaId), 'siswa_id')) {
+    if (!validateSelfAccess(req, res, Number.parseInt(siswaId, 10), 'siswa_id')) {
         return;
     }
 

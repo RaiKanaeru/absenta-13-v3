@@ -323,7 +323,7 @@ function calculateSimilarity(str1, str2) {
     const longer = str1.length > str2.length ? str1 : str2;
     const shorter = str1.length > str2.length ? str2 : str1;
     
-    if (longer.length === 0) return 1.0;
+    if (longer.length === 0) return 1;
     
     const editDistance = levenshteinDistance(longer, shorter);
     return (longer.length - editDistance) / longer.length;
@@ -365,57 +365,98 @@ function levenshteinDistance(str1, str2) {
  * @param {CORSDiagnostic} diagnostic - Diagnostic result
  * @returns {string} Formatted log message
  */
-export function formatCORSErrorLog(diagnostic) {
-    const lines = [
+function appendCORSHeader(lines) {
+    lines.push(
         '╔══════════════════════════════════════════════════════════════╗',
         '║                    CORS ERROR DETECTED                       ║',
         '╠══════════════════════════════════════════════════════════════╣'
-    ];
+    );
+}
 
-    if (diagnostic.errorInfo) {
-        lines.push(`║ Error Code: ${diagnostic.errorCode.padEnd(48)}║`);
-        lines.push(`║ Error: ${diagnostic.errorInfo.title.padEnd(53)}║`);
-        lines.push(`║ Severity: ${diagnostic.errorInfo.severity.padEnd(50)}║`);
+function appendCORSErrorInfo(lines, diagnostic) {
+    if (!diagnostic.errorInfo) {
+        return;
     }
 
-    lines.push('╠══════════════════════════════════════════════════════════════╣');
-    lines.push(`║ Origin: ${(diagnostic.details.origin || 'N/A').substring(0, 52).padEnd(52)}║`);
-    lines.push(`║ Method: ${(diagnostic.details.method || 'N/A').padEnd(52)}║`);
-    lines.push(`║ Time: ${(diagnostic.details.timestamp || 'N/A').padEnd(54)}║`);
+    lines.push(
+        `║ Error Code: ${diagnostic.errorCode.padEnd(48)}║`,
+        `║ Error: ${diagnostic.errorInfo.title.padEnd(53)}║`,
+        `║ Severity: ${diagnostic.errorInfo.severity.padEnd(50)}║`
+    );
+}
 
-    if (diagnostic.checks && diagnostic.checks.length > 0) {
-        lines.push('╠══════════════════════════════════════════════════════════════╣');
-        lines.push('║ Checks Performed:                                            ║');
-        for (const check of diagnostic.checks) {
-            const icon = check.passed ? '✓' : '✗';
-            const line = `║   ${icon} ${check.check}: ${check.passed ? 'PASS' : 'FAIL'}`.padEnd(63) + '║';
-            lines.push(line);
-        }
+function appendCORSRequestInfo(lines, diagnostic) {
+    lines.push(
+        '╠══════════════════════════════════════════════════════════════╣',
+        `║ Origin: ${(diagnostic.details.origin || 'N/A').substring(0, 52).padEnd(52)}║`,
+        `║ Method: ${(diagnostic.details.method || 'N/A').padEnd(52)}║`,
+        `║ Time: ${(diagnostic.details.timestamp || 'N/A').padEnd(54)}║`
+    );
+}
+
+function appendCORSChecks(lines, checks = []) {
+    if (checks.length === 0) {
+        return;
     }
 
-    if (diagnostic.suggestions && diagnostic.suggestions.length > 0) {
-        lines.push('╠══════════════════════════════════════════════════════════════╣');
-        lines.push('║ Suggested Fixes:                                             ║');
-        for (const suggestion of diagnostic.suggestions) {
-            // Split long suggestions
-            const chunks = suggestion.match(/.{1,56}/g) || [suggestion];
-            for (const chunk of chunks) {
-                lines.push(`║   → ${chunk.padEnd(56)}║`);
-            }
-        }
+    lines.push(
+        '╠══════════════════════════════════════════════════════════════╣',
+        '║ Checks Performed:                                            ║'
+    );
+    checks.forEach((check) => {
+        const icon = check.passed ? '✓' : '✗';
+        const line = `║   ${icon} ${check.check}: ${check.passed ? 'PASS' : 'FAIL'}`.padEnd(63) + '║';
+        lines.push(line);
+    });
+}
+
+function splitSuggestionChunks(suggestion) {
+    return suggestion.match(/.{1,56}/g) || [suggestion];
+}
+
+function appendCORSSuggestions(lines, suggestions = []) {
+    if (suggestions.length === 0) {
+        return;
     }
 
-    lines.push('╠══════════════════════════════════════════════════════════════╣');
-    lines.push('║ Whitelisted Origins:                                         ║');
-    for (const origin of diagnostic.details.configuredOrigins.slice(0, 5)) {
+    lines.push(
+        '╠══════════════════════════════════════════════════════════════╣',
+        '║ Suggested Fixes:                                             ║'
+    );
+    suggestions.forEach((suggestion) => {
+        splitSuggestionChunks(suggestion).forEach((chunk) => {
+            lines.push(`║   → ${chunk.padEnd(56)}║`);
+        });
+    });
+}
+
+function appendCORSWhitelistedOrigins(lines, configuredOrigins = []) {
+    lines.push(
+        '╠══════════════════════════════════════════════════════════════╣',
+        '║ Whitelisted Origins:                                         ║'
+    );
+
+    configuredOrigins.slice(0, 5).forEach((origin) => {
         lines.push(`║   • ${origin.substring(0, 56).padEnd(56)}║`);
+    });
+
+    if (configuredOrigins.length > 5) {
+        const hiddenCount = configuredOrigins.length - 5;
+        lines.push(`║   ... and ${hiddenCount.toString()} more`.padEnd(63) + '║');
     }
-    if (diagnostic.details.configuredOrigins.length > 5) {
-        lines.push(`║   ... and ${(diagnostic.details.configuredOrigins.length - 5).toString()} more`.padEnd(63) + '║');
-    }
+}
+
+export function formatCORSErrorLog(diagnostic) {
+    const lines = [];
+
+    appendCORSHeader(lines);
+    appendCORSErrorInfo(lines, diagnostic);
+    appendCORSRequestInfo(lines, diagnostic);
+    appendCORSChecks(lines, diagnostic.checks || []);
+    appendCORSSuggestions(lines, diagnostic.suggestions || []);
+    appendCORSWhitelistedOrigins(lines, diagnostic.details?.configuredOrigins || []);
 
     lines.push('╚══════════════════════════════════════════════════════════════╝');
-
     return lines.join('\n');
 }
 

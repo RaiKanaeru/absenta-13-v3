@@ -63,9 +63,9 @@ const sendImportValidationError = (res, message, errors = null) => {
  */
 const normalizeText = (value) => String(value || '').trim();
 
-const normalizeKey = (value) => normalizeText(value).toUpperCase().replace(/\s+/g, ' ');
+const normalizeKey = (value) => normalizeText(value).toUpperCase().replaceAll(/\s+/g, ' ');
 
-const normalizeCompactKey = (value) => normalizeText(value).toUpperCase().replace(/[\s.]+/g, '');
+const normalizeCompactKey = (value) => normalizeText(value).toUpperCase().replaceAll(/[\s.]+/g, '');
 
 const extractDayName = (value) => {
     const raw = normalizeText(value).toUpperCase();
@@ -95,16 +95,16 @@ const getCellText = (cell) => {
 };
 
 const parseTimePart = (value) => {
-     const raw = normalizeText(value).replace(/\./g, ':');
-     const match = raw.match(/(\d{1,2}):(\d{2})/);
-     if (!match) return '';
-     const hour = String(match[1]).padStart(2, '0');
-     const minute = match[2];
-     return `${hour}:${minute}`;
- };
+    const raw = normalizeText(value).replaceAll('.', ':');
+    const match = raw.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return '';
+    const hour = String(match[1]).padStart(2, '0');
+    const minute = match[2];
+    return `${hour}:${minute}`;
+};
 
 const parseTimeRange = (value) => {
-    const raw = normalizeText(value).replace(/–/g, '-');
+    const raw = normalizeText(value).replaceAll('–', '-');
     if (!raw || !raw.includes('-')) return null;
     const parts = raw.split('-').map(part => parseTimePart(part));
     if (!parts[0] || !parts[1]) return null;
@@ -382,19 +382,24 @@ const processScheduleRows = (worksheet, layout, columnMeta, refMaps, tahunAjaran
      const errors = [];
      const rowCount = worksheet.rowCount || 0;
 
-     for (let rowIdx = timeRowIndex + 1; rowIdx <= rowCount; rowIdx++) {
+     let rowIdx = timeRowIndex + 1;
+     while (rowIdx <= rowCount) {
          const row = worksheet.getRow(rowIdx);
          const kelasName = normalizeText(getCellText(row.getCell(kelasCol)));
          const marker = normalizeText(getCellText(row.getCell(jamKeLabelCol))).toUpperCase();
 
-         if (!kelasName || marker !== 'MAPEL') continue;
+         if (!kelasName || marker !== 'MAPEL') {
+             rowIdx += 1;
+             continue;
+         }
 
          const kelasKey = normalizeCompactKey(kelasName);
          const kelasId = refMaps.kelasMap.get(kelasKey);
          if (!kelasId) {
-             errors.push({ index: rowIdx, errors: [`Kelas tidak ditemukan: ${kelasName}`], data: { kelas: kelasName } });
-             continue;
-         }
+              errors.push({ index: rowIdx, errors: [`Kelas tidak ditemukan: ${kelasName}`], data: { kelas: kelasName } });
+             rowIdx += 3;
+              continue;
+          }
 
          const mapelRow = row;
          const ruangRow = worksheet.getRow(rowIdx + 1);
@@ -403,8 +408,8 @@ const processScheduleRows = (worksheet, layout, columnMeta, refMaps, tahunAjaran
          for (const meta of columnMeta) {
              processScheduleSlot(meta, { mapelRow, ruangRow, guruRow }, { kelasId, kelasName, tahunAjaran }, refMaps, { jamSlotMap, jadwalList, errors, rowIdx });
          }
-         // Skip the next 2 rows (ruang and guru rows) by incrementing loop counter
-         rowIdx += 2;
+         // Skip current MAPEL row + RUANG + GURU rows
+         rowIdx += 3;
      }
      return { jamSlotMap, jadwalList, errors };
  };
@@ -863,7 +868,9 @@ const importSiswa = async (req, res) => {
 
         try {
             const [dbNis] = await db.execute('SELECT nis FROM siswa');
-            dbNis.forEach(row => existingNis.add(row.nis));
+            dbNis.forEach((row) => {
+                existingNis.add(row.nis);
+            });
         } catch (dbError) {
             logger.error('Error checking existing data', { error: dbError.message });
             return sendDatabaseError(res, dbError, ERROR_DB_CHECK_FAILED);
@@ -949,7 +956,9 @@ const importGuru = async (req, res) => {
         const existingNips = new Set();
         try {
              const [dbNips] = await db.execute('SELECT nip FROM guru');
-             dbNips.forEach(r => existingNips.add(r.nip));
+             dbNips.forEach((r) => {
+                 existingNips.add(r.nip);
+             });
         } catch (e) {
              logger.warn('Failed to fetch existing NIPs', e);
         }

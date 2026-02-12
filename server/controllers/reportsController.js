@@ -12,8 +12,6 @@ import ExportService from '../services/ExportService.js';
 import { 
     calculateEffectiveDaysForRange, 
     calculateAttendancePercentage,
-    getEffectiveDaysMapFromDB,
-    buildTahunPelajaran,
     DEFAULT_EFFECTIVE_DAYS
 } from '../utils/attendanceCalculator.js';
 import db from '../config/db.js';
@@ -785,7 +783,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
             const totalPresent = hadir + dispen;
             
             // Use centralized calculation with warning
-            const { percentage, capped } = calculateAttendancePercentage(
+            const { percentage } = calculateAttendancePercentage(
                 totalPresent, 
                 effectiveDays, 
                 { 

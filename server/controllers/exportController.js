@@ -10,7 +10,6 @@ import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
 import {
     getSemesterEffectiveDays,
-    getEffectiveDaysMapFromDB,
     calculateAbsencePercentage,
     buildTahunPelajaran
 } from '../utils/attendanceCalculator.js';
@@ -31,15 +30,14 @@ import {
     CONTENT_DISPOSITION,
     EXPORT_TITLES,
     MONTH_NAMES_SHORT,
-    EXPORT_HEADERS,
-    HARI_EFEKTIF
+    EXPORT_HEADERS
 } from '../config/exportConfig.js';
 import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
 
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
 import { addLetterheadToWorksheet, addReportTitle } from '../utils/excelLetterhead.js';
-import { getWIBTime, formatWIBDate, formatTime } from '../utils/timeUtils.js';
+import { formatWIBDate, formatTime } from '../utils/timeUtils.js';
 import { excelStyles, applyStyle, borders } from '../utils/excelStyles.js';
 import { isSafeFilename } from '../utils/downloadAccess.js';
 
@@ -844,6 +842,9 @@ export const exportTeacherList = async (req, res) => {
 export const exportStudentSummary = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
+        if (!startDate || !endDate) {
+            return sendValidationError(res, ERROR_DATE_REQUIRED);
+        }
         const students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
 
         // Import required modules
@@ -881,7 +882,7 @@ export const exportStudentSummary = async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=\"Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}.xlsx\"`);
+        res.setHeader('Content-Disposition', `attachment; filename="Ringkasan_Kehadiran_Siswa_${startDate}_${endDate}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -966,6 +967,9 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 export const exportPresensiSiswaSmkn13 = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id } = req.query;
+        if (!startDate || !endDate) {
+            return sendValidationError(res, ERROR_DATE_REQUIRED);
+        }
         const guruId = req.user.guru_id;
         const isAdmin = req.user.role === 'admin';
 
@@ -1217,6 +1221,9 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
 export const exportTeacherSummary = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return sendValidationError(res, ERROR_DATE_REQUIRED);
+        }
         const teachers = await ExportService.getTeacherSummary(startDate, endDate);
 
         // Import required modules
@@ -1801,7 +1808,7 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
             worksheet.getCell(dataRow, col + 3).value = jumlahTotal;
 
             // Use centralized calculation with warning logging
-            const { ketidakhadiran: persenTidakHadir, kehadiran: persenHadir, capped } = calculateAbsencePercentage(
+            const { ketidakhadiran: persenTidakHadir, kehadiran: persenHadir } = calculateAbsencePercentage(
                 jumlahTotal,
                 TOTAL_HARI_EFEKTIF,
                 { context: `Student Export: ${student.nama} (${student.nis})` }
