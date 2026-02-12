@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
-  FileText, Download, Users, GraduationCap, Loader2, 
-  AlertTriangle, FileSpreadsheet, ClipboardList, MessageSquare, 
-  Activity, BarChart3, ChevronLeft 
+  FileText, Users, GraduationCap, Loader2, 
+  FileSpreadsheet, ClipboardList, MessageSquare, 
+  Activity, BarChart3, ArrowLeft 
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { apiCall } from '@/utils/apiClient';
-import { Kelas } from '@/types/dashboard';
+import { downloadExcelFromApi } from '@/utils/exportUtils';
 import BandingAbsenReportView from './BandingAbsenReportView';
 import { TeacherAttendanceSummaryView } from './TeacherAttendanceSummaryView';
 import { LaporanKehadiranSiswaView } from '@/components/teacher/LaporanKehadiranSiswaView';
@@ -50,12 +47,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
   // Let's keep the existing logic for 'teacher_export' since we didn't find a component for it,
   // BUT for 'student_export', we should switch to `RekapKetidakhadiranView` as planned.
 
-  const [classes, setClasses] = useState<Kelas[]>([]);
   const [exporting, setExporting] = useState(false);
   const [selectedYearTeacher, setSelectedYearTeacher] = useState<string>(new Date().getFullYear().toString());
 
 
-  // Handler for teacher export (legacy inline)
+  // Handler for teacher export
   const handleExportTeacherRecap = async () => {
      if (!selectedYearTeacher) {
       toast({ title: "Data tidak lengkap", description: "Pilih tahun ajaran terlebih dahulu", variant: "destructive" });
@@ -64,19 +60,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
     try {
       setExporting(true);
       const params = new URLSearchParams({ tahun: selectedYearTeacher });
-      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran-guru-template?${params}`, {
-        responseType: 'blob'
-      });
-
-      const url = globalThis.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `REKAP_KETIDAKHADIRAN_GURU_${selectedYearTeacher}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
+      await downloadExcelFromApi(
+        '/api/export/rekap-ketidakhadiran-guru-template',
+        `REKAP_KETIDAKHADIRAN_GURU_${selectedYearTeacher}.xlsx`,
+        params
+      );
       toast({ title: "Export Berhasil", description: "File Excel Guru sedang diunduh...", variant: "default" });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -224,30 +212,40 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
 
       {currentView === 'teacher_export' && (
          <div className="space-y-6">
-            <div className="flex items-center gap-4 mb-6">
-                <Button variant="outline" onClick={() => setCurrentView('menu')} className="gap-2">
-                <ChevronLeft className="w-4 h-4" />
-                Kembali ke Menu Laporan
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" onClick={() => setCurrentView('menu')}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Kembali
                 </Button>
+                <h2 className="text-2xl font-bold text-foreground">Rekap Ketidakhadiran Guru</h2>
             </div>
             <Card className="border-l-4 border-l-orange-600 shadow-sm max-w-3xl mx-auto">
             <CardContent className="p-6 space-y-6">
                 <div className="border-b pb-4">
-                <h2 className="text-xl font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
                     <GraduationCap className="w-5 h-5" />
                     Rekap Ketidakhadiran Guru (Tahunan)
-                </h2>
+                </h3>
                 <p className="text-muted-foreground text-sm mt-1">Download rekap kehadiran guru 1 tahun penuh.</p>
                 </div>
 
                 <div className="space-y-2 max-w-xs">
                 <Label>Tahun Pelajaran (Awal)</Label>
-                <Input type="number" value={selectedYearTeacher} onChange={(e) => setSelectedYearTeacher(e.target.value)} />
+                <Select value={selectedYearTeacher} onValueChange={setSelectedYearTeacher}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Tahun" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 </div>
 
                 <div className="flex justify-end pt-4">
-                <Button onClick={handleExportTeacherRecap} disabled={exporting} className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[200px]">
-                    {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><Download className="w-4 h-4 mr-2" /> Download Excel</>}
+                <Button onClick={handleExportTeacherRecap} disabled={exporting} variant="outline" size="sm">
+                    {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><FileSpreadsheet className="w-4 h-4 mr-2" /> Export Excel</>}
                 </Button>
                 </div>
             </CardContent>

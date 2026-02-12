@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { getMonthRangeWIB } from "@/lib/time-utils";
-import { ClipboardList, Search, Download, ArrowLeft, Loader2 } from "lucide-react";
+import { ClipboardList, Search, ArrowLeft, Loader2, FileSpreadsheet } from "lucide-react";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
+import { downloadExcelFromApi } from '@/utils/exportUtils';
 
 interface RekapKetidakhadiranViewProps {
   user: TeacherUserData;
@@ -103,14 +104,11 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       setExporting(true);
       const params = buildQueryParams();
       
-      const blob = await apiCall<Blob>(`/api/export/rekap-ketidakhadiran?${params.toString()}`, {
-        responseType: 'blob'
-      });
-      
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `rekap-ketidakhadiran-${reportType}-${dateRange.startDate}-${dateRange.endDate}.xlsx`;
-      link.click();
+      await downloadExcelFromApi(
+        '/api/export/rekap-ketidakhadiran',
+        `rekap-ketidakhadiran-${reportType}-${dateRange.startDate}-${dateRange.endDate}.xlsx`,
+        params
+      );
       
        toast({
          title: "Berhasil!",
@@ -133,10 +131,11 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 mb-4">
-        <Button variant="outline" size="icon" onClick={() => onBack ? onBack() : globalThis.history.back()}>
-          <ArrowLeft className="w-4 h-4" />
+        <Button variant="outline" size="sm" onClick={() => onBack ? onBack() : globalThis.history.back()}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Kembali
         </Button>
-        <h2 className="text-xl font-semibold">Rekap Ketidakhadiran</h2>
+        <h2 className="text-2xl font-bold text-foreground">Rekap Ketidakhadiran</h2>
       </div>
       <Card>
         <CardHeader>
@@ -244,7 +243,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                   <ClipboardList className="w-5 h-5" />
                   Rekap Ketidakhadiran {reportType === 'bulanan' ? 'Bulanan' : 'Tahunan'}
                 </CardTitle>
-                <Button onClick={downloadExcel} className="bg-emerald-600 hover:bg-emerald-700" disabled={exporting}>
+                <Button onClick={downloadExcel} variant="outline" size="sm" disabled={exporting}>
                   {exporting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -252,7 +251,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4 mr-2" />
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
                       Export Excel
                     </>
                   )}

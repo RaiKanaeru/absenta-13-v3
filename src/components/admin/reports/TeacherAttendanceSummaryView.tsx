@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   FileText, Search, Download, ArrowLeft, AlertCircle, Loader2, FileSpreadsheet 
@@ -239,14 +242,14 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button onClick={onBack} variant="outline">
+                    <Button onClick={onBack} variant="outline" size="sm">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Kembali
                     </Button>
                     <h2 className="text-2xl font-bold text-foreground">Rekapitulasi Absensi Guru</h2>
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={handleExportExcel} variant="outline" disabled={!reportData.length || exportingExcel}>
+                    <Button onClick={handleExportExcel} variant="outline" size="sm" disabled={!reportData.length || exportingExcel}>
                         {exportingExcel ? (
                             <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -259,7 +262,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                             </>
                         )}
                     </Button>
-                    <Button onClick={handleExportPdf} variant="outline" disabled={!reportData.length || exportingPdf}>
+                    <Button onClick={handleExportPdf} variant="outline" size="sm" disabled={!reportData.length || exportingPdf}>
                         {exportingPdf ? (
                             <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -288,64 +291,71 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                 <CardContent>
                     <div className="flex flex-col md:flex-row gap-4 mb-6">
                         <div className="w-full md:w-48">
-                            <label htmlFor="periode-select" className="text-sm font-medium mb-1 block">Periode</label>
-                            <select
-                                id="periode-select"
-                                className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
+                            <Label className="text-sm font-medium mb-1 block">Periode</Label>
+                            <Select
                                 value={periode}
-                                onChange={(e) => {
-                                    setPeriode(e.target.value);
-                                    // Reset bulan jika pilih semester
-                                    if(e.target.value === 'semester') setBulan(1); 
+                                onValueChange={(value) => {
+                                    setPeriode(value);
+                                    if(value === 'semester') setBulan(1); 
                                 }}
                             >
-                                <option value="bulanan">Bulanan</option>
-                                <option value="semester">Semester</option>
-                                <option value="tahunan">Tahunan</option>
-                            </select>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Periode" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="bulanan">Bulanan</SelectItem>
+                                    <SelectItem value="semester">Semester</SelectItem>
+                                    <SelectItem value="tahunan">Tahunan</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         
                         {periode === 'bulanan' && (
                             <div className="w-full md:w-48">
-                                <label htmlFor="bulan-select" className="text-sm font-medium mb-1 block">Bulan</label>
-                                <select
-                                    id="bulan-select"
-                                    className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
-                                    value={bulan}
-                                    onChange={(e) => setBulan(parseInt(e.target.value))}
+                                <Label className="text-sm font-medium mb-1 block">Bulan</Label>
+                                <Select
+                                    value={String(bulan)}
+                                    onValueChange={(value) => setBulan(parseInt(value))}
                                 >
-                                    {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                                        <option key={m} value={m}>
-                                            {new Date(0, m - 1).toLocaleString('id-ID', { month: 'long' })}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih Bulan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+                                            <SelectItem key={m} value={String(m)}>
+                                                {new Date(0, m - 1).toLocaleString('id-ID', { month: 'long' })}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         )}
 
                         <div className="w-full md:w-48">
-                            <label htmlFor="tahun-select" className="text-sm font-medium mb-1 block">Tahun</label>
-                            <select
-                                id="tahun-select"
-                                className="w-full px-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground"
-                                value={tahun}
-                                onChange={(e) => setTahun(parseInt(e.target.value))}
+                            <Label className="text-sm font-medium mb-1 block">Tahun</Label>
+                            <Select
+                                value={String(tahun)}
+                                onValueChange={(value) => setTahun(parseInt(value))}
                             >
-                                {Array.from({length: 3}, (_, i) => new Date().getFullYear() - 1 + i).map(y => (
-                                    <option key={y} value={y}>{y}</option>
-                                ))}
-                            </select>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Tahun" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from({length: 3}, (_, i) => new Date().getFullYear() - 1 + i).map(y => (
+                                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         
                         <div className="w-full md:w-64">
-                             <label htmlFor="guru-search" className="text-sm font-medium mb-1 block">Cari Guru</label>
+                             <Label className="text-sm font-medium mb-1 block">Cari Guru</Label>
                              <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input 
-                                    id="guru-search"
+                                <Input 
                                     type="text" 
                                     placeholder="Nama atau NIP..." 
-                                    className="w-full pl-10 pr-4 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary bg-background text-foreground placeholder:text-muted-foreground"
+                                    className="pl-10"
                                     value={searchValues}
                                     onChange={(e) => setSearchValues(e.target.value)}
                                 />

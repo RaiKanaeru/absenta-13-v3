@@ -10,6 +10,7 @@ export const REPORT_KEYS = {
   // Laporan Guru
   LAPORAN_GURU: 'REPORT_LAPORAN_GURU',
   REKAP_KETIDAKHADIRAN_GURU: 'REPORT_REKAP_KETIDAKHADIRAN_GURU',
+  ABSENSI_GURU: 'REPORT_ABSENSI_GURU',
   
   // Laporan Pengajuan
   BANDING_ABSEN: 'REPORT_BANDING_ABSEN',
@@ -17,7 +18,10 @@ export const REPORT_KEYS = {
   // Laporan Live & Analytics
   LIVE_STUDENT_ATTENDANCE: 'REPORT_LIVE_STUDENT_ATTENDANCE',
   LIVE_TEACHER_ATTENDANCE: 'REPORT_LIVE_TEACHER_ATTENDANCE',
-  ANALYTICS_DASHBOARD: 'REPORT_ANALYTICS_DASHBOARD'
+  ANALYTICS_DASHBOARD: 'REPORT_ANALYTICS_DASHBOARD',
+
+  // Laporan Jadwal
+  JADWAL_PELAJARAN: 'REPORT_JADWAL_PELAJARAN'
 } as const;
 
 // Mapping untuk dropdown di ReportLetterheadSettings
@@ -28,6 +32,8 @@ export const REPORT_KEYS_OPTIONS = [
   { value: REPORT_KEYS.PRESENSI_SISWA, label: 'Presensi Siswa' },
   { value: REPORT_KEYS.REKAP_KETIDAKHADIRAN, label: 'Rekap Ketidakhadiran Siswa' },
   { value: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU, label: 'Rekap Ketidakhadiran Guru' },
+  { value: REPORT_KEYS.ABSENSI_GURU, label: 'Absensi Guru' },
+  { value: REPORT_KEYS.JADWAL_PELAJARAN, label: 'Jadwal Pelajaran' },
   { value: REPORT_KEYS.LIVE_STUDENT_ATTENDANCE, label: 'Pemantauan Siswa Langsung' },
   { value: REPORT_KEYS.LIVE_TEACHER_ATTENDANCE, label: 'Pemantauan Guru Langsung' },
   { value: REPORT_KEYS.ANALYTICS_DASHBOARD, label: 'Dasbor Analitik' }
@@ -35,6 +41,8 @@ export const REPORT_KEYS_OPTIONS = [
 
 // Mapping dari view ID ke report key
 export const VIEW_TO_REPORT_KEY: Record<string, string> = {
+  // Backward compatibility for legacy teacher report views
+  'reports': REPORT_KEYS.KEHADIRAN_SISWA,
   'student-attendance-summary': REPORT_KEYS.KEHADIRAN_SISWA,
   'teacher-attendance-summary': REPORT_KEYS.LAPORAN_GURU,
   'banding-absen-report': REPORT_KEYS.BANDING_ABSEN,

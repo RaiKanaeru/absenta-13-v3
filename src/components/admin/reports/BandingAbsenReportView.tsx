@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  FileText, CheckCircle, XCircle, AlertTriangle, Search, Filter, Calendar, ArrowLeft, Download, Loader2, FileSpreadsheet 
+  FileText, CheckCircle, XCircle, AlertTriangle, Search, Calendar, ArrowLeft, Download, Loader2, FileSpreadsheet 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
@@ -227,7 +229,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           <h2 className="text-2xl font-bold text-foreground">Laporan Banding Absen</h2>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleExportExcel} variant="outline" disabled={exportingExcel}>
+          <Button onClick={handleExportExcel} variant="outline" size="sm" disabled={exportingExcel}>
             {exportingExcel ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -240,7 +242,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
               </>
             )}
           </Button>
-          <Button onClick={handleExportPdf} variant="outline" disabled={exportingPdf}>
+          <Button onClick={handleExportPdf} variant="outline" size="sm" disabled={exportingPdf}>
             {exportingPdf ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -271,26 +273,26 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1 relative">
 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <input
+              <Input
                 type="text"
                 placeholder="Cari nama siswa atau kelas..."
-                className="pl-10 pr-4 py-2 border border-border rounded-lg w-full focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
+                className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <select
-                className="border border-border rounded-lg px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-primary"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">Semua Status</option>
-                <option value="pending">Menunggu</option>
-                <option value="disetujui">Disetujui</option>
-                <option value="ditolak">Ditolak</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Semua Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="pending">Menunggu</SelectItem>
+                  <SelectItem value="disetujui">Disetujui</SelectItem>
+                  <SelectItem value="ditolak">Ditolak</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

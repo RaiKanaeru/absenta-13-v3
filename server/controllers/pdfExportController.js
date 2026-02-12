@@ -455,81 +455,398 @@ export const exportPresensiSiswaPdf = wrapPdfExport(async (req, res) => {
 // ================================================
 
 /**
+ * Map attendance status to single-character code.
+ * @param {string|undefined|null} status - Attendance status value
+ * @returns {string} Status code for report table
+ */
+const mapStatusToCode = (status) => {
+    const statusMap = {
+        Hadir: 'H',
+        Izin: 'I',
+        Sakit: 'S',
+        Alpa: 'A',
+        Dispen: 'D',
+        'Tidak Hadir': 'A'
+    };
+
+    return statusMap[status] || '-';
+};
+
+/**
+ * Parse and validate date range for laporan kehadiran siswa export.
+ * @param {string} startDate - Start date (yyyy-mm-dd)
+ * @param {string} endDate - End date (yyyy-mm-dd)
+ * @returns {{ start: Date, end: Date, diffDays: number }} Parsed date range details
+ */
+const parseLaporanDateRange = (startDate, endDate) => {
+    const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+    const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay);
+    const end = new Date(eYear, eMonth - 1, eDay);
+    const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+    return { start, end, diffDays };
+};
+
+/**
+ * Get mapel and guru information for subtitle in laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @returns {Promise<Array<Object>>} Mapel and guru rows
+ */
+const getLaporanMapelInfo = async (isAdmin, guruId) => {
+    if (isAdmin || !guruId) {
+        return [];
+    }
+
+    const [mapelInfo] = await db.execute(`
+        SELECT DISTINCT g.mata_pelajaran as nama_mapel, g.nama as nama_guru, g.nip
+        FROM guru g WHERE g.id_guru = ? AND g.status = 'aktif' LIMIT 1
+    `, [guruId]);
+
+    return mapelInfo;
+};
+
+/**
+ * Get jadwal day rows for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @returns {Promise<Array<Object>>} Jadwal rows containing hari
+ */
+const getLaporanJadwalData = async (isAdmin, guruId, kelasId) => {
+    if (isAdmin) {
+        const [jadwalData] = await db.execute(`
+            SELECT DISTINCT j.hari FROM jadwal j WHERE j.kelas_id = ? AND j.status = 'aktif'
+        `, [kelasId]);
+        return jadwalData;
+    }
+
+    const [jadwalData] = await db.execute(`
+        SELECT j.hari FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif'
+    `, [guruId, kelasId]);
+
+    return jadwalData;
+};
+
+/**
+ * Build scheduled dates between start and end based on jadwal days.
+ * @param {Date} start - Start date object
+ * @param {Date} end - End date object
+ * @param {Array<Object>} jadwalDays - Jadwal rows with hari field
+ * @returns {string[]} Array of yyyy-mm-dd date strings
+ */
+const getScheduledDates = (start, end, jadwalDays) => {
+    const dates = [];
+    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const endTime = end.getTime();
+    let currentTime = start.getTime();
+
+    while (currentTime <= endTime) {
+        const currentDate = new Date(currentTime);
+        const dayName = dayNames[currentDate.getDay()];
+        if (jadwalDays.some((jadwal) => jadwal.hari === dayName)) {
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            dates.push(`${year}-${month}-${day}`);
+        }
+        currentTime += 24 * 60 * 60 * 1000;
+    }
+
+    return dates;
+};
+
+/**
+ * Fetch actual attendance date rows for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @returns {Promise<Array<Object>>} Rows with tanggal values
+ */
+const getActualAttendanceDates = async (isAdmin, guruId, kelasId, startDate, endDate) => {
+    if (isAdmin) {
+        const [actualDates] = await db.execute(`
+            SELECT DISTINCT DATE(a.tanggal) as tanggal
+            FROM absensi_siswa a
+            INNER JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+            WHERE j.kelas_id = ? AND j.status = 'aktif'
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            ORDER BY DATE(a.tanggal)
+        `, [kelasId, startDate, endDate]);
+        return actualDates;
+    }
+
+    const [actualDates] = await db.execute(`
+        SELECT DISTINCT DATE(a.tanggal) as tanggal
+        FROM absensi_siswa a
+        WHERE a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+        AND DATE(a.tanggal) BETWEEN ? AND ?
+        ORDER BY DATE(a.tanggal)
+    `, [guruId, kelasId, startDate, endDate]);
+
+    return actualDates;
+};
+
+/**
+ * Convert MySQL DATE value to yyyy-mm-dd safely.
+ * @param {Date|string} value - Date-like value from DB
+ * @returns {string} Formatted date string
+ */
+const toDateString = (value) => {
+    const date = new Date(value);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Merge scheduled dates with actual attendance dates.
+ * @param {string[]} scheduledDates - Scheduled date strings
+ * @param {Array<Object>} actualDates - Actual rows from DB
+ * @returns {string[]} Sorted unique date strings
+ */
+const buildFinalDates = (scheduledDates, actualDates) => {
+    const allDates = new Set(scheduledDates);
+    actualDates.forEach((row) => {
+        if (row.tanggal) {
+            allDates.add(toDateString(row.tanggal));
+        }
+    });
+    return Array.from(allDates).sort();
+};
+
+/**
+ * Fetch siswa summary rows for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @param {number} totalDates - Count of effective dates
+ * @returns {Promise<Array<Object>>} Summary rows per student
+ */
+const getLaporanSiswaData = async (isAdmin, guruId, kelasId, startDate, endDate, totalDates) => {
+    if (isAdmin) {
+        const [siswaData] = await db.execute(`
+            SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+                COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+                COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+                COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+                COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+                COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+                CASE
+                    WHEN ? = 0 THEN '0%'
+                    ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+                END AS persentase_kehadiran
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+            LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+            GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+            ORDER BY s.nama
+        `, [totalDates, totalDates, startDate, endDate, kelasId]);
+        return siswaData;
+    }
+
+    const [siswaData] = await db.execute(`
+        SELECT s.id_siswa, s.nama, s.nis, s.jenis_kelamin,
+            COALESCE(SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END), 0) AS total_hadir,
+            COALESCE(SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END), 0) AS total_izin,
+            COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS total_sakit,
+            COALESCE(SUM(CASE WHEN a.status = 'Alpa' OR a.status = 'Tidak Hadir' THEN 1 ELSE 0 END), 0) AS total_alpa,
+            COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS total_dispen,
+            CASE
+                WHEN ? = 0 THEN '0%'
+                ELSE CONCAT(ROUND((SUM(CASE WHEN a.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 / ?), 1), '%')
+            END AS persentase_kehadiran
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+        WHERE s.kelas_id = ? AND s.status = 'aktif'
+        GROUP BY s.id_siswa, s.nama, s.nis, s.jenis_kelamin
+        ORDER BY s.nama
+    `, [totalDates, totalDates, startDate, endDate, guruId, kelasId, kelasId]);
+
+    return siswaData;
+};
+
+/**
+ * Fetch detailed attendance rows per student and date.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {number|undefined} guruId - Guru id from auth context
+ * @param {string} kelasId - Class id
+ * @param {string} startDate - Start date
+ * @param {string} endDate - End date
+ * @returns {Promise<Array<Object>>} Detail attendance rows
+ */
+const getLaporanDetailKehadiran = async (isAdmin, guruId, kelasId, startDate, endDate) => {
+    if (isAdmin) {
+        const [detailKehadiran] = await db.execute(`
+            SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
+                AND DATE(a.tanggal) BETWEEN ? AND ?
+            LEFT JOIN jadwal j ON j.id_jadwal = a.jadwal_id
+            WHERE s.kelas_id = ? AND s.status = 'aktif'
+        `, [startDate, endDate, kelasId]);
+        return detailKehadiran;
+    }
+
+    const [detailKehadiran] = await db.execute(`
+        SELECT s.id_siswa, DATE(a.tanggal) as tanggal, a.status
+        FROM siswa s
+        LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id
+            AND DATE(a.tanggal) BETWEEN ? AND ?
+            AND a.jadwal_id IN (SELECT j.id_jadwal FROM jadwal j WHERE j.guru_id = ? AND j.kelas_id = ? AND j.status = 'aktif')
+        WHERE s.kelas_id = ? AND s.status = 'aktif'
+    `, [startDate, endDate, guruId, kelasId, kelasId]);
+
+    return detailKehadiran;
+};
+
+/**
+ * Create student-date attendance map from detailed rows.
+ * @param {Array<Object>} detailKehadiran - Detail attendance rows
+ * @returns {Object} Nested map keyed by siswa id and date string
+ */
+const buildAttendanceMap = (detailKehadiran) => {
+    const attendanceMap = {};
+    detailKehadiran.forEach((row) => {
+        if (!attendanceMap[row.id_siswa]) {
+            attendanceMap[row.id_siswa] = {};
+        }
+        if (row.tanggal && row.status) {
+            attendanceMap[row.id_siswa][toDateString(row.tanggal)] = row.status;
+        }
+    });
+    return attendanceMap;
+};
+
+/**
+ * Build subtitle string for laporan kehadiran siswa export.
+ * @param {boolean} isAdmin - Whether request comes from admin
+ * @param {Array<Object>} kelasInfo - Class rows
+ * @param {Array<Object>} mapelInfo - Mapel rows
+ * @returns {string} Export subtitle
+ */
+const buildLaporanSubtitle = (isAdmin, kelasInfo, mapelInfo) => {
+    if (isAdmin) {
+        return `Kelas: ${kelasInfo[0]?.nama_kelas || 'Unknown'}`;
+    }
+
+    const subtitleParts = [];
+    if (mapelInfo[0]?.nama_mapel) subtitleParts.push(`Mata Pelajaran: ${mapelInfo[0].nama_mapel}`);
+    if (mapelInfo[0]?.nama_guru) subtitleParts.push(`Guru: ${mapelInfo[0].nama_guru}`);
+    return subtitleParts.join(' | ');
+};
+
+/**
+ * Build PDF columns for laporan kehadiran siswa.
+ * @param {string[]} finalDates - Final attendance dates
+ * @returns {Array<Object>} PDF column definitions
+ */
+const buildLaporanPdfColumns = (finalDates) => {
+    const dateColumns = finalDates.map((dateStr) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const dayNumber = new Date(year, month - 1, day).getDate();
+        return {
+            key: `d_${dateStr.replaceAll('-', '_')}`,
+            label: String(dayNumber),
+            width: 4,
+            align: 'center'
+        };
+    });
+
+    return [
+        { key: 'no', label: 'No', width: 5, align: 'center', format: 'number' },
+        { key: 'nama', label: 'Nama', width: 20, align: 'left' },
+        { key: 'nis', label: 'NIS', width: 11, align: 'center' },
+        { key: 'lp', label: 'L/P', width: 5, align: 'center' },
+        ...dateColumns,
+        { key: 'hadir', label: 'H', width: 5, align: 'center', format: 'number' },
+        { key: 'izin', label: 'I', width: 5, align: 'center', format: 'number' },
+        { key: 'sakit', label: 'S', width: 5, align: 'center', format: 'number' },
+        { key: 'alpa', label: 'A', width: 5, align: 'center', format: 'number' },
+        { key: 'dispen', label: 'D', width: 5, align: 'center', format: 'number' },
+        { key: 'persentase', label: '%', width: 8, align: 'center' }
+    ];
+};
+
+/**
+ * Build row data for laporan kehadiran siswa PDF.
+ * @param {Array<Object>} siswaData - Student summary rows
+ * @param {string[]} finalDates - Final attendance dates
+ * @param {Object} attendanceMap - Student-date attendance map
+ * @returns {Array<Object>} PDF rows
+ */
+const buildLaporanPdfRows = (siswaData, finalDates, attendanceMap) => siswaData.map((siswa, idx) => {
+    const row = {
+        no: idx + 1,
+        nama: siswa.nama,
+        nis: siswa.nis || '-',
+        lp: siswa.jenis_kelamin || '-'
+    };
+
+    finalDates.forEach((dateStr) => {
+        const attendanceStatus = attendanceMap[siswa.id_siswa]?.[dateStr];
+        row[`d_${dateStr.replaceAll('-', '_')}`] = mapStatusToCode(attendanceStatus);
+    });
+
+    row.hadir = siswa.total_hadir;
+    row.izin = siswa.total_izin;
+    row.sakit = siswa.total_sakit;
+    row.alpa = siswa.total_alpa;
+    row.dispen = siswa.total_dispen;
+    row.persentase = siswa.persentase_kehadiran;
+
+    return row;
+});
+
+/**
  * Export teacher's student attendance report as PDF
  * @param {import('express').Request} req - Express request (query: kelas_id, startDate, endDate)
  * @param {import('express').Response} res - Express response
  */
 export const exportLaporanKehadiranSiswaPdf = wrapPdfExport(async (req, res) => {
     const { kelas_id, startDate, endDate } = req.query;
+    const guruId = req.user.guru_id;
+    const isAdmin = req.user.role === 'admin';
 
     if (!kelas_id || !startDate || !endDate) {
         return sendValidationError(res, 'kelas_id, startDate, dan endDate harus diisi');
     }
 
-    // Get class name
-    const [kelasRows] = await db.execute('SELECT nama_kelas FROM kelas WHERE id_kelas = ?', [kelas_id]);
-    const namaKelas = kelasRows[0]?.nama_kelas || 'Unknown';
+    const { start, end, diffDays } = parseLaporanDateRange(startDate, endDate);
+    if (diffDays > 62) {
+        return sendValidationError(res, 'Rentang tanggal maksimal 62 hari');
+    }
 
-    // Get students
-    const [studentsRows] = await db.execute(
-        'SELECT s.id_siswa as id, s.nis, s.nama, s.jenis_kelamin FROM siswa s WHERE s.kelas_id = ? AND s.status = "aktif" ORDER BY s.nama ASC',
+    const [kelasInfo] = await db.execute(
+        'SELECT nama_kelas FROM kelas WHERE id_kelas = ? LIMIT 1',
         [kelas_id]
     );
 
-    // Get attendance summary per student (JOIN siswa to filter by kelas_id since absensi_siswa has no kelas_id column)
-    const [attendanceRows] = await db.execute(`
-        SELECT 
-            a.siswa_id,
-            SUM(CASE WHEN a.status = 'Hadir' THEN 1 ELSE 0 END) as total_hadir,
-            SUM(CASE WHEN a.status = 'Izin' THEN 1 ELSE 0 END) as total_izin,
-            SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END) as total_sakit,
-            SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END) as total_alpa,
-            SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END) as total_dispen,
-            COUNT(*) as total_pertemuan
-        FROM absensi_siswa a
-        INNER JOIN siswa s ON s.id_siswa = a.siswa_id
-        WHERE s.kelas_id = ? AND a.tanggal BETWEEN ? AND ?
-        GROUP BY a.siswa_id
-    `, [kelas_id, startDate, endDate]);
+    const mapelInfo = await getLaporanMapelInfo(isAdmin, guruId);
+    const jadwalData = await getLaporanJadwalData(isAdmin, guruId, kelas_id);
+    const pertemuanDates = getScheduledDates(start, end, jadwalData);
+    const actualDates = await getActualAttendanceDates(isAdmin, guruId, kelas_id, startDate, endDate);
+    const finalDates = buildFinalDates(pertemuanDates, actualDates);
+    const siswaData = await getLaporanSiswaData(isAdmin, guruId, kelas_id, startDate, endDate, finalDates.length);
+    const detailKehadiran = await getLaporanDetailKehadiran(isAdmin, guruId, kelas_id, startDate, endDate);
+    const attendanceMap = buildAttendanceMap(detailKehadiran);
 
-    const columns = [
-        { key: 'no', label: 'No', width: 5, align: 'center', format: 'number' },
-        { key: 'nama', label: 'Nama Siswa', width: 25, align: 'left' },
-        { key: 'nis', label: 'NIS', width: 12, align: 'center' },
-        { key: 'jk', label: 'L/P', width: 6, align: 'center' },
-        { key: 'hadir', label: 'H', width: 6, align: 'center', format: 'number' },
-        { key: 'izin', label: 'I', width: 6, align: 'center', format: 'number' },
-        { key: 'sakit', label: 'S', width: 6, align: 'center', format: 'number' },
-        { key: 'alpa', label: 'A', width: 6, align: 'center', format: 'number' },
-        { key: 'dispen', label: 'D', width: 6, align: 'center', format: 'number' },
-        { key: 'presentase', label: '%', width: 10, align: 'center', format: 'percentage' }
-    ];
+    const columns = buildLaporanPdfColumns(finalDates);
+    const reportData = buildLaporanPdfRows(siswaData, finalDates, attendanceMap);
+    const subtitle = buildLaporanSubtitle(isAdmin, kelasInfo, mapelInfo);
+    const namaKelas = kelasInfo[0]?.nama_kelas || 'Unknown';
 
-    const reportData = studentsRows.map((student, index) => {
-        const att = attendanceRows.find(a => a.siswa_id === student.id) || {};
-        const totalHadir = (att.total_hadir || 0) + (att.total_dispen || 0);
-        const totalPertemuan = att.total_pertemuan || 0;
-        const presentase = totalPertemuan > 0 ? (totalHadir / totalPertemuan) : 0;
-
-        return {
-            no: index + 1,
-            nama: student.nama,
-            nis: student.nis || '-',
-            jk: student.jenis_kelamin,
-            hadir: att.total_hadir || 0,
-            izin: att.total_izin || 0,
-            sakit: att.total_sakit || 0,
-            alpa: att.total_alpa || 0,
-            dispen: att.total_dispen || 0,
-            presentase
-        };
-    });
-
-    const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
+    const letterhead = await getLetterhead();
 
     const buffer = await buildPdf({
         title: 'LAPORAN KEHADIRAN SISWA',
-        subtitle: `Kelas: ${namaKelas}`,
+        subtitle,
         reportPeriod: `${startDate} - ${endDate}`,
         showLetterhead: true,
         letterhead,

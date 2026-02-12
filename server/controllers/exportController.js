@@ -1299,7 +1299,8 @@ export const exportBandingAbsen = async (req, res) => {
             diproses_oleh: row.diproses_oleh
         }));
 
-        const reportPeriod = `${startDate} - ${endDate}`;
+        const reportPeriod = startDate && endDate ? `${startDate} - ${endDate}` : 'Semua Periode';
+        const filenameDatePart = startDate && endDate ? `${startDate}_${endDate}` : new Date().toISOString().slice(0, 10);
 
         // Generate Excel workbook
         const workbook = await buildExcel({
@@ -1312,7 +1313,7 @@ export const exportBandingAbsen = async (req, res) => {
         });
 
         res.setHeader(CONTENT_TYPE, EXCEL_MIME_TYPE);
-        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Banding_Absen_${startDate}_${endDate}_${Date.now()}.xlsx"`);
+        res.setHeader(CONTENT_DISPOSITION, `attachment; filename="Banding_Absen_${filenameDatePart}_${Date.now()}.xlsx"`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -2702,7 +2703,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const attendanceMap = buildAttendanceMap(detailKehadiran);
 
         const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
+        const letterhead = await getLetterhead();
 
         const subtitle = buildLaporanSubtitle(isAdmin, kelasInfo, mapelInfo);
         const dateColumns = buildDateColumns(finalDates);

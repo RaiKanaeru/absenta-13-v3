@@ -11,12 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, formatDateWIB, getWIBTime, getMonthRangeWIB } from "@/lib/time-utils";
-import { ArrowLeft, XCircle, Filter, Search, FileText } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, AlertCircle, Filter, Search, FileText } from "lucide-react";
 import ExcelPreview from '../ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
-import { downloadPdf } from '@/utils/exportUtils';
+import { downloadPdf, downloadExcelFromApi } from '@/utils/exportUtils';
 
 interface LaporanKehadiranSiswaViewProps {
   user: TeacherUserData;
@@ -149,16 +150,11 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
 
     try {
       setExporting(true);
-      const blob = await apiCall<Blob>(`/api/guru/download-laporan-kehadiran-siswa?kelas_id=${selectedKelas}&startDate=${startDate}&endDate=${endDate}`, {
-        responseType: 'blob'
-      });
-      
-      const link = document.createElement('a');
-      const url = globalThis.URL.createObjectURL(blob);
-      link.href = url;
-      link.download = `laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx`;
-      link.click();
-      globalThis.URL.revokeObjectURL(url);
+      await downloadExcelFromApi(
+        '/api/guru/download-laporan-kehadiran-siswa',
+        `laporan-kehadiran-siswa-${startDate}-${endDate}.xlsx`,
+        { kelas_id: selectedKelas, startDate, endDate }
+      );
       
        toast({
          title: "Berhasil!",
@@ -215,11 +211,12 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <Button variant="outline" size="icon" onClick={() => onBack ? onBack() : globalThis.history.back()} className="shrink-0">
-          <ArrowLeft className="w-4 h-4" />
+        <Button variant="outline" size="sm" onClick={() => onBack ? onBack() : globalThis.history.back()} className="shrink-0">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Kembali
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground break-words">Laporan Kehadiran Siswa</h1>
+          <h1 className="text-2xl font-bold text-foreground break-words">Laporan Kehadiran Siswa</h1>
           <p className="text-sm sm:text-base text-muted-foreground break-words">Laporan kehadiran siswa berdasarkan jadwal pertemuan</p>
         </div>
       </div>
@@ -345,7 +342,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
           <div className="overflow-x-auto">
             <ExcelPreview
               title="Laporan Kehadiran Siswa"
-              reportKey={VIEW_TO_REPORT_KEY['reports']}
+              reportKey={VIEW_TO_REPORT_KEY['student-attendance-summary']}
               data={reportData.map((student, index) => {
                 const rowData: Record<string, string | number> = {
                   no: index + 1,

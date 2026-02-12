@@ -812,7 +812,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
         const { streamExcel } = await import('../../backend/export/excelStreamingBuilder.js');
         const studentSchemaModule = await import('../../backend/export/schemas/student-summary.js');
         const studentSchema = studentSchemaModule.default;
-        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_SISWA });
+        const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
         await streamExcel(res, {
             filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx`,

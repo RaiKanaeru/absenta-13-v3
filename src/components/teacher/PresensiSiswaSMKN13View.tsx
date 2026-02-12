@@ -12,11 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { useExcelDownload } from "@/hooks/useExcelDownload";
-import { ExportButton } from "@/components/shared/ExportButton";
-import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { formatDateWIB } from "@/lib/time-utils";
-import { FileText, Search, ArrowLeft } from "lucide-react";
+import { downloadExcelFromApi } from "@/utils/exportUtils";
+import { ErrorAlert } from "@/components/shared/ErrorAlert";
+import { FileText, Search, ArrowLeft, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
@@ -33,7 +32,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { downloadExcel, exporting } = useExcelDownload();
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -84,21 +83,31 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
     });
     if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
 
-    await downloadExcel({
-      endpoint: '/api/export/presensi-siswa-smkn13',
-      params,
-      fileName: `presensi-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`,
-      onError: setError,
-    });
+    try {
+      setExporting(true);
+      await downloadExcelFromApi(
+        '/api/export/presensi-siswa-smkn13',
+        `presensi-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.xlsx`,
+        params
+      );
+      toast({ title: "Berhasil", description: "File Excel berhasil diunduh" });
+    } catch (error) {
+      const message = getErrorMessage(error) || 'Gagal mengunduh file Excel';
+      setError(message);
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => onBack ? onBack() : globalThis.history.back()}>
-          <ArrowLeft className="w-4 h-4" />
+        <Button variant="outline" size="sm" onClick={() => onBack ? onBack() : globalThis.history.back()}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Kembali
         </Button>
-        <h2 className="text-xl font-semibold">Presensi Siswa (Format SMKN 13)</h2>
+        <h2 className="text-2xl font-bold text-foreground">Presensi Siswa (Format SMKN 13)</h2>
       </div>
       {/* Filter Section */}
       <Card>
@@ -154,6 +163,19 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
         <ErrorAlert message={error} />
       )}
 
+      {loading && (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      )}
+
+      {!loading && reportData.length === 0 && !error && (
+        <div className="text-center py-12 text-muted-foreground">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>Tidak ada data presensi untuk periode ini</p>
+        </div>
+      )}
+
       {reportData.length > 0 && (
         <div className="space-y-4">
           <Card>
@@ -163,11 +185,24 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                   <FileText className="w-5 h-5" />
                   Presensi Siswa SMK 13
                 </CardTitle>
-                <ExportButton
+                <Button
                   onClick={handleDownloadExcel}
-                  loading={exporting}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                />
+                  disabled={exporting}
+                  variant="outline"
+                  size="sm"
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Export Excel
+                    </>
+                  )}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>

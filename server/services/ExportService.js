@@ -484,10 +484,15 @@ class ExportService {
             LEFT JOIN guru g ON j.guru_id = g.id_guru
             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
             LEFT JOIN guru guru_proses ON pba.diproses_oleh = guru_proses.id_guru
-            WHERE DATE(pba.tanggal_pengajuan) BETWEEN ? AND ?
+            WHERE 1=1
         `;
 
-        const params = [startDate, endDate];
+        const params = [];
+
+        if (startDate && endDate) {
+            query += ' AND DATE(pba.tanggal_pengajuan) BETWEEN ? AND ?';
+            params.push(startDate, endDate);
+        }
 
         if (kelasId && kelasId !== 'all') {
             query += ' AND k.id_kelas = ?';

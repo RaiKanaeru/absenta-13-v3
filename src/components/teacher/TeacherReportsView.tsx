@@ -218,7 +218,7 @@ export const TeacherReportsView = ({ user }: TeacherReportsViewProps) => {
         <div className="space-y-4">
           <ExcelPreview
             title="Ringkasan Kehadiran Siswa"
-            reportKey={VIEW_TO_REPORT_KEY['reports']}
+            reportKey={VIEW_TO_REPORT_KEY['student-attendance-summary']}
             data={reportData.map((record, index) => ({
               no: index + 1,
               nama: record.nama,
