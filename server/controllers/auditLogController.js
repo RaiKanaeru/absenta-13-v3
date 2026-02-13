@@ -4,12 +4,69 @@ import db from '../config/db.js';
 
 const logger = createLogger('AuditLog');
 
+const CREATE_AUDIT_LOGS_TABLE_SQL = `
+    CREATE TABLE IF NOT EXISTS admin_activity_logs (
+        id INT NOT NULL AUTO_INCREMENT,
+        admin_id INT NOT NULL,
+        admin_name VARCHAR(100) NOT NULL,
+        action VARCHAR(50) NOT NULL COMMENT 'CREATE, UPDATE, DELETE, LOGIN, EXPORT',
+        target VARCHAR(50) NOT NULL COMMENT 'Table or Entity name',
+        target_id INT DEFAULT NULL COMMENT 'ID of the affected entity',
+        details JSON DEFAULT NULL COMMENT 'Snapshot of changed data',
+        ip_address VARCHAR(45) DEFAULT NULL,
+        user_agent VARCHAR(255) DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        INDEX idx_admin_id (admin_id),
+        INDEX idx_action (action),
+        INDEX idx_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+let tableEnsured = false;
+let tableEnsurePromise = null;
+
+const parseAuditDetails = (details) => {
+    if (typeof details !== 'string') {
+        return details;
+    }
+
+    try {
+        return JSON.parse(details);
+    } catch {
+        return details;
+    }
+};
+
+const ensureAuditLogTable = async () => {
+    if (tableEnsured) {
+        return;
+    }
+
+    if (!tableEnsurePromise) {
+        tableEnsurePromise = (async () => {
+            try {
+                await db.execute(CREATE_AUDIT_LOGS_TABLE_SQL);
+                tableEnsured = true;
+            } catch (error) {
+                logger.dbError('ensureAuditLogTable', error);
+            } finally {
+                tableEnsurePromise = null;
+            }
+        })();
+    }
+
+    await tableEnsurePromise;
+};
+
 /**
  * Get Audit Logs with pagination and filtering
  * GET /api/admin/audit-logs
  */
 export const getAuditLogs = async (req, res) => {
     try {
+        await ensureAuditLogTable();
+
         const page = Number.parseInt(req.query.page, 10) || 1;
         const limit = Number.parseInt(req.query.limit, 10) || 20;
         const offset = (page - 1) * limit;
@@ -78,7 +135,7 @@ export const getAuditLogs = async (req, res) => {
         // Parse JSON details if string
         const logs = rows.map(row => ({
             ...row,
-            details: typeof row.details === 'string' ? JSON.parse(row.details) : row.details
+            details: parseAuditDetails(row.details)
         }));
 
         return sendSuccessResponse(res, {
@@ -103,6 +160,8 @@ export const getAuditLogs = async (req, res) => {
  */
 export const getAuditLogFilters = async (req, res) => {
     try {
+        await ensureAuditLogTable();
+
         const [actions] = await db.execute('SELECT action FROM admin_activity_logs GROUP BY action ORDER BY action');
         const [targets] = await db.execute('SELECT target FROM admin_activity_logs GROUP BY target ORDER BY target');
 

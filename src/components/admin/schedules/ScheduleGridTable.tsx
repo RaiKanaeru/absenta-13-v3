@@ -116,6 +116,9 @@ const getSubjectColor = (mapel: string, defaultColor?: string): string => {
 
 const TINGKAT_LIST = ['X', 'XI', 'XII'];
 const ROW_TYPES = ['MAPEL', 'RUANG', 'GURU'] as const;
+const STICKY_KELAS_WIDTH_CLASS = 'w-[140px] min-w-[140px]';
+const STICKY_JAM_KE_WIDTH_CLASS = 'w-[80px] min-w-[80px]';
+const STICKY_JAM_KE_LEFT_CLASS = 'left-[140px]';
 
 const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;
 
@@ -161,11 +164,11 @@ function DraggableItem({ id, type, data, isDisabled }: {
   const displayCode = isTeacherItem(data) ? (data.nip || '-') : (data.kode_mapel || '-');
 
   return (
-    <div
+    <button
+      type="button"
       ref={setNodeRef}
       style={style}
-      role="button"
-      tabIndex={0}
+      disabled={isDisabled}
       {...listeners}
       {...attributes}
       className={`
@@ -188,7 +191,7 @@ function DraggableItem({ id, type, data, isDisabled }: {
           {displayCode}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -210,24 +213,18 @@ function DroppableCell({
   });
 
   return (
-    <div
+    <button
+      type="button"
       ref={setNodeRef}
-      role="button"
-      tabIndex={0}
+      disabled={isDisabled}
       onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
       className={`
-        h-full cursor-pointer
+        h-full w-full cursor-pointer text-left
         ${isOver ? 'ring-2 ring-blue-500 ring-inset' : ''}
       `}
     >
       {children}
-    </div>
+    </button>
   );
 }
 
@@ -778,8 +775,8 @@ export function ScheduleGridTable({
               <thead className="sticky top-0 z-20 bg-background">
                 {/* Day headers */}
                 <tr>
-                  <th className="sticky left-0 z-30 bg-slate-800 text-white p-2 border min-w-[80px]" rowSpan={2}>KELAS</th>
-                  <th className="sticky left-[80px] z-30 bg-slate-800 text-white p-2 border min-w-[50px]" rowSpan={2}>JAM KE</th>
+                  <th className={`sticky left-0 z-30 bg-slate-800 text-white p-2 border ${STICKY_KELAS_WIDTH_CLASS}`} rowSpan={2}>KELAS</th>
+                  <th className={`sticky ${STICKY_JAM_KE_LEFT_CLASS} z-30 bg-slate-800 text-white p-2 border ${STICKY_JAM_KE_WIDTH_CLASS}`} rowSpan={2}>JAM KE</th>
                   {matrixData.days.map(day => {
                     const slots = matrixData.jamSlots[day] || [];
                     return (
@@ -816,7 +813,7 @@ export function ScheduleGridTable({
                         {/* Class name - only show on first row */}
                         {rowIdx === 0 && (
                           <td 
-                            className="sticky left-0 z-10 bg-amber-500/15 font-bold p-1 border text-center cursor-context-menu"
+                            className={`sticky left-0 z-10 bg-amber-500/15 font-bold p-1 border text-center cursor-context-menu ${STICKY_KELAS_WIDTH_CLASS}`}
                             rowSpan={3}
                             onContextMenu={(e) => handleRowContextMenu(e, kelas.kelas_id)}
                           >
@@ -824,7 +821,7 @@ export function ScheduleGridTable({
                           </td>
                         )}
                         {/* Row type label */}
-                        <td className="sticky left-[80px] z-10 bg-muted p-1 border text-center font-medium">
+                        <td className={`sticky ${STICKY_JAM_KE_LEFT_CLASS} z-10 bg-muted p-1 border text-center font-medium ${STICKY_JAM_KE_WIDTH_CLASS}`}>
                           {rowType}
                         </td>
                         {/* Schedule cells for each day */}
@@ -876,14 +873,6 @@ export function ScheduleGridTable({
                                 key={cellId}
                                 className="border p-0 h-6"
                                 style={{ backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : undefined }}
-                                role="gridcell"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    handleCellClick(kelas.kelas_id, day, slot.jam_ke, cell);
-                                  }
-                                }}
                               >
                                 <DroppableCell 
                                   cellId={cellId} 
