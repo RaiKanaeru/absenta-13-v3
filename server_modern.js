@@ -28,6 +28,7 @@ import {
     CORS_ERROR_CODES 
 } from './server/utils/corsErrorHandler.js';
 import { initAutoAttendanceScheduler } from './server/services/system/autoAttendanceService.js';
+import { adminActivityLogger } from './server/middleware/adminActivityLogger.js';
 
 // Configuration from environment variables
 const port = Number.parseInt(process.env.PORT) || 3001;
@@ -131,7 +132,7 @@ app.use((req, res, next) => {
         if (origin && allowedOrigins.includes(origin)) {
             res.header('Access-Control-Allow-Origin', origin);
             res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-            res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+            res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Client-ID');
             res.header('Access-Control-Expose-Headers', 'Content-Disposition, X-Request-ID, X-CORS-Debug');
             res.header('Access-Control-Allow-Credentials', 'true');
             res.header('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
@@ -405,6 +406,11 @@ app.options('/api/debug/cors', (req, res) => {
     // Preflight akan ditangani oleh middleware di atas
     res.status(204).end();
 });
+
+// ================================================
+// ADMIN AUDIT TRAIL MIDDLEWARE
+// ================================================
+app.use(adminActivityLogger);
 
 // ================================================
 // SETUP ROUTES (MODULARIZED)

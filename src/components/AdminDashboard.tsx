@@ -29,6 +29,7 @@ import {
   Monitor,
   BarChart3,
   User,
+  ScrollText,
 } from "lucide-react";
 
 // Lazy-loaded views
@@ -49,6 +50,7 @@ const EditProfile = React.lazy(() => import('./EditProfile').then(module => ({ d
 const ReportLetterheadSettings = React.lazy(() => import('./ReportLetterheadSettings'));
 const ReportsView = React.lazy(() => import('./admin/reports/ReportsView').then(module => ({ default: module.ReportsView })));
 const LiveSummaryView = React.lazy(() => import('./admin/dashboard/LiveSummaryView').then(module => ({ default: module.LiveSummaryView })));
+const AuditLogView = React.lazy(() => import('./admin/AuditLogView'));
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,6 +86,7 @@ const menuItems = [
   { id: 'disaster-recovery', path: 'restore', title: 'Restorasi Backup', icon: Shield, description: 'Restorasi dan pemulihan backup', gradient: 'from-amber-500 to-amber-700' },
   { id: 'letterhead-settings', path: 'letterhead', title: 'Kop Laporan', icon: FileText, description: 'Kelola header/kop untuk semua laporan', gradient: 'from-slate-500 to-slate-700' },
   { id: 'reports', path: 'reports', title: 'Laporan', icon: BarChart3, description: 'Pemantau siswa & guru live', gradient: 'from-pink-500 to-pink-700' },
+  { id: 'audit-log', path: 'audit-logs', title: 'Log Aktivitas', icon: ScrollText, description: 'Riwayat aktivitas admin', gradient: 'from-gray-500 to-gray-700' },
 ];
 
 /** Wrapper for admin sub-views: adds back button + Suspense boundary */
@@ -359,6 +362,7 @@ export const AdminDashboard = () => {
             <Route path="letterhead" element={<SubView><ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
             <Route path="reports" element={<SubView><ErrorBoundary><ReportsView onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
             <Route path="jam-pelajaran" element={<SubView><ErrorBoundary><JamPelajaranConfig /></ErrorBoundary></SubView>} />
+            <Route path="audit-logs" element={<SubView><ErrorBoundary><AuditLogView /></ErrorBoundary></SubView>} />
           </Routes>
         </div>
       </div>

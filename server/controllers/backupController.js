@@ -1344,6 +1344,12 @@ const saveBackupSettings = async (req, res) => {
                 maxArchiveAge: validSettings.archiveAge,
                 compressionEnabled: validSettings.compression
             };
+
+            // Reschedule cron if the schedule expression changed
+            if (validSettings.autoBackupSchedule && validSettings.autoBackupSchedule !== globalThis.backupSystem.backupConfig.autoBackupSchedule) {
+                globalThis.backupSystem.rescheduleBackup(validSettings.autoBackupSchedule);
+                logger.info('Backup schedule rescheduled', { schedule: validSettings.autoBackupSchedule });
+            }
         }
 
         res.json({
@@ -1611,6 +1617,9 @@ const createManualBackup = async (req, res) => {
  */
 const getDisasterRecoveryStatus = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const status = globalThis.disasterRecoverySystem.getSystemHealth();
         res.json({ success: true, data: status });
     } catch (error) {
@@ -1624,6 +1633,9 @@ const getDisasterRecoveryStatus = async (req, res) => {
  */
 const setupBackupSchedule = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const result = await globalThis.disasterRecoverySystem.setupBackupSchedule();
         res.json({ success: true, message: 'Backup schedule setup completed successfully', data: result });
     } catch (error) {
@@ -1637,6 +1649,9 @@ const setupBackupSchedule = async (req, res) => {
  */
 const verifyBackup = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const { backupPath, backupType } = req.body;
         const verificationResult = await globalThis.disasterRecoverySystem.verifyBackupFile(backupPath, backupType);
         res.json({ success: true, message: 'Backup verification completed', data: verificationResult });
@@ -1651,6 +1666,9 @@ const verifyBackup = async (req, res) => {
  */
 const testBackupRestoration = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const { backupPath, testDatabase } = req.body;
         const startTime = Date.now();
         const restorationResult = await globalThis.disasterRecoverySystem.testBackupRestoration(backupPath, testDatabase);
@@ -1667,6 +1685,9 @@ const testBackupRestoration = async (req, res) => {
  */
 const getDisasterRecoveryDocs = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const documentation = await globalThis.disasterRecoverySystem.getDocumentation();
         res.json({ success: true, data: documentation });
     } catch (error) {
@@ -1680,6 +1701,9 @@ const getDisasterRecoveryDocs = async (req, res) => {
  */
 const createDisasterBackup = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const { backupType = 'full' } = req.body;
         const backupResult = await globalThis.disasterRecoverySystem.createBackup(backupType);
         res.json({ success: true, message: 'Disaster backup created successfully', data: backupResult });
@@ -1694,6 +1718,9 @@ const createDisasterBackup = async (req, res) => {
  */
 const getDisasterBackupList = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const backups = await globalThis.disasterRecoverySystem.getBackupList();
         res.json({ success: true, data: backups });
     } catch (error) {
@@ -1707,6 +1734,9 @@ const getDisasterBackupList = async (req, res) => {
  */
 const verifyBackupById = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const { backupId } = req.params;
         const verificationResult = await globalThis.disasterRecoverySystem.verifyBackupById(backupId);
         res.json({ success: true, data: verificationResult });
@@ -1721,6 +1751,9 @@ const verifyBackupById = async (req, res) => {
  */
 const testRecoveryProcedure = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const { procedureId } = req.params;
         const testResult = await globalThis.disasterRecoverySystem.testProcedure(procedureId);
         res.json({ success: true, data: testResult });
@@ -1735,6 +1768,9 @@ const testRecoveryProcedure = async (req, res) => {
  */
 const getRecoveryProcedures = async (req, res) => {
     try {
+        if (!globalThis.disasterRecoverySystem) {
+            return sendServiceUnavailableError(res, 'Sistem Disaster Recovery belum tersedia');
+        }
         const procedures = await globalThis.disasterRecoverySystem.getProcedures();
         res.json({ success: true, data: procedures });
     } catch (error) {

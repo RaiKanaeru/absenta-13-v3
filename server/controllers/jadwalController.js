@@ -651,6 +651,43 @@ const validateGuruIdsExist = async (guruIds, connection = db) => {
     return { valid: true };
 };
 
+/**
+ * Validate that assigned guru(s) actually teach the specified mapel.
+ * Returns warnings (NOT hard block) — guru might teach multiple subjects
+ * but their primary mapel_id doesn't match.
+ * @param {number[]} guruIds - Array of guru IDs to check
+ * @param {number} mapelId - The mapel being assigned
+ * @param {Object} connection - DB connection (optional)
+ * @returns {{ warnings: string[] }} Array of warning messages (empty if all match)
+ */
+const validateGuruMapelMatch = async (guruIds, mapelId, connection = db) => {
+    const warnings = [];
+
+    if (!guruIds || guruIds.length === 0 || !mapelId) {
+        return { warnings };
+    }
+
+    const placeholders = guruIds.map(() => '?').join(',');
+    const [rows] = await connection.execute(
+        `SELECT g.id_guru, g.nama, g.mapel_id, m.nama_mapel
+         FROM guru g
+         LEFT JOIN mapel m ON g.mapel_id = m.id_mapel
+         WHERE g.id_guru IN (${placeholders}) AND g.status = "aktif"`,
+        guruIds
+    );
+
+    for (const guru of rows) {
+        if (guru.mapel_id && Number(guru.mapel_id) !== Number(mapelId)) {
+            warnings.push(
+                `Guru ${guru.nama} (ID: ${guru.id_guru}) terdaftar mengajar ${guru.nama_mapel || 'mapel lain'}, ` +
+                `tetapi dijadwalkan untuk mapel yang berbeda`
+            );
+        }
+    }
+
+    return { warnings };
+};
+
 const validateJamSlotExists = async (hari, jamKe, connection = db) => {
     const normalizedHari = normalizeHariName(hari);
     const normalizedJamKe = Number(jamKe);
@@ -775,6 +812,9 @@ const processJadwalData = async (payload, log, options = {}) => {
         return { success: false, error: conflictCheck.error };
     }
 
+    // Validate guru-mapel relationship (warning only, not hard block)
+    const guruMapelCheck = await validateGuruMapelMatch(guruIds, finalMapelId);
+
     const primaryId = primaryGuruId || guruIds[0] || null;
 
     return {
@@ -783,6 +823,7 @@ const processJadwalData = async (payload, log, options = {}) => {
         finalMapelId,
         primaryGuruId: primaryId,
         isMultiGuru: guruIds.length > 1,
+        warnings: guruMapelCheck.warnings,
         normalized: {
             kelas_id: kelasId,
             ruang_id: finalRuangId,
@@ -966,6 +1007,7 @@ export const batchUpdateMatrix = async (req, res) => {
         let created = 0;
         let updated = 0;
         let deleted = 0;
+        const batchWarnings = [];
 
         for (const change of normalizedChanges) {
             const { kelas_id, jam_ke, mapel_id, guru_id, ruang_id, action } = change;
@@ -1027,6 +1069,12 @@ export const batchUpdateMatrix = async (req, res) => {
                 return sendValidationError(res, conflictCheck.error);
             }
 
+            // Validate guru-mapel match (warning only, non-blocking)
+            const guruMapelCheck = await validateGuruMapelMatch([finalGuruId], finalMapelId, connection);
+            if (guruMapelCheck.warnings.length > 0) {
+                batchWarnings.push(...guruMapelCheck.warnings);
+            }
+
             if (existing.length > 0) {
                 // Update existing
                 await connection.execute(
@@ -1053,7 +1101,11 @@ export const batchUpdateMatrix = async (req, res) => {
         await connection.commit();
 
         log.success('BatchUpdateMatrix', { created, updated, deleted });
-        return sendSuccessResponse(res, { created, updated, deleted }, 'Batch update berhasil');
+        const responseData = { created, updated, deleted };
+        if (batchWarnings.length > 0) {
+            responseData.warnings = batchWarnings;
+        }
+        return sendSuccessResponse(res, responseData, 'Batch update berhasil');
 
     } catch (error) {
         await connection.rollback();
@@ -1666,7 +1718,7 @@ export const createJadwal = async (req, res) => {
             return sendValidationError(res, result.error);
         }
 
-        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru, normalized } = result;
+        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru, normalized, warnings } = result;
         const {
             kelas_id: kelasId,
             ruang_id: ruangId,
@@ -1692,7 +1744,11 @@ export const createJadwal = async (req, res) => {
         }
 
         log.success('CreateJadwal', { jadwalId, hari, jam_ke, guruCount: finalGuruIds.length });
-        return sendSuccessResponse(res, { id: jadwalId }, 'Jadwal berhasil ditambahkan', 201);
+        const responseData = { id: jadwalId };
+        if (warnings && warnings.length > 0) {
+            responseData.warnings = warnings;
+        }
+        return sendSuccessResponse(res, responseData, 'Jadwal berhasil ditambahkan', 201);
     } catch (error) {
         log.dbError('createJadwal', error);
         return sendDatabaseError(res, error, 'Gagal menambahkan jadwal');
@@ -1722,7 +1778,7 @@ export const updateJadwal = async (req, res) => {
             return sendValidationError(res, result.error);
         }
 
-        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru, normalized } = result;
+        const { finalGuruIds, finalMapelId, primaryGuruId, isMultiGuru, normalized, warnings } = result;
         const {
             kelas_id: kelasId,
             ruang_id: ruangId,
@@ -1758,7 +1814,11 @@ export const updateJadwal = async (req, res) => {
         }
 
         log.success('UpdateJadwal', { id, hari, jam_ke });
-        return sendSuccessResponse(res, null, 'Jadwal berhasil diperbarui');
+        const responseData = {};
+        if (warnings && warnings.length > 0) {
+            responseData.warnings = warnings;
+        }
+        return sendSuccessResponse(res, Object.keys(responseData).length > 0 ? responseData : null, 'Jadwal berhasil diperbarui');
     } catch (error) {
         log.dbError('updateJadwal', error, { id });
         return sendDatabaseError(res, error, 'Gagal memperbarui jadwal');

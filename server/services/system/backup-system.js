@@ -165,6 +165,9 @@ class BackupSystem {
             
             // Setup automated backup schedule
             await this.setupAutomatedBackup();
+
+            // Load and setup custom schedules from custom-schedules.json
+            await this.loadCustomSchedules();
             
             logger.info('Backup & Archive System initialized successfully');
             return true;
@@ -199,8 +202,8 @@ class BackupSystem {
     async setupAutomatedBackup() {
         logger.info('Setting up automated backup schedule');
         
-        // Weekly full backup
-        cron.schedule(this.backupConfig.autoBackupSchedule, async () => {
+        // Weekly full backup — store reference for rescheduling
+        this._weeklyBackupTask = cron.schedule(this.backupConfig.autoBackupSchedule, async () => {
             logger.info('Starting automated weekly backup');
             try {
                 await this.createSemesterBackup();
@@ -210,8 +213,8 @@ class BackupSystem {
             }
         });
         
-        // Daily archive cleanup (at 3 AM)
-        cron.schedule('0 3 * * *', async () => {
+        // Daily archive cleanup (at 3 AM) — store reference for rescheduling
+        this._dailyCleanupTask = cron.schedule('0 3 * * *', async () => {
             logger.info('Starting daily archive cleanup');
             try {
                 await this.cleanupOldBackups();
@@ -221,7 +224,102 @@ class BackupSystem {
             }
         });
         
-        logger.info('Automated backup schedule configured');
+        logger.info('Automated backup schedule configured', { schedule: this.backupConfig.autoBackupSchedule });
+    }
+
+    /**
+     * Reschedule the automated weekly backup with a new cron expression.
+     * Stops the existing weekly backup task and creates a new one.
+     * @param {string} cronExpr - Valid cron expression (e.g. '0 2 * * 0')
+     */
+    rescheduleBackup(cronExpr) {
+        logger.info('Rescheduling automated backup', { oldSchedule: this.backupConfig.autoBackupSchedule, newSchedule: cronExpr });
+
+        // Stop existing weekly backup task
+        if (this._weeklyBackupTask) {
+            this._weeklyBackupTask.stop();
+            logger.debug('Stopped existing weekly backup task');
+        }
+
+        // Update config
+        this.backupConfig.autoBackupSchedule = cronExpr;
+
+        // Create new task
+        this._weeklyBackupTask = cron.schedule(cronExpr, async () => {
+            logger.info('Starting automated weekly backup (rescheduled)');
+            try {
+                await this.createSemesterBackup();
+                logger.info('Automated backup completed');
+            } catch (error) {
+                logger.error('Automated backup failed', error);
+            }
+        });
+
+        logger.info('Automated backup rescheduled successfully', { schedule: cronExpr });
+    }
+
+    /**
+     * Load custom schedules from custom-schedules.json and set up timers
+     * for enabled schedules that have a future date/time.
+     */
+    async loadCustomSchedules() {
+        try {
+            const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
+            let schedules;
+            try {
+                const raw = await fs.readFile(schedulesPath, 'utf-8');
+                schedules = JSON.parse(raw);
+            } catch {
+                // File doesn't exist or is invalid — nothing to load
+                logger.debug('No custom-schedules.json found, skipping');
+                return;
+            }
+
+            if (!Array.isArray(schedules) || schedules.length === 0) {
+                return;
+            }
+
+            const now = Date.now();
+            let scheduled = 0;
+
+            // Store active timers so they can be cleared if needed
+            if (!this._customScheduleTimers) {
+                this._customScheduleTimers = [];
+            }
+
+            for (const schedule of schedules) {
+                if (!schedule.enabled || !schedule.date || !schedule.time) {
+                    continue;
+                }
+
+                const scheduledTime = new Date(`${schedule.date}T${schedule.time}`).getTime();
+                if (Number.isNaN(scheduledTime) || scheduledTime <= now) {
+                    continue; // Skip past or invalid dates
+                }
+
+                const delay = scheduledTime - now;
+                const timer = setTimeout(async () => {
+                    logger.info('Executing custom scheduled backup', { scheduleId: schedule.id, name: schedule.name });
+                    try {
+                        await this.createScheduledBackup(schedule);
+                        logger.info('Custom scheduled backup completed', { scheduleId: schedule.id });
+                    } catch (error) {
+                        logger.error('Custom scheduled backup failed', { scheduleId: schedule.id, error: error.message });
+                    }
+                }, delay);
+
+                this._customScheduleTimers.push(timer);
+                scheduled++;
+                logger.debug('Custom schedule timer set', { scheduleId: schedule.id, name: schedule.name, delay: `${Math.round(delay / 60000)}min` });
+            }
+
+            if (scheduled > 0) {
+                logger.info(`Loaded ${scheduled} custom backup schedule(s)`);
+            }
+        } catch (error) {
+            // Non-fatal: custom schedules are optional
+            logger.warn('Failed to load custom schedules', { error: error.message });
+        }
     }
 
     /**
