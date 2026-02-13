@@ -244,7 +244,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-background">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-background">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="text-center lg:hidden mb-10">
@@ -256,7 +256,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
           </div>
 
           {/* Login Card */}
-          <div className="bg-card p-8 sm:p-10 rounded-2xl lg:shadow-none lg:border-0 shadow-xl shadow-black/5 border border-border">
+          <div className="bg-card p-6 sm:p-8 rounded-2xl lg:shadow-none lg:border-0 shadow-xl shadow-black/5 border border-border">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-foreground">
                 Masuk ke Sistem
@@ -264,10 +264,10 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
               <p className="text-muted-foreground mt-1 text-sm">Silakan login untuk melanjutkan</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" aria-busy={isLoading}>
               {/* Lockout Alert */}
               {isLockedOut && (
-                <Alert className="bg-amber-500/15 border-amber-500/25 text-amber-700 dark:text-amber-400 rounded-xl animate-in fade-in slide-in-from-top-2">
+                <Alert className="bg-amber-500/15 border-amber-500/25 text-amber-700 dark:text-amber-400 rounded-xl animate-in fade-in slide-in-from-top-2" role="status" aria-live="polite">
                   <Clock className="h-4 w-4" />
                   <AlertDescription className="font-medium flex items-center gap-2">
                     <span>Terlalu banyak percobaan. Coba lagi dalam</span>
@@ -278,7 +278,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
 
               {/* Error Alert */}
               {error && !isLockedOut && (
-                <Alert variant="destructive" className="rounded-xl animate-in fade-in slide-in-from-top-2">
+                <Alert variant="destructive" className="rounded-xl animate-in fade-in slide-in-from-top-2" role="alert" aria-live="polite">
                   <AlertDescription className="font-medium">
                     {error}
                     {remainingAttempts !== null && remainingAttempts > 0 && (
@@ -309,6 +309,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     onBlur={() => setFocusedField(null)}
                     className="pl-14 h-14 bg-background border-input rounded-xl focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-300 font-medium text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading || isLockedOut}
+                    autoFocus
                     required
                   />
                 </div>
@@ -339,7 +340,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 rounded-lg"
-                    disabled={isLoading}
+                    disabled={isLoading || isLockedOut}
                     aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -396,5 +397,4 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     </div>
   );
 };
-
 
