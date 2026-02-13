@@ -444,8 +444,8 @@ const KeyMetricsGrid = ({ metrics, formatBytes }) => {
                 <CardContent>
                     <div className="text-2xl font-bold">{(metrics?.application?.requests?.total || 0).toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground">
-                        <span className="text-green-600">{metrics?.application?.requests?.completed || 0}</span> completed,
-                        <span className="text-red-600 ml-1">{metrics?.application?.requests?.failed || 0}</span> failed
+                        <span className="text-green-600">{metrics?.application?.requests?.completed || 0}</span>{' '}completed,{' '}
+                        <span className="text-red-600">{metrics?.application?.requests?.failed || 0}</span>{' '}failed
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                         Active: {metrics?.application?.requests?.active || 0}

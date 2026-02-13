@@ -40,5 +40,16 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-empty-object-type": "off",
     },
+  },
+  {
+    files: [
+      "src/components/theme-provider.tsx",
+      "src/components/ui/**/*.{ts,tsx}",
+      "src/contexts/AuthContext.tsx",
+      "src/contexts/FontSizeContext.tsx",
+    ],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
   }
 );

@@ -10,6 +10,70 @@ import { createLogger } from './logger.js';
 import { getLetterhead } from '../../backend/utils/letterheadService.js';
 
 const logger = createLogger('ExcelLetterhead');
+const LOGO_TARGET_HEIGHT_PX = 88;
+const LOGO_MAX_WIDTH_PX = 110;
+const EXCEL_DEFAULT_ROW_HEIGHT_PX = 20;
+const LOGO_TOP_ROW_OFFSET = 5;
+
+function getPngDimensions(buffer) {
+    if (buffer.length < 24) return null;
+    const pngSignature = '89504e470d0a1a0a';
+    if (buffer.subarray(0, 8).toString('hex') !== pngSignature) return null;
+    return {
+        width: buffer.readUInt32BE(16),
+        height: buffer.readUInt32BE(20)
+    };
+}
+
+function getJpegDimensions(buffer) {
+    if (buffer.length < 4 || buffer[0] !== 0xFF || buffer[1] !== 0xD8) return null;
+
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+        if (buffer[offset] !== 0xFF) {
+            offset += 1;
+            continue;
+        }
+
+        const marker = buffer[offset + 1];
+        const segmentLength = buffer.readUInt16BE(offset + 2);
+        const isSOF = marker >= 0xC0 && marker <= 0xC3;
+
+        if (isSOF) {
+            return {
+                height: buffer.readUInt16BE(offset + 5),
+                width: buffer.readUInt16BE(offset + 7)
+            };
+        }
+
+        if (segmentLength <= 2) break;
+        offset += 2 + segmentLength;
+    }
+
+    return null;
+}
+
+function getImageDimensions(buffer) {
+    return getPngDimensions(buffer) || getJpegDimensions(buffer);
+}
+
+function getLogoRenderSize(logoBuffer) {
+    const dimensions = getImageDimensions(logoBuffer);
+    if (!dimensions || !dimensions.width || !dimensions.height) {
+        return { width: LOGO_TARGET_HEIGHT_PX, height: LOGO_TARGET_HEIGHT_PX };
+    }
+
+    let renderHeight = LOGO_TARGET_HEIGHT_PX;
+    let renderWidth = Math.round((dimensions.width / dimensions.height) * renderHeight);
+
+    if (renderWidth > LOGO_MAX_WIDTH_PX) {
+        const ratio = LOGO_MAX_WIDTH_PX / renderWidth;
+        renderWidth = LOGO_MAX_WIDTH_PX;
+        renderHeight = Math.round(renderHeight * ratio);
+    }
+
+    return { width: renderWidth, height: renderHeight };
+}
 
 /**
  * Add letterhead to Excel worksheet
@@ -71,10 +135,13 @@ async function addSingleLogo(workbook, worksheet, logoUrl, col, row) {
     try {
         const logoBuffer = await getLogoBuffer(logoUrl);
         if (logoBuffer) {
+            const logoSize = getLogoRenderSize(logoBuffer);
+            const verticalOffsetRows = Math.max((LOGO_TARGET_HEIGHT_PX - logoSize.height) / 2 / EXCEL_DEFAULT_ROW_HEIGHT_PX, 0);
             const logoId = workbook.addImage({ buffer: logoBuffer, extension: 'png' });
             worksheet.addImage(logoId, {
-                tl: { col: col, row: row - 1 },
-                br: { col: col + 2, row: row + 2 }
+                tl: { col: col, row: Math.max(row + LOGO_TOP_ROW_OFFSET + verticalOffsetRows, 0) },
+                ext: { width: logoSize.width, height: logoSize.height },
+                editAs: 'oneCell'
             });
         }
     } catch (error) {

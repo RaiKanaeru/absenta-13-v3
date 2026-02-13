@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  FileText, CheckCircle, XCircle, AlertTriangle, Search, Calendar, ArrowLeft, Download, Loader2, FileSpreadsheet 
+  FileText, CheckCircle, XCircle, AlertTriangle, Search, Calendar, ArrowLeft, Download, Loader2, FileSpreadsheet, AlertCircle 
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { formatDateWIB, getCurrentDateWIB } from "@/lib/time-utils";
@@ -297,9 +298,11 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
           </div>
 
           {error && (
-            <div className="bg-destructive/10 text-destructive p-4 rounded-lg mb-6 flex items-center">
-              <AlertTriangle className="w-5 h-5 mr-2" />
-              {error}
+            <div className="mb-6">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             </div>
           )}
 
@@ -375,8 +378,11 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      Tidak ada data banding ditemukan
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Tidak ada data banding ditemukan</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}

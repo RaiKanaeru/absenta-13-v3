@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { 
   FileText, Search, Download, ArrowLeft, AlertCircle, Loader2, FileSpreadsheet 
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { getCurrentDateWIB } from "@/lib/time-utils";
@@ -105,6 +106,7 @@ const sortReportData = (
 export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryViewProps> = ({ onBack, onLogout }) => {
     const [reportData, setReportData] = useState<ReportDataRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [periode, setPeriode] = useState('bulanan'); // bulanan | semester
     const [bulan, setBulan] = useState(new Date().getMonth() + 1);
     const [tahun, setTahun] = useState(new Date().getFullYear());
@@ -119,6 +121,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
 
     const fetchReportData = useCallback(async () => {
         setLoading(true);
+        setError('');
         try {
             const { startDate, endDate } = calculateDateRange(periode, bulan, tahun);
             
@@ -128,9 +131,11 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
             setReportData(data);
         } catch (error) {
             console.error('TeacherAttendanceSummaryView: Failed to load teacher report', error);
+            const message = error instanceof Error ? error.message : 'Gagal memuat data laporan guru';
+            setError(message);
             toast({
                 title: "Error",
-                description: "Gagal memuat data laporan guru",
+                description: message,
                 variant: "destructive"
             });
         } finally {
@@ -315,7 +320,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                                 <Label className="text-sm font-medium mb-1 block">Bulan</Label>
                                 <Select
                                     value={String(bulan)}
-                                    onValueChange={(value) => setBulan(parseInt(value))}
+                                    onValueChange={(value) => setBulan(Number.parseInt(value, 10))}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Pilih Bulan" />
@@ -335,7 +340,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                             <Label className="text-sm font-medium mb-1 block">Tahun</Label>
                             <Select
                                 value={String(tahun)}
-                                onValueChange={(value) => setTahun(parseInt(value))}
+                                onValueChange={(value) => setTahun(Number.parseInt(value, 10))}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Pilih Tahun" />
@@ -362,6 +367,15 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
                              </div>
                         </div>
                     </div>
+
+                    {error && (
+                        <div className="mb-4">
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        </div>
+                    )}
 
                     {(() => {
                         if (loading) {

@@ -43,7 +43,7 @@ const parseSettingValue = (value) => {
         // Ignore JSON parse errors, fall back to raw value.
     }
     // Fix: Regex precedence ambiguity S5850 - Group the alternatives
-    return raw.replace(/(^")|("$)/g, '');
+    return raw.replaceAll(/(^")|(\"$)/g, '');
 };
 
 const getActiveAcademicYear = async (conn) => {
@@ -154,7 +154,8 @@ export const importMasterSchedule = async (req, res) => {
         // Skip headers (approx 10 rows)
         const startRowIdx = 10; 
         
-        for (let i = startRowIdx; i < rows.length; i++) {
+        let i = startRowIdx;
+        while (i < rows.length) {
             const rowA = rows[i].row;
             const className = getVal(rowA, 2); // Col B is Class
             
@@ -189,7 +190,7 @@ export const importMasterSchedule = async (req, res) => {
                         try {
                             const jamRow = sheet.getRow(4); // Row 4 has Jam numbers
                             const val = jamRow.getCell(col).value;
-                            jamKe = parseInt(val) || 0;
+                            jamKe = Number.parseInt(val, 10) || 0;
                         } catch (e) {
                             // Ignore parsing errors for individual cells, jamKe remains 0
                             log.debug(`Error parsing jamKe for column ${col}: ${e.message}`);
@@ -215,7 +216,9 @@ export const importMasterSchedule = async (req, res) => {
                     }
                 }
                 
-                i += 2; // Skip the next 2 rows (Ruang, Guru)
+                i += 3; // Skip all 3 rows of this block (Mapel, Ruang, Guru)
+            } else {
+                i++;
             }
         }
 

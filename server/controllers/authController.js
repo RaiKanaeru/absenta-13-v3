@@ -6,7 +6,8 @@
  * - Login dengan username/password
  * - Logout dan invalidasi session
  * - Verifikasi token JWT
- * - Rate limiting untuk mencegah brute force
+ * - Rate limiting multi-key (per-akun, per-device, per-IP fallback)
+ * - Verifikasi hCaptcha server-side
  * 
  * @requires bcrypt - Untuk hashing password
  * @requires jsonwebtoken - Untuk generate/verify JWT
@@ -15,7 +16,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import { AppError, ERROR_CODES, sendErrorResponse, sendRateLimitError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendErrorResponse, sendRateLimitError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import db from '../config/db.js';
 
@@ -24,79 +25,192 @@ dotenv.config();
 /** Secret key untuk signing JWT token - WAJIB diset via environment variable */
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    // Logger not yet initialized at this point, use process.stderr directly
     process.stderr.write('FATAL: JWT_SECRET environment variable is not set\n');
     process.exit(1);
 }
 const logger = createLogger('Auth');
 
 // ============================================================
-// RATE LIMITING - Mencegah Brute Force Attack
+// RATE LIMITING - Multi-Key Brute Force Protection
+// ============================================================
+// Dirancang untuk lingkungan sekolah: banyak siswa 1 jaringan WiFi.
+// Lockout utama per-akun (username), BUKAN per-IP,
+// agar 1 siswa salah password tidak memblokir seluruh sekolah.
 // ============================================================
 
 /** 
- * Map untuk menyimpan riwayat percobaan login per IP
+ * Map untuk menyimpan riwayat percobaan login per key
+ * Key format: "account:<username>" | "client:<clientId>" | "ip:<address>"
  * @type {Map<string, {count: number, firstAttempt: number, lastAttempt: number, lockedUntil?: number}>}
  */
 const loginAttempts = new Map();
 
-/** Maksimal percobaan login sebelum lockout */
-const MAX_LOGIN_ATTEMPTS = 5;
+/** 
+ * Konfigurasi lockout per tipe key.
+ * - account: per username — threshold ketat, target utama brute-force
+ * - client:  per device/browser — threshold sedang
+ * - ip:      fallback jika client-id tidak ada — threshold longgar untuk shared network
+ */
+const LOCKOUT_CONFIG = {
+    account: { maxAttempts: 5,  duration: 15 * 60 * 1000 },
+    client:  { maxAttempts: 10, duration: 15 * 60 * 1000 },
+    ip:      { maxAttempts: 20, duration: 15 * 60 * 1000 },
+};
 
-/** Durasi lockout dalam milliseconds (15 menit) */
-const LOCKOUT_DURATION = 15 * 60 * 1000;
+/** Jumlah gagal login per-akun sebelum captcha diwajibkan */
+const CAPTCHA_THRESHOLD = 3;
+
+/** hCaptcha secret untuk verifikasi server-side (opsional, graceful fallback) */
+const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || '';
 
 /**
- * Check if IP is locked out from login attempts
+ * Bangun daftar key lockout dari konteks request.
+ * @param {string|null} username - Username yang dicoba login
+ * @param {string|null} clientId - Device/browser identifier dari header X-Client-ID
+ * @param {string} ip - IP address (fallback terakhir)
+ * @returns {Array<{key: string, type: string}>}
  */
-function checkLoginAttempts(ip) {
-    const attempts = loginAttempts.get(ip);
-    if (!attempts) return { allowed: true, count: 0 };
-    
-    // Check if lockout has expired
-    if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
-        // Reset after lockout expires
-        loginAttempts.delete(ip);
-        return { allowed: true, count: 0 };
-    }
-    
-    // Check if currently locked
-    if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
-        const remainingMs = attempts.lockedUntil - Date.now();
-        return { 
-            allowed: false, 
-            count: attempts.count,
-            remainingTime: Math.ceil(remainingMs / 1000),
-            remainingMinutes: Math.ceil(remainingMs / 60000)
-        };
-    }
-    
-    return { allowed: true, count: attempts.count };
+function buildLockoutKeys(username, clientId, ip) {
+    const keys = [];
+    if (username) keys.push({ key: `account:${username.toLowerCase()}`, type: 'account' });
+    if (clientId) keys.push({ key: `client:${clientId}`, type: 'client' });
+    else if (ip) keys.push({ key: `ip:${ip}`, type: 'ip' });
+    return keys;
 }
 
 /**
- * Record a failed login attempt
+ * Cek apakah ada key yang sedang lockout.
+ * Juga mengembalikan info captcha requirement berdasarkan jumlah gagal per-akun.
+ * @param {string|null} username
+ * @param {string|null} clientId
+ * @param {string} ip
+ * @returns {{allowed: boolean, count: number, remainingTime?: number, remainingMinutes?: number, lockType?: string, requireCaptcha?: boolean}}
  */
-function recordFailedAttempt(ip) {
-    const attempts = loginAttempts.get(ip) || { count: 0, firstAttempt: Date.now() };
-    attempts.count += 1;
-    attempts.lastAttempt = Date.now();
-    
-    // Lock if exceeded max attempts
-    if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
-        attempts.lockedUntil = Date.now() + LOCKOUT_DURATION;
-        logger.warn(`IP ${ip} locked for ${LOCKOUT_DURATION / 60000} minutes after ${attempts.count} failed attempts`);
+function checkLoginAttempts(username, clientId, ip) {
+    const keys = buildLockoutKeys(username, clientId, ip);
+
+    for (const { key, type } of keys) {
+        const attempts = loginAttempts.get(key);
+        if (!attempts) continue;
+
+        // Lockout sudah expired → hapus
+        if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
+            loginAttempts.delete(key);
+            continue;
+        }
+
+        // Sedang locked
+        if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
+            const remainingMs = attempts.lockedUntil - Date.now();
+            return {
+                allowed: false,
+                count: attempts.count,
+                remainingTime: Math.ceil(remainingMs / 1000),
+                remainingMinutes: Math.ceil(remainingMs / 60000),
+                lockType: type
+            };
+        }
     }
-    
-    loginAttempts.set(ip, attempts);
-    return attempts;
+
+    // Tidak ada yang locked — cek apakah captcha diperlukan
+    const accountKey = `account:${(username || '').toLowerCase()}`;
+    const accountAttempts = loginAttempts.get(accountKey);
+    const count = accountAttempts?.count || 0;
+
+    return {
+        allowed: true,
+        count,
+        requireCaptcha: count >= CAPTCHA_THRESHOLD
+    };
 }
 
 /**
- * Reset login attempts on successful login
+ * Catat percobaan login gagal pada semua key yang relevan.
+ * @param {string|null} username
+ * @param {string|null} clientId
+ * @param {string} ip
+ * @returns {{count: number, lockedUntil?: number, requireCaptcha: boolean}}
  */
-function resetLoginAttempts(ip) {
-    loginAttempts.delete(ip);
+function recordFailedAttempt(username, clientId, ip) {
+    const keys = buildLockoutKeys(username, clientId, ip);
+    let accountCount = 0;
+    let accountLocked = false;
+
+    for (const { key, type } of keys) {
+        const config = LOCKOUT_CONFIG[type];
+        const attempts = loginAttempts.get(key) || { count: 0, firstAttempt: Date.now() };
+        attempts.count += 1;
+        attempts.lastAttempt = Date.now();
+
+        if (attempts.count >= config.maxAttempts && !attempts.lockedUntil) {
+            attempts.lockedUntil = Date.now() + config.duration;
+            logger.warn('Lockout triggered', {
+                type,
+                identifier: type === 'account' ? username : (type === 'client' ? '[client-id]' : ip),
+                count: attempts.count,
+                durationMin: config.duration / 60000
+            });
+        }
+
+        loginAttempts.set(key, attempts);
+
+        if (type === 'account') {
+            accountCount = attempts.count;
+            accountLocked = !!attempts.lockedUntil;
+        }
+    }
+
+    return {
+        count: accountCount,
+        lockedUntil: accountLocked ? Date.now() + LOCKOUT_CONFIG.account.duration : undefined,
+        requireCaptcha: accountCount >= CAPTCHA_THRESHOLD
+    };
+}
+
+/**
+ * Reset semua key lockout terkait setelah login berhasil.
+ * @param {string|null} username
+ * @param {string|null} clientId
+ * @param {string} ip
+ */
+function resetLoginAttempts(username, clientId, ip) {
+    const keys = buildLockoutKeys(username, clientId, ip);
+    for (const { key } of keys) {
+        loginAttempts.delete(key);
+    }
+}
+
+/**
+ * Verifikasi token hCaptcha via API hCaptcha.
+ * Mengembalikan true jika valid, false jika gagal.
+ * Jika HCAPTCHA_SECRET tidak dikonfigurasi, selalu return true (graceful fallback).
+ * @param {string} token - Token dari widget hCaptcha di frontend
+ * @returns {Promise<boolean>}
+ */
+async function verifyCaptchaToken(token) {
+    if (!HCAPTCHA_SECRET) {
+        logger.debug('hCaptcha secret not configured, skipping verification');
+        return true;
+    }
+    if (!token) return false;
+
+    try {
+        const params = new URLSearchParams({
+            secret: HCAPTCHA_SECRET,
+            response: token
+        });
+        const resp = await fetch('https://api.hcaptcha.com/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        });
+        const data = await resp.json();
+        return data.success === true;
+    } catch (err) {
+        logger.error('hCaptcha verification request failed', err);
+        // Fail-open: jangan blokir login hanya karena hCaptcha API down
+        return true;
+    }
 }
 
 /**
@@ -104,17 +218,15 @@ function resetLoginAttempts(ip) {
  */
 setInterval(() => {
     const now = Date.now();
-    for (const [ip, attempts] of loginAttempts.entries()) {
-        // Remove entries older than 1 hour with no lockout
+    for (const [key, attempts] of loginAttempts.entries()) {
         if (!attempts.lockedUntil && now - attempts.lastAttempt > 3600000) {
-            loginAttempts.delete(ip);
+            loginAttempts.delete(key);
         }
-        // Remove expired lockouts
         if (attempts.lockedUntil && now >= attempts.lockedUntil) {
-            loginAttempts.delete(ip);
+            loginAttempts.delete(key);
         }
     }
-}, 60000); // Run every minute
+}, 60000);
 
 // Constants
 const ERROR_INVALID_CREDENTIALS = 'Username atau password salah';
@@ -127,16 +239,18 @@ const MSG_LOGOUT_SUCCESS = 'Logout berhasil';
  */
 export const login = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { username, password } = req.body;
+    const { username, password, captchaToken } = req.body;
     const startTime = Date.now();
     const clientIP = req.ip || req.connection?.remoteAddress || 'unknown';
+    const clientId = req.headers['x-client-id'] || null;
     
-    log.info('Login attempt', { username, ip: clientIP });
+    log.info('Login attempt', { username, ip: clientIP, hasClientId: !!clientId });
 
-    // Check if IP is locked out
-    const lockoutCheck = checkLoginAttempts(clientIP);
+    // Check multi-key lockout (per-akun, per-device, per-IP fallback)
+    const lockoutCheck = checkLoginAttempts(username, clientId, clientIP);
     if (!lockoutCheck.allowed) {
-        log.warn('Login blocked - IP locked out', { 
+        log.warn('Login blocked - lockout active', { 
+            lockType: lockoutCheck.lockType,
             ip: clientIP, 
             attempts: lockoutCheck.count,
             remainingMinutes: lockoutCheck.remainingMinutes 
@@ -146,6 +260,20 @@ export const login = async (req, res) => {
             `Terlalu banyak percobaan login. Coba lagi dalam ${lockoutCheck.remainingMinutes} menit.`,
             lockoutCheck.remainingTime
         );
+    }
+
+    // Captcha verification gate (setelah CAPTCHA_THRESHOLD percobaan gagal per-akun)
+    if (lockoutCheck.requireCaptcha) {
+        const captchaValid = await verifyCaptchaToken(captchaToken);
+        if (!captchaValid) {
+            log.warn('Captcha verification failed', { username, ip: clientIP });
+            return res.status(400).json({
+                success: false,
+                message: 'Verifikasi keamanan gagal. Silakan selesaikan captcha.',
+                requireCaptcha: true,
+                remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - lockoutCheck.count)
+            });
+        }
     }
 
     try {
@@ -167,12 +295,14 @@ export const login = async (req, res) => {
         );
 
         if (rows.length === 0) {
-            recordFailedAttempt(clientIP);
+            const attempts = recordFailedAttempt(username, clientId, clientIP);
             log.warn('Login failed - user not found', { username, ip: clientIP });
-            return sendErrorResponse(
-                res,
-                new AppError(ERROR_CODES.AUTH_INVALID_CREDENTIALS, ERROR_INVALID_CREDENTIALS)
-            );
+            return res.status(401).json({
+                success: false,
+                message: ERROR_INVALID_CREDENTIALS,
+                requireCaptcha: attempts.requireCaptcha,
+                remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - attempts.count)
+            });
         }
 
         const user = rows[0];
@@ -181,7 +311,7 @@ export const login = async (req, res) => {
         const passwordMatch = await bcrypt.compare(password, user.password);
 
         if (!passwordMatch) {
-            const attempts = recordFailedAttempt(clientIP);
+            const attempts = recordFailedAttempt(username, clientId, clientIP);
             log.warn('Login failed - invalid password', { 
                 username, 
                 userId: user.id, 
@@ -193,19 +323,21 @@ export const login = async (req, res) => {
             if (attempts.lockedUntil) {
                 return sendRateLimitError(
                     res,
-                    `Terlalu banyak percobaan login. Coba lagi dalam ${Math.ceil(LOCKOUT_DURATION / 60000)} menit.`,
-                    Math.ceil(LOCKOUT_DURATION / 1000)
+                    `Terlalu banyak percobaan login. Akun terkunci selama ${Math.ceil(LOCKOUT_CONFIG.account.duration / 60000)} menit.`,
+                    Math.ceil(LOCKOUT_CONFIG.account.duration / 1000)
                 );
             }
             
-            return sendErrorResponse(
-                res,
-                new AppError(ERROR_CODES.AUTH_INVALID_CREDENTIALS, ERROR_INVALID_CREDENTIALS)
-            );
+            return res.status(401).json({
+                success: false,
+                message: ERROR_INVALID_CREDENTIALS,
+                requireCaptcha: attempts.requireCaptcha,
+                remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - attempts.count)
+            });
         }
 
-        // SUCCESS - Reset login attempts
-        resetLoginAttempts(clientIP);
+        // SUCCESS - Reset login attempts for all keys
+        resetLoginAttempts(username, clientId, clientIP);
 
         // Get additional user data based on role
         let additionalData = {};

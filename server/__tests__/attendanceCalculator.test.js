@@ -7,6 +7,7 @@
 
 import assert from 'node:assert';
 import { describe, it, before, after, beforeEach } from 'node:test';
+import { setPool } from '../config/db.js';
 
 // Mock DB Pool
 const mockExecute = async (query, params) => {
@@ -24,8 +25,8 @@ const mockExecute = async (query, params) => {
     return [[]];
 };
 
-// Setup global mock
-globalThis.dbPool = { execute: mockExecute };
+// Setup centralized DB pool mock
+setPool({ execute: mockExecute });
 
 // Import after mocking
 import attendanceCalculator, { 

@@ -14,6 +14,11 @@ import { ArrowLeft, Download, Search, GraduationCap, Edit, Trash2, ChevronLeft, 
 import ExcelImportView from "../../ExcelImportView";
 import { TeacherData, Subject } from "@/types/dashboard";
 
+interface TeachersDataResponse {
+  data: TeacherData[];
+  pagination: unknown;
+}
+
 // ManageTeacherDataView Component  
 const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
   const [formData, setFormData] = useState({ 
@@ -37,7 +42,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
 
   const fetchTeachersData = useCallback(async () => {
     try {
-      const response = await apiCall<{ data: TeacherData[], pagination: any }>('/api/admin/teachers-data', { onLogout });
+      const response = await apiCall<TeachersDataResponse>('/api/admin/teachers-data', { onLogout });
       // Backend mengirim format { data: [...], pagination: {...} }
       if (response && typeof response === 'object' && 'data' in response) {
         setTeachersData(Array.isArray(response.data) ? response.data : []);

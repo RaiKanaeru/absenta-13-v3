@@ -43,6 +43,12 @@ interface JamPelajaranByKelas {
     jam_pelajaran: JamPelajaran[];
 }
 
+const formatTimeForInput = (time: string): string => {
+    if (!time) return '';
+    const parts = time.split(':');
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+};
+
 const JamPelajaranConfig: React.FC = () => {
     const [kelasList, setKelasList] = useState<Kelas[]>([]);
     const [selectedKelasId, setSelectedKelasId] = useState<number | null>(null);
@@ -65,7 +71,22 @@ const JamPelajaranConfig: React.FC = () => {
         } catch (error) {
             toast({ variant: "destructive", title: "Gagal memuat kelas", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
         }
-    }, [selectedKelasId]);
+    }, [selectedKelasId, toast]);
+
+    // Load default jam pelajaran
+    const loadDefaultJam = useCallback(async () => {
+        try {
+            const response = await fetch(getApiUrl('/api/admin/jam-pelajaran/default'), {
+                credentials: 'include'
+            });
+            const result = await response.json();
+            if (result.success) {
+                setJamPelajaran(result.data);
+            }
+        } catch (error) {
+            toast({ variant: "destructive", title: "Gagal memuat jam default", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
+        }
+    }, [toast]);
 
     // Fetch jam pelajaran for selected kelas
     const fetchJamPelajaran = useCallback(async () => {
@@ -96,29 +117,7 @@ const JamPelajaranConfig: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedKelasId]);
-
-    // Format time for input (HH:MM)
-    const formatTimeForInput = (time: string): string => {
-        if (!time) return '';
-        const parts = time.split(':');
-        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-    };
-
-    // Load default jam pelajaran
-    const loadDefaultJam = async () => {
-        try {
-            const response = await fetch(getApiUrl('/api/admin/jam-pelajaran/default'), {
-                credentials: 'include'
-            });
-            const result = await response.json();
-            if (result.success) {
-                setJamPelajaran(result.data);
-            }
-        } catch (error) {
-            toast({ variant: "destructive", title: "Gagal memuat jam default", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
-        }
-    };
+    }, [selectedKelasId, loadDefaultJam, toast]);
 
     // Save jam pelajaran
     const handleSave = async () => {

@@ -11,7 +11,7 @@ function sanitizeSegment(value) {
         .trim()
         .replaceAll(/[^A-Za-z0-9._-]/g, '-')
         .replaceAll(/-+/g, '-')
-        .replaceAll(/^[-_.]+|[-_.]+$/g, '');
+        .replaceAll(/(^[-_.]+)|([-_.]+$)/g, '');
 }
 
 export function buildDownloadFilename({ prefix, userId, parts = [], timestamp = null, extension = 'xlsx' }) {

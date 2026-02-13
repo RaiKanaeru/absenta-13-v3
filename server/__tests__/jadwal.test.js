@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, mock } from 'node:test';
 import assert from 'node:assert';
 import * as jadwalController from '../controllers/jadwalController.js';
+import { setPool } from '../config/db.js';
 
 // Mock objects
 const req = {
@@ -18,7 +19,7 @@ const res = {
 };
 
 // Mock Database
-globalThis.dbPool = {
+const mockDb = {
     execute: mock.fn()
 };
 
@@ -34,9 +35,8 @@ describe('Jadwal Controller', () => {
         res.status = mock.fn(() => res);
         res.send = mock.fn();
         
-        // glob.dbPool should ideally be mocked at module level properly, but since we are assigning it globally
-        // we can just reset its execute method
-        globalThis.dbPool.execute = mock.fn();
+        mockDb.execute = mock.fn();
+        setPool(mockDb);
     });
 
     describe('Helper Logic Validation (via createJadwal)', () => {
@@ -70,16 +70,16 @@ describe('Jadwal Controller', () => {
     describe('getJadwal', () => {
         it('should return all schedules', async () => {
             const mockRows = [{ id: 1, hari: 'Senin', mapel: 'Matematika' }];
-            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([mockRows]));
+            mockDb.execute.mock.mockImplementation(() => Promise.resolve([mockRows]));
 
             await jadwalController.getJadwal(req, res);
 
-            assert.strictEqual(globalThis.dbPool.execute.mock.callCount(), 1);
+            assert.strictEqual(mockDb.execute.mock.callCount(), 1);
             assert.strictEqual(res.json.mock.calls[0].arguments[0], mockRows);
         });
 
         it('should handle database errors', async () => {
-            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
+            mockDb.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
 
             await jadwalController.getJadwal(req, res);
 
@@ -99,7 +99,7 @@ describe('Jadwal Controller', () => {
             };
 
             // Mock implementation sequence...
-            globalThis.dbPool.execute.mock.mockImplementation(async (query) => {
+            mockDb.execute.mock.mockImplementation(async (query) => {
                 if (query.includes('FROM jam_pelajaran')) return [[{ jam_ke: 1 }]];
                 if (query.includes('FROM kelas WHERE id_kelas = ?')) return [[{ id_kelas: 1 }]];
                 if (query.includes('FROM mapel WHERE id_mapel = ?')) return [[{ id_mapel: 1 }]];
@@ -135,7 +135,7 @@ describe('Jadwal Controller', () => {
     describe('deleteJadwal', () => {
         it('should delete existing schedule', async () => {
             req.params.id = 1;
-            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 1 }]));
+            mockDb.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 1 }]));
 
             await jadwalController.deleteJadwal(req, res);
 
@@ -145,7 +145,7 @@ describe('Jadwal Controller', () => {
 
         it('should return 404 if not found', async () => {
             req.params.id = 999;
-            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 0 }]));
+            mockDb.execute.mock.mockImplementation(() => Promise.resolve([{ affectedRows: 0 }]));
 
             await jadwalController.deleteJadwal(req, res);
 

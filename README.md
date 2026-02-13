@@ -116,6 +116,11 @@ NODE_ENV=production
 
 # Optional: Dummy data password (untuk development)
 DUMMY_DATA_PASSWORD=secure_dev_password
+
+# Optional: hCaptcha (Bot verification pada login)
+# Dapatkan secret key dari https://dashboard.hcaptcha.com
+# Jika tidak diset, captcha verification dilewati (graceful fallback)
+HCAPTCHA_SECRET=your-hcaptcha-secret-key
 ```
 
 > ⚠️ **PENTING**: `JWT_SECRET` **WAJIB** diset di production. Server akan gagal start jika tidak diset.
@@ -125,7 +130,8 @@ DUMMY_DATA_PASSWORD=secure_dev_password
 ### Authentication & Authorization
 - **JWT-based authentication** dengan token expiry 24 jam
 - **Role-based access control** (Admin, Guru, Siswa)
-- **Rate limiting** untuk mencegah brute force
+- **Multi-key rate limiting** — lockout per-akun (5x), per-device (10x), dan per-IP fallback (20x) agar satu siswa salah password tidak memblokir seluruh jaringan WiFi sekolah
+- **hCaptcha verification** — muncul otomatis setelah 3x percobaan gagal per-akun
 
 ### Input Validation
 - **SQL Injection protection** dengan parameterized queries
@@ -159,6 +165,9 @@ absenta-13-v3/
 ├── backend/            # Utilitas pendukung backend (config, export, scripts, utils)
 ├── migrations/         # Migrasi/seed database
 ├── docs/               # Dokumentasi tambahan
+│   ├── SYSTEM-ARCHITECTURE.md # [BARU] Arsitektur teknis mendalam v3
+│   ├── OPENCODE-GUIDE.md      # Panduan penggunaan AI Agent
+│   └── CORS-TROUBLESHOOTING.md
 ├── scripts/            # Script deployment/otomasi
 ├── redis/              # Konfigurasi dan resource Redis
 ├── server_modern.js    # Entry server legacy/standalone

@@ -5,13 +5,15 @@ import { toast } from "@/hooks/use-toast";
 import type { UserData } from "@/types/auth";
 import { clearAuthToken, setAuthToken } from "@/utils/authUtils";
 
-type Credentials = { username: string; password: string };
+type Credentials = { username: string; password: string; captchaToken?: string };
 
 export interface AuthContextValue {
   user: UserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  requireCaptcha: boolean;
+  remainingAttempts: number | null;
   login: (credentials: Credentials) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -125,6 +127,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requireCaptcha, setRequireCaptcha] = useState(false);
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+
+  const getClientId = useCallback((): string => {
+    const key = 'absenta_client_id';
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(key, id);
+    }
+    return id;
+  }, []);
 
   const checkExistingAuth = useCallback(async () => {
     try {
@@ -167,11 +181,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = useCallback(async (credentials: Credentials) => {
     setIsLoading(true);
     setError(null);
+    setRequireCaptcha(false);
+    setRemainingAttempts(null);
 
     try {
       const response = await fetch(getApiUrl("/api/login"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Client-ID": getClientId(),
+        },
         credentials: "include",
         body: JSON.stringify(credentials),
       });
@@ -192,6 +211,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (response.ok && result.success) {
         setUser(result.user as UserData);
         setError(null);
+        setRequireCaptcha(false);
+        setRemainingAttempts(null);
 
         if (result.token && typeof result.token === "string") {
           setAuthToken(result.token);
@@ -202,6 +223,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: `Selamat datang, ${(result.user as UserData).nama}!`,
         });
       } else {
+        // Handle structured error response
+        if (typeof result.requireCaptcha === 'boolean') {
+          setRequireCaptcha(result.requireCaptcha);
+        }
+        if (typeof result.remainingAttempts === 'number') {
+          setRemainingAttempts(result.remainingAttempts);
+        }
         throw new Error(extractErrorMessage(result));
       }
     } catch (error) {
@@ -216,7 +244,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [getClientId]);
 
   const logout = useCallback(async () => {
     try {
@@ -251,10 +279,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isAuthenticated: Boolean(user),
       isLoading,
       error,
+      requireCaptcha,
+      remainingAttempts,
       login,
       logout,
     }),
-    [user, isLoading, error, login, logout]
+    [user, isLoading, error, requireCaptcha, remainingAttempts, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -102,21 +102,14 @@ For local development without Docker:
 - **Plan Mode:** Analyze files, grep patterns, and propose a plan. Do not edit.
 - **Act Mode:** Execute the approved plan. Run tests after significant changes.
 
-## 7. Directory Structure
+## 7. Directory Structure & Documentation
 - `src/` - Frontend source.
-  - `components/ui/` - Reusable UI components (buttons, inputs).
-  - `pages/` - Route pages.
-  - `utils/` - Frontend helpers (`apiClient.ts`).
 - `server/` - Backend source.
-  - `controllers/` - Request logic.
-  - `routes/` - API definitions.
-  - `utils/` - Backend helpers (`errorHandler.js`, `logger.js`, `corsErrorHandler.js`).
-- `docker/` - Docker configuration.
-  - `nginx/` - Nginx Dockerfile and config.
 - `docs/` - Documentation.
-  - `CORS-TROUBLESHOOTING.md` - Complete CORS troubleshooting guide.
+  - `SYSTEM-ARCHITECTURE.md` - **[WAJIB BACA]** Detail arsitektur v3, keamanan, dan standar sistem.
+  - `OPENCODE-GUIDE.md` - Panduan integrasi AI agent.
+  - `CORS-TROUBLESHOOTING.md` - Troubleshooting CORS.
 - `scripts/` - Utility scripts.
-  - `test-cors.sh` - Script untuk testing CORS.
 
 ## 8. Troubleshooting Guides
 

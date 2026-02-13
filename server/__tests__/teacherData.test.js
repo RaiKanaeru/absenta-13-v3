@@ -8,10 +8,12 @@
 import assert from 'node:assert';
 import { describe, it, beforeEach, mock } from 'node:test';
 import * as teacherDataController from '../controllers/teacherDataController.js';
+import { setPool } from '../config/db.js';
 
 // Mock DB Pool
-globalThis.dbPool = {
+const mockDb = {
     execute: mock.fn(),
+    query: mock.fn(),
     getConnection: mock.fn()
 };
 
@@ -24,7 +26,8 @@ const res = {
 // Mock Request
 const req = {
     body: {},
-    params: {}
+    params: {},
+    query: {}
 };
 
 describe('Teacher Data Controller', () => {
@@ -32,29 +35,36 @@ describe('Teacher Data Controller', () => {
         // Reset mocks
         res.status.mock.restore();
         res.json.mock.restore();
-        globalThis.dbPool.execute.mock.restore();
-        globalThis.dbPool.getConnection.mock.restore();
+        mockDb.execute.mock.restore();
+        mockDb.query.mock.restore();
+        mockDb.getConnection.mock.restore();
         
         // Reset defaults
         res.status = mock.fn(() => res);
         res.json = mock.fn();
         req.body = {};
         req.params = {};
+        req.query = {};
+        setPool(mockDb);
     });
 
     describe('getTeachersData', () => {
         it('should return teacher list', async () => {
             const mockTeachers = [{ id: 1, nama: 'Guru A' }, { id: 2, nama: 'Guru B' }];
-            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.resolve([mockTeachers]));
+            mockDb.query.mock.mockImplementation(async (query) => {
+                if (query.includes('COUNT(*)')) return [[{ total: mockTeachers.length }]];
+                return [mockTeachers];
+            });
 
             await teacherDataController.getTeachersData(req, res);
 
-            assert.strictEqual(globalThis.dbPool.execute.mock.callCount(), 1);
-            assert.deepStrictEqual(res.json.mock.calls[0].arguments[0], mockTeachers);
+            assert.strictEqual(mockDb.query.mock.callCount(), 2);
+            assert.deepStrictEqual(res.json.mock.calls[0].arguments[0].data, mockTeachers);
+            assert.strictEqual(res.json.mock.calls[0].arguments[0].pagination.total, mockTeachers.length);
         });
 
         it('should handle database errors', async () => {
-            globalThis.dbPool.execute.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
+            mockDb.query.mock.mockImplementation(() => Promise.reject(new Error('DB Error')));
 
             await teacherDataController.getTeachersData(req, res);
 
@@ -78,7 +88,7 @@ describe('Teacher Data Controller', () => {
             const release = mock.fn();
             const execute = mock.fn();
 
-            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            mockDb.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release,
                 execute
             }));
@@ -103,7 +113,7 @@ describe('Teacher Data Controller', () => {
             const rollback = mock.fn();
             const execute = mock.fn();
 
-            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            mockDb.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release,
                 beginTransaction,
                 commit,
@@ -136,7 +146,7 @@ describe('Teacher Data Controller', () => {
             const rollback = mock.fn();
             const execute = mock.fn();
 
-            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            mockDb.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release,
                 beginTransaction,
                 commit,
@@ -165,7 +175,7 @@ describe('Teacher Data Controller', () => {
             const rollback = mock.fn();
             const execute = mock.fn();
 
-            globalThis.dbPool.getConnection.mock.mockImplementation(() => Promise.resolve({
+            mockDb.getConnection.mock.mockImplementation(() => Promise.resolve({
                 release,
                 beginTransaction,
                 rollback,

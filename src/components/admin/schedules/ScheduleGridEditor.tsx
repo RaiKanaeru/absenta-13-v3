@@ -642,17 +642,25 @@ export function ScheduleGridEditor({
       {/* Context Menu */}
       {contextMenu && (
         <div
+          role="menu"
           className="fixed bg-background border border-border rounded-lg shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setContextMenu(null);
+          }}
         >
           <button
+            type="button"
+            role="menuitem"
             className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
             onClick={() => handleCopyRow(contextMenu.kelasId)}
           >
             Copy Jadwal
           </button>
           <button
+            type="button"
+            role="menuitem"
             className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 disabled:opacity-50"
             onClick={() => handlePasteRow(contextMenu.kelasId)}
             disabled={!copiedRow}

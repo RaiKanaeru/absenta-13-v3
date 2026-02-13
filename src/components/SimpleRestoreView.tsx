@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -105,7 +105,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     setRestoreStatus('idle');
   };
 
-  const loadAvailableBackups = async () => {
+  const loadAvailableBackups = useCallback(async () => {
     setLoadingBackups(true);
     try {
       const result = await apiCall<{ success: boolean; data: typeof availableBackups }>('/api/admin/backups');
@@ -117,7 +117,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     } finally {
       setLoadingBackups(false);
     }
-  };
+  }, []);
 
   const handleUpload = async () => {
     if (!selectedFile) return;
@@ -306,7 +306,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
   // Load backups on component mount
   useEffect(() => {
     loadAvailableBackups();
-  }, []);
+  }, [loadAvailableBackups]);
 
   return (
     <div className="container mx-auto p-4 max-w-5xl">
@@ -338,6 +338,9 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
           <CardContent>
             <div className="flex flex-col gap-4">
               <div 
+                role="button"
+                tabIndex={0}
+                aria-label="Area upload file backup. Klik atau drag & drop file .sql / .zip"
                 className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
                   selectedFile 
                     ? 'border-primary bg-primary/5' 
@@ -356,6 +359,14 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                     }
                     setSelectedFile(file);
                     setError('');
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (restoreStatus !== 'restoring' && !uploading) {
+                      fileInputRef.current?.click();
+                    }
                   }
                 }}
               >
@@ -389,7 +400,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                  <div className="flex flex-col items-center gap-2 cursor-pointer">
                     <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground/50" />
                     <p className="font-medium sm:text-lg text-foreground">Klik untuk upload file backup</p>
                     <p className="text-sm text-muted-foreground">atau drag & drop file .sql / .zip disini</p>

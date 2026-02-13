@@ -7,9 +7,10 @@ import { Loader2, Sparkles, Shield, Zap, AlertTriangle, Clock, User, Lock, Eye, 
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useTheme } from "@/components/theme-provider";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LoginFormProps {
-  onLogin: (credentials: { username: string; password: string }) => Promise<void>;
+  onLogin: (credentials: { username: string; password: string; captchaToken?: string }) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -18,53 +19,8 @@ interface LoginFormProps {
 // KONFIGURASI KEAMANAN LOGIN
 // ============================================
 
-/** Jumlah percobaan gagal sebelum captcha ditampilkan */
-const CAPTCHA_THRESHOLD = 2;
-/** Key localStorage untuk mencatat percobaan gagal */
-const STORAGE_KEY = 'absenta_login_attempts';
 /** Key localStorage untuk status lockout */
 const LOCKOUT_KEY = 'absenta_lockout';
-
-/**
- * Mengambil jumlah percobaan login gagal dari localStorage
- * Data otomatis reset setelah 15 menit untuk mencegah permanent lockout
- * @returns {Object} count: jumlah percobaan, timestamp: waktu terakhir
- */
-const getFailedAttempts = (): { count: number; timestamp: number } => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const data = JSON.parse(stored);
-      // Auto-reset setelah 15 menit
-      if (Date.now() - data.timestamp < 15 * 60 * 1000) {
-        return data;
-      }
-    }
-  } catch (e) { 
-    console.debug('Error parsing login attempts:', e);
-  }
-  return { count: 0, timestamp: Date.now() };
-};
-
-/**
- * Menambah counter percobaan login gagal
- * Dipanggil setiap kali login gagal untuk trigger captcha
- * @returns {number} Jumlah total percobaan gagal
- */
-const incrementFailedAttempts = (): number => {
-  const current = getFailedAttempts();
-  const newCount = current.count + 1;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    count: newCount,
-    timestamp: Date.now()
-  }));
-  return newCount;
-};
-
-/** Reset counter percobaan gagal (dipanggil setelah login sukses) */
-const clearFailedAttempts = () => {
-  localStorage.removeItem(STORAGE_KEY);
-};
 
 // ============================================
 // LOCKOUT MANAGEMENT (Rate Limiting Client-Side)
@@ -122,22 +78,17 @@ const clearLockout = () => {
  * @param {string|null} error - Pesan error dari parent
  */
 export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
+  const { requireCaptcha, remainingAttempts } = useAuth();
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [showCaptcha, setShowCaptcha] = useState(false);
   const [lockoutRemaining, setLockoutRemaining] = useState<number>(0);
   const captchaRef = useRef<HCaptcha>(null);
   const { theme } = useTheme();
 
   // Load initial state from storage on mount
   useEffect(() => {
-    const data = getFailedAttempts();
-    if (data.count >= CAPTCHA_THRESHOLD) {
-      setShowCaptcha(true);
-    }
-    
     // Check for existing lockout
     const lockout = getLockout();
     if (lockout) {
@@ -179,12 +130,12 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     if (!credentials.username.trim() || !credentials.password.trim()) return;
     
     // If captcha is required but not solved, don't proceed
-    if (showCaptcha && !captchaToken) {
+    if (requireCaptcha && !captchaToken) {
       return;
     }
     
     // Just call onLogin - error tracking happens in useEffect
-    await onLogin(credentials);
+    await onLogin({ ...credentials, captchaToken: captchaToken || undefined });
     
     // Reset captcha after attempt
     if (captchaRef.current) {
@@ -193,8 +144,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
     }
   };
 
-  // Watch for error changes - increment counter when error appears
-  const prevErrorRef = useRef<string | null>(null);
+  // Watch for error changes - handle lockout
   useEffect(() => {
     // Check if error contains lockout message (429 response)
     if (error?.includes('Coba lagi dalam')) {
@@ -205,22 +155,11 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
         setLockout(minutes * 60);
         setLockoutRemaining(minutes * 60);
       }
-    }
-    
-    // Only count if error is new (not same as previous) and not a lockout error
-    if (error && error !== prevErrorRef.current && !error.includes('Coba lagi dalam')) {
-      const newCount = incrementFailedAttempts();
-      if (newCount >= CAPTCHA_THRESHOLD) {
-        setShowCaptcha(true);
-      }
-    } else if (!error && prevErrorRef.current) {
+    } else if (!error) {
       // Error cleared - login was successful
-      clearFailedAttempts();
       clearLockout();
-      setShowCaptcha(false);
       setLockoutRemaining(0);
     }
-    prevErrorRef.current = error;
   }, [error]);
 
   const handleInputChange = (field: string, value: string) => {
@@ -232,7 +171,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
   };
 
   // Check if form is ready to submit
-  const isFormReady = credentials.username.trim() && credentials.password.trim() && (!showCaptcha || captchaToken) && !isLockedOut;
+  const isFormReady = credentials.username.trim() && credentials.password.trim() && (!requireCaptcha || captchaToken) && !isLockedOut;
 
   return (
     <div className="min-h-screen w-full flex bg-background relative">
@@ -340,7 +279,14 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
               {/* Error Alert */}
               {error && !isLockedOut && (
                 <Alert variant="destructive" className="rounded-xl animate-in fade-in slide-in-from-top-2">
-                  <AlertDescription className="font-medium">{error}</AlertDescription>
+                  <AlertDescription className="font-medium">
+                    {error}
+                    {remainingAttempts !== null && remainingAttempts > 0 && (
+                      <span className="block mt-1 text-xs opacity-90">
+                        Sisa {remainingAttempts} percobaan sebelum akun terkunci
+                      </span>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -402,7 +348,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
               </div>
 
               {/* Risk-based hCaptcha - Only shows after failed attempts */}
-              {showCaptcha && (
+              {requireCaptcha && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="flex items-center gap-2 text-amber-600 mb-3">
                     <AlertTriangle className="h-4 w-4" />

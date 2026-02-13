@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { getMonthRangeWIB } from "@/lib/time-utils";
-import { ClipboardList, Search, ArrowLeft, Loader2, FileSpreadsheet } from "lucide-react";
+import { ClipboardList, Search, ArrowLeft, Loader2, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 import { downloadExcelFromApi } from '@/utils/exportUtils';
@@ -229,8 +230,24 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
       </Card>
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <p className="text-destructive">{error}</p>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Loading Spinner */}
+      {loading && !reportData.length && (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && reportData.length === 0 && !error && (
+        <div className="text-center py-12 text-muted-foreground">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>Tidak ada data untuk periode ini</p>
         </div>
       )}
 

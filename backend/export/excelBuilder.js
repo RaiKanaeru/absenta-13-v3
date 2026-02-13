@@ -19,6 +19,11 @@ const STYLES = {
 };
 
 const DEFAULT_COLUMN_WIDTH = 15;
+const LOGO_TARGET_HEIGHT_PX = 88;
+const LOGO_MAX_WIDTH_PX = 110;
+const LOGO_ROW_HEIGHT = 18;
+const EXCEL_ROW_HEIGHT_PX = 24;
+const LOGO_TOP_ROW_OFFSET = 5;
 
 // ============================================
 // HELPER FUNCTIONS - Logo Handling
@@ -73,6 +78,86 @@ function loadLogoBuffer(logoUrl, position) {
 }
 
 /**
+ * Read PNG dimensions from buffer.
+ * @param {Buffer} buffer
+ * @returns {{width:number,height:number}|null}
+ */
+function getPngDimensions(buffer) {
+    if (buffer.length < 24) return null;
+    const pngSignature = '89504e470d0a1a0a';
+    if (buffer.subarray(0, 8).toString('hex') !== pngSignature) return null;
+    return {
+        width: buffer.readUInt32BE(16),
+        height: buffer.readUInt32BE(20)
+    };
+}
+
+/**
+ * Read JPEG dimensions from buffer.
+ * @param {Buffer} buffer
+ * @returns {{width:number,height:number}|null}
+ */
+function getJpegDimensions(buffer) {
+    if (buffer.length < 4 || buffer[0] !== 0xFF || buffer[1] !== 0xD8) return null;
+
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+        if (buffer[offset] !== 0xFF) {
+            offset += 1;
+            continue;
+        }
+
+        const marker = buffer[offset + 1];
+        const segmentLength = buffer.readUInt16BE(offset + 2);
+        const isSOF = marker >= 0xC0 && marker <= 0xC3;
+
+        if (isSOF) {
+            return {
+                height: buffer.readUInt16BE(offset + 5),
+                width: buffer.readUInt16BE(offset + 7)
+            };
+        }
+
+        if (segmentLength <= 2) break;
+        offset += 2 + segmentLength;
+    }
+
+    return null;
+}
+
+/**
+ * Infer image dimensions from logo buffer.
+ * @param {Buffer} buffer
+ * @returns {{width:number,height:number}|null}
+ */
+function getImageDimensions(buffer) {
+    return getPngDimensions(buffer) || getJpegDimensions(buffer);
+}
+
+/**
+ * Compute render dimensions while preserving aspect ratio.
+ * @param {Buffer} logoBuffer
+ * @returns {{width:number,height:number}}
+ */
+function getLogoRenderSize(logoBuffer) {
+    const dimensions = getImageDimensions(logoBuffer);
+    if (!dimensions || !dimensions.width || !dimensions.height) {
+        return { width: LOGO_TARGET_HEIGHT_PX, height: LOGO_TARGET_HEIGHT_PX };
+    }
+
+    let renderHeight = LOGO_TARGET_HEIGHT_PX;
+    let renderWidth = Math.round((dimensions.width / dimensions.height) * renderHeight);
+
+    if (renderWidth > LOGO_MAX_WIDTH_PX) {
+        const ratio = LOGO_MAX_WIDTH_PX / renderWidth;
+        renderWidth = LOGO_MAX_WIDTH_PX;
+        renderHeight = Math.round(renderHeight * ratio);
+    }
+
+    return { width: renderWidth, height: renderHeight };
+}
+
+/**
  * Add logo to worksheet
  * @param {ExcelJS.Workbook} workbook - Excel workbook
  * @param {ExcelJS.Worksheet} worksheet - Excel worksheet
@@ -87,7 +172,8 @@ function addLogoToWorksheet(workbook, worksheet, logoBuffer, position) {
     });
     worksheet.addImage(logoId, {
         tl: { col: position.col, row: position.row },
-        br: { col: position.col + position.colSpan, row: position.row + position.rowSpan }
+        ext: { width: position.width, height: position.height },
+        editAs: 'oneCell'
     });
     return true;
 }
@@ -125,9 +211,12 @@ function processLogo(workbook, worksheet, logoRow, logoUrl, side, currentRow, co
         const logoBuffer = loadLogoBuffer(logoUrl, position);
         
         if (logoBuffer) {
+            const logoSize = getLogoRenderSize(logoBuffer);
+            const verticalOffsetRows = Math.max((LOGO_TARGET_HEIGHT_PX - logoSize.height) / 2 / EXCEL_ROW_HEIGHT_PX, 0);
+            const topRow = Math.max(currentRow + LOGO_TOP_ROW_OFFSET + verticalOffsetRows, 0);
             const colPosition = side === 'left' 
-                ? { col: 0, row: currentRow - 1, colSpan: 2, rowSpan: 5 }
-                : { col: Math.max(columnsCount - 1, 3), row: currentRow - 1, colSpan: 2, rowSpan: 5 };
+                ? { col: 0.2, row: topRow, width: logoSize.width, height: logoSize.height }
+                : { col: Math.max(columnsCount - 2.2, 1.2), row: topRow, width: logoSize.width, height: logoSize.height };
             
             addLogoToWorksheet(workbook, worksheet, logoBuffer, colPosition);
             console.log(`[OK] Logo ${position} added to Excel successfully`);
@@ -160,6 +249,10 @@ function processLogo(workbook, worksheet, logoRow, logoUrl, side, currentRow, co
 function addLogosRow(workbook, worksheet, letterhead, currentRow, columnsCount) {
     const hasLogos = letterhead.logoLeftUrl || letterhead.logoRightUrl;
     if (!hasLogos) return currentRow;
+
+    for (let i = 0; i < 5; i++) {
+        worksheet.getRow(currentRow + i).height = LOGO_ROW_HEIGHT;
+    }
 
     const logoRow = worksheet.getRow(currentRow);
     

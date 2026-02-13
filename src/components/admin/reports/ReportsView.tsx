@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   FileText, Users, GraduationCap, Loader2, 
   FileSpreadsheet, ClipboardList, MessageSquare, 
-  Activity, BarChart3, ArrowLeft 
+  Activity, BarChart3, ArrowLeft, AlertCircle 
 } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from '@/hooks/use-toast';
 import { downloadExcelFromApi } from '@/utils/exportUtils';
 import BandingAbsenReportView from './BandingAbsenReportView';
@@ -48,6 +49,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
   // BUT for 'student_export', we should switch to `RekapKetidakhadiranView` as planned.
 
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [selectedYearTeacher, setSelectedYearTeacher] = useState<string>(new Date().getFullYear().toString());
 
 
@@ -59,6 +61,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
     }
     try {
       setExporting(true);
+      setExportError('');
       const params = new URLSearchParams({ tahun: selectedYearTeacher });
       await downloadExcelFromApi(
         '/api/export/rekap-ketidakhadiran-guru-template',
@@ -68,6 +71,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
       toast({ title: "Export Berhasil", description: "File Excel Guru sedang diunduh...", variant: "default" });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
+      setExportError(message);
       toast({ title: "Export Gagal", description: message, variant: "destructive" });
     } finally {
       setExporting(false);
@@ -242,6 +246,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) =>
                   </SelectContent>
                 </Select>
                 </div>
+
+                {exportError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{exportError}</AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="flex justify-end pt-4">
                 <Button onClick={handleExportTeacherRecap} disabled={exporting} variant="outline" size="sm">

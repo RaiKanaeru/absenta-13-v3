@@ -22,36 +22,15 @@ Frontend (React+Vite:5173) ←→ Backend (Express:3001) ←→ MySQL:3306
 - Routes: `server/routes/{entity}Routes.js` - thin, delegates to controllers
 - Controllers: `server/controllers/{entity}Controller.js` - handles HTTP, validation
 - Services: `server/services/` - business logic, database operations
+- **Database Proxy:** ALWAYS use centralized `import db from '../config/db.js'` (ESM) or proxy access. Use `db.query()` for operations with `LIMIT`/`OFFSET` instead of `db.execute()`.
 
-### Error Handling
-Use standardized error utilities from [server/utils/errorHandler.js](server/utils/errorHandler.js):
-```javascript
-import { sendErrorResponse, sendSuccessResponse, AppError, ERROR_CODES } from '../utils/errorHandler.js';
+### Authentication & Security
+- **Auth Context:** Frontend uses `AuthContext.tsx` and `useAuth()` hook for user state.
+- **Routing:** Uses **React Router v6 Nested Routes**. DO NOT use state-based view switching (`activeView`) for top-level navigation.
+- **Lockout:** Multi-key strategy (Account, Client/UUID, IP). See `SYSTEM-ARCHITECTURE.md`.
+- **hCaptcha:** Required after 3 failed attempts. Token must be verified on server.
+- **X-Client-ID:** Frontend must send `X-Client-ID` header with a persistent UUID from localStorage.
 
-// In controller
-sendSuccessResponse(res, data, 'Data berhasil diambil');
-sendErrorResponse(res, error, ERROR_CODES.DB_NOT_FOUND);
-```
-
-### Logging
-Use structured logger from [server/utils/logger.js](server/utils/logger.js):
-```javascript
-import { createLogger } from '../utils/logger.js';
-const logger = createLogger('ModuleName');
-logger.info('Operation started', { context });
-logger.error('Failed', error, { details });
-```
-
-### Time/Timezone
-All times use WIB (Asia/Jakarta, UTC+7). Use utilities from [server/utils/timeUtils.js](server/utils/timeUtils.js):
-```javascript
-import { getWIBTime, formatWIBTime, getHariFromDate, HARI_INDONESIA } from '../utils/timeUtils.js';
-```
-
-### Authentication
-- JWT-based auth with `authenticateToken` middleware from [server/middleware/auth.js](server/middleware/auth.js)
-- Role check: `requireRole(['admin', 'guru'])` middleware
-- Token from `Authorization: Bearer <token>` header or `token` cookie
 
 ### Frontend Components
 - UI components use **shadcn/ui** in `src/components/ui/`

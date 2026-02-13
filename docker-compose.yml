@@ -42,6 +42,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET environment variable must be set}
+      - HCAPTCHA_SECRET=${HCAPTCHA_SECRET:-}
       - ALLOWED_ORIGINS=https://absenta13.my.id,https://api.absenta13.my.id
       - TZ=Asia/Jakarta
     volumes:

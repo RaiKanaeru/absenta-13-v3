@@ -10,7 +10,7 @@
  * @param {string} filename - Download filename (e.g., 'laporan-kehadiran.pdf')
  */
 export function streamPdfResponse(res, buffer, filename) {
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const sanitizedFilename = filename.replaceAll(/[^a-zA-Z0-9._-]/g, '_');
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
@@ -25,7 +25,7 @@ export function streamPdfResponse(res, buffer, filename) {
  * @param {string} filename - Filename for the PDF
  */
 export function inlinePdfResponse(res, buffer, filename) {
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const sanitizedFilename = filename.replaceAll(/[^a-zA-Z0-9._-]/g, '_');
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${sanitizedFilename}"`);

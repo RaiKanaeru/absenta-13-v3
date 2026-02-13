@@ -83,6 +83,9 @@ interface PendingChange {
   [key: string]: string | number | null | undefined;
 }
 
+type TeacherWithLegacyId = Teacher & { id_guru?: number };
+type SubjectWithLegacyId = Subject & { id_mapel?: number };
+
 // Color palette for subjects
 const SUBJECT_COLORS: Record<string, string> = {
   'DPK': '#FFD700',
@@ -116,6 +119,24 @@ const ROW_TYPES = ['MAPEL', 'RUANG', 'GURU'] as const;
 
 const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;
 
+const hasLegacyTeacherId = (item: Teacher | Subject): item is TeacherWithLegacyId => {
+  return 'id_guru' in item && typeof item.id_guru === 'number';
+};
+
+const hasLegacySubjectId = (item: Teacher | Subject): item is SubjectWithLegacyId => {
+  return 'id_mapel' in item && typeof item.id_mapel === 'number';
+};
+
+const getTeacherId = (teacher: Teacher): number | undefined => {
+  if (typeof teacher.id === 'number') return teacher.id;
+  return hasLegacyTeacherId(teacher) ? teacher.id_guru : undefined;
+};
+
+const getSubjectId = (subject: Subject): number | undefined => {
+  if (typeof subject.id === 'number') return subject.id;
+  return hasLegacySubjectId(subject) ? subject.id_mapel : undefined;
+};
+
 const getKelasId = (kelas: Kelas) => kelas.id_kelas ?? kelas.id;
 
 // Draggable Item Component
@@ -143,6 +164,8 @@ function DraggableItem({ id, type, data, isDisabled }: {
     <div
       ref={setNodeRef}
       style={style}
+      role="button"
+      tabIndex={0}
       {...listeners}
       {...attributes}
       className={`
@@ -189,7 +212,15 @@ function DroppableCell({
   return (
     <div
       ref={setNodeRef}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       className={`
         h-full cursor-pointer
         ${isOver ? 'ring-2 ring-blue-500 ring-inset' : ''}
@@ -334,10 +365,10 @@ export function ScheduleGridTable({
   const extractDragItemId = useCallback((dragItem: Teacher | Subject, dragType: 'guru' | 'mapel'): number | undefined => {
     if (dragType === 'guru') {
       const teacher = dragItem as Teacher;
-      return teacher.id ?? (teacher as any).id_guru;
+      return getTeacherId(teacher);
     }
     const subject = dragItem as Subject;
-    return subject.id ?? (subject as any).id_mapel;
+    return getSubjectId(subject);
   }, []);
 
   // Helper: Update schedule cell with dragged item
@@ -352,14 +383,14 @@ export function ScheduleGridTable({
       const g = dragItem as Teacher;
       updatedCell.guru = [g.nama];
       updatedCell.guru_detail = [{ 
-        guru_id: g.id ?? (g as any).id_guru ?? 0, 
+        guru_id: getTeacherId(g) ?? 0,
         nama_guru: g.nama, 
         kode_guru: g.nip || '' 
       }];
     } else if (dragType === 'mapel') {
       const m = dragItem as Subject;
       updatedCell.mapel = m.kode_mapel || m.nama_mapel;
-      updatedCell.mapel_id = m.id ?? (m as any).id_mapel ?? 0;
+      updatedCell.mapel_id = getSubjectId(m) ?? 0;
       updatedCell.nama_mapel = m.nama_mapel;
       updatedCell.color = getSubjectColor(m.kode_mapel);
     }
@@ -385,7 +416,7 @@ export function ScheduleGridTable({
     // Conflict detection for teachers
     if (dragType === 'guru') {
       const currentTeacher = dragItem as Teacher;
-      const guruId = (currentTeacher as any).id_guru ?? currentTeacher.id;
+      const guruId = getTeacherId(currentTeacher) ?? 0;
       const conflict = checkTeacherConflict(guruId, hari, jamKe, kelasId);
 
       if (conflict) {
@@ -1013,17 +1044,25 @@ export function ScheduleGridTable({
       {/* Context Menu */}
       {contextMenu && (
         <div
+          role="menu"
           className="fixed bg-background border rounded-lg shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setContextMenu(null);
+          }}
         >
           <button
+            type="button"
+            role="menuitem"
             className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
             onClick={() => handleCopyRow(contextMenu.kelasId)}
           >
             Copy Jadwal
           </button>
           <button
+            type="button"
+            role="menuitem"
             className="w-full px-4 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 disabled:opacity-50"
             onClick={() => handlePasteRow(contextMenu.kelasId)}
             disabled={!copiedRow}

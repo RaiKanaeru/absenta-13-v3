@@ -223,12 +223,17 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
 
       {/* Error Display */}
       {error && (
-        <Card className="p-4 border-destructive/20 bg-destructive/10">
-          <div className="flex items-center gap-2 text-destructive">
-            <XCircle className="w-5 h-5" />
-            <p className="font-medium">{error}</p>
-          </div>
-        </Card>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Loading Spinner */}
+      {loading && (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
       )}
 
       {/* Filter */}
@@ -412,7 +417,7 @@ export const LaporanKehadiranSiswaView = ({ user, onBack }: LaporanKehadiranSisw
       {!loading && reportData.length === 0 && !error && selectedKelas && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 px-4">
-            <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50 mb-4" />
+            <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50 mb-4" />
             <h3 className="text-base sm:text-lg font-medium text-foreground mb-2 text-center">Belum ada data laporan</h3>
             <p className="text-sm sm:text-base text-muted-foreground text-center max-w-md">Pilih kelas dan klik "Tampilkan Laporan" untuk melihat laporan kehadiran siswa</p>
           </CardContent>
