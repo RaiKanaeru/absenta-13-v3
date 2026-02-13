@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 
 import { LoginForm } from "@/components/LoginForm";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +18,18 @@ const DASHBOARD_ROUTES: Record<UserRole, string> = {
  * - Jika belum → render LoginForm
  */
 const LoginPage = () => {
-  const { user, isLoading, error, login } = useAuth();
+  const { user, isLoading, isAuthenticating, error, login } = useAuth();
+
+  if (isAuthenticating && !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-2">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground font-medium">Memverifikasi sesi...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Sudah login → redirect ke dashboard
   if (user) {

@@ -18,9 +18,9 @@ const DASHBOARD_ROUTES: Record<UserRole, string> = {
  * - Belum login → redirect ke /login
  */
 const RootRedirect = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticating } = useAuth();
 
-  if (isLoading && !user) {
+  if (isAuthenticating || (isLoading && !user)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-2">

@@ -3,7 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { getApiUrl } from "@/config/api";
 import { toast } from "@/hooks/use-toast";
 import type { UserData } from "@/types/auth";
-import { clearAuthToken, setAuthToken } from "@/utils/authUtils";
+import { clearAuthToken, getCleanToken, setAuthToken } from "@/utils/authUtils";
 
 type Credentials = { username: string; password: string; captchaToken?: string };
 
@@ -11,6 +11,7 @@ export interface AuthContextValue {
   user: UserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAuthenticating: boolean;
   error: string | null;
   requireCaptcha: boolean;
   remainingAttempts: number | null;
@@ -126,6 +127,7 @@ const buildUpdatedUserData = (
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requireCaptcha, setRequireCaptcha] = useState(false);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
@@ -142,8 +144,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkExistingAuth = useCallback(async () => {
     try {
+      const token = getCleanToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await fetch(getApiUrl("/api/verify"), {
         method: "GET",
+        headers,
         credentials: "include",
       });
 
@@ -171,6 +177,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       // Silent fail - no existing auth
       console.debug("Auth check failed:", error);
+    } finally {
+      setIsAuthenticating(false);
     }
   }, []);
 
@@ -278,13 +286,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user,
       isAuthenticated: Boolean(user),
       isLoading,
+      isAuthenticating,
       error,
       requireCaptcha,
       remainingAttempts,
       login,
       logout,
     }),
-    [user, isLoading, error, requireCaptcha, remainingAttempts, login, logout]
+    [user, isLoading, isAuthenticating, error, requireCaptcha, remainingAttempts, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

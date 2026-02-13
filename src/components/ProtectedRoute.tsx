@@ -17,10 +17,10 @@ interface ProtectedRouteProps {
  * - Role sesuai → render children
  */
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticating } = useAuth();
 
   // Sedang memverifikasi token
-  if (isLoading && !user) {
+  if (isAuthenticating || (isLoading && !user)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-2">
