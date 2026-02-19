@@ -1473,6 +1473,165 @@ export const bulkCreateJadwal = async (req, res) => {
     }
 };
 
+const validateCloneRequestInput = (source_kelas_id, target_kelas_ids) => {
+    const sourceKelasId = normalizeId(source_kelas_id);
+    if (!sourceKelasId) {
+        return { valid: false, error: 'Kelas sumber tidak valid' };
+    }
+
+    if (!Array.isArray(target_kelas_ids) || target_kelas_ids.length === 0) {
+        return { valid: false, error: 'Minimal satu kelas target harus dipilih' };
+    }
+
+    const targetIds = Array.from(new Set(target_kelas_ids.map(normalizeId).filter(Boolean)))
+        .filter(id => id !== sourceKelasId);
+
+    if (targetIds.length === 0) {
+        return { valid: false, error: 'Kelas target tidak valid' };
+    }
+
+    return { valid: true, sourceKelasId, targetIds };
+};
+
+const fetchSourceSchedulesForClone = async (sourceKelasId) => {
+    const [sourceSchedules] = await db.execute(
+        `SELECT id_jadwal, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
+                jenis_aktivitas, is_absenable, keterangan_khusus
+         FROM jadwal
+         WHERE kelas_id = ? AND status = 'aktif'
+         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`,
+        [sourceKelasId]
+    );
+
+    return sourceSchedules;
+};
+
+const fetchCloneGuruMap = async (scheduleIds) => {
+    const guruMap = new Map();
+
+    if (scheduleIds.length === 0) {
+        return guruMap;
+    }
+
+    const placeholders = scheduleIds.map(() => '?').join(',');
+    const [guruRows] = await db.execute(
+        `SELECT jadwal_id, guru_id, is_primary
+         FROM jadwal_guru
+         WHERE jadwal_id IN (${placeholders})
+         ORDER BY is_primary DESC`,
+        scheduleIds
+    );
+
+    for (const row of guruRows) {
+        if (!guruMap.has(row.jadwal_id)) {
+            guruMap.set(row.jadwal_id, []);
+        }
+        guruMap.get(row.jadwal_id).push(row);
+    }
+
+    return guruMap;
+};
+
+const fetchCloneTargetMap = async (targetIds) => {
+    const targetPlaceholders = targetIds.map(() => '?').join(',');
+    const [targetRows] = await db.execute(
+        `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${targetPlaceholders}) AND status = "aktif"`,
+        targetIds
+    );
+
+    const targetMap = new Map(targetRows.map(row => [row.id_kelas, row.nama_kelas]));
+    const missingTargets = targetIds.filter(id => !targetMap.has(id));
+
+    return { targetMap, missingTargets };
+};
+
+const buildCloneGuruIds = (schedule, guruMap, includeGuru) => {
+    if (!includeGuru) {
+        return [];
+    }
+
+    const rows = guruMap.get(schedule.id_jadwal) || [];
+    if (rows.length === 0 && schedule.guru_id) {
+        return [schedule.guru_id];
+    }
+
+    const primary = rows.find(row => row.is_primary === 1);
+    const ordered = [];
+    if (primary) {
+        ordered.push(primary.guru_id);
+    }
+
+    for (const row of rows) {
+        if (!ordered.includes(row.guru_id)) {
+            ordered.push(row.guru_id);
+        }
+    }
+
+    return ordered;
+};
+
+const appendCloneConflicts = (conflicts, targetMap, targetId, conflictList) => {
+    for (const conflict of conflictList) {
+        conflicts.push({
+            kelas_id: targetId,
+            kelas_name: targetMap.get(targetId) || String(targetId),
+            conflict_type: conflict.type,
+            message: conflict.message
+        });
+    }
+};
+
+const cloneScheduleToTarget = async ({ connection, targetId, schedule, include_guru, include_ruang, guruMap }) => {
+    const normalizedJenis = normalizeJenisAktivitas(schedule.jenis_aktivitas) || schedule.jenis_aktivitas;
+    const isPelajaran = normalizedJenis === 'pelajaran';
+    const guruIds = include_guru && isPelajaran ? buildCloneGuruIds(schedule, guruMap, include_guru) : [];
+    const primaryGuruId = include_guru && isPelajaran ? (schedule.guru_id || guruIds[0] || null) : null;
+    const ruangId = include_ruang ? schedule.ruang_id : null;
+    const mapelId = isPelajaran ? schedule.mapel_id : null;
+    const isAbsenable = isPelajaran;
+
+    const conflictCheck = await checkAllScheduleConflicts({
+        kelas_id: targetId,
+        hari: schedule.hari,
+        jam_mulai: schedule.jam_mulai,
+        jam_selesai: schedule.jam_selesai,
+        ruang_id: ruangId,
+        guruIds,
+        connection,
+        collectConflicts: true
+    });
+
+    if (conflictCheck.hasConflict) {
+        return { skipped: true, conflicts: conflictCheck.conflicts };
+    }
+
+    const [insertResult] = await connection.execute(
+        `INSERT INTO jadwal 
+         (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
+        [
+            targetId,
+            mapelId,
+            primaryGuruId,
+            ruangId,
+            schedule.hari,
+            schedule.jam_ke,
+            schedule.jam_mulai,
+            schedule.jam_selesai,
+            normalizedJenis,
+            isAbsenable ? 1 : 0,
+            schedule.keterangan_khusus,
+            include_guru && guruIds.length > 1 ? 1 : 0
+        ]
+    );
+
+    if (include_guru && guruIds.length > 0) {
+        await insertJadwalGuru(insertResult.insertId, guruIds, connection);
+    }
+
+    return { skipped: false, conflicts: [] };
+};
+
 /**
  * Clone schedules from one class to others
  * POST /api/admin/jadwal/clone
@@ -1484,63 +1643,22 @@ export const cloneJadwal = async (req, res) => {
     let connection;
 
     try {
-        const sourceKelasId = normalizeId(source_kelas_id);
-        if (!sourceKelasId) {
-            return sendValidationError(res, 'Kelas sumber tidak valid');
+        const cloneInput = validateCloneRequestInput(source_kelas_id, target_kelas_ids);
+        if (!cloneInput.valid) {
+            return sendValidationError(res, cloneInput.error);
         }
+        const { sourceKelasId, targetIds } = cloneInput;
 
-        if (!Array.isArray(target_kelas_ids) || target_kelas_ids.length === 0) {
-            return sendValidationError(res, 'Minimal satu kelas target harus dipilih');
-        }
-
-        const targetIds = Array.from(new Set(target_kelas_ids.map(normalizeId).filter(Boolean)))
-            .filter(id => id !== sourceKelasId);
-
-        if (targetIds.length === 0) {
-            return sendValidationError(res, 'Kelas target tidak valid');
-        }
-
-        const [sourceSchedules] = await db.execute(
-            `SELECT id_jadwal, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
-                    jenis_aktivitas, is_absenable, keterangan_khusus
-             FROM jadwal
-             WHERE kelas_id = ? AND status = 'aktif'
-             ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`,
-            [sourceKelasId]
-        );
+        const sourceSchedules = await fetchSourceSchedulesForClone(sourceKelasId);
 
         if (sourceSchedules.length === 0) {
             return sendNotFoundError(res, 'Kelas sumber tidak memiliki jadwal');
         }
 
         const scheduleIds = sourceSchedules.map(row => row.id_jadwal);
-        const guruMap = new Map();
-        if (scheduleIds.length > 0) {
-            const placeholders = scheduleIds.map(() => '?').join(',');
-            const [guruRows] = await db.execute(
-                `SELECT jadwal_id, guru_id, is_primary
-                 FROM jadwal_guru
-                 WHERE jadwal_id IN (${placeholders})
-                 ORDER BY is_primary DESC`,
-                scheduleIds
-            );
+        const guruMap = await fetchCloneGuruMap(scheduleIds);
 
-            for (const row of guruRows) {
-                if (!guruMap.has(row.jadwal_id)) {
-                    guruMap.set(row.jadwal_id, []);
-                }
-                guruMap.get(row.jadwal_id).push(row);
-            }
-        }
-
-        const targetPlaceholders = targetIds.map(() => '?').join(',');
-        const [targetRows] = await db.execute(
-            `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${targetPlaceholders}) AND status = "aktif"`,
-            targetIds
-        );
-
-        const targetMap = new Map(targetRows.map(row => [row.id_kelas, row.nama_kelas]));
-        const missingTargets = targetIds.filter(id => !targetMap.has(id));
+        const { targetMap, missingTargets } = await fetchCloneTargetMap(targetIds);
         if (missingTargets.length > 0) {
             return sendValidationError(res, 'Kelas target tidak ditemukan', { missing: missingTargets });
         }
@@ -1552,79 +1670,21 @@ export const cloneJadwal = async (req, res) => {
         let skipped = 0;
         const conflicts = [];
 
-        const buildGuruIds = (schedule) => {
-            if (!include_guru) return [];
-            const rows = guruMap.get(schedule.id_jadwal) || [];
-            if (rows.length === 0 && schedule.guru_id) {
-                return [schedule.guru_id];
-            }
-            const primary = rows.find(r => r.is_primary === 1);
-            const ordered = [];
-            if (primary) ordered.push(primary.guru_id);
-            for (const row of rows) {
-                if (!ordered.includes(row.guru_id)) {
-                    ordered.push(row.guru_id);
-                }
-            }
-            return ordered;
-        };
-
         for (const targetId of targetIds) {
             for (const schedule of sourceSchedules) {
-                const normalizedJenis = normalizeJenisAktivitas(schedule.jenis_aktivitas) || schedule.jenis_aktivitas;
-                const isPelajaran = normalizedJenis === 'pelajaran';
-                const guruIds = include_guru && isPelajaran ? buildGuruIds(schedule) : [];
-                const primaryGuruId = include_guru && isPelajaran ? (schedule.guru_id || guruIds[0] || null) : null;
-                const ruangId = include_ruang ? schedule.ruang_id : null;
-                const mapelId = isPelajaran ? schedule.mapel_id : null;
-                const isAbsenable = isPelajaran;
-
-                const conflictCheck = await checkAllScheduleConflicts({
-                    kelas_id: targetId,
-                    hari: schedule.hari,
-                    jam_mulai: schedule.jam_mulai,
-                    jam_selesai: schedule.jam_selesai,
-                    ruang_id: ruangId,
-                    guruIds,
+                const cloneResult = await cloneScheduleToTarget({
                     connection,
-                    collectConflicts: true
+                    targetId,
+                    schedule,
+                    include_guru,
+                    include_ruang,
+                    guruMap
                 });
 
-                if (conflictCheck.hasConflict) {
+                if (cloneResult.skipped) {
                     skipped++;
-                    for (const conflict of conflictCheck.conflicts) {
-                        conflicts.push({
-                            kelas_id: targetId,
-                            kelas_name: targetMap.get(targetId) || String(targetId),
-                            conflict_type: conflict.type,
-                            message: conflict.message
-                        });
-                    }
+                    appendCloneConflicts(conflicts, targetMap, targetId, cloneResult.conflicts);
                     continue;
-                }
-
-                    const [insertResult] = await connection.execute(
-                    `INSERT INTO jadwal 
-                     (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
-                    [
-                        targetId,
-                        mapelId,
-                        primaryGuruId,
-                        ruangId,
-                        schedule.hari,
-                        schedule.jam_ke,
-                        schedule.jam_mulai,
-                        schedule.jam_selesai,
-                        normalizedJenis,
-                        isAbsenable ? 1 : 0,
-                        schedule.keterangan_khusus,
-                        include_guru && guruIds.length > 1 ? 1 : 0
-                    ]
-                );
-
-                if (include_guru && guruIds.length > 0) {
-                    await insertJadwalGuru(insertResult.insertId, guruIds, connection);
                 }
 
                 created++;
