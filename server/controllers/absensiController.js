@@ -539,133 +539,177 @@ export async function getStudentsForScheduleByDate(req, res) {
 }
 
 /**
+ * Validates attendance submission request: required fields, schedule existence, date range
+ * @param {Object} log - Logger instance
+ * @param {Object} connection - Database connection
+ * @param {Object} body - Request body
+ * @param {Object} res - Express response (used to send error responses)
+ * @returns {Object|null} Validated data { isMultiGuru, targetDate } or null if validation failed
+ * @private
+ */
+async function validateAttendanceRequest(log, connection, body, res) {
+    const { scheduleId, attendance, guruId, tanggal_absen } = body;
+
+    if (!scheduleId || !attendance || !guruId) {
+        log.validationFail('required_fields', null, 'Missing scheduleId, attendance, or guruId');
+        sendValidationError(res, 'Data absensi tidak lengkap');
+        return null;
+    }
+
+    const [scheduleData] = await connection.execute(
+        'SELECT kelas_id, mapel_id, is_multi_guru FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
+        [scheduleId]
+    );
+
+    if (scheduleData.length === 0) {
+        log.warn('Schedule not found', { scheduleId });
+        sendNotFoundError(res, 'Jadwal tidak ditemukan');
+        return null;
+    }
+
+    const targetDate = tanggal_absen || getMySQLDateWIB();
+    const dateValidation = validateDateRange(targetDate, TEACHER_EDIT_DAYS_LIMIT);
+
+    if (!dateValidation.valid) {
+        log.validationFail('tanggal', targetDate, dateValidation.error);
+        sendValidationError(res, dateValidation.error);
+        return null;
+    }
+
+    return {
+        isMultiGuru: scheduleData[0].is_multi_guru === 1,
+        targetDate
+    };
+}
+
+/**
+ * Classifies attendance entries into insert and update operations
+ * @param {Array} attendanceEntries - Array of [studentIdStr, attendanceData] pairs
+ * @param {Map} existingMap - Map of siswa_id -> existing record id
+ * @param {Object} notes - Notes keyed by studentIdStr
+ * @param {string} waktuAbsen - Formatted attendance timestamp
+ * @param {number} scheduleId - Schedule ID
+ * @param {string} targetDate - Target date string
+ * @param {number} guruId - Teacher ID
+ * @param {Object} log - Logger instance
+ * @returns {Object} { updates, inserts, processedStudents }
+ * @throws {Error} If attendance data format or status is invalid
+ * @private
+ */
+function classifyAttendanceEntries(attendanceEntries, existingMap, notes, waktuAbsen, scheduleId, targetDate, guruId, log) {
+    const updates = [];
+    const inserts = [];
+    const processedStudents = [];
+
+    for (const [studentIdStr, attendanceData] of attendanceEntries) {
+        const studentId = Number(studentIdStr);
+        const parsed = parseAttendanceData(attendanceData);
+
+        if (!parsed) {
+            log.validationFail('attendance_data', studentId, 'Invalid format');
+            throw new Error(`Format data absensi tidak valid untuk siswa ${studentId}`);
+        }
+
+        const { status, terlambat, ada_tugas } = parsed;
+
+        if (!VALID_STUDENT_STATUSES.has(status)) {
+            log.validationFail('status', status, 'Invalid status');
+            throw new Error(`Status tidak valid: ${status}`);
+        }
+
+        const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
+        const note = status === 'Hadir' ? '' : (notes[studentIdStr] || '');
+
+        if (existingMap.has(studentId)) {
+            updates.push([finalStatus, note, waktuAbsen, guruId, isLate, hasTask, existingMap.get(studentId)]);
+        } else {
+            inserts.push([studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, guruId, guruId, isLate, hasTask]);
+        }
+
+        processedStudents.push({ studentId, status: finalStatus });
+    }
+
+    return { updates, inserts, processedStudents };
+}
+
+/**
+ * Executes batch update and insert operations for attendance records
+ * @param {Object} connection - Database connection (within transaction)
+ * @param {Array} updates - Array of update parameter arrays
+ * @param {Array} inserts - Array of insert parameter arrays
+ * @private
+ */
+async function executeAttendanceBatchOperations(connection, updates, inserts) {
+    if (updates.length > 0) {
+        const updatePromises = updates.map(params =>
+            connection.execute(
+                `UPDATE absensi_siswa 
+                 SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
+                 WHERE id = ?`,
+                params
+            )
+        );
+        await Promise.all(updatePromises);
+    }
+
+    if (inserts.length > 0) {
+        const placeholders = inserts.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+        const flatValues = inserts.flat();
+
+        await connection.execute(
+            `INSERT INTO absensi_siswa 
+             (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
+             VALUES ${placeholders}`,
+            flatValues
+        );
+    }
+}
+
+/**
  * Submit attendance for a schedule (by teacher)
  * @route POST /api/attendance/submit
  */
 export async function submitStudentAttendance(req, res) {
     const log = logger.withRequest(req, res);
-    const { scheduleId, attendance, notes = {}, guruId, tanggal_absen } = req.body;
+    const { scheduleId, attendance, notes = {}, guruId } = req.body;
     log.requestStart('SubmitStudentAttendance', { scheduleId, guruId, studentCount: Object.keys(attendance || {}).length });
 
-        if (!db) {
-            log.error('Database not available', null);
-            return sendServiceUnavailableError(res, 'Koneksi database tidak tersedia');
-        }
-
+    if (!db) {
+        log.error('Database not available', null);
+        return sendServiceUnavailableError(res, 'Koneksi database tidak tersedia');
+    }
 
     const connection = await db.getConnection();
 
     try {
-        if (!scheduleId || !attendance || !guruId) {
-            log.validationFail('required_fields', null, 'Missing scheduleId, attendance, or guruId');
-            return sendValidationError(res, 'Data absensi tidak lengkap');
-        }
+        const validated = await validateAttendanceRequest(log, connection, req.body, res);
+        if (!validated) return;
 
-        const [scheduleData] = await connection.execute(
-            'SELECT kelas_id, mapel_id, is_multi_guru FROM jadwal WHERE id_jadwal = ? AND status = "aktif"',
-            [scheduleId]
-        );
-
-        if (scheduleData.length === 0) {
-            log.warn('Schedule not found', { scheduleId });
-            return sendNotFoundError(res, 'Jadwal tidak ditemukan');
-        }
-
-        const isMultiGuru = scheduleData[0].is_multi_guru === 1;
-        const targetDate = tanggal_absen || getMySQLDateWIB();
-        const dateValidation = validateDateRange(targetDate, TEACHER_EDIT_DAYS_LIMIT);
-
-        if (!dateValidation.valid) {
-            log.validationFail('tanggal', targetDate, dateValidation.error);
-            return sendValidationError(res, dateValidation.error);
-        }
-
-        const attendanceEntries = Object.entries(attendance);
+        const { isMultiGuru, targetDate } = validated;
         const currentTime = formatWIBTimeWithSeconds();
-        const processedStudents = [];
         const waktuAbsen = `${targetDate} ${currentTime}`;
 
         await connection.beginTransaction();
 
         try {
-            // OPTIMIZATION: Batch processing instead of N+1 queries
-            
-            // 1. Get all existing attendance records for this teacher/schedule/date in ONE query
+            // Get all existing attendance records for this teacher/schedule/date in ONE query
             const [existingRows] = await connection.execute(
                 'SELECT id, siswa_id FROM absensi_siswa WHERE jadwal_id = ? AND guru_pengabsen_id = ? AND tanggal = ?',
                 [scheduleId, guruId, targetDate]
             );
-            
+
             const existingMap = new Map();
             existingRows.forEach((row) => {
                 existingMap.set(row.siswa_id, row.id);
             });
 
-            const updates = [];
-            const inserts = [];
+            const { updates, inserts, processedStudents } = classifyAttendanceEntries(
+                Object.entries(attendance), existingMap, notes, waktuAbsen, scheduleId, targetDate, guruId, log
+            );
 
-            // 2. Classify actions (Insert vs Update)
-            for (const [studentIdStr, attendanceData] of attendanceEntries) {
-                const studentId = Number(studentIdStr);
-                const parsed = parseAttendanceData(attendanceData);
-                
-                if (!parsed) {
-                    log.validationFail('attendance_data', studentId, 'Invalid format');
-                    throw new Error(`Format data absensi tidak valid untuk siswa ${studentId}`);
-                }
-
-                const { status, terlambat, ada_tugas } = parsed;
-
-                if (!VALID_STUDENT_STATUSES.has(status)) {
-                    log.validationFail('status', status, 'Invalid status');
-                    throw new Error(`Status tidak valid: ${status}`);
-                }
-
-                const { finalStatus, isLate, hasTask } = mapAttendanceStatus(status, terlambat, ada_tugas);
-                const note = status === 'Hadir' ? '' : (notes[studentIdStr] || '');
-
-                if (existingMap.has(studentId)) {
-                    updates.push([finalStatus, note, waktuAbsen, guruId, isLate, hasTask, existingMap.get(studentId)]);
-                } else {
-                    inserts.push([studentId, scheduleId, targetDate, finalStatus, note, waktuAbsen, guruId, guruId, isLate, hasTask]);
-                }
-
-                processedStudents.push({ studentId, status: finalStatus });
-            }
-
-            // 3. Execute Updates (Parallel Promise.all)
-            if (updates.length > 0) {
-                const updatePromises = updates.map(params => 
-                    connection.execute(
-                        `UPDATE absensi_siswa 
-                         SET status = ?, keterangan = ?, waktu_absen = ?, guru_id = ?, terlambat = ?, ada_tugas = ? 
-                         WHERE id = ?`,
-                        params
-                    )
-                );
-                await Promise.all(updatePromises);
-            }
-
-            // 4. Execute Inserts (Bulk Insert)
-            if (inserts.length > 0) {
-                const placeholders = inserts.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
-                const flatValues = inserts.flat();
-                
-                await connection.execute(
-                    `INSERT INTO absensi_siswa 
-                     (siswa_id, jadwal_id, tanggal, status, keterangan, waktu_absen, guru_id, guru_pengabsen_id, terlambat, ada_tugas) 
-                     VALUES ${placeholders}`,
-                    flatValues
-                );
-            }
+            await executeAttendanceBatchOperations(connection, updates, inserts);
 
             if (isMultiGuru) {
-                // Pass connection to syncMultiGuruAttendance to ensure same transaction
-                // NOTE: syncMultiGuruAttendance currently uses db directly. 
-                // Ideally, we should refactor it to accept a connection, but for now, 
-                // since it mostly does INSERTS for OTHER teachers, keeping it outside this transaction 
-                // might be acceptable if refactoring is too risky, BUT best practice is to include it.
-                // Let's refactor syncMultiGuruAttendance as well to be safe.
                 await syncMultiGuruAttendance(connection, scheduleId, guruId, attendance, notes, targetDate, currentTime);
             }
 

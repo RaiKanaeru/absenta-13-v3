@@ -205,6 +205,41 @@ function tryToggleBacktick(state) {
 }
 
 /**
+ * Check if the parser is currently outside any quoted context.
+ * @param {ParserState} state
+ * @returns {boolean}
+ */
+function isOutsideQuotes(state) {
+    return !state.inSingle && !state.inDouble && !state.inBacktick;
+}
+
+/**
+ * Try to process structural SQL elements (delimiters, comments) when outside quotes.
+ * @param {ParserState} state
+ * @returns {boolean} true if a structural element was consumed
+ */
+function tryProcessStructural(state) {
+    if (tryParseDelimiterCommand(state)) return true;
+    if (tryMatchDelimiter(state)) return true;
+    if (trySkipLineComment(state)) return true;
+    if (trySkipBlockComment(state)) return true;
+    return false;
+}
+
+/**
+ * Try to process quote-related characters (escapes, quote toggles).
+ * @param {ParserState} state
+ * @returns {boolean} true if a quote-related character was consumed
+ */
+function tryProcessQuotes(state) {
+    if (tryHandleEscape(state)) return true;
+    if (tryToggleSingleQuote(state)) return true;
+    if (tryToggleDoubleQuote(state)) return true;
+    if (tryToggleBacktick(state)) return true;
+    return false;
+}
+
+/**
  * Split a SQL string into individual statements, respecting quotes,
  * comments, DELIMITER commands, and escape sequences.
  * @param {string} sqlContent - Raw SQL content
@@ -226,17 +261,8 @@ export function splitSqlStatements(sqlContent) {
     };
 
     while (state.i < state.sql.length) {
-        if (!state.inSingle && !state.inDouble && !state.inBacktick) {
-            if (tryParseDelimiterCommand(state)) continue;
-            if (tryMatchDelimiter(state)) continue;
-            if (trySkipLineComment(state)) continue;
-            if (trySkipBlockComment(state)) continue;
-        }
-
-        if (tryHandleEscape(state)) continue;
-        if (tryToggleSingleQuote(state)) continue;
-        if (tryToggleDoubleQuote(state)) continue;
-        if (tryToggleBacktick(state)) continue;
+        if (isOutsideQuotes(state) && tryProcessStructural(state)) continue;
+        if (tryProcessQuotes(state)) continue;
 
         state.current += state.sql[state.i];
         state.i++;

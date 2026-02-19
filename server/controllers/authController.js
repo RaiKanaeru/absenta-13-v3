@@ -241,6 +241,50 @@ const MSG_LOGIN_SUCCESS = 'Login berhasil';
 const MSG_LOGOUT_SUCCESS = 'Logout berhasil';
 
 /**
+ * Fetch role-specific additional data for a user after successful authentication.
+ * @param {Object} user - The authenticated user row from DB
+ * @param {string} user.role - User role ('guru', 'siswa', 'admin')
+ * @param {string} user.username - Username
+ * @param {number} user.id - User ID
+ * @returns {Promise<Object>} Additional data to merge into JWT payload
+ */
+async function enrichUserData(user) {
+    if (user.role === 'guru') {
+        const [guruData] = await db.execute(
+            `SELECT g.*, m.nama_mapel 
+             FROM guru g 
+             LEFT JOIN mapel m ON g.mapel_id = m.id_mapel 
+             WHERE g.username = ?`,
+            [user.username]
+        );
+        if (guruData.length > 0) {
+            return {
+                guru_id: guruData[0].id_guru,
+                nip: guruData[0].nip,
+                mapel: guruData[0].nama_mapel || null
+            };
+        }
+    } else if (user.role === 'siswa') {
+        const [siswaData] = await db.execute(
+            `SELECT s.*, k.nama_kelas 
+             FROM siswa s 
+             JOIN kelas k ON s.kelas_id = k.id_kelas 
+             WHERE s.user_id = ?`,
+            [user.id]
+        );
+        if (siswaData.length > 0) {
+            return {
+                siswa_id: siswaData[0].id_siswa,
+                nis: siswaData[0].nis,
+                kelas: siswaData[0].nama_kelas,
+                kelas_id: siswaData[0].kelas_id
+            };
+        }
+    }
+    return {};
+}
+
+/**
  * Login user
  * POST /api/login
  */
@@ -347,40 +391,7 @@ export const login = async (req, res) => {
         resetLoginAttempts(username, clientId, clientIP);
 
         // Get additional user data based on role
-        let additionalData = {};
-
-        if (user.role === 'guru') {
-            const [guruData] = await db.execute(
-                `SELECT g.*, m.nama_mapel 
-                 FROM guru g 
-                 LEFT JOIN mapel m ON g.mapel_id = m.id_mapel 
-                 WHERE g.username = ?`,
-                [user.username]
-            );
-            if (guruData.length > 0) {
-                additionalData = {
-                    guru_id: guruData[0].id_guru,
-                    nip: guruData[0].nip,
-                    mapel: guruData[0].nama_mapel || null
-                };
-            }
-        } else if (user.role === 'siswa') {
-            const [siswaData] = await db.execute(
-                `SELECT s.*, k.nama_kelas 
-                 FROM siswa s 
-                 JOIN kelas k ON s.kelas_id = k.id_kelas 
-                 WHERE s.user_id = ?`,
-                [user.id]
-            );
-            if (siswaData.length > 0) {
-                additionalData = {
-                    siswa_id: siswaData[0].id_siswa,
-                    nis: siswaData[0].nis,
-                    kelas: siswaData[0].nama_kelas,
-                    kelas_id: siswaData[0].kelas_id
-                };
-            }
-        }
+        const additionalData = await enrichUserData(user);
 
         // Generate JWT token
         const tokenPayload = {
