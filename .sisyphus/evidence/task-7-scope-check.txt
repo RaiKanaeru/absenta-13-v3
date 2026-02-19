@@ -1,0 +1,26 @@
+Task 7 — Scope Check
+Date: 2026-02-19
+
+== T7 Modified Files (importMasterScheduleController.js only) ==
+
+File: server/controllers/importMasterScheduleController.js
+Changes:
+  L42: catch (error) → catch (_error)     [S2486 - unused catch variable]
+  L46: replaceAll → replace               [S6353 - redundant replaceAll+g]
+  L152: removed unused `const errors = []` [S1481 - unused local variable]
+
+== Other Modified Files in Working Tree (NOT T7 scope) ==
+
+server/controllers/jadwalController.js — T6 changes (catch naming, negation readability, unused keterangan_khusus)
+.sisyphus/notepads/sonar-cleanup-consolidation/decisions.md — notepad append
+src/components/StudentDashboard.tsx — unrelated frontend work
+src/components/student/utils.ts — unrelated frontend work
+vite.config.ts — unrelated config change
+
+== Verification ==
+
+T7 touches ONLY server/controllers/importMasterScheduleController.js
+All other working tree changes belong to T6 or unrelated work streams.
+No out-of-scope files modified by T7.
+
+RESULT: PASS — T7 scope is clean

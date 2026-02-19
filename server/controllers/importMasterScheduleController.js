@@ -39,11 +39,11 @@ const parseSettingValue = (value) => {
     try {
         const parsed = JSON.parse(raw);
         if (typeof parsed === 'string') return parsed;
-    } catch (error) {
+    } catch (_error) {
         // Ignore JSON parse errors, fall back to raw value.
     }
     // Fix: Regex precedence ambiguity S5850 - Group the alternatives
-    return raw.replaceAll(/(^")|("$)/g, '');
+    return raw.replace(/(^")|("$)/g, '');
 };
 
 const getActiveAcademicYear = async (conn) => {
@@ -149,7 +149,6 @@ export const importMasterSchedule = async (req, res) => {
 
         // 2. Identify Class Blocks
         const scheduleData = [];
-        const errors = [];
 
         // Skip headers (approx 10 rows)
         const startRowIdx = 10; 
