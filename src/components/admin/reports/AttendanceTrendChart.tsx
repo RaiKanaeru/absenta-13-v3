@@ -83,8 +83,8 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = ({ onLo
 
       setChartData(formatted);
     } catch (err: unknown) {
-      toast({ variant: "destructive", title: "Gagal memuat data tren", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       const message = err instanceof Error ? err.message : String(err);
+      toast({ variant: "destructive", title: "Gagal memuat data tren", description: message });
       setError('Gagal memuat data tren: ' + message);
     } finally {
       setLoading(false);

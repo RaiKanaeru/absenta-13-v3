@@ -28,7 +28,6 @@ interface AnalyticsData {
 
 export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ onBack, onLogout }) => {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-    const [processingNotif, setProcessingNotif] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [fullscreenMode, setFullscreenMode] = useState(false);
@@ -39,10 +38,10 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
       const elem = dashboardRef.current;
       if (!elem) return;
 
-      if (!isFullscreen()) {
-        await enterFullscreen(elem);
-      } else {
+      if (isFullscreen()) {
         await exitFullscreen();
+      } else {
+        await enterFullscreen(elem);
       }
     }, []);
 
@@ -88,7 +87,6 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
     }, [onLogout]);
 
     const handlePermissionRequest = async (notificationId: number, newStatus: 'disetujui' | 'ditolak') => {
-      setProcessingNotif(notificationId);
       try {
         await apiCall(`/api/admin/izin/${notificationId}`, {
           method: 'PUT',
@@ -111,13 +109,12 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
           return { ...prevData, notifications: updatedNotifications };
         });
       } catch (error) {
+        // Notification permission error - non-critical, display user feedback
         toast({
           title: "Error",
           description: "Tidak dapat terhubung ke server",
           variant: "destructive"
         });
-      } finally {
-        setProcessingNotif(null);
       }
     };
 
