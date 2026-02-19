@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, RotateCcw, Eye, Upload, Trash2 } from "lucide-react";
+import { Save, RotateCcw, Eye, Upload, Trash2 } from "lucide-react";
 import { REPORT_KEYS_OPTIONS } from "@/utils/reportKeys";
 import { getApiUrl } from "@/config/api";
 
@@ -26,11 +26,6 @@ interface LetterheadConfig {
 type ScopeType = 'global' | 'report';
 
 // Menggunakan REPORT_KEYS_OPTIONS dari utils
-
-interface ReportLetterheadSettingsProps {
-  readonly onBack: () => void;
-  readonly onLogout: () => void;
-}
 
 const DEFAULT_LETTERHEAD: LetterheadConfig = {
   enabled: true,
@@ -69,7 +64,7 @@ function parseLetterheadConfig(configData: LetterheadConfig): LetterheadConfig {
   return configData;
 }
 
-export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLetterheadSettingsProps) {
+export default function ReportLetterheadSettings() {
   const [config, setConfig] = useState<LetterheadConfig>(DEFAULT_LETTERHEAD);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -535,10 +530,6 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" onClick={onBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Kembali
-              </Button>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Pengaturan Kop Laporan</h1>
                 <p className="text-sm text-muted-foreground">Kelola header/kop untuk semua laporan sistem</p>

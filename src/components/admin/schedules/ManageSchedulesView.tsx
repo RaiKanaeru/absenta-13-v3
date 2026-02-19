@@ -20,7 +20,6 @@ import {
   Trash2,
   Edit,
   Download,
-  ArrowLeft,
   LayoutGrid,
   Eye,
 } from "lucide-react";
@@ -88,7 +87,7 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
   );
 };
 
-const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
+const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -487,11 +486,7 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button variant="outline" size="sm" onClick={onBack} className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-foreground">Kelola Jadwal</h1>
             <p className="text-sm text-muted-foreground">Atur jadwal pelajaran untuk setiap kelas</p>

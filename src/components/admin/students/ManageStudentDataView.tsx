@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { getErrorMessage } from "@/lib/utils";
-import { ArrowLeft, Download, Search, Users, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Search, Users, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { StudentData, Kelas } from "@/types/dashboard";
 
@@ -35,7 +35,7 @@ const getClassBadgeContent = (namaKelas: string | undefined) => namaKelas ? {
 } : null;
 
 // ManageStudentDataView Component
-const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => void; onLogout: () => void }>) => {
+const ManageStudentDataView = ({ onLogout }: Readonly<{ onLogout: () => void }>) => {
   const [formData, setFormData] = useState({ 
     nis: '', 
     nama: '', 
@@ -245,11 +245,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button onClick={onBack} variant="outline" size="sm" className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent">
               Kelola Data Siswa

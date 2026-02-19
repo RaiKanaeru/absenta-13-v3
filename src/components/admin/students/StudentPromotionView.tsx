@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "@/hooks/use-toast";
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { 
-  ArrowLeft, RefreshCw, CheckCircle, Users, ArrowUpCircle, 
+  RefreshCw, CheckCircle, Users, ArrowUpCircle, 
   ArrowRight, Home, Eye
 } from "lucide-react";
 import { StudentData, Kelas } from '@/types/dashboard';
@@ -165,7 +165,7 @@ const getStudentRowClass = (isSelected: boolean): string => {
   return isSelected ? 'bg-primary/10 border-primary/30' : 'bg-card border-border';
 };
 
-export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
+export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => {
    const [fromClassId, setFromClassId] = useState<string>('');
    const [toClassId, setToClassId] = useState<string>('');
    const [students, setStudents] = useState<StudentData[]>([]);
@@ -475,11 +475,7 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <Button variant="outline" size="sm" onClick={onBack} className="w-fit">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Naik Kelas Siswa</h1>
             <p className="text-sm sm:text-base text-gray-600">Kelola kenaikan kelas siswa secara massal</p>

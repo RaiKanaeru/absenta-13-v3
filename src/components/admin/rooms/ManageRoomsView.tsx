@@ -12,15 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Room } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowLeft, Edit, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
 export const ManageRoomsView = ({
-  onBack,
   onLogout,
 }: {
-  onBack: () => void;
   onLogout: () => void;
 }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -200,10 +198,6 @@ export const ManageRoomsView = ({
           <p className="text-sm text-muted-foreground">Tambah, edit, dan hapus data ruang kelas</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={onBack} variant="outline" size="sm" className="text-xs">
-            <ArrowLeft className="h-3 w-3 mr-1" />
-            Kembali
-          </Button>
           <Button onClick={() => setShowImport(true)} variant="outline" size="sm" className="text-xs">
             <FileText className="h-3 w-3 mr-1" />
             Import Excel

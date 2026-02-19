@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
 import { getErrorMessage } from '@/lib/utils';
 import ExcelImportView from '../../ExcelImportView';
@@ -28,11 +28,10 @@ interface PaginatedResponse<T> {
 }
 
 interface ManageStudentsViewProps {
-  onBack: () => void;
   onLogout: () => void;
 }
 
-export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps) => {
+export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
   const [formData, setFormData] = useState({ 
     nama: '', 
     nis: '', 
@@ -300,11 +299,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button onClick={onBack} variant="outline" size="sm" className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
               Kelola Akun Siswa

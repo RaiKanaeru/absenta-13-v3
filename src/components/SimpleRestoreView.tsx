@@ -9,7 +9,6 @@ import {
   Database, 
   CheckCircle, 
   AlertCircle, 
-  ArrowLeft,
   Shield,
   Download,
   RefreshCw,
@@ -20,9 +19,6 @@ import { apiCall } from '@/utils/apiClient';
 import { toast } from '@/hooks/use-toast';
 import { Checkbox } from './ui/checkbox';
 
-interface SimpleRestoreViewProps {
-  onBack: () => void;
-}
 
 // =============================================================================
 // VALIDATION HELPERS (extracted to reduce cognitive complexity)
@@ -62,7 +58,7 @@ function validateUploadFile(file: File): string | null {
     || validateFileName(file.name);
 }
 
-const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
+const SimpleRestoreView: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -314,10 +310,6 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
     <div className="container mx-auto p-4 max-w-5xl">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <Button variant="ghost" className="mb-2 pl-0 hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={onBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Kembali ke Dashboard
-          </Button>
           <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
             <Shield className="h-6 w-6 text-primary" />
             Restore Database

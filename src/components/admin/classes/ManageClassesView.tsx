@@ -10,15 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Kelas } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowLeft, Download, Edit, Home, Search, Trash2 } from "lucide-react";
+import { Download, Edit, Home, Search, Trash2 } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
 export const ManageClassesView = ({
-  onBack,
   onLogout,
 }: {
-  onBack: () => void;
   onLogout: () => void;
 }) => {
   const [formData, setFormData] = useState({ nama_kelas: "" });
@@ -128,11 +126,7 @@ export const ManageClassesView = ({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button onClick={onBack} variant="outline" size="sm" className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-indigo-700 bg-clip-text text-transparent">
               Kelola Kelas

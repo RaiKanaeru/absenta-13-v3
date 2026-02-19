@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
 import { getErrorMessage } from "@/lib/utils";
-import { ArrowLeft, Download, Plus, Eye, EyeOff, Search, Users, GraduationCap, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Plus, Eye, EyeOff, Search, Users, GraduationCap, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { Teacher, Subject } from "@/types/dashboard";
 import { GenderType, AccountStatusType } from "../types/adminTypes";
@@ -37,7 +37,7 @@ const getGenderDisplay = (jenis_kelamin: string | undefined | null): string => {
 };
 
 // ManageTeacherAccountsView Component
-const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
+const ManageTeacherAccountsView = ({ onLogout }: { onLogout: () => void }) => {
   const [formData, setFormData] = useState({
     nama: '', 
     username: '', 
@@ -316,11 +316,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button onClick={onBack} variant="outline" size="sm" className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
               Kelola Akun Guru

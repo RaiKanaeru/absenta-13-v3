@@ -20,12 +20,8 @@ import { LiveStudentAttendanceView } from './LiveStudentAttendanceView';
 import { LiveTeacherAttendanceView } from './LiveTeacherAttendanceView';
 import { AnalyticsDashboardView } from './AnalyticsDashboardView';
 
-interface ReportsViewProps {
-  onBack: () => void;
-  onLogout: () => void;
-}
 
-type ReportViewType = 
+type ReportViewType =
   | 'menu' 
   | 'student_export' // Maps to RekapKetidakhadiranView
   | 'teacher_export' // Keep existing or map to something else if needed. Current mapping in menuItems is 'teacher_export'
@@ -38,7 +34,7 @@ type ReportViewType =
   | 'monitor_teacher'
   | 'analytics';
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ onBack, onLogout }) => {
+export const ReportsView: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [currentView, setCurrentView] = useState<ReportViewType>('menu');
   // ... (keep existing state for inline defined views if any, though we are replacing most)
   // We can remove the inline 'student_export' and 'teacher_export' handling logic if we replace them completely. 

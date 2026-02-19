@@ -176,8 +176,6 @@ export const AdminDashboard = () => {
     }));
   };
 
-  const handleBack = () => navigate('/admin');
-
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar - with proper visibility handling */}
@@ -347,20 +345,20 @@ export const AdminDashboard = () => {
               </div>
             } />
 
-            <Route path="teachers" element={<SubView><ManageTeacherAccountsView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="students" element={<SubView><ManageStudentsView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="teacher-data" element={<SubView><ManageTeacherDataView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="student-data" element={<SubView><ManageStudentDataView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="promotions" element={<SubView><StudentPromotionView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="subjects" element={<SubView><ManageSubjectsView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="classes" element={<SubView><ManageClassesView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="schedules" element={<SubView><ManageSchedulesView onBack={handleBack} onLogout={logout} /></SubView>} />
-            <Route path="rooms" element={<SubView><ManageRoomsView onBack={handleBack} onLogout={logout} /></SubView>} />
+            <Route path="teachers" element={<SubView><ManageTeacherAccountsView onLogout={logout} /></SubView>} />
+            <Route path="students" element={<SubView><ManageStudentsView onLogout={logout} /></SubView>} />
+            <Route path="teacher-data" element={<SubView><ManageTeacherDataView onLogout={logout} /></SubView>} />
+            <Route path="student-data" element={<SubView><ManageStudentDataView onLogout={logout} /></SubView>} />
+            <Route path="promotions" element={<SubView><StudentPromotionView onLogout={logout} /></SubView>} />
+            <Route path="subjects" element={<SubView><ManageSubjectsView onLogout={logout} /></SubView>} />
+            <Route path="classes" element={<SubView><ManageClassesView onLogout={logout} /></SubView>} />
+            <Route path="schedules" element={<SubView><ManageSchedulesView onLogout={logout} /></SubView>} />
+            <Route path="rooms" element={<SubView><ManageRoomsView onLogout={logout} /></SubView>} />
             <Route path="backups" element={<SubView><ErrorBoundary><BackupManagementView /></ErrorBoundary></SubView>} />
             <Route path="monitoring" element={<SubView><ErrorBoundary><MonitoringDashboard /></ErrorBoundary></SubView>} />
-            <Route path="restore" element={<SubView><ErrorBoundary><SimpleRestoreView onBack={handleBack} /></ErrorBoundary></SubView>} />
-            <Route path="letterhead" element={<SubView><ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
-            <Route path="reports" element={<SubView><ErrorBoundary><ReportsView onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
+            <Route path="restore" element={<SubView><ErrorBoundary><SimpleRestoreView /></ErrorBoundary></SubView>} />
+            <Route path="letterhead" element={<SubView><ErrorBoundary><ReportLetterheadSettings /></ErrorBoundary></SubView>} />
+            <Route path="reports" element={<SubView><ErrorBoundary><ReportsView onLogout={logout} /></ErrorBoundary></SubView>} />
             <Route path="jam-pelajaran" element={<SubView><ErrorBoundary><JamPelajaranConfig /></ErrorBoundary></SubView>} />
             <Route path="audit-logs" element={<SubView><ErrorBoundary><AuditLogView /></ErrorBoundary></SubView>} />
           </Routes>

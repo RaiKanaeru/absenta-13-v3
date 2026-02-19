@@ -10,15 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Subject } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowLeft, BookOpen, Download, Edit, Search, Trash2 } from "lucide-react";
+import { BookOpen, Download, Edit, Search, Trash2 } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
 export const ManageSubjectsView = ({
-  onBack,
   onLogout,
 }: {
-  onBack: () => void;
   onLogout: () => void;
 }) => {
   const [formData, setFormData] = useState({
@@ -155,11 +153,7 @@ export const ManageSubjectsView = ({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button onClick={onBack} variant="outline" size="sm" className="self-start">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+        <div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
               Kelola Mata Pelajaran
