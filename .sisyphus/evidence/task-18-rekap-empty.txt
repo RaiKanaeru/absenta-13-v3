@@ -1,0 +1,17 @@
+EVIDENCE: Empty State / Edge Cases
+
+The refactoring maintained the logic for empty states and edge cases:
+
+1.  **Empty Data**:
+    -   The `renderPeriodValueCell` function correctly handles missing data by defaulting to `0` (e.g., `guru.jul || 0`).
+    -   The switch statement in `RekapKetidakhadiranGuruView.tsx` has a `default: return 0;` case to handle unexpected month numbers safely.
+
+2.  **View Modes**:
+    -   The logic for `tahunan`, `bulanan`, and `tanggal` view modes is preserved in the extracted functions and variables.
+    -   `shouldFetchPresensiData` check in `RekapKetidakhadiranView.tsx` ensures data is only fetched when appropriate filters are selected.
+
+3.  **Type Safety**:
+    -   TypeScript types `RekapGuru` and `PresensiData` are respected.
+    -   `Number.parseInt` is used for month conversion, ensuring correct type comparison.
+
+No logic changes were made that would affect the calculation of attendance percentages or the display of empty states.

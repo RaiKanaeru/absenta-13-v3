@@ -1,0 +1,44 @@
+EVIDENCE: Happy Path for Rekap View
+
+1.  **RekapKetidakhadiranGuruView.tsx**:
+    -   Converted `renderPeriodHeader` and `renderPeriodValueCell` from `const` to `function` declarations to avoid unnecessary variable assignments.
+    -   Optimized `renderPeriodValueCell` by replacing the `monthData` object creation (which happened on every call) with a switch statement inside an IIFE. This improves performance and reduces memory allocation.
+    -   Refactored the conditional rendering logic for the table to be more readable.
+
+2.  **RekapKetidakhadiranView.tsx**:
+    -   Extracted nested ternaries in the `useEffect` hook into clear variable assignments (`bulanParam`, `tanggalAwalParam`, `tanggalAkhirParam`). This makes the `fetchPresensiData` call much cleaner and easier to understand.
+
+3.  **Verification**:
+    -   `npm run lint` passed with no errors.
+    -   `npm run test:client` passed successfully.
+
+Code Snippets:
+
+**RekapKetidakhadiranGuruView.tsx (Optimized Switch):**
+```typescript
+    if (viewMode === 'bulanan') {
+      const monthNumber = Number.parseInt(selectedBulan);
+      const monthValue = (() => {
+        switch (monthNumber) {
+          case 7: return guru.jul;
+          case 8: return guru.agt;
+          // ... cases for other months
+          default: return 0;
+        }
+      })();
+      // ...
+    }
+```
+
+**RekapKetidakhadiranView.tsx (Extracted Ternaries):**
+```typescript
+    useEffect(() => {
+      if (shouldFetchPresensiData(...)) {
+        const bulanParam = viewMode === 'bulanan' ? selectedBulan : undefined;
+        const tanggalAwalParam = viewMode === 'tanggal' ? selectedTanggalAwal : undefined;
+        const tanggalAkhirParam = viewMode === 'tanggal' ? selectedTanggalAkhir : undefined;
+        
+        fetchPresensiData(selectedKelas, selectedTahun, bulanParam, tanggalAwalParam, tanggalAkhirParam);
+      }
+    }, [...]);
+```

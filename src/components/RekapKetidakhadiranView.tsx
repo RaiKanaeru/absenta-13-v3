@@ -213,11 +213,15 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
      }
    }, [selectedKelas, fetchStudents]);
 
-   useEffect(() => {
-     if (shouldFetchPresensiData(selectedKelas, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir)) {
-       fetchPresensiData(selectedKelas, selectedTahun, viewMode === 'bulanan' ? selectedBulan : undefined, viewMode === 'tanggal' ? selectedTanggalAwal : undefined, viewMode === 'tanggal' ? selectedTanggalAkhir : undefined);
-     }
-   }, [selectedKelas, selectedTahun, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir, viewMode, fetchPresensiData]);
+    useEffect(() => {
+      if (shouldFetchPresensiData(selectedKelas, selectedTahun, viewMode, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir)) {
+        const bulanParam = viewMode === 'bulanan' ? selectedBulan : undefined;
+        const tanggalAwalParam = viewMode === 'tanggal' ? selectedTanggalAwal : undefined;
+        const tanggalAkhirParam = viewMode === 'tanggal' ? selectedTanggalAkhir : undefined;
+        
+        fetchPresensiData(selectedKelas, selectedTahun, bulanParam, tanggalAwalParam, tanggalAkhirParam);
+      }
+    }, [selectedKelas, selectedTahun, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir, viewMode, fetchPresensiData]);
 
   // Get presensi data for specific student and month
   const getPresensiForStudent = (siswaId: number, monthNumber: number) => {

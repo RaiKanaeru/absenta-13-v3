@@ -164,7 +164,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
     periodInfo = `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`;
   }
 
-  const renderPeriodHeader = () => {
+  function renderPeriodHeader() {
     if (viewMode === 'tahunan') {
       return (
         <>
@@ -190,9 +190,9 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         PERIODE TANGGAL
       </th>
     );
-  };
+  }
 
-  const renderPeriodValueCell = (guru: RekapGuru) => {
+  function renderPeriodValueCell(guru: RekapGuru) {
     if (viewMode === 'tahunan') {
       return (
         <>
@@ -214,24 +214,27 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
 
     if (viewMode === 'bulanan') {
       const monthNumber = Number.parseInt(selectedBulan);
-      const monthData: Record<number, number | undefined> = {
-        7: guru.jul,
-        8: guru.agt,
-        9: guru.sep,
-        10: guru.okt,
-        11: guru.nov,
-        12: guru.des,
-        1: guru.jan,
-        2: guru.feb,
-        3: guru.mar,
-        4: guru.apr,
-        5: guru.mei,
-        6: guru.jun
-      };
+      const monthValue = (() => {
+        switch (monthNumber) {
+          case 7: return guru.jul;
+          case 8: return guru.agt;
+          case 9: return guru.sep;
+          case 10: return guru.okt;
+          case 11: return guru.nov;
+          case 12: return guru.des;
+          case 1: return guru.jan;
+          case 2: return guru.feb;
+          case 3: return guru.mar;
+          case 4: return guru.apr;
+          case 5: return guru.mei;
+          case 6: return guru.jun;
+          default: return 0;
+        }
+      })();
 
       return (
         <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-          {monthData[monthNumber] || 0}
+          {monthValue || 0}
         </td>
       );
     }
@@ -241,7 +244,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
         {guru.total_ketidakhadiran || 0}
       </td>
     );
-  };
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">

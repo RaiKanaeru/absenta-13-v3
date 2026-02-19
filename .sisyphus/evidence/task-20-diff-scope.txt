@@ -1,36 +1,53 @@
-SCOPE FIDELITY CHECK — 2026-02-19
-===================================
+SCOPE FIDELITY CHECK — T20 Final — 2026-02-19
+================================================
 
 Baseline commit: 2961b1aa (pre-plan)
-HEAD commit: current
+HEAD commit: 381515b9
 
-SOURCE FILES CHANGED (excluding .sisyphus/ and scripts/):
-server/controllers/guruReportsController.js       → T2 (unused import)
-server/controllers/importMasterScheduleController.js → T2+T7 (unused import + finding cluster)
-server/controllers/jadwalController.js             → T6+T8+T9+T10+T11 (smells + complexity)
-server/controllers/jamPelajaranController.js       → T5 (dead assignment)
-server/controllers/monitoringController.js         → T19 (complexity/else-branch)
-server/controllers/pdfExportController.js          → T2 (unused import)
-server/controllers/siswaController.js              → T5 (ternary + unused var)
-server/middleware/globalErrorMiddleware.js          → T4 (re-exports)
-server/services/system/initializer.js              → T3 (unused import)
-server/services/system/queue-system.js             → T3 (TypeError fix)
-server/utils/importHelper.js                       → T12 (Set conversion + extraction)
-server/utils/sqlParser.js                          → T12 (full rewrite)
-server_modern.js                                   → T4 (top-level await)
-src/components/AdminDashboard.tsx                  → T13 (unused import)
-src/components/BackupManagementView.helpers.ts     → T14 (NEW: extracted helpers)
-src/components/BackupManagementView.tsx            → T14 (complexity reduction)
-src/components/EditProfile.components.tsx           → T15 (NEW: extracted components)
-src/components/EditProfile.tsx                     → T15 (complexity reduction)
-src/components/ExcelPreview.components.tsx          → T15 (NEW: extracted component)
-src/components/ExcelPreview.tsx                    → T15 (key fix + extraction)
-src/components/NotificationBell.tsx                → T13 (readonly props)
-src/components/NotificationPanel.tsx               → T13 (readonly props)
-src/components/RekapKetidakhadiranView.tsx          → T18 (chained ternaries)
-src/components/__tests__/EditProfile.test.tsx       → T15 (NEW: test)
-src/components/__tests__/ExcelPreview.test.tsx      → T15 (NEW: test)
-src/hooks/useEditProfileForm.ts                    → T15 (NEW: extracted hook)
-vite.config.ts                                     → T1 (setup path fix)
+SOURCE FILES CHANGED (excluding .sisyphus/, scripts/, __tests__):
 
+Backend Controllers (7):
+  server/controllers/guruReportsController.js       → T2 (unused import)
+  server/controllers/importMasterScheduleController.js → T2+T7 (unused import + finding cluster)
+  server/controllers/jadwalController.js             → T6+T8+T9+T10+T11 (smells + complexity)
+  server/controllers/jamPelajaranController.js       → T5 (dead assignment)
+  server/controllers/monitoringController.js         → T19 (complexity/else-branch)
+  server/controllers/pdfExportController.js          → T2 (unused import)
+  server/controllers/siswaController.js              → T5 (ternary + unused var)
+
+Backend Utils/Services/Middleware (5):
+  server/middleware/globalErrorMiddleware.js          → T4 (re-exports)
+  server/services/system/initializer.js              → T3 (unused import)
+  server/services/system/queue-system.js             → T3 (TypeError fix)
+  server/utils/importHelper.js                       → T12 (Set conversion + extraction)
+  server/utils/sqlParser.js                          → T12 (full rewrite)
+
+Backend Entry (1):
+  server_modern.js                                   → T4 (top-level await)
+
+Frontend Components (12 existing + 3 new companion + 1 new hook):
+  src/components/AdminDashboard.tsx                  → T13 (unused import)
+  src/components/BackupManagementView.tsx             → T14 (complexity reduction)
+  src/components/BackupManagementView.helpers.ts     → T14 (NEW: extracted helpers)
+  src/components/EditProfile.tsx                     → T15 (complexity reduction)
+  src/components/EditProfile.components.tsx           → T15 (NEW: extracted components)
+  src/components/ExcelImportView.tsx                 → T16 (index keys)
+  src/components/ExcelPreview.tsx                    → T15 (key fix + extraction)
+  src/components/ExcelPreview.components.tsx          → T15 (NEW: extracted component)
+  src/components/MonitoringDashboard.tsx             → T16 (readonly)
+  src/components/NotificationBell.tsx                → T13 (readonly props)
+  src/components/NotificationPanel.tsx               → T13 (readonly props)
+  src/components/PresensiSiswaView.tsx               → T17 (optional chain)
+  src/components/RekapKetidakhadiranGuruView.tsx      → T18 (useless assignments)
+  src/components/RekapKetidakhadiranView.tsx          → T18 (chained ternaries)
+  src/hooks/useEditProfileForm.ts                    → T15 (NEW: extracted hook)
+
+Frontend Tests (2 new):
+  src/components/__tests__/EditProfile.test.tsx       → T15 (NEW: test)
+  src/components/__tests__/ExcelPreview.test.tsx      → T15 (NEW: test)
+
+Config (1):
+  vite.config.ts                                     → T1 (setup path fix)
+
+TOTAL: 20 existing source files modified + 6 new files created
 VERDICT: ALL changed files map to planned tasks. ZERO unplanned modifications.

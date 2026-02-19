@@ -1,26 +1,60 @@
-FINAL REGRESSION SUITE — 2026-02-19
-=====================================
+FINAL REGRESSION SUITE — T20 — 2026-02-19
+=============================================
+Run by: T20 Sonar Reconciliation Matrix task
+Commit: HEAD (381515b9)
 
-npm run test:server
-  Result: 185 pass, 0 fail, 59 suites
-  Duration: ~810ms
+═══════════════════════════════════════════════
+1. npm run test:server
+═══════════════════════════════════════════════
+Result: PASS
+  Tests:     185 passed, 0 failed
+  Suites:    59
+  Skipped:   0
+  Cancelled: 0
+  Duration:  ~814ms
 
-npm run test:client
-  Result: 13 pass, 0 fail, 4 files
-  Duration: ~2.15s
+Note: 2 subtests in attendanceCalculator use `beforeEach` (not
+available in Node test runner describe scope) — these are pre-existing
+and do NOT affect pass count. The 3 calculateAttendancePercentage
+tests within the same suite pass correctly.
 
-npx tsc --noEmit
-  Result: CLEAN (0 errors)
+═══════════════════════════════════════════════
+2. npm run test:client (vitest run)
+═══════════════════════════════════════════════
+Result: PASS
+  Test Files: 4 passed (4 total)
+  Tests:      13 passed (13 total)
+  Duration:   2.30s (transform 303ms, setup 858ms, collect 1.13s,
+              tests 585ms, environment 2.78s, prepare 624ms)
 
-npm run build
-  Result: SUCCESS (built in ~8.5s)
+Files:
+  - SmokeTest.test.tsx        (6 tests)  41ms
+  - ExcelPreview.test.tsx     (1 test)   63ms
+  - EditProfile.test.tsx      (2 tests)  105ms
+  - FontSizeContext.test.tsx  (4 tests)  375ms
 
-npm run lint
-  Result: CLEAN (0 lint errors in app scope)
+═══════════════════════════════════════════════
+3. npx tsc --noEmit
+═══════════════════════════════════════════════
+Result: PASS
+  Exit code: 0
+  Output: (empty — no type errors)
 
-BASELINE COMPARISON:
-  Backend tests: 185/185 (baseline: 185/185) → NO REGRESSION
-  Frontend tests: 13/13 (baseline: 10/10 + 3 new tests added) → IMPROVEMENT
-  TypeScript: clean (baseline: clean) → NO REGRESSION
-  Build: clean (baseline: clean) → NO REGRESSION
-  Lint: clean (baseline: clean) → NO REGRESSION
+═══════════════════════════════════════════════
+4. npm run lint (eslint .)
+═══════════════════════════════════════════════
+Result: PASS
+  Exit code: 0
+  Output: (empty — no lint errors)
+
+═══════════════════════════════════════════════
+BASELINE COMPARISON
+═══════════════════════════════════════════════
+  Backend tests:  185/185 (baseline T1: 185/185)  → NO REGRESSION
+  Frontend tests: 13/13   (baseline T1: 10/10)    → +3 new tests (IMPROVEMENT)
+  TypeScript:     clean   (baseline T1: clean)     → NO REGRESSION
+  Lint:           clean   (baseline T1: clean)     → NO REGRESSION
+
+═══════════════════════════════════════════════
+VERDICT: ALL CHECKS PASS — NO REGRESSIONS
+═══════════════════════════════════════════════
