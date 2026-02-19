@@ -16,6 +16,8 @@ import { ERROR_CODES, AppError, generateRequestId } from '../utils/errorHandler.
 import { createLogger } from '../utils/logger.js';
 import { asyncHandler, asyncMiddleware } from '../utils/asyncHandler.js';
 
+export { asyncHandler, asyncMiddleware };
+
 const logger = createLogger('ErrorMiddleware');
 
 // ================================================
@@ -181,9 +183,8 @@ export function globalErrorHandler(err, req, res, next) {
 // ================================================
 // ASYNC HANDLER - Re-exported from asyncHandler.js
 // ================================================
-// asyncHandler and asyncMiddleware are imported from '../utils/asyncHandler.js'
-// and re-exported below for backward compatibility
-export { asyncHandler, asyncMiddleware };
+// asyncHandler and asyncMiddleware are re-exported from '../utils/asyncHandler.js'
+// for backward compatibility
 
 // ================================================
 // ERROR THROWING HELPERS
@@ -221,8 +222,6 @@ export default {
     requestIdMiddleware,
     notFoundHandler,
     globalErrorHandler,
-    asyncHandler,
-    asyncMiddleware,
     throwNotFound,
     throwValidationError,
     throwUnauthorized,

@@ -47,8 +47,7 @@ if (process.env.NODE_ENV === 'production') {
     }
 }
 
-// Ensure upload directory exists
-mkdir(`${uploadDir}/letterheads`, { recursive: true }).catch(console.error);
+// Ensure upload directory exists (moved to startup try-block for proper async handling)
 
 // Multer configuration for logo upload
 const uploadLogo = multer({
@@ -430,6 +429,8 @@ app.use(globalErrorHandler);  // Handle all unhandled errors
 
 try {
     await initializeDatabase(ddosProtection);
+    // Ensure upload directory exists
+    await mkdir(`${uploadDir}/letterheads`, { recursive: true });
     // Initialize scheduled tasks (Cron Jobs)
     initAutoAttendanceScheduler();
 
