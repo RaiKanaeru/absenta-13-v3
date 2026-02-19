@@ -6,7 +6,6 @@ import CacheSystem from './cache-system.js';
 import SystemMonitor from './monitoring-system.js';
 import SecuritySystem from './security-system.js';
 import PerformanceOptimizer from './performance-optimizer.js';
-import { formatWIBTime } from '../../utils/timeUtils.js';
 import { setPool } from '../../config/db.js';
 import { createLogger } from '../../utils/logger.js';
 

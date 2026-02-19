@@ -215,7 +215,7 @@ class DownloadQueue {
         }
 
         if (!Number.isFinite(normalizedUserId)) {
-            throw new Error('Valid userId is required');
+            throw new TypeError('Valid userId is required');
         }
         
         const jobOptions = {

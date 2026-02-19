@@ -1,0 +1,22 @@
+Task 3 Evidence: Queue type-check TypeError verification
+==========================================================
+Date: 2026-02-19
+
+## Change Applied
+- File: server/services/system/queue-system.js:218
+- Before: throw new Error('Valid userId is required')
+- After:  throw new TypeError('Valid userId is required')
+- Context: Guard uses Number.isFinite() which is a type check, so TypeError is semantically correct
+
+## Test Results
+- npm run test:server: 185 tests pass, 0 fail
+- DownloadQueue file access tests (3/3 pass): 
+  - purges expired file access entries ✅
+  - falls back to filename ownership when map entry expired ✅
+  - removes filepath from job status result ✅
+- No queue behavior regression detected
+
+## Verification
+The TypeError is thrown in the addToQueue method when normalizedUserId fails
+the Number.isFinite() check. This is a type-validation guard, so TypeError
+is the correct error class per JavaScript conventions and SonarQube guidance.
