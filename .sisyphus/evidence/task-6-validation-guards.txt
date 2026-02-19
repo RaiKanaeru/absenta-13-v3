@@ -1,0 +1,32 @@
+Task 6 validation guard evidence (jadwalController)
+Date: 2026-02-19
+
+1) Set-based guards confirmed in source
+- server/controllers/jadwalController.js:14
+  const ALLOWED_DAYS = new Set(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
+- server/controllers/jadwalController.js:28
+  const ALLOWED_ACTIVITY_TYPES = new Set([
+- server/controllers/jadwalController.js:47
+  return ALLOWED_ACTIVITY_TYPES.has(normalized) ? normalized : '';
+- server/controllers/jadwalController.js:269,503,735,965,1135,1232
+  ALLOWED_DAYS.has(...) validation checks present at call sites.
+
+2) Catch naming convention updates
+- server/controllers/jadwalController.js:353
+  } catch (error_) {
+- server/controllers/jadwalController.js:996
+  } catch (error_) {
+
+3) Negated condition readability update
+- server/controllers/jadwalController.js:478
+  else if (slot.jenis === 'pelajaran') { ... } else { buildSpecialCell(slot) }
+
+4) Unused declaration removals
+- Removed unused `keterangan_khusus = null` destructuring in:
+  - bulkCreateJadwal input destructuring
+  - createJadwal input destructuring
+  - updateJadwal input destructuring
+
+5) Scope confirmation
+- Only file touched: server/controllers/jadwalController.js
+- No transactional flow, rollback path, or SQL semantic statements changed.

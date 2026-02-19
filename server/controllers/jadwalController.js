@@ -350,8 +350,8 @@ const fetchJamSlotsByClass = async (kelasId) => {
             jamSlotsByDay[hari] = allJamSlots.filter(s => s.hari === hari);
         }
         return { jamSlotsByDay, HARI_LIST, hasData: allJamSlots.length > 0 };
-    } catch (error) {
-        logger.warn('Failed to read jam_pelajaran_kelas, fallback to jam_pelajaran', { error: error.message });
+    } catch (error_) {
+        logger.warn('Failed to read jam_pelajaran_kelas, fallback to jam_pelajaran', { error: error_.message });
         return { jamSlotsByDay: {}, HARI_LIST, hasData: false };
     }
 };
@@ -475,10 +475,10 @@ const buildClassSchedule = (kelas, HARI_LIST, jamSlotsByDay, scheduleIndex, mult
 
             if (sched) {
                 schedule[hari][slot.jam_ke] = buildCellData(sched, multiGuruMap);
-            } else if (slot.jenis !== 'pelajaran') {
-                schedule[hari][slot.jam_ke] = buildSpecialCell(slot);
-            } else {
+            } else if (slot.jenis === 'pelajaran') {
                 schedule[hari][slot.jam_ke] = null;
+            } else {
+                schedule[hari][slot.jam_ke] = buildSpecialCell(slot);
             }
         }
     }
@@ -993,8 +993,8 @@ export const batchUpdateMatrix = async (req, res) => {
                     [normalizedHari, ...kelasIds]
                 );
                 classSlotMap = new Map(classSlots.map(slot => [`${slot.kelas_id}|${slot.jam_ke}`, slot]));
-            } catch (error) {
-                log.warn('jam_pelajaran_kelas not available, fallback to jam_pelajaran', { error: error.message });
+            } catch (error_) {
+                log.warn('jam_pelajaran_kelas not available, fallback to jam_pelajaran', { error: error_.message });
             }
         }
 
@@ -1213,8 +1213,7 @@ export const bulkCreateJadwal = async (req, res) => {
         jam_ke,
         jam_mulai,
         jam_selesai,
-        jenis_aktivitas = 'pelajaran',
-        keterangan_khusus = null
+        jenis_aktivitas = 'pelajaran'
     } = req.body;
 
     log.requestStart('BulkCreateJadwal', { kelasCount: kelas_ids?.length, hari, jam_ke });
@@ -1709,8 +1708,7 @@ export const createJadwal = async (req, res) => {
         mapel_id,
         hari,
         jam_ke,
-        jenis_aktivitas = 'pelajaran',
-        keterangan_khusus = null
+        jenis_aktivitas = 'pelajaran'
     } = req.body;
 
     log.requestStart('CreateJadwal', { kelas_id, mapel_id, hari, jam_ke });
@@ -1772,8 +1770,7 @@ export const updateJadwal = async (req, res) => {
         kelas_id,
         hari,
         jam_ke,
-        jenis_aktivitas = 'pelajaran',
-        keterangan_khusus = null
+        jenis_aktivitas = 'pelajaran'
     } = req.body;
 
     log.requestStart('UpdateJadwal', { id, kelas_id, hari, jam_ke });
