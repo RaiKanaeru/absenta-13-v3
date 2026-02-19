@@ -1,0 +1,26 @@
+{
+  "task": "T8",
+  "timestamp": "2026-02-19T06:06:10.152Z",
+  "target_file": "server/controllers/jadwalController.js",
+  "scope": [
+    "checkAllScheduleConflicts (~L264)",
+    "processJadwalData (~L713)"
+  ],
+  "verification": {
+    "syntax_check": {
+      "command": "node --check server/controllers/jadwalController.js",
+      "status": "pass"
+    },
+    "targeted_tests": {
+      "command": "node --test server/__tests__/jadwal.test.js",
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    }
+  },
+  "equivalence_basis": [
+    "No endpoint contract/status-code changes in createJadwal/updateJadwal call sites",
+    "Validation/error messages preserved for exercised jadwal paths",
+    "Targeted jadwal controller regression suite passed (8/8)"
+  ]
+}

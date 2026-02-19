@@ -1,0 +1,40 @@
+{
+  "task": "T9",
+  "timestamp": "2026-02-19T06:13:28.002Z",
+  "target": "batchUpdateMatrix hotspot group B",
+  "file": "server/controllers/jadwalController.js",
+  "equivalence": {
+    "failure_paths": [
+      {
+        "scenario": "missing hari/changes",
+        "expectation": "sendValidationError with unchanged validation semantics"
+      },
+      {
+        "scenario": "invalid day or empty normalized changes",
+        "expectation": "same validation family and messages"
+      },
+      {
+        "scenario": "missing jam slot / missing mapel-guru / conflict",
+        "expectation": "rollback then sendValidationError with same message contract"
+      },
+      {
+        "scenario": "unexpected DB/runtime error",
+        "expectation": "rollback then sendDatabaseError with unchanged message \"Gagal melakukan batch update\""
+      }
+    ],
+    "contract_guards": [
+      "transaction rollback still occurs before early validation failure inside processing loop",
+      "catch block still logs dbError and returns sendDatabaseError",
+      "finally block still releases connection"
+    ]
+  },
+  "verification": {
+    "node_check": "pass",
+    "jadwal_test": {
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    },
+    "build": "pass"
+  }
+}

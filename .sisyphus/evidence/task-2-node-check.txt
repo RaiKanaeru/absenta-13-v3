@@ -1,0 +1,10 @@
+=== T2 Node Syntax Verification ===
+
+FILE: server/controllers/guruReportsController.js
+✓ PASS
+
+FILE: server/controllers/importMasterScheduleController.js
+✓ PASS
+
+FILE: server/controllers/pdfExportController.js
+✓ PASS

@@ -1,0 +1,13 @@
+Task 2: Regression Test Summary
+
+Changes Applied:
+1. server/controllers/guruReportsController.js - Removed unused 'sendNotFoundError' import
+2. server/controllers/pdfExportController.js - Removed unused 'sendDatabaseError' import
+
+Test Results:
+- npm run test:server: PASS (185 tests, 0 failures)
+- node --check: PASS (all files)
+- Diff scope: PASS (only import lines removed, no logic changes)
+
+Status: ✓ ALL CHECKS PASSED
+No behavioral regressions detected

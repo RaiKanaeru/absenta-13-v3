@@ -103,3 +103,9 @@
 
 ### Task T10 Correction Addendum — 2026-02-19T06:24:23.749Z
 - Corrected note: undefined field name was keterangan_khusus, fixed by passing keteranganKhusus into helper and writing keteranganKhusus ?? null.
+
+## Task T11 Learnings — 2026-02-19T06:29:20.752Z
+
+- cloneJadwal complexity dropped by extracting request validation, source/target fetchers, guru map building, per-schedule clone execution, and conflict appending helpers.
+- Keeping transaction begin/commit/rollback in cloneJadwal preserved controller-level transaction ownership and failure behavior.
+- Extracted helper cloneScheduleToTarget kept insert payload fields and conflict behavior stable while flattening nested loops.

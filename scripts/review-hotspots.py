@@ -78,7 +78,12 @@ review(
     "Safe: test fixture token in unit tests. Not a real credential.",
     "server/__tests__/authLogin.test.js:199",
 )
-review("AZwZ6l7DsWcbYLKTEKCA", "SAFE", SAFE_PASSWORD_VAR_NAMES, "create_admin.js:30")
+review(
+    "AZwZ6l7DsWcbYLKTEKCA",
+    "SAFE",
+    "Safe: dev/test seeder script (Playwright admin). Password is bcrypt-hashed before DB insert, not used in production.",
+    "create_admin.js:22",
+)
 review(
     "AZu6WjjnmfTcMxN9gFQI",
     "SAFE",
@@ -197,6 +202,66 @@ review(
     "docker/storybook/Dockerfile:19",
 )
 review(
+    "AZvJZ9eI1JUHGmesjGx8",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_full.js:82",
+)
+review(
+    "AZvJZ9eI1JUHGmesjGyB",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_full.js:420",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnN",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:154",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnO",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:162",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnS",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:408",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnT",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:640",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnU",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:641",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnV",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:656",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnW",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:657",
+)
+review(
+    "AZvLRRD8jiSZ56RtOdnX",
+    "SAFE",
+    SAFE_MATH_RANDOM_SEEDERS,
+    "database/seeders/seed_dummy_range.js:797",
+)
+review(
     "AZureTQQrVcAIc1a_eDT",
     "SAFE",
     SAFE_MATH_RANDOM_SEEDERS,
@@ -255,12 +320,6 @@ review(
     "SAFE",
     SAFE_MATH_RANDOM_UI,
     "src/components/BackupManagementView.tsx:206",
-)
-review(
-    "AZwZ6l2asWcbYLKTEKB9",
-    "SAFE",
-    SAFE_MATH_RANDOM_UI,
-    "src/components/SimpleRestoreView.tsx:566",
 )
 review(
     "AZtta9K8ToFX3SmMQ7Y3",
@@ -333,6 +392,12 @@ review(
     "SAFE",
     ACK_GITHUB_ACTION_TAGS,
     ".github/workflows/docker-build.yml:52",
+)
+review(
+    "AZxQbOd8PM_r-r8QVvXp",
+    "SAFE",
+    ACK_GITHUB_ACTION_TAGS,
+    ".github/workflows/sonarcloud.yml:45",
 )
 review(
     "AZwO6O17ybMbdSR7yWhk",

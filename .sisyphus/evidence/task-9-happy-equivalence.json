@@ -1,0 +1,32 @@
+{
+  "task": "T9",
+  "timestamp": "2026-02-19T06:13:28.002Z",
+  "target": "batchUpdateMatrix hotspot group B",
+  "file": "server/controllers/jadwalController.js",
+  "equivalence": {
+    "happy_paths": [
+      {
+        "scenario": "valid create/update/delete matrix changes",
+        "expectation": "same success contract and counters (created/updated/deleted) with optional warnings"
+      },
+      {
+        "scenario": "warning-only guru-mapel mismatch",
+        "expectation": "non-blocking warnings still accumulated in response"
+      }
+    ],
+    "contract_guards": [
+      "sendSuccessResponse payload remains responseData with created/updated/deleted and optional warnings",
+      "success message remains \"Batch update berhasil\"",
+      "transaction commit remains after full loop processing"
+    ]
+  },
+  "verification": {
+    "node_check": "pass",
+    "jadwal_test": {
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    },
+    "build": "pass"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "task": "T8",
+  "timestamp": "2026-02-19T06:06:10.152Z",
+  "validated_error_paths": [
+    {
+      "path": "createJadwal",
+      "input_case": "invalid time format",
+      "expected_error": "Format waktu tidak valid. Gunakan format 24 jam (HH:MM)",
+      "source": "server/__tests__/jadwal.test.js"
+    },
+    {
+      "path": "createJadwal",
+      "input_case": "end time before start time",
+      "expected_error": "Jam selesai harus setelah jam mulai",
+      "source": "server/__tests__/jadwal.test.js"
+    },
+    {
+      "path": "createJadwal",
+      "input_case": "missing required fields",
+      "expected_error": "Semua field wajib diisi",
+      "source": "server/__tests__/jadwal.test.js"
+    },
+    {
+      "path": "deleteJadwal",
+      "input_case": "jadwal id not found",
+      "expected_error": "Jadwal tidak ditemukan",
+      "source": "server/__tests__/jadwal.test.js"
+    }
+  ],
+  "notes": [
+    "Error-path assertions remained green after refactor",
+    "Refactor only extracted helper logic; SQL semantics and transaction boundaries unchanged"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "task": "T10",
+  "timestamp": "2026-02-19T06:23:58.802Z",
+  "target": "bulkCreateJadwal hotspot group C",
+  "file": "server/controllers/jadwalController.js",
+  "parity": {
+    "role_permission_behavior": "No role/permission branching exists inside bulkCreateJadwal; getJadwalToday role branches are untouched by T10 refactor.",
+    "unchanged_paths": [
+      "bulkCreateJadwal validation message contract preserved",
+      "getJadwalToday guru/siswa branch behavior preserved (no edits)"
+    ],
+    "response_status_contract": [
+      "sendSuccessResponse(res, { created, skipped, conflicts }, \"Bulk jadwal selesai\") preserved",
+      "sendValidationError usage preserved for all guard failures",
+      "sendDatabaseError message preserved: \"Gagal menambahkan jadwal massal\""
+    ]
+  },
+  "verification": {
+    "node_check": "pass",
+    "jadwal_tests": {
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    },
+    "lsp_diagnostics": "clean"
+  },
+  "correction": {
+    "issue": "createBulkJadwalForClass used undefined keterangan_khusus identifier",
+    "fix": "Pass keterangan_khusus from bulkCreateJadwal into helper as keteranganKhusus and persist with null fallback",
+    "risk": "ReferenceError in bulk create path removed"
+  }
+}

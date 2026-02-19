@@ -1,0 +1,32 @@
+commit f94cba759e93165ba3f6f18f29662eb03c26260b
+Author: RaiKanaeru <raihanariansyah160307@gmail.com>
+Date:   Thu Feb 19 12:46:51 2026 +0700
+
+    chore(sonar-backend): remove unused controller imports
+
+diff --git a/server/controllers/guruReportsController.js b/server/controllers/guruReportsController.js
+index 1c124df0..a4d070ec 100644
+--- a/server/controllers/guruReportsController.js
++++ b/server/controllers/guruReportsController.js
+@@ -3,7 +3,7 @@
+  * Handles teacher-specific attendance reports
+  */
+ 
+-import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
++import { sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
+ import { createLogger } from '../utils/logger.js';
+ import { getDaysDifferenceWIB, parseDateStringWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
+ import ExportService from '../services/ExportService.js';
+diff --git a/server/controllers/pdfExportController.js b/server/controllers/pdfExportController.js
+index e75a6a52..5653adca 100644
+--- a/server/controllers/pdfExportController.js
++++ b/server/controllers/pdfExportController.js
+@@ -7,7 +7,7 @@
+ import { createLogger } from '../utils/logger.js';
+ import ExportService from '../services/ExportService.js';
+ import db from '../config/db.js';
+-import { sendValidationError, sendDatabaseError } from '../utils/errorHandler.js';
++import { sendValidationError } from '../utils/errorHandler.js';
+ import { buildPdf } from '../../backend/export/pdfBuilder.js';
+ import { streamPdfResponse, generatePdfFilename, wrapPdfExport } from '../../backend/export/pdfHelpers.js';
+ import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';

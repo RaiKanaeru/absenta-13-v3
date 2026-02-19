@@ -1,0 +1,36 @@
+{
+  "task": "T11",
+  "timestamp": "2026-02-19T06:28:58.710Z",
+  "target": "cloneJadwal hotspot group D",
+  "file": "server/controllers/jadwalController.js",
+  "parity": {
+    "happy_paths": [
+      {
+        "scenario": "valid source and target classes with cloneable schedules",
+        "expectation": "returns created/skipped/conflicts with success message unchanged"
+      },
+      {
+        "scenario": "conflict on target slot",
+        "expectation": "increments skipped and appends conflict objects with same keys kelas_id, kelas_name, conflict_type, message"
+      },
+      {
+        "scenario": "include_guru/include_ruang toggles",
+        "expectation": "guru/ruang assignment semantics preserved during insert"
+      }
+    ],
+    "response_contract": [
+      "sendSuccessResponse(res, { created, skipped, conflicts }, \"Jadwal berhasil disalin\") unchanged",
+      "created and skipped counters still computed per target x schedule loop"
+    ]
+  },
+  "verification": {
+    "node_check": "pass",
+    "jadwal_test": {
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    },
+    "build": "pass",
+    "lsp_diagnostics": "clean"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "task": "T10",
+  "timestamp": "2026-02-19T06:23:58.802Z",
+  "target": "bulkCreateJadwal hotspot group C",
+  "file": "server/controllers/jadwalController.js",
+  "error_guards": [
+    {
+      "guard": "request shape and day/time guards",
+      "expectation": "unchanged errors before any transaction allocation"
+    },
+    {
+      "guard": "entity/reference validation guards",
+      "expectation": "same mapel/ruang/guru error family and messages"
+    },
+    {
+      "guard": "per-class conflict guard",
+      "expectation": "same skipped increment and conflict object schema"
+    },
+    {
+      "guard": "transaction failure guard",
+      "expectation": "catch retains rollback when connection exists and finally releases connection"
+    }
+  ],
+  "rollback_semantics": [
+    "beginTransaction remains at controller level before class loop",
+    "rollback remains in controller catch block (if connection)",
+    "helpers do not commit/rollback directly"
+  ],
+  "correction": {
+    "nullable_semantics": "keterangan_khusus now written as keteranganKhusus ?? null",
+    "scope": "bulkCreate helper param wiring only"
+  },
+  "verification": {
+    "node_check": "pass",
+    "jadwal_tests": {
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    },
+    "lsp_diagnostics": "clean"
+  }
+}

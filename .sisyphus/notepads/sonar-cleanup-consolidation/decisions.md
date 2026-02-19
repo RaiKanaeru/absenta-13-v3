@@ -223,3 +223,9 @@
 
 ### Task T10 Correction Addendum — 2026-02-19T06:24:23.749Z
 - Scope remained minimal: only helper parameter wiring for keterangan_khusus to createBulkJadwalForClass plus nullable insert fallback.
+
+## Task T11 Decisions — 2026-02-19T06:29:20.752Z
+
+- Refactor scope limited to server/controllers/jadwalController.js hotspot D path (cloneJadwal and local helpers only).
+- Preserved contract behavior: same success payload keys created/skipped/conflicts and same user-facing messages for validation/not-found/database paths.
+- Maintained error taxonomy and transaction guards by keeping rollback/release in controller catch/finally blocks.

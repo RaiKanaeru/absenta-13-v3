@@ -1,0 +1,49 @@
+{
+  "task": "T11",
+  "timestamp": "2026-02-19T06:28:58.710Z",
+  "target": "cloneJadwal hotspot group D",
+  "file": "server/controllers/jadwalController.js",
+  "parity": {
+    "invalid_input_paths": [
+      {
+        "case": "invalid source_kelas_id",
+        "expectation": "sendValidationError(\"Kelas sumber tidak valid\")"
+      },
+      {
+        "case": "empty target_kelas_ids",
+        "expectation": "sendValidationError(\"Minimal satu kelas target harus dipilih\")"
+      },
+      {
+        "case": "all targets invalid or same as source",
+        "expectation": "sendValidationError(\"Kelas target tidak valid\")"
+      },
+      {
+        "case": "source has no schedules",
+        "expectation": "sendNotFoundError(\"Kelas sumber tidak memiliki jadwal\")"
+      },
+      {
+        "case": "missing target classes",
+        "expectation": "sendValidationError(\"Kelas target tidak ditemukan\", {missing})"
+      }
+    ],
+    "error_taxonomy": [
+      "validation guards remain sendValidationError",
+      "empty-source guard remains sendNotFoundError",
+      "runtime/db failures remain sendDatabaseError(\"Gagal menyalin jadwal\")"
+    ],
+    "transaction_guards": [
+      "beginTransaction remains in controller before clone loop",
+      "catch rollback and finally release remain in controller scope"
+    ]
+  },
+  "verification": {
+    "node_check": "pass",
+    "jadwal_test": {
+      "status": "pass",
+      "tests": 8,
+      "fail": 0
+    },
+    "build": "pass",
+    "lsp_diagnostics": "clean"
+  }
+}
