@@ -1,9 +1,10 @@
 /**
  * PresensiSiswaSMKN13View - Student attendance report SMKN13 format
  * Extracted from TeacherDashboard.tsx
+ * Optimized with server-side pagination (50 rows/page) to reduce DOM load
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +16,19 @@ import { toast } from "@/hooks/use-toast";
 import { formatDateWIB } from "@/lib/time-utils";
 import { downloadExcelFromApi } from "@/utils/exportUtils";
 import { ErrorAlert } from "@/components/shared/ErrorAlert";
-import { FileText, Search, ArrowLeft, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
+import { FileText, Search, ArrowLeft, FileSpreadsheet, Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
 import { TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
+
+const PAGE_SIZE = 50;
+
+interface PaginationInfo {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 interface PresensiSiswaSMKN13ViewProps {
   user: TeacherUserData;
@@ -33,6 +43,8 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     (async ()=>{
@@ -41,7 +53,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
     })();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (page = 1) => {
     if (!dateRange.startDate || !dateRange.endDate) {
       setError('Mohon pilih periode mulai dan akhir');
       return;
@@ -52,18 +64,41 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       setError('');
       const params = new URLSearchParams({ 
         startDate: dateRange.startDate, 
-        endDate: dateRange.endDate 
+        endDate: dateRange.endDate,
+        page: String(page),
+        limit: String(PAGE_SIZE),
       });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       
       const res = await apiCall(`/api/guru/presensi-siswa-smkn13?${params.toString()}`);
-      setReportData(Array.isArray(res) ? res : []);
+      
+      // Handle paginated response { data, total, page, limit, totalPages }
+      if (res && !Array.isArray(res) && res.data) {
+        setReportData(Array.isArray(res.data) ? res.data : []);
+        setPagination({
+          total: res.total,
+          page: res.page,
+          limit: res.limit,
+          totalPages: res.totalPages,
+        });
+        setCurrentPage(res.page);
+      } else {
+        // Fallback: plain array (backward compat)
+        setReportData(Array.isArray(res) ? res : []);
+        setPagination(null);
+        setCurrentPage(1);
+      }
     } catch (err) {
       toast({ variant: "destructive", title: "Gagal memuat data presensi", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
       setError(getErrorMessage(err) || 'Gagal memuat data presensi siswa');
     } finally {
       setLoading(false);
     }
+  }, [dateRange, selectedKelas]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || (pagination && newPage > pagination.totalPages)) return;
+    fetchData(newPage);
   };
 
   const handleDownloadExcel = async () => {
@@ -99,6 +134,9 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       setExporting(false);
     }
   };
+
+  // Calculate row number offset for paginated display
+  const rowOffset = pagination ? (pagination.page - 1) * pagination.limit : 0;
 
   return (
     <div className="space-y-6">
@@ -150,7 +188,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Button onClick={fetchData} disabled={loading} className="flex-1">
+              <Button onClick={() => fetchData(1)} disabled={loading} className="flex-1">
                 <Search className="w-4 h-4 mr-2"/>
                 {loading ? 'Memuat...' : 'Tampilkan'}
               </Button>
@@ -184,6 +222,11 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="w-5 h-5" />
                   Presensi Siswa SMK 13
+                  {pagination && (
+                    <Badge variant="secondary" className="ml-2">
+                      {pagination.total.toLocaleString()} data
+                    </Badge>
+                  )}
                 </CardTitle>
                 <Button
                   onClick={handleDownloadExcel}
@@ -234,8 +277,8 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                       const presentase = Number(total) > 0 ? ((Number(hadir) / Number(total)) * 100).toFixed(1) : '0.0';
                       
                       return (
-                        <TableRow key={item.id}>
-                          <TableCell>{index + 1}</TableCell>
+                        <TableRow key={`${item.tanggal}-${item.jam_mulai}-${item.nama_kelas}-${index}`}>
+                          <TableCell>{rowOffset + index + 1}</TableCell>
                           <TableCell>{formatDateWIB(String(item.tanggal))}</TableCell>
                           <TableCell>{item.hari}</TableCell>
                           <TableCell>{item.jam_mulai} - {item.jam_selesai}</TableCell>
@@ -274,6 +317,52 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination Controls */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Menampilkan {rowOffset + 1}-{Math.min(rowOffset + pagination.limit, pagination.total)} dari {pagination.total.toLocaleString()} data
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage <= 1 || loading}
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1 || loading}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="px-3 py-1 text-sm font-medium">
+                      {currentPage} / {pagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= pagination.totalPages || loading}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.totalPages)}
+                      disabled={currentPage >= pagination.totalPages || loading}
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

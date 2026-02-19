@@ -10,15 +10,15 @@ import ExportService from '../services/ExportService.js';
 
 const logger = createLogger('GuruReports');
 
-// Get presensi siswa SMK 13 untuk laporan guru
+// Get presensi siswa SMK 13 untuk laporan guru (with pagination + Redis caching)
 export const getPresensiSiswaSmkn13 = async (req, res) => {
     const log = logger.withRequest(req, res);
-    const { startDate, endDate, kelas_id } = req.query;
+    const { startDate, endDate, kelas_id, page, limit } = req.query;
     const guruId = req.user.guru_id;
     const userRole = req.user.role;
     const isAdmin = userRole === 'admin';
 
-    log.requestStart('GetPresensiSiswaSmkn13', { startDate, endDate, kelas_id, guruId, isAdmin });
+    log.requestStart('GetPresensiSiswaSmkn13', { startDate, endDate, kelas_id, page, limit, guruId, isAdmin });
 
     try {
         if (!isAdmin && !guruId) {
@@ -31,23 +31,40 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        // Use Service Layer
-        const rows = await ExportService.getPresensiSiswaSmkn13(
-            startDate, 
-            endDate, 
-            isAdmin ? null : guruId, 
-            kelas_id
-        );
+        // Parse pagination params (optional)
+        const pageNum = page ? parseInt(page, 10) : null;
+        const limitNum = limit ? parseInt(limit, 10) : null;
+        const effectiveGuruId = isAdmin ? null : guruId;
 
-        log.success('GetPresensiSiswaSmkn13', { count: rows.length, guruId, isAdmin });
-        res.json(rows);
+        // Redis cache key
+        const cacheKey = `report:presensi:${startDate}:${endDate}:${effectiveGuruId || 'all'}:${kelas_id || 'all'}:${pageNum || 'full'}:${limitNum || 'full'}`;
+
+        // Try cache first, fallback to DB query
+        const cacheSystem = globalThis.cacheSystem;
+        let result;
+
+        if (cacheSystem) {
+            result = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getPresensiSiswaSmkn13(startDate, endDate, effectiveGuruId, kelas_id, pageNum, limitNum),
+                'attendance',
+                300  // 5 minutes TTL
+            );
+        } else {
+            result = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, effectiveGuruId, kelas_id, pageNum, limitNum);
+        }
+
+        // result is either plain array (no pagination) or { data, total, page, limit, totalPages }
+        const count = Array.isArray(result) ? result.length : result.total;
+        log.success('GetPresensiSiswaSmkn13', { count, guruId, isAdmin, cached: !!cacheSystem });
+        res.json(result);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
         return sendDatabaseError(res, error, 'Gagal mengambil data presensi siswa');
     }
 };
 
-// Get rekap ketidakhadiran untuk laporan guru
+// Get rekap ketidakhadiran untuk laporan guru (with Redis caching)
 export const getRekapKetidakhadiran = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id, reportType } = req.query;
@@ -68,16 +85,28 @@ export const getRekapKetidakhadiran = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        // Use Service Layer
-        const rows = await ExportService.getRekapKetidakhadiran(
-            startDate,
-            endDate,
-            isAdmin ? null : guruId,
-            kelas_id,
-            reportType
-        );
+        const effectiveGuruId = isAdmin ? null : guruId;
+        const effectiveReportType = reportType || 'bulanan';
 
-        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType, isAdmin });
+        // Redis cache key
+        const cacheKey = `report:rekap:${startDate}:${endDate}:${effectiveGuruId || 'all'}:${kelas_id || 'all'}:${effectiveReportType}`;
+
+        // Try cache first, fallback to DB query
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+
+        if (cacheSystem) {
+            rows = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getRekapKetidakhadiran(startDate, endDate, effectiveGuruId, kelas_id, effectiveReportType),
+                'attendance',
+                300  // 5 minutes TTL
+            );
+        } else {
+            rows = await ExportService.getRekapKetidakhadiran(startDate, endDate, effectiveGuruId, kelas_id, effectiveReportType);
+        }
+
+        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType: effectiveReportType, isAdmin, cached: !!cacheSystem });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, reportType, guruId });
