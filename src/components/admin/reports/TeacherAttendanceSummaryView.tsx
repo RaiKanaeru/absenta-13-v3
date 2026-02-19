@@ -149,7 +149,7 @@ export const TeacherAttendanceSummaryView: React.FC<TeacherAttendanceSummaryView
 
     const handleSort = (key: string) => {
       let direction: 'asc' | 'desc' = 'asc';
-      if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      if (sortConfig?.key === key && sortConfig?.direction === 'asc') {
         direction = 'desc';
       }
       setSortConfig({ key, direction });

@@ -78,8 +78,8 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
       });
       setBandingData(data);
     } catch (error: unknown) {
-      toast({ variant: "destructive", title: "Gagal memuat data banding", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
       const message = error instanceof Error ? error.message : String(error);
+      toast({ variant: "destructive", title: "Gagal memuat data banding", description: message });
       setError('Gagal memuat data banding: ' + message);
     } finally {
       setLoading(false);
@@ -414,17 +414,17 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
                   ‹
                 </Button>
                 
-                {pageNumbers.map((page, idx) => (
+                {pageNumbers.map((page) => (
                    <Button
-                     key={idx}
-                     variant={currentPage === page ? "default" : "outline"}
-                     size="sm"
-                     onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                     disabled={typeof page !== 'number'}
-                   >
-                     {page}
-                   </Button>
-                ))}
+                      key={typeof page === 'number' ? page : `dots-${pageNumbers.indexOf(page)}`}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => typeof page === 'number' && setCurrentPage(page)}
+                      disabled={typeof page !== 'number'}
+                    >
+                      {page}
+                    </Button>
+                 ))}
 
                 <Button
                   variant="outline"

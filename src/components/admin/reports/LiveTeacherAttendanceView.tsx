@@ -325,7 +325,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
           setAttendanceData(data);
         } catch (error: unknown) {
           console.error('❌ Error fetching live teacher attendance:', error);
-          const message = error instanceof Error ? error.message : (typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error));
+          const message = error instanceof Error ? error.message : String(error);
           setError('Gagal memuat data absensi guru: ' + message);
         } finally {
           setLoading(false);
@@ -404,7 +404,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
           description: "File CSV berhasil diunduh"
         });
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : (typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error));
+        const message = error instanceof Error ? error.message : String(error);
         toast({
           title: "Error",
           description: "Gagal mengekspor data: " + message,
