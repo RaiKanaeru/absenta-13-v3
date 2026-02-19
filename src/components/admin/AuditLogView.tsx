@@ -59,7 +59,8 @@ const formatDate = (dateString: string) => {
       timeStyle: 'medium',
       timeZone: 'Asia/Jakarta',
     }).format(new Date(dateString));
-  } catch (e) {
+  } catch (error) {
+    console.error('Audit log date formatting failed:', error instanceof Error ? error.message : String(error));
     return dateString;
   }
 };
@@ -92,7 +93,8 @@ const parseDetails = (details: string | Record<string, unknown> | null) => {
   if (typeof details === 'string') {
     try {
       parsed = JSON.parse(details);
-    } catch (e) {
+    } catch (error) {
+      console.error('Audit log details parsing failed:', error instanceof Error ? error.message : String(error));
       return <span className="text-xs font-mono truncate max-w-[200px] block" title={details}>{details}</span>;
     }
   } else {
@@ -106,8 +108,8 @@ const parseDetails = (details: string | Record<string, unknown> | null) => {
       {Object.entries(parsed).slice(0, 3).map(([key, value]) => (
         <div key={key} className="flex gap-1">
           <span className="font-semibold text-muted-foreground">{key}:</span>
-          <span className="truncate max-w-[150px]" title={String(value)}>
-            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+          <span className="truncate max-w-[150px]" title={typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}>
+            {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
           </span>
         </div>
       ))}
@@ -122,7 +124,7 @@ const parseDetails = (details: string | Record<string, unknown> | null) => {
 
 // --- Main Component ---
 
-export default function AuditLogView({ onBack, onLogout }: AuditLogViewProps) {
+export default function AuditLogView({ onBack, onLogout }: Readonly<AuditLogViewProps>) {
   // State
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
@@ -145,7 +147,7 @@ export default function AuditLogView({ onBack, onLogout }: AuditLogViewProps) {
   const fetchFilterOptions = useCallback(async () => {
     try {
       const response = await apiCall<{ data: FilterOptions }>('/api/admin/audit-logs/filters', { onLogout });
-      if (response && response.data) {
+      if (response?.data) {
         setFilterOptions(response.data);
       }
     } catch (error) {
@@ -173,7 +175,7 @@ export default function AuditLogView({ onBack, onLogout }: AuditLogViewProps) {
         { onLogout }
       );
 
-      if (response && response.data) {
+      if (response?.data) {
         setLogs(response.data.logs || []);
         setPagination(prev => ({
           ...prev,
@@ -221,6 +223,76 @@ export default function AuditLogView({ onBack, onLogout }: AuditLogViewProps) {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       setPagination(prev => ({ ...prev, page: newPage }));
     }
+  };
+
+  // Render table body content based on loading/data state
+  const renderTableContent = () => {
+    if (isLoading) {
+      return [1, 2, 3, 4, 5].map((val) => (
+        <TableRow key={`skeleton-row-${val}`}>
+          <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+          <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+          <TableCell><div className="h-6 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
+          <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+          <TableCell><div className="h-4 w-64 bg-muted animate-pulse rounded" /></TableCell>
+          <TableCell className="hidden md:table-cell"><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+        </TableRow>
+      ));
+    }
+
+    if (logs.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6} className="h-48 text-center">
+            <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
+              <div className="p-4 bg-muted rounded-full">
+                <Search className="w-8 h-8 opacity-20" />
+              </div>
+              <p className="font-medium">Tidak ada data log aktivitas ditemukan</p>
+              <p className="text-xs">Coba sesuaikan filter atau rentang waktu pencarian Anda</p>
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return logs.map((log) => (
+      <TableRow key={log.id} className="group hover:bg-muted/30 transition-colors border-b last:border-0">
+        <TableCell className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+          {formatDate(log.created_at)}
+        </TableCell>
+        <TableCell className="font-semibold text-sm">
+          <div className="flex flex-col">
+            <span>{log.admin_name}</span>
+            <span className="text-[10px] text-muted-foreground font-normal">ID: #{log.admin_id || 'sys'}</span>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge 
+            variant="outline" 
+            className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-md", getActionColor(log.action))}
+          >
+            {log.action}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-sm">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-medium">
+            {log.target}
+          </Badge>
+        </TableCell>
+        <TableCell className="max-w-[400px]">
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-100 dark:border-slate-800">
+            {parseDetails(log.details)}
+          </div>
+        </TableCell>
+        <TableCell className="hidden md:table-cell text-[11px] font-mono text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+            {log.ip_address || '-'}
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
   };
 
   return (
@@ -382,68 +454,7 @@ export default function AuditLogView({ onBack, onLogout }: AuditLogViewProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                [1, 2, 3, 4, 5].map((val) => (
-                  <TableRow key={`skeleton-row-${val}`}>
-                    <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-6 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
-                    <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-4 w-64 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
-                  </TableRow>
-                ))
-              ) : logs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
-                      <div className="p-4 bg-muted rounded-full">
-                        <Search className="w-8 h-8 opacity-20" />
-                      </div>
-                      <p className="font-medium">Tidak ada data log aktivitas ditemukan</p>
-                      <p className="text-xs">Coba sesuaikan filter atau rentang waktu pencarian Anda</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                logs.map((log) => (
-                  <TableRow key={log.id} className="group hover:bg-muted/30 transition-colors border-b last:border-0">
-                    <TableCell className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
-                      {formatDate(log.created_at)}
-                    </TableCell>
-                    <TableCell className="font-semibold text-sm">
-                      <div className="flex flex-col">
-                        <span>{log.admin_name}</span>
-                        <span className="text-[10px] text-muted-foreground font-normal">ID: #{log.admin_id || 'sys'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-md", getActionColor(log.action))}
-                      >
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-medium">
-                        {log.target}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[400px]">
-                      <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-100 dark:border-slate-800">
-                        {parseDetails(log.details)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-[11px] font-mono text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                        {log.ip_address || '-'}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              {renderTableContent()}
             </TableBody>
           </Table>
         </div>

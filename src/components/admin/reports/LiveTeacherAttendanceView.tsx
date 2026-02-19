@@ -18,6 +18,228 @@ import {
 } from '../utils/dashboardUtils';
 import { LiveTeacherRow } from '@/types/dashboard';
 
+// --- Props interfaces for extracted sub-components ---
+
+interface TeacherAttendanceStatsProps {
+  data: LiveTeacherRow[];
+}
+
+interface TeacherAttendanceProgressProps {
+  data: LiveTeacherRow[];
+}
+
+interface TeacherPaginationProps {
+  totalPages: number;
+  currentPage: number;
+  startIndex: number;
+  endIndex: number;
+  filteredCount: number;
+  onPageChange: (page: number) => void;
+}
+
+// --- Extracted sub-components (module level) ---
+
+const TeacherAttendanceStats: React.FC<TeacherAttendanceStatsProps> = ({ data }) => {
+  const total = data.length;
+  const hadir = data.filter(item => item.status === 'Hadir').length;
+  const tidakHadir = data.filter(item => item.status === 'Tidak Hadir').length;
+  const sakit = data.filter(item => item.status === 'Sakit').length;
+  const izin = data.filter(item => item.status === 'Izin').length;
+  const dispen = data.filter(item => item.status === 'Dispen').length;
+  const belumAbsen = data.filter(item => item.status === 'Belum Absen').length;
+  
+  const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+
+  const stats = [
+    { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
+    { label: 'Tidak Hadir', value: tidakHadir, color: 'destructive', icon: X, pct: total > 0 ? Math.round((tidakHadir/total)*100) : 0 },
+    { label: 'Sakit', value: sakit, color: 'blue', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
+    { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
+    { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
+    { label: 'Belum Absen', value: belumAbsen, color: 'slate', icon: Clock, pct: total > 0 ? Math.round((belumAbsen/total)*100) : 0 },
+    { label: 'Total', value: total, color: 'indigo', icon: GraduationCap, pct: presentase, pctLabel: '% Hadir' },
+  ];
+
+  const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+    emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-500' },
+    destructive: { bg: 'bg-destructive/15', border: 'border-l-destructive', text: 'text-destructive', icon: 'text-destructive' },
+    blue: { bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-l-blue-500', text: 'text-blue-700 dark:text-blue-400', icon: 'text-blue-500' },
+    amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-500' },
+    violet: { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-l-violet-500', text: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-500' },
+    slate: { bg: 'bg-muted', border: 'border-l-slate-500 dark:border-l-slate-400', text: 'text-foreground', icon: 'text-muted-foreground' },
+    indigo: { bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', border: 'border-l-indigo-500', text: 'text-indigo-700 dark:text-indigo-400', icon: 'text-indigo-500' },
+  };
+  
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+      {stats.map((stat) => {
+        const colors = colorMap[stat.color];
+        const IconComponent = stat.icon;
+        return (
+          <div 
+            key={stat.label}
+            className={`${colors.bg} ${colors.border} border-l-4 rounded-lg p-4 transition-all hover:shadow-md`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <IconComponent className={`w-5 h-5 ${colors.icon}`} />
+              <span className={`text-xs font-medium ${colors.text} opacity-75`}>
+                {stat.pct}%{stat.pctLabel || ''}
+              </span>
+            </div>
+            <p className={`text-2xl font-bold ${colors.text}`}>{stat.value}</p>
+            <p className={`text-sm ${colors.text} opacity-80`}>{stat.label}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const TeacherAttendanceProgress: React.FC<TeacherAttendanceProgressProps> = ({ data }) => {
+  const total = data.length;
+  const hadir = data.filter(item => item.status === 'Hadir').length;
+  const sakit = data.filter(item => item.status === 'Sakit').length;
+  const izin = data.filter(item => item.status === 'Izin').length;
+  const tidakHadir = data.filter(item => item.status === 'Tidak Hadir').length;
+  
+  const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+  const circumference = 2 * Math.PI * 45;
+  const strokeDashoffset = circumference - (presentase / 100) * circumference;
+  
+  return (
+    <div className="bg-indigo-500/10 dark:bg-indigo-500/20 rounded-xl p-6 mb-6 border border-indigo-500/20">
+      <div className="flex flex-col md:flex-row items-center gap-6">
+        <div className="relative">
+          <svg className="w-32 h-32 transform -rotate-90">
+            <circle
+              cx="64"
+              cy="64"
+              r="45"
+              stroke="currentColor"
+              strokeWidth="10"
+              fill="none"
+              className="text-muted"
+            />
+            <circle
+              cx="64" cy="64" r="45"
+              stroke="url(#gradientTeacher)"
+              strokeWidth="10"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className="transition-all duration-700 ease-out"
+            />
+            <defs>
+              <linearGradient id="gradientTeacher" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="currentColor" className="text-emerald-500 dark:text-emerald-400" />
+                <stop offset="100%" stopColor="currentColor" className="text-emerald-400 dark:text-emerald-300" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{presentase}%</span>
+          </div>
+        </div>
+        
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-foreground mb-1">Tingkat Kehadiran Guru Hari Ini</h3>
+          <p className="text-muted-foreground text-sm mb-4">{hadir} dari {total} guru hadir</p>
+          
+          <div className="grid grid-cols-4 gap-3">
+            <div className="text-center">
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{hadir}</p>
+              <p className="text-xs text-muted-foreground">Hadir</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{izin}</p>
+              <p className="text-xs text-muted-foreground">Izin</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{sakit}</p>
+              <p className="text-xs text-muted-foreground">Sakit</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-destructive">{tidakHadir}</p>
+              <p className="text-xs text-muted-foreground">Tidak Hadir</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TeacherPagination: React.FC<TeacherPaginationProps> = ({ totalPages, currentPage, startIndex, endIndex, filteredCount, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  const pageNumbers = generatePageNumbers(currentPage, totalPages);
+
+  return (
+    <div className="flex items-center justify-between mt-4">
+      <div className="text-sm text-muted-foreground">
+        Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredCount)} dari {filteredCount} data
+      </div>
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+        >
+          First
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </Button>
+        
+        {pageNumbers.map((page, index) => {
+          const uniqueKey = typeof page === 'number' 
+            ? `teacher-page-${page}` 
+            : `teacher-ellipsis-${index}`;
+
+          return (
+            <Button
+              key={uniqueKey}
+              variant={page === currentPage ? "default" : "outline"}
+              size="sm"
+              onClick={() => typeof page === 'number' && onPageChange(page)}
+              disabled={page === '...'}
+              className={page === '...' ? 'cursor-default' : ''}
+            >
+              {page}
+            </Button>
+          );
+        })}
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+        >
+          Last
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// --- Main component ---
+
 interface LiveTeacherAttendanceViewProps {
   onBack: () => void;
   onLogout: () => void;
@@ -103,7 +325,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
           setAttendanceData(data);
         } catch (error: unknown) {
           console.error('❌ Error fetching live teacher attendance:', error);
-          const message = error instanceof Error ? error.message : String(error);
+          const message = error instanceof Error ? error.message : (typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error));
           setError('Gagal memuat data absensi guru: ' + message);
         } finally {
           setLoading(false);
@@ -121,210 +343,6 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
         if (interval) clearInterval(interval);
       };
     }, [onLogout, autoRefresh]);
-
-    // Komponen statistik kehadiran guru - Modern Design
-    const TeacherAttendanceStats = ({ data }: { data: LiveTeacherRow[] }) => {
-      const total = data.length;
-      const hadir = data.filter(item => item.status === 'Hadir').length;
-      const tidakHadir = data.filter(item => item.status === 'Tidak Hadir').length;
-      const sakit = data.filter(item => item.status === 'Sakit').length;
-      const izin = data.filter(item => item.status === 'Izin').length;
-      const dispen = data.filter(item => item.status === 'Dispen').length;
-      const belumAbsen = data.filter(item => item.status === 'Belum Absen').length;
-      
-      const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
-
-      const stats = [
-        { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
-        { label: 'Tidak Hadir', value: tidakHadir, color: 'destructive', icon: X, pct: total > 0 ? Math.round((tidakHadir/total)*100) : 0 },
-        { label: 'Sakit', value: sakit, color: 'blue', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
-        { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
-        { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
-        { label: 'Belum Absen', value: belumAbsen, color: 'slate', icon: Clock, pct: total > 0 ? Math.round((belumAbsen/total)*100) : 0 },
-        { label: 'Total', value: total, color: 'indigo', icon: GraduationCap, pct: presentase, pctLabel: '% Hadir' },
-      ];
-
-const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-        emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-500' },
-        destructive: { bg: 'bg-destructive/15', border: 'border-l-destructive', text: 'text-destructive', icon: 'text-destructive' },
-        blue: { bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-l-blue-500', text: 'text-blue-700 dark:text-blue-400', icon: 'text-blue-500' },
-        amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-500' },
-        violet: { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-l-violet-500', text: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-500' },
-        slate: { bg: 'bg-muted', border: 'border-l-slate-500 dark:border-l-slate-400', text: 'text-foreground', icon: 'text-muted-foreground' },
-        indigo: { bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', border: 'border-l-indigo-500', text: 'text-indigo-700 dark:text-indigo-400', icon: 'text-indigo-500' },
-      };
-      
-      return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-          {stats.map((stat) => {
-            const colors = colorMap[stat.color];
-            const IconComponent = stat.icon;
-            return (
-              <div 
-                key={stat.label}
-                className={`${colors.bg} ${colors.border} border-l-4 rounded-lg p-4 transition-all hover:shadow-md`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <IconComponent className={`w-5 h-5 ${colors.icon}`} />
-                  <span className={`text-xs font-medium ${colors.text} opacity-75`}>
-                    {stat.pct}%{stat.pctLabel || ''}
-                  </span>
-                </div>
-                <p className={`text-2xl font-bold ${colors.text}`}>{stat.value}</p>
-                <p className={`text-sm ${colors.text} opacity-80`}>{stat.label}</p>
-              </div>
-            );
-          })}
-        </div>
-      );
-    };
-
-    // Komponen progress kehadiran guru - Modern Gauge Design
-    const TeacherAttendanceProgress = ({ data }: { data: LiveTeacherRow[] }) => {
-      const total = data.length;
-      const hadir = data.filter(item => item.status === 'Hadir').length;
-      const sakit = data.filter(item => item.status === 'Sakit').length;
-      const izin = data.filter(item => item.status === 'Izin').length;
-      const tidakHadir = data.filter(item => item.status === 'Tidak Hadir').length;
-      
-      const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
-      const circumference = 2 * Math.PI * 45;
-      const strokeDashoffset = circumference - (presentase / 100) * circumference;
-      
-      return (
-        <div className="bg-indigo-500/10 dark:bg-indigo-500/20 rounded-xl p-6 mb-6 border border-indigo-500/20">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="relative">
-              <svg className="w-32 h-32 transform -rotate-90">
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="45"
-                  stroke="currentColor"
-                  strokeWidth="10"
-                  fill="none"
-                  className="text-muted"
-                />
-                <circle
-                  cx="64" cy="64" r="45"
-                  stroke="url(#gradientTeacher)"
-                  strokeWidth="10"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  className="transition-all duration-700 ease-out"
-                />
-                <defs>
-                  <linearGradient id="gradientTeacher" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="currentColor" className="text-emerald-500 dark:text-emerald-400" />
-                    <stop offset="100%" stopColor="currentColor" className="text-emerald-400 dark:text-emerald-300" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{presentase}%</span>
-              </div>
-            </div>
-            
-            <div className="flex-1">
-<h3 className="text-lg font-semibold text-foreground mb-1">Tingkat Kehadiran Guru Hari Ini</h3>
-              <p className="text-muted-foreground text-sm mb-4">{hadir} dari {total} guru hadir</p>
-              
-              <div className="grid grid-cols-4 gap-3">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{hadir}</p>
-<p className="text-xs text-muted-foreground">Hadir</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{izin}</p>
-                  <p className="text-xs text-muted-foreground">Izin</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{sakit}</p>
-                  <p className="text-xs text-muted-foreground">Sakit</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-destructive">{tidakHadir}</p>
-                  <p className="text-xs text-muted-foreground">Tidak Hadir</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    // Komponen pagination untuk guru
-    const TeacherPagination = () => {
-      if (totalPages <= 1) return null;
-
-      // Use shared generatePageNumbers helper to reduce cognitive complexity
-      const pageNumbers = generatePageNumbers(currentPage, totalPages);
-
-      return (
-        <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-muted-foreground">
-          Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredData.length)} dari {filteredData.length} data
-        </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-            >
-              First
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            
-            {pageNumbers.map((page, index) => {
-              const uniqueKey = typeof page === 'number' 
-                ? `teacher-page-${page}` 
-                : `teacher-ellipsis-${index}`;
-
-              
-              return (
-                <Button
-                  key={uniqueKey}
-                  variant={page === currentPage ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                  disabled={page === '...'}
-                  className={page === '...' ? 'cursor-default' : ''}
-                >
-                  {page}
-                </Button>
-              );
-            })}
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              Last
-            </Button>
-          </div>
-        </div>
-      );
-    };
 
     const handleExport = () => {
       try {
@@ -365,7 +383,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
             return JSON.stringify(value);
           }
 
-          return String(value ?? '');
+          return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? '');
         };
         const rows = exportData.map(row => 
           Object.values(row).map(formatCsvValue).join(',')
@@ -386,7 +404,7 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
           description: "File CSV berhasil diunduh"
         });
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : (typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error));
         toast({
           title: "Error",
           description: "Gagal mengekspor data: " + message,
@@ -604,7 +622,14 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                     </TableBody>
                   </Table>
                 </div>
-                <TeacherPagination />
+                <TeacherPagination
+                  totalPages={totalPages}
+                  currentPage={currentPage}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  filteredCount={filteredData.length}
+                  onPageChange={setCurrentPage}
+                />
               </>
             ) : (
 <div className="text-center py-12 text-muted-foreground">

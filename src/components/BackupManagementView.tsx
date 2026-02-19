@@ -64,6 +64,24 @@ const BackupManagementView: React.FC = () => {
     const completedSchedules = customSchedules.filter(s => s.lastRun);
     const nextSchedule = pendingSchedules.sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0];
 
+    // Helper functions to extract nested ternaries (SonarQube code smell cleanup)
+    const getScheduleBadgeVariant = (schedule: CustomSchedule): 'default' | 'secondary' | 'outline' => {
+        if (schedule.enabled) {
+            return schedule.lastRun ? 'secondary' : 'default';
+        }
+        return 'outline';
+    };
+
+    const getScheduleBadgeText = (schedule: CustomSchedule): string => {
+        if (schedule.lastRun) {
+            return 'Selesai';
+        }
+        if (schedule.enabled) {
+            return 'Aktif';
+        }
+        return 'Nonaktif';
+    };
+
     const loadBackups = useCallback(async () => {
         try {
             setLoadingStates(prev => ({ ...prev, backups: true }));
@@ -923,10 +941,10 @@ const BackupManagementView: React.FC = () => {
                                     {customSchedules.map((schedule) => (
                                         <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
                                             <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
+                                                 <div className="flex items-center gap-2">
                                                     <h4 className="font-medium">{schedule.name}</h4>
-                                                    <Badge variant={schedule.enabled ? (schedule.lastRun ? "secondary" : "default") : "outline"}>
-                                                        {schedule.lastRun ? 'Selesai' : (schedule.enabled ? 'Aktif' : 'Nonaktif')}
+                                                    <Badge variant={getScheduleBadgeVariant(schedule)}>
+                                                        {getScheduleBadgeText(schedule)}
                                                     </Badge>
                                                 </div>
                                                 <div className="flex items-center text-sm text-muted-foreground gap-4">

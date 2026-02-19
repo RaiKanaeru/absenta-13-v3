@@ -18,6 +18,235 @@ import {
 } from '../utils/dashboardUtils';
 import { LiveStudentRow } from '@/types/dashboard';
 
+// --- Extracted sub-component interfaces ---
+
+interface AttendanceStatsProps {
+  data: LiveStudentRow[];
+}
+
+interface AttendanceProgressProps {
+  data: LiveStudentRow[];
+}
+
+interface PaginationProps {
+  totalPages: number;
+  currentPage: number;
+  startIndex: number;
+  endIndex: number;
+  filteredCount: number;
+  onPageChange: (page: number) => void;
+}
+
+// --- Extracted sub-components (module-level) ---
+
+// Komponen statistik kehadiran - Modern Design
+const AttendanceStats: React.FC<AttendanceStatsProps> = ({ data }) => {
+  const total = data.length;
+  const hadir = data.filter(item => item.status === 'Hadir').length;
+  const izin = data.filter(item => item.status === 'Izin').length;
+  const sakit = data.filter(item => item.status === 'Sakit').length;
+  const alpa = data.filter(item => item.status === 'Alpa').length;
+  const dispen = data.filter(item => item.status === 'Dispen').length;
+  
+  const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+
+  const stats = [
+    { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
+    { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
+    { label: 'Sakit', value: sakit, color: 'blue', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
+    { label: 'Alpa', value: alpa, color: 'destructive', icon: X, pct: total > 0 ? Math.round((alpa/total)*100) : 0 },
+    { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
+    { label: 'Total', value: total, color: 'slate', icon: Users, pct: presentase, pctLabel: '% Hadir' },
+  ];
+
+  const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+    emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-500' },
+    amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-500' },
+    blue: { bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-l-blue-500', text: 'text-blue-700 dark:text-blue-400', icon: 'text-blue-500' },
+    destructive: { bg: 'bg-destructive/15', border: 'border-l-destructive', text: 'text-destructive', icon: 'text-destructive' },
+    violet: { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-l-violet-500', text: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-500' },
+    slate: { bg: 'bg-muted', border: 'border-l-slate-500 dark:border-l-slate-400', text: 'text-foreground', icon: 'text-muted-foreground' },
+  };
+  
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      {stats.map((stat) => {
+        const colors = colorMap[stat.color];
+        const IconComponent = stat.icon;
+        return (
+          <div 
+            key={stat.label}
+            className={`${colors.bg} ${colors.border} border-l-4 rounded-lg p-4 transition-all hover:shadow-md`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <IconComponent className={`w-5 h-5 ${colors.icon}`} />
+              <span className={`text-xs font-medium ${colors.text} opacity-75`}>
+                {stat.pct}%{stat.pctLabel || ''}
+              </span>
+            </div>
+            <p className={`text-2xl font-bold ${colors.text}`}>{stat.value}</p>
+            <p className={`text-sm ${colors.text} opacity-80`}>{stat.label}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Komponen progress kehadiran - Modern Gauge Design
+const AttendanceProgress: React.FC<AttendanceProgressProps> = ({ data }) => {
+  const total = data.length;
+  const hadir = data.filter(item => item.status === 'Hadir').length;
+  const izin = data.filter(item => item.status === 'Izin').length;
+  const sakit = data.filter(item => item.status === 'Sakit').length;
+  const alpa = data.filter(item => item.status === 'Alpa').length;
+  
+  const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
+  const circumference = 2 * Math.PI * 45; // radius 45
+  const strokeDashoffset = circumference - (presentase / 100) * circumference;
+  
+  return (
+    <div className="bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl p-6 mb-6 border border-emerald-500/20">
+      <div className="flex flex-col md:flex-row items-center gap-6">
+        {/* Circular Progress */}
+        <div className="relative">
+          <svg className="w-32 h-32 transform -rotate-90">
+            <circle
+              cx="64"
+              cy="64"
+              r="45"
+              stroke="currentColor"
+              strokeWidth="10"
+              fill="none"
+              className="text-muted"
+            />
+            <circle
+              cx="64"
+              cy="64"
+              r="45"
+              stroke="url(#gradient)"
+              strokeWidth="10"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className="transition-all duration-700 ease-out"
+            />
+            <defs>
+              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="currentColor" className="text-emerald-500 dark:text-emerald-400" />
+                <stop offset="100%" stopColor="currentColor" className="text-emerald-400 dark:text-emerald-300" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{presentase}%</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Stats */}
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-foreground mb-1">Tingkat Kehadiran Hari Ini</h3>
+          <p className="text-muted-foreground text-sm mb-4">{hadir} dari {total} siswa hadir</p>
+          
+          <div className="grid grid-cols-4 gap-3">
+            <div className="text-center">
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{hadir}</p>
+              <p className="text-xs text-muted-foreground">Hadir</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{izin}</p>
+              <p className="text-xs text-muted-foreground">Izin</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{sakit}</p>
+              <p className="text-xs text-muted-foreground">Sakit</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-destructive">{alpa}</p>
+              <p className="text-xs text-muted-foreground">Alpa</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Komponen pagination
+const PaginationControls: React.FC<PaginationProps> = ({ totalPages, currentPage, startIndex, endIndex, filteredCount, onPageChange }) => {
+  if (totalPages <= 1 || totalPages === 0) return null;
+
+  // Use shared generatePageNumbers helper to reduce cognitive complexity
+  const pageNumbers = generatePageNumbers(currentPage, totalPages);
+
+  return (
+    <div className="flex items-center justify-between mt-4">
+      <div className="text-sm text-muted-foreground">
+        Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredCount)} dari {filteredCount} data
+      </div>
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+        >
+          First
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </Button>
+        
+        {pageNumbers.map((page, index) => {
+          const uniqueKey = typeof page === 'number' 
+            ? `student-page-${page}` 
+            : `student-ellipsis-${index}`;
+          
+          return (
+            <Button
+              key={uniqueKey}
+              variant={page === currentPage ? "default" : "outline"}
+              size="sm"
+              onClick={() => typeof page === 'number' && onPageChange(page)}
+              disabled={page === '...'}
+              className={page === '...' ? 'cursor-default' : ''}
+            >
+              {page}
+            </Button>
+          );
+        })}
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+        >
+          Last
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// --- Main component ---
+
 interface LiveStudentAttendanceViewProps {
   onBack: () => void;
   onLogout: () => void;
@@ -127,213 +356,6 @@ export const LiveStudentAttendanceView: React.FC<LiveStudentAttendanceViewProps>
       if (interval) clearInterval(interval);
     };
   }, [onLogout, autoRefresh]);
-
-
-  // Komponen statistik kehadiran - Modern Design
-  const AttendanceStats = ({ data }: { data: LiveStudentRow[] }) => {
-    const total = data.length;
-    const hadir = data.filter(item => item.status === 'Hadir').length;
-    const izin = data.filter(item => item.status === 'Izin').length;
-    const sakit = data.filter(item => item.status === 'Sakit').length;
-    const alpa = data.filter(item => item.status === 'Alpa').length;
-    const dispen = data.filter(item => item.status === 'Dispen').length;
-    
-    const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
-
-    const stats = [
-      { label: 'Hadir', value: hadir, color: 'emerald', icon: CheckCircle2, pct: total > 0 ? Math.round((hadir/total)*100) : 0 },
-      { label: 'Izin', value: izin, color: 'amber', icon: FileText, pct: total > 0 ? Math.round((izin/total)*100) : 0 },
-    { label: 'Sakit', value: sakit, color: 'blue', icon: AlertTriangle, pct: total > 0 ? Math.round((sakit/total)*100) : 0 },
-      { label: 'Alpa', value: alpa, color: 'destructive', icon: X, pct: total > 0 ? Math.round((alpa/total)*100) : 0 },
-      { label: 'Dispen', value: dispen, color: 'violet', icon: Clock, pct: total > 0 ? Math.round((dispen/total)*100) : 0 },
-      { label: 'Total', value: total, color: 'slate', icon: Users, pct: presentase, pctLabel: '% Hadir' },
-    ];
-
-const colorMap: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-      emerald: { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', icon: 'text-emerald-500' },
-      amber: { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-700 dark:text-amber-400', icon: 'text-amber-500' },
-  blue: { bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-l-blue-500', text: 'text-blue-700 dark:text-blue-400', icon: 'text-blue-500' },
-      destructive: { bg: 'bg-destructive/15', border: 'border-l-destructive', text: 'text-destructive', icon: 'text-destructive' },
-      violet: { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-l-violet-500', text: 'text-violet-700 dark:text-violet-400', icon: 'text-violet-500' },
-      slate: { bg: 'bg-muted', border: 'border-l-slate-500 dark:border-l-slate-400', text: 'text-foreground', icon: 'text-muted-foreground' },
-    };
-    
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        {stats.map((stat) => {
-          const colors = colorMap[stat.color];
-          const IconComponent = stat.icon;
-          return (
-            <div 
-              key={stat.label}
-              className={`${colors.bg} ${colors.border} border-l-4 rounded-lg p-4 transition-all hover:shadow-md`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <IconComponent className={`w-5 h-5 ${colors.icon}`} />
-                <span className={`text-xs font-medium ${colors.text} opacity-75`}>
-                  {stat.pct}%{stat.pctLabel || ''}
-                </span>
-              </div>
-              <p className={`text-2xl font-bold ${colors.text}`}>{stat.value}</p>
-              <p className={`text-sm ${colors.text} opacity-80`}>{stat.label}</p>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Komponen progress kehadiran - Modern Gauge Design
-  const AttendanceProgress = ({ data }: { data: LiveStudentRow[] }) => {
-    const total = data.length;
-    const hadir = data.filter(item => item.status === 'Hadir').length;
-    const izin = data.filter(item => item.status === 'Izin').length;
-    const sakit = data.filter(item => item.status === 'Sakit').length;
-    const alpa = data.filter(item => item.status === 'Alpa').length;
-    
-    const presentase = total > 0 ? Math.round((hadir / total) * 100) : 0;
-    const circumference = 2 * Math.PI * 45; // radius 45
-    const strokeDashoffset = circumference - (presentase / 100) * circumference;
-    
-    return (
-      <div className="bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl p-6 mb-6 border border-emerald-500/20">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          {/* Circular Progress */}
-          <div className="relative">
-            <svg className="w-32 h-32 transform -rotate-90">
-              <circle
-                cx="64"
-                cy="64"
-                r="45"
-                stroke="currentColor"
-                strokeWidth="10"
-                fill="none"
-                className="text-muted"
-              />
-              <circle
-                cx="64"
-                cy="64"
-                r="45"
-                stroke="url(#gradient)"
-                strokeWidth="10"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                className="transition-all duration-700 ease-out"
-              />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="currentColor" className="text-emerald-500 dark:text-emerald-400" />
-                  <stop offset="100%" stopColor="currentColor" className="text-emerald-400 dark:text-emerald-300" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <span className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{presentase}%</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Stats */}
-          <div className="flex-1">
-<h3 className="text-lg font-semibold text-foreground mb-1">Tingkat Kehadiran Hari Ini</h3>
-            <p className="text-muted-foreground text-sm mb-4">{hadir} dari {total} siswa hadir</p>
-            
-            <div className="grid grid-cols-4 gap-3">
-              <div className="text-center">
-                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{hadir}</p>
-                <p className="text-xs text-muted-foreground">Hadir</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{izin}</p>
-                <p className="text-xs text-muted-foreground">Izin</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{sakit}</p>
-                <p className="text-xs text-muted-foreground">Sakit</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-destructive">{alpa}</p>
-                <p className="text-xs text-muted-foreground">Alpa</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Komponen pagination
-  const Pagination = () => {
-    if (totalPages <= 1 || totalPages === 0) return null;
-
-    // Use shared generatePageNumbers helper to reduce cognitive complexity
-    const pageNumbers = generatePageNumbers(currentPage, totalPages);
-
-    return (
-      <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-muted-foreground">
-          Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredData.length)} dari {filteredData.length} data
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-          >
-            First
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          
-          {pageNumbers.map((page, index) => {
-            const uniqueKey = typeof page === 'number' 
-              ? `student-page-${page}` 
-              : `student-ellipsis-${index}`;
-            
-            return (
-              <Button
-                key={uniqueKey}
-                variant={page === currentPage ? "default" : "outline"}
-                size="sm"
-                onClick={() => typeof page === 'number' && setCurrentPage(page)}
-                disabled={page === '...'}
-                className={page === '...' ? 'cursor-default' : ''}
-              >
-                {page}
-              </Button>
-            );
-          })}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
-          >
-            Last
-          </Button>
-        </div>
-      </div>
-    );
-  };
 
   const handleExport = () => {
     try {
@@ -607,7 +629,14 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                   </TableBody>
                 </Table>
               </div>
-              <Pagination />
+              <PaginationControls
+                totalPages={totalPages}
+                currentPage={currentPage}
+                startIndex={startIndex}
+                endIndex={endIndex}
+                filteredCount={filteredData.length}
+                onPageChange={setCurrentPage}
+              />
             </>
             ) : (
 <div className="text-center py-12 text-muted-foreground">

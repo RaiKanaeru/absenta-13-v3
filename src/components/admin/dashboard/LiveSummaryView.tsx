@@ -87,6 +87,16 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
     return () => clearInterval(timer);
   }, []);
 
+  // Helper function to get health status styling
+  const getHealthStatusStyles = (status: string) => ({
+    bg: status === 'healthy' ? "bg-emerald-500/5 border-emerald-500/20" : 
+        status === 'warning' ? "bg-amber-500/5 border-amber-500/20" : "bg-rose-500/5 border-rose-500/20",
+    icon: status === 'healthy' ? "bg-emerald-500/10 text-emerald-600" : 
+          status === 'warning' ? "bg-amber-500/10 text-amber-600" : "bg-rose-500/10 text-rose-600",
+    text: status === 'healthy' ? "text-emerald-600" : 
+          status === 'warning' ? "text-amber-600" : "text-rose-600"
+  });
+
   return (
     <div className="space-y-6">
       {/* System Health Status Bar */}
@@ -94,13 +104,11 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className={cn(
             "flex items-center gap-3 p-3 rounded-lg border transition-all",
-            systemStatus.health.status === 'healthy' ? "bg-emerald-500/5 border-emerald-500/20" : 
-            systemStatus.health.status === 'warning' ? "bg-amber-500/5 border-amber-500/20" : "bg-rose-500/5 border-rose-500/20"
+            getHealthStatusStyles(systemStatus.health.status).bg
           )}>
             <div className={cn(
               "p-2 rounded-full",
-              systemStatus.health.status === 'healthy' ? "bg-emerald-500/10 text-emerald-600" : 
-              systemStatus.health.status === 'warning' ? "bg-amber-500/10 text-amber-600" : "bg-rose-500/10 text-rose-600"
+              getHealthStatusStyles(systemStatus.health.status).icon
             )}>
               <ShieldCheck className="w-4 h-4" />
             </div>
@@ -108,8 +116,7 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
               <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status Sistem</p>
               <p className={cn(
                 "text-sm font-bold capitalize",
-                systemStatus.health.status === 'healthy' ? "text-emerald-600" : 
-                systemStatus.health.status === 'warning' ? "text-amber-600" : "text-rose-600"
+                getHealthStatusStyles(systemStatus.health.status).text
               )}>
                 {systemStatus.health.status === 'healthy' ? 'Normal' : systemStatus.health.status}
               </p>

@@ -164,6 +164,68 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
     req.nama_kelas.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const renderTableBody = () => {
+    if (loading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+            Memuat data...
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (filteredRequests.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+            Tidak ada data banding ditemukan
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return filteredRequests.map((req, index) => (
+      <TableRow key={req.id_banding}>
+        <TableCell className="text-center">{index + 1}</TableCell>
+        <TableCell>
+          <div className="font-medium">{req.nama_pengaju}</div>
+        </TableCell>
+        <TableCell>{req.nama_kelas}</TableCell>
+        <TableCell className="whitespace-nowrap">
+          <div className="text-sm">{format(new Date(req.tanggal_absen), 'dd MMM yyyy', { locale: id })}</div>
+        </TableCell>
+        <TableCell>
+          <div className="text-sm">{req.nama_mapel}</div>
+          <div className="text-xs text-gray-500">{req.jam_mulai} - {req.jam_selesai}</div>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-1 text-sm">
+            <span className="text-red-600 line-through">{req.status_asli}</span>
+            <span className="text-gray-400">{'->'}</span>
+            <span className="text-green-600 font-semibold">{req.status_diajukan}</span>
+          </div>
+        </TableCell>
+        <TableCell className="max-w-[200px]">
+          <div className="truncate" title={req.alasan_banding}>
+            {req.alasan_banding}
+          </div>
+        </TableCell>
+        <TableCell>{getStatusBadge(req.status_banding)}</TableCell>
+        <TableCell>
+          <div className="text-sm text-gray-600">
+            {req.diproses_oleh || '-'}
+          </div>
+        </TableCell>
+        <TableCell className="max-w-[200px]">
+          <div className="text-sm text-gray-600 truncate" title={req.catatan_guru}>
+            {req.catatan_guru || '-'}
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -245,59 +307,7 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      Memuat data...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredRequests.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      Tidak ada data banding ditemukan
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredRequests.map((req, index) => (
-                    <TableRow key={req.id_banding}>
-                      <TableCell className="text-center">{index + 1}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{req.nama_pengaju}</div>
-                      </TableCell>
-                      <TableCell>{req.nama_kelas}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <div className="text-sm">{format(new Date(req.tanggal_absen), 'dd MMM yyyy', { locale: id })}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{req.nama_mapel}</div>
-                        <div className="text-xs text-gray-500">{req.jam_mulai} - {req.jam_selesai}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <span className="text-red-600 line-through">{req.status_asli}</span>
-                          <span className="text-gray-400">{'->'}</span>
-                          <span className="text-green-600 font-semibold">{req.status_diajukan}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        <div className="truncate" title={req.alasan_banding}>
-                          {req.alasan_banding}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(req.status_banding)}</TableCell>
-                      <TableCell>
-                        <div className="text-sm text-gray-600">
-                          {req.diproses_oleh || '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px]">
-                        <div className="text-sm text-gray-600 truncate" title={req.catatan_guru}>
-                          {req.catatan_guru || '-'}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                {renderTableBody()}
               </TableBody>
             </Table>
           </div>
