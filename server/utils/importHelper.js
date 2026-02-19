@@ -180,7 +180,7 @@ function validateTimeLogic(startTime, endTime) {
 // JADWAL IMPORT HELPER FUNCTIONS
 // ================================================
 
-const ALLOWED_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const ALLOWED_DAYS = new Set(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
 const DAY_NAME_MAP = {
     senin: 'Senin',
     selasa: 'Selasa',
@@ -267,6 +267,29 @@ async function parseGuruNamesFromString(guruNamesString) {
 }
 
 /**
+ * Validate time-related jadwal fields (format and logic).
+ * @param {any} jamMulai - Raw jam_mulai value
+ * @param {any} jamSelesai - Raw jam_selesai value
+ * @param {string[]} errors - Accumulator array for error messages
+ */
+function validateJadwalTimeFields(jamMulai, jamSelesai, errors) {
+    if (jamMulai && !validateTimeFormat(String(jamMulai))) {
+        errors.push(`Format jam mulai "${jamMulai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
+    }
+
+    if (jamSelesai && !validateTimeFormat(String(jamSelesai))) {
+        errors.push(`Format jam selesai "${jamSelesai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
+    }
+
+    if (jamMulai && jamSelesai && validateTimeFormat(String(jamMulai)) && validateTimeFormat(String(jamSelesai))) {
+        const timeValidation = validateTimeLogic(String(jamMulai), String(jamSelesai));
+        if (!timeValidation.valid) {
+            errors.push(timeValidation.error);
+        }
+    }
+}
+
+/**
  * Validate required jadwal fields
  * @param {Object} rowData - Row data
  * @returns {string[]} Array of error messages
@@ -290,7 +313,7 @@ function validateRequiredJadwalFields(rowData) {
     if (!jamMulai) errors.push('jam_mulai wajib');
     if (!jamSelesai) errors.push('jam_selesai wajib');
     
-    if (hari && !ALLOWED_DAYS.includes(normalizedHari)) {
+    if (hari && !ALLOWED_DAYS.has(normalizedHari)) {
         errors.push('hari tidak valid (harus Senin-Sabtu)');
     }
 
@@ -301,21 +324,8 @@ function validateRequiredJadwalFields(rowData) {
     if (jenisAktivitas && !normalizedJenis) {
         errors.push('jenis_aktivitas tidak valid');
     }
-    
-    if (jamMulai && !validateTimeFormat(String(jamMulai))) {
-        errors.push(`Format jam mulai "${jamMulai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
-    }
-    
-    if (jamSelesai && !validateTimeFormat(String(jamSelesai))) {
-        errors.push(`Format jam selesai "${jamSelesai}" tidak valid. Gunakan format 24 jam (HH:MM)`);
-    }
-    
-    if (jamMulai && jamSelesai && validateTimeFormat(String(jamMulai)) && validateTimeFormat(String(jamSelesai))) {
-        const timeValidation = validateTimeLogic(String(jamMulai), String(jamSelesai));
-        if (!timeValidation.valid) {
-            errors.push(timeValidation.error);
-        }
-    }
+
+    validateJadwalTimeFields(jamMulai, jamSelesai, errors);
     
     return errors;
 }
@@ -334,7 +344,7 @@ function buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_
     const jenisAktivitas = normalizeJenisAktivitas(jenisAktivitasRaw) || 'pelajaran';
     const keteranganKhusus = getFieldValue(rowData, ['keterangan_khusus', 'Keterangan Khusus']);
     const isPelajaran = jenisAktivitas === 'pelajaran';
-    const isAbsenable = isPelajaran ? 1 : 0;
+    const isAbsenable = Number(isPelajaran);
     
     // Normalize guru_ids
     const uniqueGuruIds = isPelajaran ? Array.from(new Set(guru_ids_array)) : [];
