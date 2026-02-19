@@ -26,16 +26,27 @@ interface RiwayatBandingAbsenViewProps {
   user: TeacherUserData;
 }
 
+const getStatusBadgeConfig = (status: string): { variant: 'default' | 'destructive' | 'secondary'; label: string } => {
+  switch (status) {
+    case 'approved':
+      return { variant: 'default', label: 'Disetujui' };
+    case 'rejected':
+      return { variant: 'destructive', label: 'Ditolak' };
+    default:
+      return { variant: 'secondary', label: 'Pending' };
+  }
+};
+
 export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) => {
-  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
-  const [selectedKelas, setSelectedKelas] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { downloadExcel, exporting } = useExcelDownload();
+   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+   const [selectedMonth, setSelectedMonth] = useState('');
+   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
+   const [selectedKelas, setSelectedKelas] = useState('');
+   const [statusFilter, setStatusFilter] = useState('all');
+   const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState('');
+   const { downloadExcel, exporting } = useExcelDownload();
 
   useEffect(() => {
     (async ()=>{
@@ -73,8 +84,9 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
       const res = await apiCall(`/api/guru/banding-absen-history?${params.toString()}`);
       setReportData(Array.isArray(res) ? res : []);
     } catch (err) {
-      toast({ variant: "destructive", title: "Gagal memuat riwayat banding", description: err instanceof Error ? err.message : "Terjadi kesalahan" });
-      setError(getErrorMessage(err) || 'Gagal memuat data riwayat banding absen');
+      const errorMsg = getErrorMessage(err) || 'Gagal memuat data riwayat banding absen';
+      toast({ variant: "destructive", title: "Gagal memuat riwayat banding", description: errorMsg });
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -257,15 +269,16 @@ export const RiwayatBandingAbsenView = ({ user }: RiwayatBandingAbsenViewProps) 
                           <Badge variant="outline" className={getAttendanceBadgeClass(String(item.status_absen))}>{item.status_absen}</Badge>
                         </TableCell>
                         <TableCell>{item.alasan_banding}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={item.status === 'approved' ? 'default' : 
-                                   item.status === 'rejected' ? 'destructive' : 'secondary'}
-                          >
-                            {item.status === 'approved' ? 'Disetujui' : 
-                             item.status === 'rejected' ? 'Ditolak' : 'Pending'}
-                          </Badge>
-                        </TableCell>
+                         <TableCell>
+                           {(() => {
+                             const config = getStatusBadgeConfig(String(item.status));
+                             return (
+                               <Badge variant={config.variant}>
+                                 {config.label}
+                               </Badge>
+                             );
+                           })()}
+                         </TableCell>
                         <TableCell>
                           {item.tanggal_disetujui ? 
                             formatDateWIB(String(item.tanggal_disetujui)) : 

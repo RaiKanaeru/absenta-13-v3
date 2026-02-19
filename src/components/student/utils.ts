@@ -76,7 +76,11 @@ export const resolveErrorMessage = (error: unknown, fallback: string): string =>
  * Check API success flag for non-standard responses
  */
 export const isFailureResponse = (payload: unknown): payload is { success: false; error?: unknown; message?: unknown } => {
-  return Boolean(payload && typeof payload === 'object' && 'success' in payload && (payload as { success?: boolean }).success === false);
+  if (!payload || typeof payload !== 'object' || !('success' in payload)) {
+    return false;
+  }
+  const obj = payload as Record<string, unknown>;
+  return obj.success === false;
 };
 
 /**
@@ -86,12 +90,23 @@ export const getResponseErrorText = (payload: unknown, fallback: string): string
   if (!payload || typeof payload !== 'object') {
     return fallback;
   }
-  const data = payload as { error?: unknown; message?: unknown };
-  if (typeof data.error === 'string') return data.error;
-  if (data.error && typeof data.error === 'object' && 'message' in data.error) {
-    return String((data.error as { message?: unknown }).message || fallback);
+  const data = payload as Record<string, unknown>;
+  
+  if (typeof data.error === 'string') {
+    return data.error;
   }
-  if (typeof data.message === 'string') return data.message;
+  
+  if (data.error && typeof data.error === 'object') {
+    const errorObj = data.error as Record<string, unknown>;
+    if (typeof errorObj.message === 'string') {
+      return errorObj.message;
+    }
+  }
+  
+  if (typeof data.message === 'string') {
+    return data.message;
+  }
+  
   return fallback;
 };
 

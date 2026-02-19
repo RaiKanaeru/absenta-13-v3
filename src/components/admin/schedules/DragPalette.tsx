@@ -9,7 +9,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-// import { CSS } from '@dnd-kit/utilities'; // Unused
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,13 +38,22 @@ function DraggableItem({ id, type, data, isDisabled }: Readonly<DraggableItemPro
   });
 
   const style = {
-    // Transform removed so the original item stays in place
-    // transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.3 : 1, // Dim the original item more
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const isGuru = type === 'guru';
   const itemData = data as (Teacher & Subject);
+
+  const renderIcon = () => {
+    const iconClass = "w-4 h-4 flex-shrink-0";
+    if (isGuru) {
+      return <User className={`${iconClass} text-blue-500`} />;
+    }
+    return <BookOpen className={`${iconClass} text-green-500`} />;
+  };
+
+  const getDisplayName = () => (isGuru ? itemData.nama : itemData.nama_mapel);
+  const getDisplayCode = () => (isGuru ? (itemData.nip || '-') : (itemData.kode_mapel || '-'));
 
   return (
     <div
@@ -60,17 +68,13 @@ function DraggableItem({ id, type, data, isDisabled }: Readonly<DraggableItemPro
       `}
     >
       <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-      {isGuru ? (
-        <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
-      ) : (
-        <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
-      )}
+      {renderIcon()}
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate">
-          {isGuru ? itemData.nama : itemData.nama_mapel}
+          {getDisplayName()}
         </p>
         <p className="text-xs text-muted-foreground truncate">
-          {isGuru ? (itemData.nip || '-') : (itemData.kode_mapel || '-')}
+          {getDisplayCode()}
         </p>
       </div>
     </div>

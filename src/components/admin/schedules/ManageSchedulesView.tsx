@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,15 @@ import {
 const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));
 const PreviewJadwalView = React.lazy(() => import('./PreviewJadwalView').then(module => ({ default: module.PreviewJadwalView })));
 const ScheduleGridTable = React.lazy(() => import('./ScheduleGridTable').then(module => ({ default: module.ScheduleGridTable })));
+
+/**
+ * Helper function to get submit button text (S3358 - extracted to reduce nested ternary)
+ */
+const getSubmitButtonText = (isLoading: boolean, editingId: number | null, consecutiveHours: number): string => {
+  if (isLoading) return 'Processing...';
+  if (editingId) return 'Update Jadwal';
+  return `Tambah ${consecutiveHours} Jam Pelajaran`;
+};
 
 /**
  * Helper component for displaying teacher badges (S3358 - extracted to reduce nested ternary)
@@ -756,14 +765,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-2 w-full">
-              <Button type="submit" disabled={isLoading} className="text-sm">
-                {(() => {
-                  if (isLoading) return 'Processing...';
-                  if (editingId) return 'Update Jadwal';
-                  return `Tambah ${consecutiveHours} Jam Pelajaran`;
-                })()}
-              </Button>
+             <div className="flex flex-col sm:flex-row gap-2 w-full">
+               <Button type="submit" disabled={isLoading} className="text-sm">
+                 {getSubmitButtonText(isLoading, editingId, consecutiveHours)}
+               </Button>
               {editingId && (
                 <Button type="button" variant="outline" onClick={resetForm} className="text-sm">
                   Cancel

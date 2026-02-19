@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB, formatTime24 } from "@/lib/time-utils";
+import { getErrorMessage } from "@/lib/utils";
 import { MessageCircle, Filter, Eye, CheckCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getTeacherAttendanceBadgeClass as getAttendanceBadgeClass, getTeacherBandingStatusClass as getBandingStatusClass } from "@/utils/statusMaps";
 import { TeacherUserData, BandingAbsenTeacher } from "./types";
@@ -20,6 +21,22 @@ import { apiCall } from "./apiUtils";
 interface BandingAbsenViewProps {
   user: TeacherUserData;
 }
+
+const getBandingStatusLabel = (status: string): string => {
+  switch (status) {
+    case 'disetujui':
+      return 'Disetujui';
+    case 'ditolak':
+      return 'Ditolak';
+    default:
+      return 'Menunggu';
+  }
+};
+
+const getTextareaElement = (elementId: string): HTMLTextAreaElement | null => {
+  const element = document.getElementById(elementId);
+  return element instanceof HTMLTextAreaElement ? element : null;
+};
 
 export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
   const [bandingList, setBandingList] = useState<BandingAbsenTeacher[]>([]);
@@ -125,7 +142,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
     } catch (error) {
       toast({ 
         title: "Error", 
-        description: (error as Error).message, 
+        description: getErrorMessage(error), 
         variant: "destructive" 
       });
     } finally {
@@ -258,11 +275,10 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge className={getBandingStatusClass(banding.status_banding)}>
-                          {banding.status_banding === 'disetujui' ? 'Disetujui' :
-                           banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
-                        </Badge>
+                       <TableCell>
+                         <Badge className={getBandingStatusClass(banding.status_banding)}>
+                           {getBandingStatusLabel(banding.status_banding)}
+                         </Badge>
                         {banding.tanggal_keputusan && (
                           <div className="text-xs text-muted-foreground mt-1">
                             {formatDateWIB(banding.tanggal_keputusan)}
@@ -306,11 +322,13 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                     placeholder="Catatan persetujuan (opsional)" 
                                     id={`approve-banding-${banding.id_banding}`}
                                   />
-                                  <Button 
-                                    onClick={() => {
-                                      const textarea = document.getElementById(`approve-banding-${banding.id_banding}`) as HTMLTextAreaElement;
-                                      handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
-                                    }}
+                                   <Button 
+                                     onClick={() => {
+                                       const textarea = getTextareaElement(`approve-banding-${banding.id_banding}`);
+                                       if (textarea) {
+                                         handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
+                                       }
+                                     }}
                                     className="w-full bg-emerald-600 hover:bg-emerald-700"
                                   >
                                     Setujui Banding Absen
@@ -341,14 +359,16 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                     id={`reject-banding-${banding.id_banding}`}
                                     required
                                   />
-                                  <Button 
-                                    onClick={() => {
-                                      const textarea = document.getElementById(`reject-banding-${banding.id_banding}`) as HTMLTextAreaElement;
-                                      if (textarea.value.trim()) {
-                                        handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
-                                      } else {
-                                        toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
-                                      }
+                                   <Button 
+                                     onClick={() => {
+                                       const textarea = getTextareaElement(`reject-banding-${banding.id_banding}`);
+                                       if (textarea && textarea.value.trim()) {
+                                         handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
+                                       } else if (!textarea) {
+                                         toast({ title: "Error", description: "Form error, please reload", variant: "destructive" });
+                                       } else {
+                                         toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
+                                       }
                                     }}
                                     variant="destructive"
                                     className="w-full"
@@ -389,10 +409,9 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                         </h3>
                         <p className="text-xs text-muted-foreground">NIS: {banding.nis}</p>
                       </div>
-                      <Badge className={getBandingStatusClass(banding.status_banding)}>
-                        {banding.status_banding === 'disetujui' ? 'Disetujui' :
-                         banding.status_banding === 'ditolak' ? 'Ditolak' : 'Menunggu'}
-                      </Badge>
+                       <Badge className={getBandingStatusClass(banding.status_banding)}>
+                         {getBandingStatusLabel(banding.status_banding)}
+                       </Badge>
                     </div>
 
                     {/* Informasi tanggal dan jadwal */}
@@ -475,8 +494,10 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                 />
                                 <Button 
                                   onClick={() => {
-                                    const textarea = document.getElementById(`approve-banding-mobile-${banding.id_banding}`) as HTMLTextAreaElement;
-                                    handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
+                                    const textarea = getTextareaElement(`approve-banding-mobile-${banding.id_banding}`);
+                                    if (textarea) {
+                                      handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
+                                    }
                                   }}
                                   className="w-full bg-emerald-600 hover:bg-emerald-700"
                                 >
@@ -509,14 +530,16 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                   required
                                   className="text-sm"
                                 />
-                                <Button 
-                                  onClick={() => {
-                                    const textarea = document.getElementById(`reject-banding-mobile-${banding.id_banding}`) as HTMLTextAreaElement;
-                                    if (textarea.value.trim()) {
-                                      handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
-                                    } else {
-                                      toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
-                                    }
+                                 <Button 
+                                   onClick={() => {
+                                     const textarea = getTextareaElement(`reject-banding-mobile-${banding.id_banding}`);
+                                     if (textarea && textarea.value.trim()) {
+                                       handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
+                                     } else if (!textarea) {
+                                       toast({ title: "Error", description: "Form error, please reload", variant: "destructive" });
+                                     } else {
+                                       toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
+                                     }
                                   }}
                                   variant="destructive"
                                   className="w-full"

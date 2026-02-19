@@ -10,12 +10,29 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
+import { getErrorMessage } from "@/lib/utils";
 import { ArrowLeft, Download, Search, Users, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { StudentData, Kelas } from "@/types/dashboard";
 
 type Gender = 'L' | 'P';
 type StudentStatus = 'aktif' | 'nonaktif';
+
+// Helper: Get gender label
+const getGenderLabel = (gender: Gender): string => gender === 'L' ? 'Laki-laki' : 'Perempuan';
+
+// Helper: Get status badge variant and styles
+const getStatusStyles = (status: StudentStatus) => ({
+  variant: status === 'aktif' ? 'default' as const : 'secondary' as const,
+  className: status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground',
+  label: status === 'aktif' ? 'Aktif' : 'Non-aktif'
+});
+
+// Helper: Get class badge variant
+const getClassBadgeContent = (namaKelas: string | undefined) => namaKelas ? {
+  content: namaKelas,
+  className: 'bg-blue-50 text-blue-700'
+} : null;
 
 // ManageStudentDataView Component
 const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => void; onLogout: () => void }>) => {
@@ -58,7 +75,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
         setStudentsData([]);
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
     }
   }, [onLogout]);
@@ -68,7 +85,7 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       const data = await apiCall<Kelas[]>('/api/admin/kelas', { onLogout });
       setClasses(data);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       toast({ title: "Error memuat data kelas", description: message, variant: "destructive" });
     }
   }, [onLogout]);
@@ -139,11 +156,11 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
         nis: '', 
         nama: '', 
         kelas_id: '',
-        jenis_kelamin: '' as Gender | '',
+        jenis_kelamin: '',
         alamat: '',
         telepon_orangtua: '',
         nomor_telepon_siswa: '',
-        status: 'aktif' as StudentStatus,
+        status: 'aktif',
         username: '',
         password: '',
         email: '',
@@ -151,10 +168,10 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
       });
       setEditingId(null);
       fetchStudentsData();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error", description: message, variant: "destructive" });
-    }
+     } catch (error: unknown) {
+       const message = getErrorMessage(error);
+       toast({ title: "Error", description: message, variant: "destructive" });
+     }
 
     setIsLoading(false);
   };
@@ -189,10 +206,10 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
 
       toast({ title: `Data siswa ${nama} berhasil dihapus` });
       fetchStudentsData();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
-    }
+     } catch (error: unknown) {
+       const message = getErrorMessage(error);
+       toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
+     }
   };
 
   const filteredStudents = studentsData.filter(student => {
@@ -299,18 +316,18 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="student-gender" className="text-sm font-medium">Jenis Kelamin *</Label>
-                <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({...formData, jenis_kelamin: value as Gender})}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Pilih jenis kelamin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="L">Laki-laki</SelectItem>
-                    <SelectItem value="P">Perempuan</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+               <div>
+                 <Label htmlFor="student-gender" className="text-sm font-medium">Jenis Kelamin *</Label>
+                 <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({...formData, jenis_kelamin: value as Gender | ''})}>
+                   <SelectTrigger className="mt-1">
+                     <SelectValue placeholder="Pilih jenis kelamin" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="L">Laki-laki</SelectItem>
+                     <SelectItem value="P">Perempuan</SelectItem>
+                   </SelectContent>
+                 </Select>
+               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -351,44 +368,44 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="student-status" className="text-sm font-medium">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as StudentStatus})}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Pilih status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aktif">Aktif</SelectItem>
-                    <SelectItem value="nonaktif">Non-aktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                 <div>
+                  <Label htmlFor="student-status" className="text-sm font-medium">Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as StudentStatus})}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Pilih status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aktif">Aktif</SelectItem>
+                      <SelectItem value="nonaktif">Non-aktif</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               <div className="flex items-end">
                 <div className="flex flex-col sm:flex-row gap-2 w-full">
                   <Button type="submit" disabled={isLoading} className="bg-orange-600 hover:bg-orange-700 text-sm">
                     {isLoading ? 'Menyimpan...' : submitActionLabel}
                   </Button>
-                  {editingId && (
-                    <Button type="button" variant="outline" onClick={() => {
-                      setEditingId(null);
-                      setFormData({ 
-                        nis: '', 
-                        nama: '', 
-                        kelas_id: '',
-                        jenis_kelamin: '' as Gender | '',
-                        alamat: '',
-                        telepon_orangtua: '',
-                        nomor_telepon_siswa: '',
-                        status: 'aktif' as StudentStatus,
-                        username: '',
-                        password: '',
-                        email: '',
-                        jabatan: 'Siswa'
-                      });
-                    }} className="text-sm">
-                      Batal
-                    </Button>
-                  )}
+                   {editingId && (
+                     <Button type="button" variant="outline" onClick={() => {
+                       setEditingId(null);
+                       setFormData({ 
+                         nis: '', 
+                         nama: '', 
+                         kelas_id: '',
+                         jenis_kelamin: '',
+                         alamat: '',
+                         telepon_orangtua: '',
+                         nomor_telepon_siswa: '',
+                         status: 'aktif',
+                         username: '',
+                         password: '',
+                         email: '',
+                         jabatan: 'Siswa'
+                       });
+                     }} className="text-sm">
+                       Batal
+                     </Button>
+                   )}
                 </div>
               </div>
             </div>
@@ -505,20 +522,20 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                       <TableCell className="text-muted-foreground text-sm">{startIndex + index + 1}</TableCell>
                       <TableCell className="font-mono text-sm">{student.nis}</TableCell>
                       <TableCell className="font-medium">{student.nama}</TableCell>
-                      <TableCell>
-                        {student.nama_kelas ? (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                            {student.nama_kelas}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {student.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
-                        </Badge>
-                      </TableCell>
+                       <TableCell>
+                         {student.nama_kelas ? (
+                           <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                             {student.nama_kelas}
+                           </Badge>
+                         ) : (
+                           <span className="text-muted-foreground">-</span>
+                         )}
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant="outline">
+                           {getGenderLabel(student.jenis_kelamin as Gender)}
+                         </Badge>
+                       </TableCell>
                       <TableCell className="text-sm max-w-32 truncate" title={student.alamat}>
                         {student.alamat || '-'}
                       </TableCell>
@@ -528,14 +545,19 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                       <TableCell className="font-mono text-sm">
                         {student.nomor_telepon_siswa || '-'}
                       </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={student.status === 'aktif' ? 'default' : 'secondary'}
-                          className={student.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}
-                        >
-                          {student.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
-                        </Badge>
-                      </TableCell>
+                       <TableCell>
+                         {(() => {
+                           const statusStyles = getStatusStyles(student.status);
+                           return (
+                             <Badge 
+                               variant={statusStyles.variant}
+                               className={statusStyles.className}
+                             >
+                               {statusStyles.label}
+                             </Badge>
+                           );
+                         })()}
+                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
                           <Button
@@ -625,21 +647,26 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Jenis Kelamin:</span>
-                        <p>{student.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge 
-                          variant={student.status === 'aktif' ? 'default' : 'secondary'}
-                          className={`text-xs ${student.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
-                        >
-                          {student.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
-                        </Badge>
-                      </div>
-                    </div>
+                     <div className="grid grid-cols-2 gap-2 text-xs">
+                       <div>
+                         <span className="text-muted-foreground">Jenis Kelamin:</span>
+                         <p>{getGenderLabel(student.jenis_kelamin as Gender)}</p>
+                       </div>
+                       <div>
+                         <span className="text-muted-foreground">Status:</span>
+                         {(() => {
+                           const statusStyles = getStatusStyles(student.status);
+                           return (
+                             <Badge 
+                               variant={statusStyles.variant}
+                               className={`text-xs ${statusStyles.className}`}
+                             >
+                               {statusStyles.label}
+                             </Badge>
+                           );
+                         })()}
+                       </div>
+                     </div>
                     
                     {student.nama_kelas && (
                       <div>

@@ -18,6 +18,21 @@ import { Schedule, Student, AttendanceStatus, TeacherUserData } from "./types";
 import { apiCall } from "./apiUtils";
 import { getErrorMessage } from "@/utils/apiClient";
 
+// Color mapping for attendance statuses
+const ATTENDANCE_COLOR_MAP: Record<string, string> = {
+  'Hadir': 'text-emerald-600 dark:text-emerald-400',
+  'Izin': 'text-amber-600 dark:text-amber-400',
+  'Sakit': 'text-blue-600 dark:text-blue-400'
+};
+
+/**
+ * Get the color class for an attendance status
+ */
+const getAttendanceColorClass = (status: AttendanceStatus | undefined): string => {
+  if (!status) return 'text-destructive';
+  return ATTENDANCE_COLOR_MAP[status] || 'text-destructive';
+};
+
 interface AttendanceViewProps {
   schedule: Schedule;
   user: TeacherUserData;
@@ -207,9 +222,10 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
       
       globalThis.location.reload();
     } catch (error) {
+      const errorMsg = getErrorMessage(error);
       toast({ 
         title: "Error", 
-        description: (error as Error).message, 
+        description: errorMsg, 
         variant: "destructive" 
       });
     } finally {
@@ -495,31 +511,24 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                     <div className="text-xs space-y-1">
                       {students.map(student => (
                         <div key={student.id} className="space-y-1">
-                          <div className="flex justify-between">
-                            <span>{student.nama}:</span>
-                            <div className="flex items-center gap-2">
-                              <span className={`font-medium ${(() => {
-                                const colorMap: Record<string, string> = {
-                                  'Hadir': 'text-emerald-600 dark:text-emerald-400', 
-                                  'Izin': 'text-amber-600 dark:text-amber-400', 
-                                  'Sakit': 'text-blue-600 dark:text-blue-400'
-                                };
-                                return colorMap[attendance[student.id]] || 'text-destructive';
-                              })()}`}>
-                                {attendance[student.id]}
-                              </span>
-                              {terlambat[student.id] && (
-                                <span className="px-2 py-1 text-xs bg-orange-500/15 text-orange-700 dark:text-orange-400 rounded-full">
-                                  Terlambat
-                                </span>
-                              )}
-                              {adaTugas[student.id] && (
-                                <span className="px-2 py-1 text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-full">
-                                  Ada Tugas
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                            <div className="flex justify-between">
+                             <span>{student.nama}:</span>
+                             <div className="flex items-center gap-2">
+                               <span className={`font-medium ${getAttendanceColorClass(attendance[student.id])}`}>
+                                 {attendance[student.id]}
+                               </span>
+                               {terlambat[student.id] && (
+                                 <span className="px-2 py-1 text-xs bg-orange-500/15 text-orange-700 dark:text-orange-400 rounded-full">
+                                   Terlambat
+                                 </span>
+                               )}
+                               {adaTugas[student.id] && (
+                                 <span className="px-2 py-1 text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-full">
+                                   Ada Tugas
+                                 </span>
+                               )}
+                             </div>
+                           </div>
                           {notes[student.id] && notes[student.id].trim() !== '' && (
                             <div className="text-muted-foreground text-xs pl-2">
                               <span className="font-medium">Keterangan:</span> {notes[student.id]}

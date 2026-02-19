@@ -116,9 +116,23 @@ const getSubjectColor = (mapel: string, defaultColor?: string): string => {
 
 const TINGKAT_LIST = ['X', 'XI', 'XII'];
 const ROW_TYPES = ['MAPEL', 'RUANG', 'GURU'] as const;
+type RowType = typeof ROW_TYPES[number];
 const STICKY_KELAS_WIDTH_CLASS = 'w-[140px] min-w-[140px]';
 const STICKY_JAM_KE_WIDTH_CLASS = 'w-[80px] min-w-[80px]';
 const STICKY_JAM_KE_LEFT_CLASS = 'left-[140px]';
+
+interface DaySlotEntry {
+  day: string;
+  slot: JamSlot;
+}
+
+interface ScheduleCellRenderParams {
+  kelas: ClassSchedule;
+  rowType: RowType;
+  rowIdx: number;
+  day: string;
+  slot: JamSlot;
+}
 
 const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;
 
@@ -510,7 +524,7 @@ export function ScheduleGridTable({
   };
 
   // Render cell content
-  const renderCellContent = (cell: ScheduleCell | null, rowType: typeof ROW_TYPES[number]) => {
+  const renderCellContent = useCallback((cell: ScheduleCell | null, rowType: RowType) => {
     if (!cell) return null;
 
     const bgColor = cell.isSpecial 
@@ -535,7 +549,7 @@ export function ScheduleGridTable({
         {content}
       </div>
     );
-  };
+  }, []);
 
   // Copy row handler
   const handleCopyRow = (kelasId: number) => {
@@ -594,10 +608,10 @@ export function ScheduleGridTable({
   };
 
   // Context menu handler
-  const handleRowContextMenu = (e: React.MouseEvent, kelasId: number) => {
+  const handleRowContextMenu = useCallback((e: React.MouseEvent, kelasId: number) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, kelasId });
-  };
+  }, []);
 
   // Close context menu when clicking elsewhere
   useEffect(() => {
@@ -606,12 +620,12 @@ export function ScheduleGridTable({
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  const handleCellClick = (kelas_id: number, hari: string, jam_ke: number, currentData: ScheduleCell | null | undefined) => {
+  const handleCellClick = useCallback((kelas_id: number, hari: string, jam_ke: number, currentData: ScheduleCell | null | undefined) => {
     setEditingCell({ kelas_id, hari, jam_ke });
     setEditMapelId(currentData?.mapel_id || null);
     setEditGuruId(currentData?.guru_detail && currentData.guru_detail.length > 0 ? currentData.guru_detail[0].guru_id : null);
     setEditRuangId(currentData?.ruang_id || null);
-  };
+  }, []);
 
   const handleCellSave = () => {
     if (!editingCell || !editMapelId || !editGuruId) return;
@@ -685,6 +699,94 @@ export function ScheduleGridTable({
      }
      setEditingCell(null);
   };
+
+  const daySlotEntries = useMemo<DaySlotEntry[]>(() => {
+    if (!matrixData) return [];
+    return matrixData.days.flatMap(day => {
+      const slots = matrixData.jamSlots[day] || [];
+      return slots.map(slot => ({ day, slot }));
+    });
+  }, [matrixData]);
+
+  const renderScheduleCell = useCallback(({
+    kelas,
+    rowType,
+    rowIdx,
+    day,
+    slot
+  }: ScheduleCellRenderParams) => {
+    const cell = kelas.schedule[day]?.[slot.jam_ke];
+    const cellId = `${kelas.kelas_id}-${day}-${slot.jam_ke}-${rowType}`;
+
+    const isSlotSpecial = slot.jenis !== 'pelajaran';
+    const isCellSpecial = cell?.isSpecial;
+    const isSpecial = isSlotSpecial || isCellSpecial;
+    const specialCellColor = isSlotSpecial ? 'hsl(var(--primary) / 0.18)' : undefined;
+    const cellBackgroundColor = cell ? getSubjectColor(cell.mapel, cell.color) : specialCellColor;
+
+    if (isSpecial) {
+      if (rowIdx !== 0) {
+        return null;
+      }
+
+      return (
+        <td
+          key={cellId}
+          rowSpan={3}
+          className="border p-0 h-full text-center align-middle font-bold text-xs"
+          style={{ backgroundColor: cellBackgroundColor }}
+        >
+          <div className="flex items-center justify-center h-full w-full p-2 writing-mode-vertical?">
+            {slot.label?.toUpperCase() || cell?.mapel || slot.jenis.toUpperCase()}
+          </div>
+        </td>
+      );
+    }
+
+    return (
+      <td
+        key={cellId}
+        className="border p-0 h-6"
+        style={{ backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : undefined }}
+      >
+        <DroppableCell
+          cellId={cellId}
+          isDisabled={false}
+          onClick={() => handleCellClick(kelas.kelas_id, day, slot.jam_ke, cell)}
+        >
+          {renderCellContent(cell, rowType)}
+        </DroppableCell>
+      </td>
+    );
+  }, [handleCellClick, renderCellContent]);
+
+  const renderClassRow = useCallback((kelas: ClassSchedule, rowType: RowType, rowIdx: number) => {
+    return (
+      <tr key={`${kelas.kelas_id}-${rowType}`} className="border">
+        {rowIdx === 0 && (
+          <td
+            className={`sticky left-0 z-10 bg-amber-500/15 font-bold p-1 border text-center cursor-context-menu ${STICKY_KELAS_WIDTH_CLASS}`}
+            rowSpan={3}
+            onContextMenu={(e) => handleRowContextMenu(e, kelas.kelas_id)}
+          >
+            {kelas.nama_kelas}
+          </td>
+        )}
+        <td className={`sticky ${STICKY_JAM_KE_LEFT_CLASS} z-10 bg-muted p-1 border text-center font-medium ${STICKY_JAM_KE_WIDTH_CLASS}`}>
+          {rowType}
+        </td>
+        {daySlotEntries.map(({ day, slot }) => renderScheduleCell({ kelas, rowType, rowIdx, day, slot }))}
+      </tr>
+    );
+  }, [daySlotEntries, handleRowContextMenu, renderScheduleCell]);
+
+  const renderClassSection = useCallback((kelas: ClassSchedule) => {
+    return (
+      <React.Fragment key={kelas.kelas_id}>
+        {ROW_TYPES.map((rowType, rowIdx) => renderClassRow(kelas, rowType, rowIdx))}
+      </React.Fragment>
+    );
+  }, [renderClassRow]);
 
   // Render loading state
   if (isLoading) {
@@ -792,104 +894,19 @@ export function ScheduleGridTable({
                 </tr>
                 {/* Jam headers */}
                 <tr>
-                  {matrixData.days.map(day => (
-                    (matrixData.jamSlots[day] || []).map(slot => (
-                      <th 
-                        key={`${day}-${slot.jam_ke}`} 
-                        className="bg-slate-600 text-white p-1 border text-center min-w-[60px]"
-                        title={`${slot.jam_mulai} - ${slot.jam_selesai}`}
-                      >
-                        {slot.label || slot.jam_ke}
-                      </th>
-                    ))
+                  {daySlotEntries.map(({ day, slot }) => (
+                    <th
+                      key={`${day}-${slot.jam_ke}`}
+                      className="bg-slate-600 text-white p-1 border text-center min-w-[60px]"
+                      title={`${slot.jam_mulai} - ${slot.jam_selesai}`}
+                    >
+                      {slot.label || slot.jam_ke}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {matrixData.classes.map(kelas => (
-                  <React.Fragment key={kelas.kelas_id}>
-                    {ROW_TYPES.map((rowType, rowIdx) => (
-                      <tr key={`${kelas.kelas_id}-${rowType}`} className="border">
-                        {/* Class name - only show on first row */}
-                        {rowIdx === 0 && (
-                          <td 
-                            className={`sticky left-0 z-10 bg-amber-500/15 font-bold p-1 border text-center cursor-context-menu ${STICKY_KELAS_WIDTH_CLASS}`}
-                            rowSpan={3}
-                            onContextMenu={(e) => handleRowContextMenu(e, kelas.kelas_id)}
-                          >
-                            {kelas.nama_kelas}
-                          </td>
-                        )}
-                        {/* Row type label */}
-                        <td className={`sticky ${STICKY_JAM_KE_LEFT_CLASS} z-10 bg-muted p-1 border text-center font-medium ${STICKY_JAM_KE_WIDTH_CLASS}`}>
-                          {rowType}
-                        </td>
-                        {/* Schedule cells for each day */}
-                        {matrixData.days.map(day => (
-                          (matrixData.jamSlots[day] || []).map(slot => {
-                            const cell = kelas.schedule[day]?.[slot.jam_ke];
-                            const cellId = `${kelas.kelas_id}-${day}-${slot.jam_ke}-${rowType}`;
-                            
-                            // Check if this slot is a special event (Upacara, Istirahat, etc.)
-                            // Special events come from the slot type OR explicit cell data
-                            const isSlotSpecial = slot.jenis !== 'pelajaran';
-                            const isCellSpecial = cell?.isSpecial;
-                            const isSpecial = isSlotSpecial || isCellSpecial;
-                            const specialCellColor = isSlotSpecial ? 'hsl(var(--primary) / 0.18)' : undefined;
-                            const cellBackgroundColor = cell ? getSubjectColor(cell.mapel, cell.color) : specialCellColor;
-
-                            // LOGIC FOR ROW SPANNING (MATCHING EXCEL IMAGE)
-                            // If special event:
-                            // - Row 0 (MAPEL): Render cell with rowSpan=3
-                            // - Row 1 & 2 (RUANG, GURU): Render NOTHING (null)
-                            
-                            if (isSpecial) {
-                              if (rowIdx === 0) {
-                                return (
-                                  <td 
-                                    key={cellId}
-                                    rowSpan={3}
-                                    className="border p-0 h-full text-center align-middle font-bold text-xs"
-                                    style={{ 
-                                      backgroundColor: cellBackgroundColor
-                                      // Default orange for breaks if no specific color
-                                    }}
-                                  >
-                                    <div className="flex items-center justify-center h-full w-full p-2 writing-mode-vertical?">
-                                      {/* Show Label from Slot (e.g., ISTIRAHAT) or Cell */}
-                                      {slot.label?.toUpperCase() || cell?.mapel || slot.jenis.toUpperCase()}
-                                    </div>
-                                  </td>
-                                );
-                              } else {
-                                // Skip rendering for rows 1 and 2
-                                return null;
-                              }
-                            }
-
-                            // Normal Lesson Cell (Not Special)
-                            return (
-                              <td 
-                                key={cellId}
-                                className="border p-0 h-6"
-                                style={{ backgroundColor: cell ? getSubjectColor(cell.mapel, cell.color) : undefined }}
-                              >
-                                <DroppableCell 
-                                  cellId={cellId} 
-                                  isDisabled={false}
-                                  onClick={() => handleCellClick(kelas.kelas_id, day, slot.jam_ke, cell)}
-                                >
-                                  {renderCellContent(cell, rowType)}
-                                </DroppableCell>
-                              </td>
-                            );
-                          })
-
-                        ))}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
+                {matrixData.classes.map(renderClassSection)}
               </tbody>
             </table>
           </div>

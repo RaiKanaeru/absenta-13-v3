@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, RefreshCw, Calendar, Filter, PanelRightOpen, PanelRightClose, GripVertical, User, BookOpen } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
+import { getErrorMessage } from '@/lib/utils';
 import { Teacher, Subject, Room } from '@/types/dashboard';
 import { DragPalette } from './DragPalette';
 
@@ -323,7 +324,7 @@ export function ScheduleGridEditor({
       setPendingChanges([]);
       fetchMatrix();
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Gagal menyimpan';
+      const errorMessage = getErrorMessage(error) || 'Gagal menyimpan';
       toast({ title: "Error", description: errorMessage, variant: "destructive" });
     } finally {
       setIsSaving(false);
@@ -408,6 +409,31 @@ export function ScheduleGridEditor({
   const renderLoadingState = () => (
     <div className="p-8 text-center text-muted-foreground">Memuat data...</div>
   );
+
+  const renderDragOverlay = () => {
+    if (!activeDragItem) return null;
+
+    const isTeacher = activeDragItem.type === 'guru';
+    const displayName = isTeacher 
+      ? (activeDragItem.item as Teacher).nama 
+      : (activeDragItem.item as Subject).nama_mapel;
+    const displayCode = isTeacher 
+      ? ((activeDragItem.item as Teacher).nip || '-') 
+      : ((activeDragItem.item as Subject).kode_mapel || '-');
+    const iconColor = isTeacher ? 'text-blue-500' : 'text-green-500';
+    const IconComponent = isTeacher ? User : BookOpen;
+
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-background shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-primary">
+        <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+        <IconComponent className={`w-4 h-4 ${iconColor} flex-shrink-0`} />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate">{displayName}</p>
+          <p className="text-xs text-muted-foreground truncate">{displayCode}</p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -671,28 +697,7 @@ export function ScheduleGridEditor({
       )}
 
       <DragOverlay>
-        {activeDragItem ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-background shadow-xl opacity-90 w-48 pointer-events-none ring-2 ring-primary">
-            <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-            {activeDragItem.type === 'guru' ? (
-              <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            ) : (
-              <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">
-                {activeDragItem.type === 'guru' 
-                  ? (activeDragItem.item as Teacher).nama 
-                  : (activeDragItem.item as Subject).nama_mapel}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {activeDragItem.type === 'guru' 
-                  ? ((activeDragItem.item as Teacher).nip || '-') 
-                  : ((activeDragItem.item as Subject).kode_mapel || '-')}
-              </p>
-            </div>
-          </div>
-        ) : null}
+        {activeDragItem && renderDragOverlay()}
       </DragOverlay>
     </DndContext>
   );

@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';
+import { getErrorMessage } from "@/lib/utils";
 import { ArrowLeft, Download, Plus, Eye, EyeOff, Search, Users, GraduationCap, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { Teacher, Subject } from "@/types/dashboard";
@@ -27,6 +28,13 @@ interface PaginatedResponse<T> {
   data: T[];
   pagination: PaginationMeta;
 }
+
+// Helper function to format gender display
+const getGenderDisplay = (jenis_kelamin: string | undefined | null): string => {
+  if (jenis_kelamin === 'L') return 'Laki-laki';
+  if (jenis_kelamin === 'P') return 'Perempuan';
+  return '-';
+};
 
 // ManageTeacherAccountsView Component
 const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
@@ -113,8 +121,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
         return;
       }
       
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
+      const message = getErrorMessage(error);
+       toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
     } finally {
       // Only unset loading if this is the current request
       if (abortControllerRef.current === controller) {
@@ -200,14 +208,14 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
         description: errorMessage, 
         variant: "destructive" 
       });
-    } else {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ 
-        title: "Error", 
-        description: message || "Gagal menyimpan data guru", 
-        variant: "destructive" 
-      });
-    }
+     } else {
+       const message = getErrorMessage(error);
+       toast({ 
+         title: "Error", 
+         description: message || "Gagal menyimpan data guru", 
+         variant: "destructive" 
+       });
+     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -235,19 +243,19 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
          onLogout
        });
 
-       toast({ title: editingId ? "Akun guru berhasil diupdate!" : "Akun guru berhasil ditambahkan!" });
-       setFormData({ 
-         nama: '', 
-         username: '', 
-         password: '', 
-         nip: '', 
-         mapel_id: '', 
-         email: '', 
-         no_telp: '', 
-         jenis_kelamin: '' as 'L' | 'P' | '', 
-         alamat: '', 
-         status: 'aktif' as 'aktif' | 'nonaktif'
-       });
+        toast({ title: editingId ? "Akun guru berhasil diupdate!" : "Akun guru berhasil ditambahkan!" });
+        setFormData({ 
+          nama: '', 
+          username: '', 
+          password: '', 
+          nip: '', 
+          mapel_id: '', 
+          email: '', 
+          no_telp: '', 
+          jenis_kelamin: '' as GenderType, 
+          alamat: '', 
+          status: 'aktif' as AccountStatusType
+        });
        setEditingId(null);
        setDialogOpen(false);
        fetchTeachers();
@@ -290,8 +298,8 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
       toast({ title: `Akun guru ${nama} berhasil dihapus` });
       fetchTeachers();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error menghapus akun guru", description: message, variant: "destructive" });
+       const message = getErrorMessage(error);
+       toast({ title: "Error menghapus akun guru", description: message, variant: "destructive" });
     }
   };
 
@@ -330,12 +338,12 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button 
-              onClick={() => {
-                setEditingId(null);
-                setFormData({ 
-                  nama: '', username: '', password: '', nip: '', mapel_id: '', email: '', no_telp: '', jenis_kelamin: '' as 'L' | 'P' | '', alamat: '', status: 'aktif' as 'aktif' | 'nonaktif'
-                });
-              }}
+               onClick={() => {
+                 setEditingId(null);
+                 setFormData({ 
+                   nama: '', username: '', password: '', nip: '', mapel_id: '', email: '', no_telp: '', jenis_kelamin: '' as GenderType, alamat: '', status: 'aktif' as AccountStatusType
+                 });
+               }}
               size="sm"
               className="w-full sm:w-auto text-xs"
             >
@@ -464,10 +472,10 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                         });
                         
                         return uniqueSubjects.map((subject) => (
-                          <SelectItem key={subject.id} value={String(subject.id)}>
-                            {subject.nama_mapel}
-                          </SelectItem>
-                        ));
+                           <SelectItem key={`subject-${subject.id}-${subject.nama_mapel}`} value={String(subject.id)}>
+                             {subject.nama_mapel}
+                           </SelectItem>
+                         ));
                       })()}
                     </SelectContent>
                   </Select>
@@ -658,7 +666,7 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                       <TableCell className="font-mono text-xs sm:text-sm">{teacher.username || teacher.user_username || '-'}</TableCell>
                       <TableCell className="text-xs sm:text-sm">{teacher.email || teacher.user_email || '-'}</TableCell>
                       <TableCell className="text-xs sm:text-sm">{teacher.no_telp || '-'}</TableCell>
-                      <TableCell className="text-xs sm:text-sm">{teacher.jenis_kelamin === 'L' ? 'Laki-laki' : teacher.jenis_kelamin === 'P' ? 'Perempuan' : '-'}</TableCell>
+                       <TableCell className="text-xs sm:text-sm">{getGenderDisplay(teacher.jenis_kelamin)}</TableCell>
                       <TableCell className="text-xs sm:text-sm max-w-24 sm:max-w-32 truncate" title={teacher.alamat || teacher.address || teacher.user_alamat || teacher.user_address || 'Tidak ada alamat'}>
                         {teacher.alamat || teacher.address || teacher.user_alamat || teacher.user_address || '-'}
                       </TableCell>
@@ -777,10 +785,10 @@ const ManageTeacherAccountsView = ({ onBack, onLogout }: { onBack: () => void; o
                         <span className="text-muted-foreground">Telepon:</span>
                         <p>{teacher.no_telp || '-'}</p>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Jenis Kelamin:</span>
-                        <p>{teacher.jenis_kelamin === 'L' ? 'Laki-laki' : teacher.jenis_kelamin === 'P' ? 'Perempuan' : '-'}</p>
-                      </div>
+                       <div>
+                         <span className="text-muted-foreground">Jenis Kelamin:</span>
+                         <p>{getGenderDisplay(teacher.jenis_kelamin)}</p>
+                       </div>
                       <div>
                         <span className="text-muted-foreground">Status:</span>
                         <Badge 

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, RefreshCw, Clock, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateWIB, formatTime24 } from '@/lib/time-utils';
+import { getErrorMessage } from '@/lib/utils';
 import { getBandingStatusInteractiveClass as getBandingStatusClass, getBandingStatusLabel } from '@/utils/statusMaps';
 import type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan } from './types';
 
@@ -92,6 +93,27 @@ export const StudentStatusBadge: React.FC<StudentStatusBadgeProps> = ({ status, 
   );
 };
 
+interface BandingGuruResponseProps {
+  catatanGuru?: string;
+}
+
+const BandingGuruResponse: React.FC<BandingGuruResponseProps> = ({ catatanGuru }) => {
+  if (!catatanGuru) {
+    return <span className="text-muted-foreground text-sm">Belum ada respon</span>;
+  }
+  
+  return (
+    <div className="text-sm bg-muted p-2 rounded border-l-2 border-border">
+      <div className="font-medium text-foreground mb-1">Respon Guru:</div>
+      <div className="text-muted-foreground break-words">{catatanGuru}</div>
+    </div>
+  );
+};
+
+const getDetailButtonLabel = (isExpanded: boolean): string => {
+  return isExpanded ? 'Tutup Detail' : 'Lihat Detail';
+};
+
 export interface BandingItemProps {
   banding: {
     id_banding: number | string;
@@ -161,11 +183,7 @@ export const BandingCardItem: React.FC<BandingItemProps> = ({ banding, isExpande
                 onClick={onToggle}
                 className="h-6 w-6 p-0"
             >
-                {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-                ) : (
-                <ChevronDown className="h-4 w-4" />
-                )}
+                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
             </div>
             <div className="flex items-center gap-2">
@@ -306,9 +324,9 @@ export const Pagination = React.memo(({ currentPage, totalPages, onPageChange }:
             </Button>
             
             <div className="flex items-center space-x-1 overflow-x-auto">
-            {getVisiblePages().map((page, index) => (
+            {getVisiblePages().map((page) => (
                 <Button
-                key={index}
+                key={`page-${page}`}
                 variant={page === currentPage ? "default" : "outline"}
                 size="sm"
                 onClick={() => typeof page === 'number' && onPageChange(page)}
@@ -435,14 +453,7 @@ export const BandingList: React.FC<{
                     </TableCell>
                     <TableCell>
                         <div className="max-w-xs">
-                        {banding.catatan_guru ? (
-                            <div className="text-sm bg-muted p-2 rounded border-l-2 border-border">
-                            <div className="font-medium text-foreground mb-1">Respon Guru:</div>
-                            <div className="text-muted-foreground break-words">{banding.catatan_guru}</div>
-                            </div>
-                        ) : (
-                            <span className="text-muted-foreground text-sm">Belum ada respon</span>
-                        )}
+                        <BandingGuruResponse catatanGuru={banding.catatan_guru} />
                         </div>
                     </TableCell>
                     <TableCell>
@@ -454,7 +465,7 @@ export const BandingList: React.FC<{
                         )}
                         className="text-xs"
                         >
-                        {expandedBanding === banding.id_banding ? 'Tutup Detail' : 'Lihat Detail'}
+                        {getDetailButtonLabel(expandedBanding === banding.id_banding)}
                         </Button>
                     </TableCell>
                  </TableRow>

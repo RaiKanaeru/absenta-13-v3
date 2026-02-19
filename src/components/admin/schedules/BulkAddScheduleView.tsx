@@ -11,6 +11,7 @@ import { ArrowLeft, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { TimeInput } from "@/components/ui/time-input";
 import { apiCall } from '@/utils/apiClient';
 import { Teacher, Subject, Kelas, Room } from '@/types/dashboard';
+import { getErrorMessage } from '@/lib/utils';
 
 interface BulkAddScheduleViewProps {
   onBack: () => void;
@@ -61,7 +62,7 @@ export function BulkAddScheduleView({
   // Group classes by tingkat and jurusan for easier selection
   const groupedClasses = classes.reduce((acc, kelas) => {
     // Extract tingkat (X, XI, XII, XIII) from nama_kelas
-    const match = kelas.nama_kelas?.match(/^(X{1,3}I{0,2})\s+/i);
+    const match = (/^(X{1,3}I{0,2})\s+/i).exec(kelas.nama_kelas || '');
     const tingkat = match ? match[1].toUpperCase() : 'Lainnya';
     
     if (!acc[tingkat]) {
@@ -198,7 +199,7 @@ export function BulkAddScheduleView({
       onSuccess();
       onBack();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       toast({
         title: "Error",
         description: message || "Gagal menambahkan jadwal",
@@ -411,8 +412,8 @@ export function BulkAddScheduleView({
                 <span className="font-medium">Konflik Terdeteksi ({conflicts.length})</span>
               </div>
               <ul className="text-sm text-yellow-700 space-y-1">
-                {conflicts.map((conflict, idx) => (
-                  <li key={idx}>• {conflict.kelas_name}: {conflict.message}</li>
+                {conflicts.map((conflict) => (
+                  <li key={`${conflict.kelas_id}-${conflict.conflict_type}`}>• {conflict.kelas_name}: {conflict.message}</li>
                 ))}
               </ul>
             </div>

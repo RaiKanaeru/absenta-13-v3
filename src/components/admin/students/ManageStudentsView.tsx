@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Download, Plus, Eye, EyeOff, Edit, Trash2, Home, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
+import { getErrorMessage } from '@/lib/utils';
 import ExcelImportView from '../../ExcelImportView';
 import { Student, Kelas } from '@/types/dashboard';
 
@@ -71,10 +72,10 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Reset to page 1 when search or pageSize changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchTerm, pageSize]);
+   // Reset to page 1 when search term changes
+   useEffect(() => {
+     setCurrentPage(1);
+   }, [debouncedSearchTerm]);
 
   const fetchStudents = useCallback(async () => {
     // Abort previous request if still running
@@ -106,12 +107,12 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
         setStudents(response.data || []);
         setTotalItems(response.pagination?.total || 0);
       }
-    } catch (error: unknown) {
+     } catch (error: unknown) {
       // Ignore abort errors
       if (error instanceof Error && error.name === 'AbortError') {
         return;
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       toast({ title: "Error memuat data siswa", description: message, variant: "destructive" });
     } finally {
       // Only unset loading if this is the current request
@@ -179,19 +180,20 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
      return editingId ? baseData : { ...baseData, nis: formData.nis };
    };
 
-   // Helper: Handle submit errors with detailed extraction
-   const handleSubmitError = (error: unknown) => {
+    // Helper: Handle submit errors with detailed extraction
+    const handleSubmitError = (error: unknown) => {
       const errorDetails = typeof error === 'object' && error !== null && 'details' in error
-       ? (error as { details?: unknown }).details
-       : undefined;
-     if (errorDetails) {
-       const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
-       toast({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
-     } else {
-       const message = error instanceof Error ? error.message : String(error);
-       toast({ title: "Error", description: message, variant: "destructive" });
-     }
-   };
+        ? (error as { details?: unknown }).details
+        : undefined;
+      
+      if (errorDetails) {
+        const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
+        toast({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
+      } else {
+        const message = getErrorMessage(error);
+        toast({ title: "Error", description: message, variant: "destructive" });
+      }
+    };
 
    const handleSubmit = async (e: React.FormEvent) => {
      e.preventDefault();
@@ -242,49 +244,47 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
      setIsLoading(false);
    };
 
-  const handleEdit = (student: Student) => {
-    const rawIsPerwakilan = (student as Record<string, unknown>).is_perwakilan;
-    const isPerwakilan = typeof rawIsPerwakilan === 'boolean'
-      ? rawIsPerwakilan
-      : Boolean(rawIsPerwakilan);
-    setFormData({ 
-      nama: student.nama, 
-      nis: student.nis || '',
-      kelas_id: String(student.kelas_id || ''),
-      jenis_kelamin: student.jenis_kelamin || '',
-      telepon_orangtua: student.telepon_orangtua || '',
-      nomor_telepon_siswa: student.nomor_telepon_siswa || '',
-      alamat: student.alamat || '',
-      status: student.status || 'aktif',
-      username: student.username || '',
-      password: '', // Kosongkan password saat edit
-      email: student.email || '',
-      jabatan: student.jabatan || 'Siswa',
-      is_perwakilan: isPerwakilan
-    });
-    setEditingId(student.id);
-    setEditingNis(student.nis || null);
-    setFormErrors({});
-    setDialogOpen(true);
-  };
+   const handleEdit = (student: Student) => {
+     const rawIsPerwakilan = (student as unknown as Record<string, unknown>).is_perwakilan;
+     const isPerwakilan = typeof rawIsPerwakilan === 'boolean' ? rawIsPerwakilan : Boolean(rawIsPerwakilan);
+     setFormData({ 
+       nama: student.nama, 
+       nis: student.nis || '',
+       kelas_id: String(student.kelas_id || ''),
+       jenis_kelamin: student.jenis_kelamin || '',
+       telepon_orangtua: student.telepon_orangtua || '',
+       nomor_telepon_siswa: student.nomor_telepon_siswa || '',
+       alamat: student.alamat || '',
+       status: student.status || 'aktif',
+       username: student.username || '',
+       password: '', // Kosongkan password saat edit
+       email: student.email || '',
+       jabatan: student.jabatan || 'Siswa',
+       is_perwakilan: isPerwakilan
+     });
+     setEditingId(student.id);
+     setEditingNis(student.nis || null);
+     setFormErrors({});
+     setDialogOpen(true);
+   };
 
-  const handleDelete = async (id: number, nama: string, nis: string) => {
-    if (!globalThis.confirm(`Yakin ingin menghapus akun siswa "${nama}" (NIS: ${nis})? Tindakan ini tidak dapat dibatalkan.`)) {
-      return;
-    }
-    try {
-      await apiCall(`/api/admin/students/${nis}`, {
-        method: 'DELETE',
-        onLogout
-      });
+   const handleDelete = async (id: number, nama: string, nis: string) => {
+     if (!globalThis.confirm(`Yakin ingin menghapus akun siswa "${nama}" (NIS: ${nis})? Tindakan ini tidak dapat dibatalkan.`)) {
+       return;
+     }
+     try {
+       await apiCall(`/api/admin/students/${nis}`, {
+         method: 'DELETE',
+         onLogout
+       });
 
-      toast({ title: `Data siswa ${nama} (NIS: ${nis}) berhasil dihapus` });
-      fetchStudents();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
-    }
-  };
+       toast({ title: `Data siswa ${nama} (NIS: ${nis}) berhasil dihapus` });
+       fetchStudents();
+     } catch (error: unknown) {
+       const message = getErrorMessage(error);
+       toast({ title: "Error menghapus data siswa", description: message, variant: "destructive" });
+     }
+   };
 
   // Server-side pagination - no client-side filtering
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));

@@ -9,11 +9,46 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar } from "lucide-react";
 import { Schedule, STATUS_COLORS } from "./types";
 
+// Activity type mapping to display labels
+const ACTIVITY_TYPE_MAP: Record<string, string> = {
+  upacara: 'Upacara',
+  istirahat: 'Istirahat',
+  kegiatan_khusus: 'Kegiatan Khusus',
+  libur: 'Libur',
+  ujian: 'Ujian'
+};
+
 interface ScheduleListViewProps {
   schedules: Schedule[];
   onSelectSchedule: (schedule: Schedule) => void;
   isLoading: boolean;
 }
+
+/**
+ * Get display label for activity type
+ */
+const getActivityTypeLabel = (activityType: string | undefined): string => {
+  if (!activityType) return 'Khusus';
+  return ACTIVITY_TYPE_MAP[activityType] || activityType;
+};
+
+/**
+ * Get display label for schedule status
+ */
+const getStatusLabel = (status: string | undefined): string => {
+  switch (status) {
+    case 'current':
+      return 'Sedang Berlangsung';
+    case 'completed':
+      return 'Selesai';
+    default:
+      return 'Akan Datang';
+  }
+};
+
+const getActionLabel = (status: string | undefined): string => {
+  return status === 'current' ? 'Ambil Absensi' : 'Lihat Detail';
+};
 
 export const ScheduleListView = ({ schedules, onSelectSchedule, isLoading }: ScheduleListViewProps) => (
   <Card className="w-full">
@@ -69,13 +104,7 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
                   {schedule.jam_mulai} - {schedule.jam_selesai}
                 </Badge>
                 <Badge variant="secondary" className="text-xs whitespace-nowrap">
-                  {(() => {
-                    const activityMap: Record<string, string> = {
-                      upacara: 'Upacara', istirahat: 'Istirahat',
-                      kegiatan_khusus: 'Kegiatan Khusus', libur: 'Libur', ujian: 'Ujian'
-                    };
-                    return activityMap[schedule.jenis_aktivitas || ''] || (schedule.jenis_aktivitas || 'Khusus');
-                  })()}
+                  {getActivityTypeLabel(schedule.jenis_aktivitas)}
                 </Badge>
               </div>
               
@@ -109,10 +138,9 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
               <Badge variant="outline" className="text-xs whitespace-nowrap">
                 {schedule.jam_mulai} - {schedule.jam_selesai}
               </Badge>
-              <Badge className={`${STATUS_COLORS[schedule.status || 'upcoming']} text-xs whitespace-nowrap`}>
-                {schedule.status === 'current' ? 'Sedang Berlangsung' : 
-                 schedule.status === 'completed' ? 'Selesai' : 'Akan Datang'}
-              </Badge>
+               <Badge className={`${STATUS_COLORS[schedule.status || 'upcoming']} text-xs whitespace-nowrap`}>
+                 {getStatusLabel(schedule.status)}
+               </Badge>
             </div>
             
 <h4 className="font-medium text-foreground text-sm sm:text-base truncate">{schedule.nama_mapel}</h4>
@@ -139,13 +167,13 @@ const renderSchedules = (schedules: Schedule[], onSelectSchedule: (schedule: Sch
             )}
           </div>
           
-          <div className="flex-shrink-0">
-            <span 
-              className="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 w-full sm:w-auto sm:text-sm"
-            >
-              {schedule.status === 'current' ? 'Ambil Absensi' : 'Lihat Detail'}
-            </span>
-          </div>
+           <div className="flex-shrink-0">
+             <span 
+               className="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 w-full sm:w-auto sm:text-sm"
+             >
+               {getActionLabel(schedule.status)}
+             </span>
+           </div>
         </div>
       </button>
     );

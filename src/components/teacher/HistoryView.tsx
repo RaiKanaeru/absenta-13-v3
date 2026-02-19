@@ -10,9 +10,31 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB, formatDateOnly, formatTime24, toWIBTime } from "@/lib/time-utils";
+import { getErrorMessage } from "@/lib/utils";
 import { History, ChevronLeft, ChevronRight } from "lucide-react";
 import { TeacherUserData, HistoryData, FlatHistoryRow, AttendanceStatus } from "./types";
 import { apiCall } from "./apiUtils";
+
+// Helper functions to extract nested ternaries
+const getTeacherStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" => {
+  if (status === "hadir") return "default";
+  if (status === "izin" || status === "sakit") return "secondary";
+  return "destructive";
+};
+
+const getStudentStatusBadgeVariant = (status: string): "default" | "secondary" | "outline" | "destructive" => {
+  if (status === "Hadir") return "default";
+  if (status === "Izin" || status === "Sakit") return "secondary";
+  if (status === "Dispen") return "outline";
+  return "destructive";
+};
+
+const getDispenStatusClasses = (status: string): string => {
+  if (status === "Dispen") {
+    return "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-200";
+  }
+  return "";
+};
 
 interface HistoryViewProps {
   user: TeacherUserData;
@@ -98,7 +120,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
 
          setHistoryData(grouped);
        } catch (error) {
-         console.error('HistoryView: Failed to load history data', error);
+         console.error('HistoryView: Failed to load history data', getErrorMessage(error));
          toast({ 
            title: "Error", 
            description: "Gagal memuat riwayat absensi", 
@@ -201,16 +223,12 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                             <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-1 text-xs">
                               <span className="font-medium text-muted-foreground">Status Guru:</span>
                               <div className="flex flex-wrap items-center gap-1">
-                                <Badge
-                                  variant={
-                                    classData.status_guru === 'hadir' ? 'default' :
-                                    classData.status_guru === 'izin' || classData.status_guru === 'sakit' ? 'secondary' :
-                                    'destructive'
-                                  }
-                                  className="text-xs"
-                                >
-                                  {classData.status_guru.charAt(0).toUpperCase() + classData.status_guru.slice(1)}
-                                </Badge>
+                                 <Badge
+                                   variant={getTeacherStatusBadgeVariant(classData.status_guru)}
+                                   className="text-xs"
+                                 >
+                                   {classData.status_guru.charAt(0).toUpperCase() + classData.status_guru.slice(1)}
+                                 </Badge>
                                 {classData.keterangan_guru && (
                                   <span className="text-muted-foreground">- {classData.keterangan_guru}</span>
                                 )}
@@ -256,21 +274,14 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                     <TableCell>
                                       <span className="text-sm text-muted-foreground">{siswa.nis || '-'}</span>
                                     </TableCell>
-                                    <TableCell>
-                                      <Badge
-                                        variant={
-                                          siswa.status === 'Hadir' ? 'default' :
-                                          siswa.status === 'Izin' || siswa.status === 'Sakit' ? 'secondary' :
-                                          siswa.status === 'Dispen' ? 'outline' :
-                                          'destructive'
-                                        }
-                                        className={
-                                          siswa.status === 'Dispen' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-200' : ''
-                                        }
-                                      >
-                                        {siswa.status}
-                                      </Badge>
-                                    </TableCell>
+                                     <TableCell>
+                                       <Badge
+                                         variant={getStudentStatusBadgeVariant(siswa.status)}
+                                         className={getDispenStatusClasses(siswa.status)}
+                                       >
+                                         {siswa.status}
+                                       </Badge>
+                                     </TableCell>
                                     <TableCell>
                                       {siswa.waktu_absen ? (
                                         <span className="text-sm">
@@ -302,19 +313,12 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                                     <p className="font-medium text-sm">{siswa.nama || 'Nama tidak tersedia'}</p>
                                     <p className="text-xs text-muted-foreground">NIS: {siswa.nis || '-'}</p>
                                   </div>
-                                  <Badge
-                                    variant={
-                                      siswa.status === 'Hadir' ? 'default' :
-                                      siswa.status === 'Izin' || siswa.status === 'Sakit' ? 'secondary' :
-                                      siswa.status === 'Dispen' ? 'outline' :
-                                      'destructive'
-                                    }
-                                    className={`text-xs ${
-                                      siswa.status === 'Dispen' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-200' : ''
-                                    }`}
-                                  >
-                                    {siswa.status}
-                                  </Badge>
+                                   <Badge
+                                     variant={getStudentStatusBadgeVariant(siswa.status)}
+                                     className={`text-xs ${getDispenStatusClasses(siswa.status)}`}
+                                   >
+                                     {siswa.status}
+                                   </Badge>
                                 </div>
                                 <div className="space-y-1">
                                   {siswa.waktu_absen && (
@@ -366,7 +370,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                 
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                    let pageNum;
+                    let pageNum: number;
                     if (totalPages <= 3) {
                       pageNum = i + 1;
                     } else if (currentPage <= 2) {
@@ -419,7 +423,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                 
                 {/* Page numbers */}
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
+                  let pageNum: number;
                   if (totalPages <= 5) {
                     pageNum = i + 1;
                   } else if (currentPage <= 3) {

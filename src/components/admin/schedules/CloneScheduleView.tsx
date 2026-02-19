@@ -55,7 +55,7 @@ export function CloneScheduleView({
     }
     acc[tingkat].push(kelas);
     return acc;
-  }, {} as Record<string, Kelas[]>);
+  }, {});
 
   const tingkatOrder = ['X', 'XI', 'XII', 'Lainnya'];
   const sortedTingkats = Object.keys(groupedClasses).sort((a, b) => {
@@ -123,11 +123,11 @@ export function CloneScheduleView({
         include_ruang: options.include_ruang
       };
 
-      const response = await apiCall('/api/admin/jadwal/clone', {
+      const response = await apiCall<{ data?: { created?: number; skipped?: number } }>('/api/admin/jadwal/clone', {
         method: 'POST',
         body: JSON.stringify(payload),
         onLogout
-      }) as { data?: { created?: number; skipped?: number } };
+      });
 
       const fallbackTotal = sourceSchedules.length * targetClassIds.length;
       const created = response.data?.created ?? fallbackTotal;

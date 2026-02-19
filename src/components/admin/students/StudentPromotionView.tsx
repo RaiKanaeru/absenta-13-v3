@@ -141,15 +141,39 @@ const findClassByLevel = (classes: Kelas[], targetLevel: string): Kelas | null =
 
 // =============================================================================
 
+// =============================================================================
+// HELPER FUNCTIONS FOR CLASSNAME CONSTRUCTION (SonarQube Issue: Nested Ternaries)
+// =============================================================================
+
+/** Get progress indicator line class based on selection state */
+const getProgressLineClass = (hasSelection: boolean): string => {
+  return hasSelection ? 'bg-blue-600' : 'bg-gray-200';
+};
+
+/** Get progress indicator color class based on selection state */
+const getProgressColorClass = (hasSelection: boolean): string => {
+  return hasSelection ? 'text-blue-600' : 'text-gray-400';
+};
+
+/** Get progress indicator background class based on selection state */
+const getProgressBgClass = (hasSelection: boolean): string => {
+  return hasSelection ? 'bg-blue-600 text-white' : 'bg-gray-200';
+};
+
+/** Get student row class based on selection state */
+const getStudentRowClass = (isSelected: boolean): string => {
+  return isSelected ? 'bg-primary/10 border-primary/30' : 'bg-card border-border';
+};
+
 export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
-  const [fromClassId, setFromClassId] = useState<string>('');
-  const [toClassId, setToClassId] = useState<string>('');
-  const [students, setStudents] = useState<StudentData[]>([]);
-  const [classes, setClasses] = useState<Kelas[]>([]);
-  const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
-  const [isLoading, setIsLoading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+   const [fromClassId, setFromClassId] = useState<string>('');
+   const [toClassId, setToClassId] = useState<string>('');
+   const [students, setStudents] = useState<StudentData[]>([]);
+   const [classes, setClasses] = useState<Kelas[]>([]);
+   const [selectedStudents, setSelectedStudents] = useState<Set<number>>(new Set());
+   const [isLoading, setIsLoading] = useState(false);
+   const [isProcessing, setIsProcessing] = useState(false);
+   const [showPreview, setShowPreview] = useState(false);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -490,10 +514,10 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
                 </div>
                 <span className="text-xs sm:text-sm font-medium">Pilih Kelas</span>
               </div>
-              <div className={`w-8 h-0.5 sm:w-8 sm:h-0.5 ${selectedStudents.size > 0 ? 'bg-blue-600' : 'bg-gray-200'} hidden sm:block`}></div>
-              <div className={`w-0.5 h-8 sm:w-8 sm:h-0.5 ${selectedStudents.size > 0 ? 'bg-blue-600' : 'bg-gray-200'} block sm:hidden`}></div>
-              <div className={`flex items-center gap-2 ${selectedStudents.size > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${selectedStudents.size > 0 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+               <div className={`w-8 h-0.5 sm:w-8 sm:h-0.5 ${getProgressLineClass(selectedStudents.size > 0)} hidden sm:block`}></div>
+               <div className={`w-0.5 h-8 sm:w-8 sm:h-0.5 ${getProgressLineClass(selectedStudents.size > 0)} block sm:hidden`}></div>
+               <div className={`flex items-center gap-2 ${getProgressColorClass(selectedStudents.size > 0)}`}>
+                 <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${getProgressBgClass(selectedStudents.size > 0)}`}>
                   <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <span className="text-xs sm:text-sm font-medium">Pilih Siswa</span>
@@ -651,12 +675,10 @@ export const StudentPromotionView = ({ onBack, onLogout }: { onBack: () => void;
             ) : (
               <div className="space-y-2">
                 {students.map((student) => (
-                  <div
-                    key={student.id_siswa}
-                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-3 ${
-                      selectedStudents.has(student.id_siswa) ? 'bg-primary/10 border-primary/30' : 'bg-card border-border'
-                    }`}
-                  >
+                   <div
+                     key={student.id_siswa}
+                     className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-3 ${getStudentRowClass(selectedStudents.has(student.id_siswa))}`}
+                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <input
                         type="checkbox"

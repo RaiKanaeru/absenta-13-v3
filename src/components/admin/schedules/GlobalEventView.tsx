@@ -61,13 +61,28 @@ export function GlobalEventView({
   const [showPreview, setShowPreview] = useState(false);
   const [existingEvents, setExistingEvents] = useState<Record<string, number>>({});
 
+  // Helper function to get button className (S3358 - extracted to reduce nested ternary)
+  const getPresetButtonClass = (preset: EventTemplate): string => {
+    const isSelected = selectedPreset?.hari === preset.hari && selectedPreset?.jam_ke === preset.jam_ke;
+    return `w-full p-3 rounded-lg border text-left transition-all ${
+      isSelected
+        ? 'border-blue-500 bg-blue-50'
+        : 'border-gray-200 hover:border-gray-300'
+    }`;
+  };
+
+  // Helper function to check if preset is selected (S3358 - extracted to reduce nested ternary)
+  const isPresetSelected = (preset: EventTemplate): boolean => {
+    return selectedPreset?.hari === preset.hari && selectedPreset?.jam_ke === preset.jam_ke;
+  };
+
   // Group classes by tingkat
   const groupedClasses = classes.reduce((acc, kelas) => {
     const tingkat = kelas.tingkat || 'Lainnya';
     if (!acc[tingkat]) acc[tingkat] = [];
     acc[tingkat].push(kelas);
     return acc;
-  }, {} as Record<string, Kelas[]>);
+  }, {});
 
   const tingkatOrder = ['X', 'XI', 'XII', 'Lainnya'];
   const sortedTingkats = Object.keys(groupedClasses).sort((a, b) => 
@@ -116,10 +131,10 @@ export function GlobalEventView({
     // Check for existing events
     setIsLoading(true);
     try {
-      const response = await apiCall('/api/admin/jadwal', {
+      const response = await apiCall<Array<{ kelas_id: number; hari: string; jam_ke: number }> | { data?: Array<{ kelas_id: number; hari: string; jam_ke: number }> }>('/api/admin/jadwal', {
         method: 'GET',
         onLogout
-      }) as Array<{ kelas_id: number; hari: string; jam_ke: number }> | { data?: Array<{ kelas_id: number; hari: string; jam_ke: number }> };
+      });
 
       const schedules = Array.isArray(response) ? response : response.data || [];
       const existing: Record<string, number> = {};
@@ -175,11 +190,11 @@ export function GlobalEventView({
         guru_ids: []
       };
 
-      const response = await apiCall('/api/admin/jadwal/bulk', {
+      const response = await apiCall<{ data?: { created?: number; skipped?: number } }>('/api/admin/jadwal/bulk', {
         method: 'POST',
         body: JSON.stringify(payload),
         onLogout
-      }) as { data?: { created?: number; skipped?: number } };
+      });
 
       const created = response.data?.created ?? classesToInsert.length;
       const skipped = response.data?.skipped ?? 0;
@@ -236,11 +251,7 @@ export function GlobalEventView({
                 type="button"
                 key={`${preset.hari}-${preset.jam_ke}`}
                 onClick={() => handlePresetSelect(preset)}
-                className={`w-full p-3 rounded-lg border text-left transition-all ${
-                  selectedPreset?.hari === preset.hari && selectedPreset?.jam_ke === preset.jam_ke
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
+                className={getPresetButtonClass(preset)}
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -250,7 +261,7 @@ export function GlobalEventView({
                     <p className="font-medium">{preset.label}</p>
                     <p className="text-xs text-gray-500">{preset.jam_mulai} - {preset.jam_selesai}</p>
                   </div>
-                  {selectedPreset?.hari === preset.hari && selectedPreset?.jam_ke === preset.jam_ke && (
+                  {isPresetSelected(preset) && (
                     <CheckCircle2 className="w-5 h-5 text-blue-500" />
                   )}
                 </div>

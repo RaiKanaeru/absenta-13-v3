@@ -13,11 +13,34 @@ import { apiCall } from '@/utils/apiClient';
 import { ArrowLeft, Download, Search, GraduationCap, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import ExcelImportView from "../../ExcelImportView";
 import { TeacherData, Subject } from "@/types/dashboard";
+import { getErrorMessage } from "@/lib/utils";
 
 interface TeachersDataResponse {
   data: TeacherData[];
   pagination: unknown;
 }
+
+// Helper function to get gender label
+const getGenderLabel = (jenis_kelamin: string): string => {
+  return jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan';
+};
+
+// Helper function to get status badge styling
+const getStatusBadgeClass = (status: string): string => {
+  return status === 'aktif' 
+    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' 
+    : 'bg-muted text-muted-foreground';
+};
+
+// Helper function to get status label
+const getStatusLabel = (status: string): string => {
+  return status === 'aktif' ? 'Aktif' : 'Non-aktif';
+};
+
+// Helper function to get status badge variant
+const getStatusBadgeVariant = (status: string): 'default' | 'secondary' => {
+  return status === 'aktif' ? 'default' : 'secondary';
+};
 
 // ManageTeacherDataView Component  
 const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLogout: () => void }) => {
@@ -40,23 +63,23 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchTeachersData = useCallback(async () => {
-    try {
-      const response = await apiCall<TeachersDataResponse>('/api/admin/teachers-data', { onLogout });
-      // Backend mengirim format { data: [...], pagination: {...} }
-      if (response && typeof response === 'object' && 'data' in response) {
-        setTeachersData(Array.isArray(response.data) ? response.data : []);
-      } else if (Array.isArray(response)) {
-        // Fallback jika backend mengirim array langsung
-        setTeachersData(response);
-      } else {
-        setTeachersData([]);
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
-    }
-  }, [onLogout]);
+   const fetchTeachersData = useCallback(async () => {
+     try {
+       const response = await apiCall<TeachersDataResponse>('/api/admin/teachers-data', { onLogout });
+       // Backend mengirim format { data: [...], pagination: {...} }
+       if (response && typeof response === 'object' && 'data' in response) {
+         setTeachersData(Array.isArray(response.data) ? response.data : []);
+       } else if (Array.isArray(response)) {
+         // Fallback jika backend mengirim array langsung
+         setTeachersData(response);
+       } else {
+         setTeachersData([]);
+       }
+     } catch (error: unknown) {
+       const message = getErrorMessage(error);
+       toast({ title: "Error memuat data guru", description: message, variant: "destructive" });
+     }
+   }, [onLogout]);
 
   const fetchSubjects = useCallback(async () => {
     try {
@@ -106,21 +129,21 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
       });
 
       toast({ title: editingId ? "Data guru berhasil diupdate!" : "Data guru berhasil ditambahkan!" });
-      setFormData({ 
-        nip: '', 
-        nama: '', 
-        email: '', 
-        mata_pelajaran: '',
-        alamat: '',
-        telepon: '',
-        jenis_kelamin: '' as 'L' | 'P' | '',
-        status: 'aktif'
-      });
-      setEditingId(null);
-      fetchTeachersData();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error", description: message, variant: "destructive" });
+       setFormData({ 
+         nip: '', 
+         nama: '', 
+         email: '', 
+         mata_pelajaran: '',
+         alamat: '',
+         telepon: '',
+         jenis_kelamin: '' as 'L' | 'P' | '',
+         status: 'aktif'
+       });
+       setEditingId(null);
+       fetchTeachersData();
+     } catch (error: unknown) {
+       const message = getErrorMessage(error);
+       toast({ title: "Error", description: message, variant: "destructive" });
     }
 
     setIsLoading(false);
@@ -150,11 +173,11 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
         onLogout
       });
 
-      toast({ title: `Data guru ${nama} berhasil dihapus` });
-      fetchTeachersData();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({ title: "Error menghapus data guru", description: message, variant: "destructive" });
+       toast({ title: `Data guru ${nama} berhasil dihapus` });
+       fetchTeachersData();
+     } catch (error: unknown) {
+       const message = getErrorMessage(error);
+       toast({ title: "Error menghapus data guru", description: message, variant: "destructive" });
     }
   };
 
@@ -477,19 +500,19 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                             <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {teacher.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={teacher.status === 'aktif' ? 'default' : 'secondary'}
-                            className={`text-xs ${teacher.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
-                          >
-                            {teacher.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
-                          </Badge>
-                        </TableCell>
+                         <TableCell>
+                           <Badge variant="outline" className="text-xs">
+                             {getGenderLabel(teacher.jenis_kelamin)}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>
+                           <Badge 
+                             variant={getStatusBadgeVariant(teacher.status)}
+                             className={`text-xs ${getStatusBadgeClass(teacher.status)}`}
+                           >
+                             {getStatusLabel(teacher.status)}
+                           </Badge>
+                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
                             <Button
@@ -589,19 +612,19 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
                         <span className="text-muted-foreground">Telepon:</span>
                         <p className="font-medium">{teacher.telepon || '-'}</p>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Jenis Kelamin:</span>
-                        <p className="font-medium">{teacher.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge 
-                          variant={teacher.status === 'aktif' ? 'default' : 'secondary'}
-                          className={`text-xs ${teacher.status === 'aktif' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}
-                        >
-                          {teacher.status === 'aktif' ? 'Aktif' : 'Non-aktif'}
-                        </Badge>
-                      </div>
+                       <div>
+                         <span className="text-muted-foreground">Jenis Kelamin:</span>
+                         <p className="font-medium">{getGenderLabel(teacher.jenis_kelamin)}</p>
+                       </div>
+                       <div>
+                         <span className="text-muted-foreground">Status:</span>
+                         <Badge 
+                           variant={getStatusBadgeVariant(teacher.status)}
+                           className={`text-xs ${getStatusBadgeClass(teacher.status)}`}
+                         >
+                           {getStatusLabel(teacher.status)}
+                         </Badge>
+                       </div>
                     </div>
                     
                     {teacher.mata_pelajaran && (

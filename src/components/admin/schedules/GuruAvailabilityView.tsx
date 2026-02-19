@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Search, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { apiCall } from '@/utils/apiClient';
+import { getErrorMessage } from '@/lib/utils';
 import { Teacher } from '@/types/dashboard';
 
 interface GuruAvailabilityViewProps {
@@ -86,11 +87,12 @@ export function GuruAvailabilityView({
         }, {} as Record<string, string>)
       }));
 
-      setRecords(newRecords);
-      setHasChanges(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({ title: "Error", description: "Gagal mengambil data", variant: "destructive" });
+       setRecords(newRecords);
+       setHasChanges(false);
+     } catch (error) {
+       const errorMsg = getErrorMessage(error);
+       console.error('Error fetching data:', errorMsg);
+       toast({ title: "Error", description: "Gagal mengambil data", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -141,9 +143,9 @@ export function GuruAvailabilityView({
 
       toast({ title: "Berhasil", description: "Data ketersediaan guru berhasil disimpan" });
       setHasChanges(false);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Gagal menyimpan';
-      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+     } catch (error: unknown) {
+       const errorMessage = getErrorMessage(error);
+       toast({ title: "Error", description: errorMessage, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -159,6 +161,58 @@ export function GuruAvailabilityView({
   const totalGuru = records.length;
   const getUnavailableCount = (hari: string) => 
     records.filter(r => !r.availability[hari]).length;
+
+  // Render table body content based on state
+  const renderTableBody = () => {
+    if (isLoading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+            Memuat data...
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (filteredRecords.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+            Tidak ada data ditemukan
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return filteredRecords.map((record, idx) => (
+      <TableRow key={record.guru_id}>
+        <TableCell className="text-center">{idx + 1}</TableCell>
+        <TableCell className="font-medium">
+          {record.nama}
+          {record.is_system_entity && (
+            <Badge variant="secondary" className="ml-2 text-xs">System</Badge>
+          )}
+        </TableCell>
+        <TableCell className="text-gray-600 text-sm">{record.nip || '-'}</TableCell>
+        {HARI_LIST.map(hari => (
+          <TableCell key={hari} className="text-center">
+            <button
+              type="button"
+              onClick={() => handleToggle(record.guru_id, hari)}
+              className="p-1 rounded hover:bg-gray-100 transition-colors"
+              disabled={record.is_system_entity}
+            >
+              {record.availability[hari] ? (
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+              ) : (
+                <XCircle className="w-5 h-5 text-red-400" />
+              )}
+            </button>
+          </TableCell>
+        ))}
+      </TableRow>
+    ));
+  };
 
   return (
     <div className="space-y-6">
@@ -216,63 +270,23 @@ export function GuruAvailabilityView({
       </div>
 
       {/* Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">No</TableHead>
-              <TableHead className="w-48">Nama Guru</TableHead>
-              <TableHead className="w-32">NIP</TableHead>
-              {HARI_LIST.map(hari => (
-                <TableHead key={hari} className="text-center w-20">{hari}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                  Memuat data...
-                </TableCell>
-              </TableRow>
-            ) : filteredRecords.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                  Tidak ada data ditemukan
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredRecords.map((record, idx) => (
-                <TableRow key={record.guru_id}>
-                  <TableCell className="text-center">{idx + 1}</TableCell>
-                  <TableCell className="font-medium">
-                    {record.nama}
-                    {record.is_system_entity && (
-                      <Badge variant="secondary" className="ml-2 text-xs">System</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-gray-600 text-sm">{record.nip || '-'}</TableCell>
-                  {HARI_LIST.map(hari => (
-                    <TableCell key={hari} className="text-center">
-                      <button
-                        onClick={() => handleToggle(record.guru_id, hari)}
-                        className="p-1 rounded hover:bg-gray-100 transition-colors"
-                        disabled={record.is_system_entity}
-                      >
-                        {record.availability[hari] ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        )}
-                      </button>
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+       <Card>
+         <Table>
+           <TableHeader>
+             <TableRow>
+               <TableHead className="w-12">No</TableHead>
+               <TableHead className="w-48">Nama Guru</TableHead>
+               <TableHead className="w-32">NIP</TableHead>
+               {HARI_LIST.map(hari => (
+                 <TableHead key={hari} className="text-center w-20">{hari}</TableHead>
+               ))}
+             </TableRow>
+           </TableHeader>
+           <TableBody>
+             {renderTableBody()}
+           </TableBody>
+         </Table>
+       </Card>
 
       {/* Legend */}
       <div className="flex gap-4 text-sm text-gray-600">
