@@ -1,14 +1,10 @@
 {
-  "active_plan": "D:\\CODING\\absenta-13-v3\\.sisyphus\\plans\\sonar-cleanup-consolidation.md",
-  "started_at": "2026-02-19T05:26:25.533Z",
+  "active_plan": "D:\\CODING\\absenta-13-v3\\.sisyphus\\plans\\sonarqube-cleanup.md",
+  "started_at": "2026-02-19T11:51:16.049Z",
   "session_ids": [
-    "ses_38bbcdf39ffea5bIulZtpcWbB0",
-    "ses_38bbad095ffeH3qi8UK7PJ2gvN",
-    "ses_3ab34d111ffe4iT5s05Ucaq7l7",
-    "ses_390f04982ffeDmOPnbLJQ8ImWP",
-    "ses_38b76697effewe1hLIHi5ichkY",
-    "ses_38b4e1cdeffeGQ6Ng7yPvLkMJP"
+    "ses_38abf5760ffewnKQ8P7uXEjLQm",
+    "ses_38a0daddcffe4lgeQ6a3bhvFcK"
   ],
-  "plan_name": "sonar-cleanup-consolidation",
+  "plan_name": "sonarqube-cleanup",
   "agent": "atlas"
 }

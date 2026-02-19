@@ -239,3 +239,69 @@ These are NOT SonarQube code smells — they are pre-existing type issues from p
 - Helpers that send responses directly (returning null on failure) work cleanly for validation phases
 - Helpers that throw on failure work cleanly within transaction blocks (caught by existing rollback logic)
 - Keeping transaction management in the main function preserves the existing safety guarantees
+
+## Task 25: Refactor seed_dummy_full main seeder CC hotspot (2026-02-19)
+
+### What Worked
+- Converted `seed()` into a linear orchestrator: cleanup → seed rooms → ensure jam_pelajaran → seed mapel → seed kelas → seed guru/users → load slots → generate schedule.
+- Extracted high-branching sections into focused helpers in the same file:
+  - `cleanupTables`
+  - `seedRooms`
+  - `ensureJamPelajaran` (+ `getScheduleConfig`, `buildJamPelajaranInserts`)
+  - `seedMapel`
+  - `seedKelas`
+  - `seedGuruAndUsers`
+  - `loadSlotsByDay` (+ `groupSlotsByDay`)
+  - `generateSchedule`
+  - schedule conflict primitives: `isTeacherBusy`, `markTeacherBusy`, `isRoomBusy`, `markRoomBusy`
+  - schedule selection helpers: `selectTeacherForSlot`, `selectRoomForClass`, `pickMapelForSlot`, `allocateScheduleSlot`, `insertScheduleRow`
+
+### Behavior Preservation Notes
+- Preserved SQL statements and table operations; queries were moved but not changed in intent.
+- Preserved random subject selection algorithm (`Math.floor(Math.random() * mapelIds.length)`).
+- Preserved teacher fallback strategy (eligible teacher first, then any free teacher, otherwise skip).
+- Preserved room fallback strategy (home room by modulo, then any free room, otherwise skip).
+- Preserved `jam_pelajaran` filtering behavior (`slot.jam_ke >= 0`) and ordering query for slots.
+
+### Verification
+- LSP diagnostics for changed file clean: `database/seeders/seed_dummy_full.js`
+- Build passed: `npm run build` (2643 modules transformed, exit 0)
+- Tests passed: `npm test` final summary `pass 185`, `fail 0`
+
+### Key Learning
+- For seeders with nested `class -> day -> slot` loops, extracting one helper per decision point (teacher availability, room availability, slot allocation) is the fastest low-risk path to hit CC targets.
+- Keeping insert and constraint-marking in dedicated helpers (`insertScheduleRow`, `allocateScheduleSlot`) makes the orchestrator measurable and maintainable without changing seed output semantics.
+
+## Task 26: Refactor seed_dummy_range main CC hotspot (2026-02-19)
+
+### What Worked
+- Turned `main()` in `database/seeders/seed_dummy_range.js` into a linear orchestrator and extracted high-branching sections into dedicated helpers.
+- Added required extraction set and kept all helpers in the same file:
+  - `loadReferenceData`
+  - `seedJamPelajaran`
+  - `seedRuangKelas`
+  - `seedKelas`
+  - `seedGuruUsersAndData`
+  - `seedSiswaUsersAndData`
+  - `seedJadwalAndRelated`
+  - `generateAbsensiData`
+  - `isSchoolDay`
+  - `generateAbsensiForSchedule`
+  - `batchInsertAbsensi`
+- Added additional focused helpers to keep each function below CC threshold and maintain readability:
+  - `buildConnectionConfig`, `seedGuruAvailability`, `updateKelasJumlahSiswa`, `syncMataPelajaran`, `buildRuangMapByKelas`, `seedJadwalGuru`, `seedRuangMapelBinding`, `buildJadwalByClassDay`, `seedArchiveTables`, `seedPengajuanBandingAbsen`.
+
+### Behavior Preservation Notes
+- Preserved SQL query semantics; statements were moved to helpers without changing intent.
+- Preserved weighted random usage (`pickWeighted`) and status distributions for guru/siswa attendance.
+- Preserved date iteration pattern (`while current <= endDate`, `addDays(current, 1)`) and school-day filtering behavior.
+- Preserved chunked insert behavior and thresholds (`absensi_siswa >= 1000`, `absensi_guru >= 500`) via `batchInsertAbsensi`.
+
+### Verification
+- LSP diagnostics (changed file): clean (`database/seeders/seed_dummy_range.js`).
+- Build: `npm run build` passed (2643 modules transformed).
+- Tests: `npm test` did **not** fully pass due pre-existing backend failures in `server/__tests__/attendanceCalculator.test.js` (`beforeEach is not defined` in two sub-suites). This failure pattern is unrelated to seeder refactor scope.
+
+### Key Learning
+- For high-CC seeders, grouping by pipeline phase (reference loading -> entity seeding -> schedule seeding -> attendance generation -> archive/banding) gives the fastest safe complexity reduction.
+- Moving nested loop body logic into per-schedule generators (`generateAbsensiForSchedule`) and batched flushers (`batchInsertAbsensi`) is the highest-impact extraction for attendance generators.

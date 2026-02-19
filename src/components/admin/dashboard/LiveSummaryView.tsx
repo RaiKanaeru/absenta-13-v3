@@ -6,66 +6,25 @@ import {
   BookOpen, 
   TrendingUp, 
   CheckCircle, 
-  AlertCircle, 
-  Zap, 
-  Database, 
-  Activity,
-  ShieldCheck
+  AlertCircle
 } from "lucide-react";
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { formatTime24WithSeconds, formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { LiveData } from '@/types/dashboard';
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 interface LiveSummaryViewProps {
   onLogout: () => void;
 }
 
-interface SystemStatus {
-  health: {
-    status: 'healthy' | 'warning' | 'critical' | 'unknown';
-    issues: string[];
-  };
-  redis: {
-    connected: boolean;
-  };
-  database: {
-    total: number;
-    active: number;
-  };
-}
-
-interface MonitoringDashboardResponse {
-  health?: SystemStatus['health'];
-  redis?: SystemStatus['redis'];
-  metrics?: {
-    database?: {
-      connections?: SystemStatus['database'];
-    };
-  };
-}
-
 export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) => {
   const [liveData, setLiveData] = useState<LiveData>({ ongoing_classes: [] });
-  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [currentTime, setCurrentTime] = useState(getWIBTime());
 
   const fetchLiveData = useCallback(async () => {
     try {
-      const [liveRes, monitoringRes] = await Promise.all([
-        apiCall('/api/admin/live-summary', { onLogout }),
-        apiCall('/api/admin/monitoring-dashboard', { onLogout })
-      ]);
-      
+      const liveRes = await apiCall('/api/admin/live-summary', { onLogout });
       setLiveData(liveRes as LiveData);
-      
-      const mon = monitoringRes as MonitoringDashboardResponse;
-      setSystemStatus({
-        health: mon.health || { status: 'unknown', issues: [] },
-        redis: mon.redis || { connected: false },
-        database: mon.metrics?.database?.connections || { total: 0, active: 0 }
-      });
     } catch (error) {
       toast({
         title: "Gagal memuat data",
@@ -87,81 +46,8 @@ export const LiveSummaryView: React.FC<LiveSummaryViewProps> = ({ onLogout }) =>
     return () => clearInterval(timer);
   }, []);
 
-  // Helper function to get health status styling
-  const getHealthStatusStyles = (status: string) => ({
-    bg: status === 'healthy' ? "bg-emerald-500/5 border-emerald-500/20" : 
-        status === 'warning' ? "bg-amber-500/5 border-amber-500/20" : "bg-rose-500/5 border-rose-500/20",
-    icon: status === 'healthy' ? "bg-emerald-500/10 text-emerald-600" : 
-          status === 'warning' ? "bg-amber-500/10 text-amber-600" : "bg-rose-500/10 text-rose-600",
-    text: status === 'healthy' ? "text-emerald-600" : 
-          status === 'warning' ? "text-amber-600" : "text-rose-600"
-  });
-
   return (
     <div className="space-y-6">
-      {/* System Health Status Bar */}
-      {systemStatus && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className={cn(
-            "flex items-center gap-3 p-3 rounded-lg border transition-all",
-            getHealthStatusStyles(systemStatus.health.status).bg
-          )}>
-            <div className={cn(
-              "p-2 rounded-full",
-              getHealthStatusStyles(systemStatus.health.status).icon
-            )}>
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Status Sistem</p>
-              <p className={cn(
-                "text-sm font-bold capitalize",
-                getHealthStatusStyles(systemStatus.health.status).text
-              )}>
-                {systemStatus.health.status === 'healthy' ? 'Normal' : systemStatus.health.status}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-sky-500/20 bg-sky-500/5">
-            <div className="p-2 rounded-full bg-sky-500/10 text-sky-600">
-              <Database className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Database Pool</p>
-              <p className="text-sm font-bold text-sky-600">
-                {systemStatus.database.active}/{systemStatus.database.total} <span className="text-[10px] font-normal text-muted-foreground ml-1">Conns</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-orange-500/20 bg-orange-500/5">
-            <div className="p-2 rounded-full bg-orange-500/10 text-orange-600">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Redis Cache</p>
-              <p className={cn(
-                "text-sm font-bold",
-                systemStatus.redis.connected ? "text-orange-600" : "text-rose-600"
-              )}>
-                {systemStatus.redis.connected ? 'Connected' : 'Disconnected'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
-            <div className="p-2 rounded-full bg-indigo-500/10 text-indigo-600">
-              <Activity className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Auto Cleanup</p>
-              <p className="text-sm font-bold text-indigo-600">Active</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Live Clock & Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 

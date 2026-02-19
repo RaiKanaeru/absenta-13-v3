@@ -1,20 +1,33 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import type { Room } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { Edit, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Edit, FileText, Home, MapPin, Plus, Search, Trash2, Users, XCircle } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+
+type SortField = "kode_ruang" | "nama_ruang" | "lokasi" | "kapasitas" | "status";
+type SortDirection = "asc" | "desc";
+type StatusFilter = "semua" | "aktif" | "tidak_aktif";
+
+const INITIAL_FORM_DATA = {
+  kode_ruang: "",
+  nama_ruang: "",
+  lokasi: "",
+  kapasitas: "",
+  status: "aktif",
+};
 
 export const ManageRoomsView = ({
   onLogout,
@@ -22,20 +35,19 @@ export const ManageRoomsView = ({
   onLogout: () => void;
 }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("semua");
+  const [sortField, setSortField] = useState<SortField>("kode_ruang");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [showImport, setShowImport] = useState(false);
-  const [formData, setFormData] = useState({
-    kode_ruang: "",
-    nama_ruang: "",
-    lokasi: "",
-    kapasitas: "",
-    status: "aktif",
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
   const fetchRooms = useCallback(async () => {
+    setIsLoading(true);
     try {
       const response = await apiCall("/api/admin/ruang", { onLogout });
       setRooms(response as Room[]);
@@ -45,6 +57,8 @@ export const ManageRoomsView = ({
         description: getErrorMessage(error),
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   }, [onLogout]);
 
@@ -52,15 +66,116 @@ export const ManageRoomsView = ({
     fetchRooms();
   }, [fetchRooms]);
 
+  // --- Stats ---
+  const stats = useMemo(() => {
+    const total = rooms.length;
+    const aktif = rooms.filter((r) => r.status === "aktif").length;
+    const tidakAktif = total - aktif;
+    const totalKapasitas = rooms
+      .filter((r) => r.status === "aktif")
+      .reduce((sum, r) => sum + (r.kapasitas || 0), 0);
+    return { total, aktif, tidakAktif, totalKapasitas };
+  }, [rooms]);
+
+  // --- Filtered & Sorted Rooms ---
+  const filteredRooms = useMemo(() => {
+    let result = rooms;
+
+    // Status filter
+    if (statusFilter !== "semua") {
+      result = result.filter((r) => r.status === statusFilter);
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.kode_ruang.toLowerCase().includes(term) ||
+          r.nama_ruang?.toLowerCase().includes(term) ||
+          r.lokasi?.toLowerCase().includes(term)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let valA: string | number = "";
+      let valB: string | number = "";
+
+      switch (sortField) {
+        case "kode_ruang":
+          valA = a.kode_ruang.toLowerCase();
+          valB = b.kode_ruang.toLowerCase();
+          break;
+        case "nama_ruang":
+          valA = (a.nama_ruang || "").toLowerCase();
+          valB = (b.nama_ruang || "").toLowerCase();
+          break;
+        case "lokasi":
+          valA = (a.lokasi || "").toLowerCase();
+          valB = (b.lokasi || "").toLowerCase();
+          break;
+        case "kapasitas":
+          valA = a.kapasitas || 0;
+          valB = b.kapasitas || 0;
+          break;
+        case "status":
+          valA = a.status;
+          valB = b.status;
+          break;
+      }
+
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [rooms, searchTerm, statusFilter, sortField, sortDirection]);
+
+  // --- Handlers ---
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDirection === "asc"
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const openAddSheet = () => {
+    setFormData(INITIAL_FORM_DATA);
+    setEditingId(null);
+    setSheetOpen(true);
+  };
+
+  const openEditSheet = (room: Room) => {
+    setFormData({
+      kode_ruang: room.kode_ruang,
+      nama_ruang: room.nama_ruang || "",
+      lokasi: room.lokasi || "",
+      kapasitas: room.kapasitas?.toString() || "",
+      status: room.status,
+    });
+    setEditingId(room.id);
+    setSheetOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Client-side validation
     if (!formData.kode_ruang || formData.kode_ruang.trim() === "") {
       toast({ title: "Error", description: "Kode ruang wajib diisi!", variant: "destructive" });
       return;
     }
-    if (!/^[A-Za-z0-9]{2,20}$/.test(formData.kode_ruang.trim())) {
+    if (!/^[A-Za-z0-9-]{2,20}$/.test(formData.kode_ruang.trim())) {
       toast({ title: "Error", description: "Kode ruang harus 2-20 karakter alfanumerik!", variant: "destructive" });
       return;
     }
@@ -72,57 +187,36 @@ export const ManageRoomsView = ({
       return;
     }
 
-    setIsLoading(true);
+    setIsSaving(true);
 
     try {
+      const body = {
+        kode_ruang: formData.kode_ruang,
+        nama_ruang: formData.nama_ruang,
+        lokasi: formData.lokasi,
+        kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
+        status: formData.status,
+      };
+
       if (editingId) {
-        // Update existing room
         await apiCall(`/api/admin/ruang/${editingId}`, {
           method: "PUT",
-          body: JSON.stringify({
-            kode_ruang: formData.kode_ruang,
-            nama_ruang: formData.nama_ruang,
-            lokasi: formData.lokasi,
-            kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
-            status: formData.status,
-          }),
+          body: JSON.stringify(body),
           onLogout,
         });
-
-        toast({
-          title: "Berhasil",
-          description: "Ruang berhasil diperbarui",
-        });
+        toast({ title: "Berhasil", description: "Ruang berhasil diperbarui" });
       } else {
-        // Create new room
         await apiCall("/api/admin/ruang", {
           method: "POST",
-          body: JSON.stringify({
-            kode_ruang: formData.kode_ruang,
-            nama_ruang: formData.nama_ruang,
-            lokasi: formData.lokasi,
-            kapasitas: formData.kapasitas ? Number.parseInt(formData.kapasitas) : null,
-            status: formData.status,
-          }),
+          body: JSON.stringify(body),
           onLogout,
         });
-
-        toast({
-          title: "Berhasil",
-          description: "Ruang berhasil ditambahkan",
-        });
+        toast({ title: "Berhasil", description: "Ruang berhasil ditambahkan" });
       }
 
-      // Reset form
-      setFormData({
-        kode_ruang: "",
-        nama_ruang: "",
-        lokasi: "",
-        kapasitas: "",
-        status: "aktif",
-      });
+      setFormData(INITIAL_FORM_DATA);
       setEditingId(null);
-      setDialogOpen(false);
+      setSheetOpen(false);
       fetchRooms();
     } catch (error) {
       toast({
@@ -131,36 +225,45 @@ export const ManageRoomsView = ({
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const handleEdit = (room: Room) => {
-    setFormData({
-      kode_ruang: room.kode_ruang,
-      nama_ruang: room.nama_ruang || "",
-      lokasi: room.lokasi || "",
-      kapasitas: room.kapasitas?.toString() || "",
-      status: room.status,
-    });
-    setEditingId(room.id);
-    setDialogOpen(true);
+  const handleToggleStatus = async (room: Room) => {
+    const newStatus = room.status === "aktif" ? "tidak_aktif" : "aktif";
+    try {
+      await apiCall(`/api/admin/ruang/${room.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          kode_ruang: room.kode_ruang,
+          nama_ruang: room.nama_ruang,
+          lokasi: room.lokasi,
+          kapasitas: room.kapasitas,
+          status: newStatus,
+        }),
+        onLogout,
+      });
+      toast({
+        title: "Status diperbarui",
+        description: `${room.kode_ruang} sekarang ${newStatus === "aktif" ? "Aktif" : "Tidak Aktif"}`,
+      });
+      fetchRooms();
+    } catch (error) {
+      toast({
+        title: "Gagal mengubah status",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (id: number) => {
-    if (!globalThis.confirm("Yakin ingin menghapus ruang ini? Tindakan ini tidak dapat dibatalkan.")) {
-      return;
-    }
     try {
       await apiCall(`/api/admin/ruang/${id}`, {
         method: "DELETE",
         onLogout,
       });
-
-      toast({
-        title: "Berhasil",
-        description: "Ruang berhasil dihapus",
-      });
+      toast({ title: "Berhasil", description: "Ruang berhasil dihapus" });
       fetchRooms();
     } catch (error) {
       toast({
@@ -171,121 +274,246 @@ export const ManageRoomsView = ({
     }
   };
 
-  const filteredRooms = rooms.filter(
-    (room) =>
-      room.kode_ruang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      room.nama_ruang?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      room.lokasi?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  let submitLabel = "Tambah";
-  if (editingId) {
-    submitLabel = "Perbarui";
-  }
-  if (isLoading) {
-    submitLabel = "Menyimpan...";
-  }
-
   if (showImport) {
-    return <ExcelImportView entityType="ruang" entityName="Ruang Kelas" onBack={() => setShowImport(false)} />;
+    return <ExcelImportView entityType="ruang" entityName="Ruang Kelas" onBack={() => { setShowImport(false); fetchRooms(); }} />;
   }
+
+  const statusFilterButtons: { label: string; value: StatusFilter; count: number }[] = [
+    { label: "Semua", value: "semua", count: stats.total },
+    { label: "Aktif", value: "aktif", count: stats.aktif },
+    { label: "Tidak Aktif", value: "tidak_aktif", count: stats.tidakAktif },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground">Kelola Ruang Kelas</h2>
           <p className="text-sm text-muted-foreground">Tambah, edit, dan hapus data ruang kelas</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-row gap-2">
           <Button onClick={() => setShowImport(true)} variant="outline" size="sm" className="text-xs">
-            <FileText className="h-3 w-3 mr-1" />
+            <FileText className="h-3.5 w-3.5 mr-1.5" />
             Import Excel
           </Button>
-          <Button onClick={() => setDialogOpen(true)} size="sm" className="text-xs">
-            <Plus className="h-3 w-3 mr-1" />
+          <Button onClick={openAddSheet} size="sm" className="text-xs">
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
             Tambah Ruang
           </Button>
         </div>
       </div>
 
-      {/* Search */}
+      {/* Stats Cards */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={`stat-skeleton-${String(i)}`}>
+              <CardContent className="p-4">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-7 w-12" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Home className="h-4 w-4" />
+                <span className="text-xs font-medium">Total Ruang</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.total}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-emerald-600 mb-1">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-xs font-medium">Aktif</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-600">{stats.aktif}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-red-500 mb-1">
+                <XCircle className="h-4 w-4" />
+                <span className="text-xs font-medium">Tidak Aktif</span>
+              </div>
+              <p className="text-2xl font-bold text-red-500">{stats.tidakAktif}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Users className="h-4 w-4" />
+                <span className="text-xs font-medium">Total Kapasitas</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.totalKapasitas > 0 ? stats.totalKapasitas : "-"}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Search + Filter */}
       <Card>
         <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="relative flex-1 w-full">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Cari ruang kelas..."
+                placeholder="Cari kode, nama, atau lokasi ruang..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 text-sm"
               />
             </div>
-            <Badge variant="secondary" className="px-2 py-1 text-xs whitespace-nowrap">
-              {filteredRooms.length} ruang ditemukan
-            </Badge>
+            <div className="flex items-center gap-1">
+              {statusFilterButtons.map((btn) => (
+                <Button
+                  key={btn.value}
+                  variant={statusFilter === btn.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter(btn.value)}
+                  className="text-xs h-9 px-3"
+                >
+                  {btn.label}
+                  <Badge
+                    variant={statusFilter === btn.value ? "outline" : "secondary"}
+                    className="ml-1.5 px-1.5 py-0 text-[10px] min-w-[18px] justify-center"
+                  >
+                    {btn.count}
+                  </Badge>
+                </Button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Rooms Table */}
+      {/* Table / Data */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Home className="w-4 h-4" />
-            Daftar Ruang Kelas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredRooms.length === 0 ? (
-            <div className="text-center py-8">
-              <Home className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <h3 className="text-lg font-semibold text-muted-foreground mb-2">Belum Ada Data</h3>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={`row-skeleton-${String(i)}`} className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-7 w-16 ml-auto" />
+                </div>
+              ))}
+            </div>
+          ) : filteredRooms.length === 0 ? (
+            <div className="text-center py-12">
+              <Home className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
+              <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
               <p className="text-sm text-muted-foreground">
-                {searchTerm ? "Tidak ada ruang yang cocok dengan pencarian" : "Belum ada ruang kelas yang ditambahkan"}
+                {searchTerm || statusFilter !== "semua"
+                  ? "Tidak ada ruang yang cocok dengan filter"
+                  : "Belum ada ruang kelas yang ditambahkan"}
               </p>
+              {!searchTerm && statusFilter === "semua" && (
+                <Button onClick={openAddSheet} size="sm" className="mt-4 text-xs">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Tambah Ruang Pertama
+                </Button>
+              )}
             </div>
           ) : (
             <>
-              {/* Desktop Table View - hidden on mobile and tablet */}
+              {/* Desktop Table - hidden on mobile */}
               <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs">Kode Ruang</TableHead>
-                      <TableHead className="text-xs">Nama Ruang</TableHead>
-                      <TableHead className="text-xs">Lokasi</TableHead>
-                      <TableHead className="text-xs">Kapasitas</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
+                      <TableHead>
+                        <button type="button" onClick={() => handleSort("kode_ruang")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
+                          Kode Ruang {getSortIcon("kode_ruang")}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button type="button" onClick={() => handleSort("nama_ruang")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
+                          Nama Ruang {getSortIcon("nama_ruang")}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button type="button" onClick={() => handleSort("lokasi")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
+                          Lokasi {getSortIcon("lokasi")}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button type="button" onClick={() => handleSort("kapasitas")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
+                          Kapasitas {getSortIcon("kapasitas")}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button type="button" onClick={() => handleSort("status")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
+                          Status {getSortIcon("status")}
+                        </button>
+                      </TableHead>
                       <TableHead className="text-right text-xs">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredRooms.map((room) => (
                       <TableRow key={room.id}>
-                        <TableCell className="font-medium text-xs">{room.kode_ruang}</TableCell>
+                        <TableCell className="font-mono font-medium text-xs">{room.kode_ruang}</TableCell>
                         <TableCell className="text-xs">{room.nama_ruang || "-"}</TableCell>
-                        <TableCell className="text-xs">{room.lokasi || "-"}</TableCell>
-                        <TableCell className="text-xs">{room.kapasitas || "-"}</TableCell>
+                        <TableCell className="text-xs">
+                          {room.lokasi ? (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                              {room.lokasi}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {room.kapasitas ? (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+                              {room.kapasitas}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={room.status === "aktif" ? "default" : "secondary"} className="text-xs">
-                            {room.status === "aktif" ? "Aktif" : "Tidak Aktif"}
-                          </Badge>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(room)}
+                            className="cursor-pointer"
+                            title={`Klik untuk ${room.status === "aktif" ? "nonaktifkan" : "aktifkan"}`}
+                          >
+                            <Badge
+                              variant={room.status === "aktif" ? "default" : "secondary"}
+                              className="text-xs transition-opacity hover:opacity-80"
+                            >
+                              {room.status === "aktif" ? "Aktif" : "Tidak Aktif"}
+                            </Badge>
+                          </button>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEdit(room)}
+                              onClick={() => openEditSheet(room)}
                               className="h-7 w-7 p-0"
+                              title="Edit ruang"
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Hapus ruang">
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -293,12 +521,15 @@ export const ManageRoomsView = ({
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Apakah Anda yakin ingin menghapus ruang {room.kode_ruang}? Tindakan ini tidak dapat dibatalkan.
+                                    Apakah Anda yakin ingin menghapus ruang <strong>{room.kode_ruang}</strong>
+                                    {room.nama_ruang ? ` (${room.nama_ruang})` : ""}? Tindakan ini tidak dapat dibatalkan.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(room.id)}>Hapus</AlertDialogAction>
+                                  <AlertDialogAction onClick={() => handleDelete(room.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Hapus
+                                  </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -311,143 +542,157 @@ export const ManageRoomsView = ({
               </div>
 
               {/* Mobile & Tablet Card View */}
-              <div className="lg:hidden space-y-3">
+              <div className="lg:hidden divide-y">
                 {filteredRooms.map((room) => (
-                  <Card key={room.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm">{room.kode_ruang}</h3>
-                          <p className="text-xs text-muted-foreground">{room.nama_ruang || "Tidak ada nama"}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(room)}
-                            className="h-7 w-7 p-0"
+                  <div key={room.id} className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-mono font-medium text-sm">{room.kode_ruang}</h3>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(room)}
+                            className="cursor-pointer"
                           >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-7 w-7 p-0">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Apakah Anda yakin ingin menghapus ruang {room.kode_ruang}? Tindakan ini tidak dapat dibatalkan.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(room.id)}>Hapus</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-muted-foreground">Lokasi:</span>
-                          <p className="font-medium">{room.lokasi || "-"}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Kapasitas:</span>
-                          <p className="font-medium">{room.kapasitas || "-"}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Status:</span>
-                          <div className="mt-1">
-                            <Badge variant={room.status === "aktif" ? "default" : "secondary"} className="text-xs">
+                            <Badge
+                              variant={room.status === "aktif" ? "default" : "secondary"}
+                              className="text-[10px] transition-opacity hover:opacity-80"
+                            >
                               {room.status === "aktif" ? "Aktif" : "Tidak Aktif"}
                             </Badge>
-                          </div>
+                          </button>
                         </div>
+                        <p className="text-xs text-muted-foreground truncate">{room.nama_ruang || "Tidak ada nama"}</p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditSheet(room)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus ruang <strong>{room.kode_ruang}</strong>
+                                {room.nama_ruang ? ` (${room.nama_ruang})` : ""}? Tindakan ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(room.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
-                  </Card>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      {room.lokasi && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {room.lokasi}
+                        </span>
+                      )}
+                      {room.kapasitas && (
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3 shrink-0" />
+                          {room.kapasitas} orang
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 ))}
+              </div>
+
+              {/* Footer count */}
+              <div className="px-4 py-3 border-t text-xs text-muted-foreground">
+                Menampilkan {filteredRooms.length} dari {rooms.length} ruang
               </div>
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-base">{editingId ? "Edit Ruang Kelas" : "Tambah Ruang Kelas"}</DialogTitle>
-            <DialogDescription className="text-sm">
-              {editingId ? "Perbarui informasi ruang kelas" : "Tambahkan ruang kelas baru"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="kode_ruang" className="text-sm font-medium">
-                  Kode Ruang *
-                </Label>
-                <Input
-                  id="kode_ruang"
-                  value={formData.kode_ruang}
-                  onChange={(e) => setFormData({ ...formData, kode_ruang: e.target.value.toUpperCase() })}
-                  placeholder="R34"
-                  className="mt-1"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="nama_ruang" className="text-sm font-medium">
-                  Nama Ruang
-                </Label>
-                <Input
-                  id="nama_ruang"
-                  value={formData.nama_ruang}
-                  onChange={(e) => setFormData({ ...formData, nama_ruang: e.target.value })}
-                  placeholder="Ruang 34"
-                  className="mt-1"
-                />
-              </div>
+      {/* Add/Edit Sheet (Sidebar) */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingId ? "Edit Ruang Kelas" : "Tambah Ruang Kelas"}</SheetTitle>
+            <SheetDescription>
+              {editingId ? "Perbarui informasi ruang kelas" : "Tambahkan ruang kelas baru ke sistem"}
+            </SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+            <div>
+              <Label htmlFor="kode_ruang" className="text-sm font-medium">
+                Kode Ruang <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="kode_ruang"
+                value={formData.kode_ruang}
+                onChange={(e) => setFormData({ ...formData, kode_ruang: e.target.value.toUpperCase() })}
+                placeholder="R-01"
+                className="mt-1.5"
+                required
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">2-20 karakter alfanumerik</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="lokasi" className="text-sm font-medium">
-                  Lokasi
-                </Label>
-                <Input
-                  id="lokasi"
-                  value={formData.lokasi}
-                  onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
-                  placeholder="Gedung A Lantai 3"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="kapasitas" className="text-sm font-medium">
-                  Kapasitas
-                </Label>
-                <Input
-                  id="kapasitas"
-                  type="number"
-                  value={formData.kapasitas}
-                  onChange={(e) => setFormData({ ...formData, kapasitas: e.target.value })}
-                  placeholder="30"
-                  className="mt-1"
-                />
-              </div>
+            <div>
+              <Label htmlFor="nama_ruang" className="text-sm font-medium">
+                Nama Ruang
+              </Label>
+              <Input
+                id="nama_ruang"
+                value={formData.nama_ruang}
+                onChange={(e) => setFormData({ ...formData, nama_ruang: e.target.value })}
+                placeholder="Laboratorium Komputer"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="lokasi" className="text-sm font-medium">
+                Lokasi
+              </Label>
+              <Input
+                id="lokasi"
+                value={formData.lokasi}
+                onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
+                placeholder="Gedung A, Lantai 3"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="kapasitas" className="text-sm font-medium">
+                Kapasitas
+              </Label>
+              <Input
+                id="kapasitas"
+                type="number"
+                value={formData.kapasitas}
+                onChange={(e) => setFormData({ ...formData, kapasitas: e.target.value })}
+                placeholder="30"
+                min="1"
+                className="mt-1.5"
+              />
             </div>
             <div>
               <Label htmlFor="status" className="text-sm font-medium">
                 Status
               </Label>
               <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -456,17 +701,17 @@ export const ManageRoomsView = ({
                 </SelectContent>
               </Select>
             </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="text-sm">
+            <SheetFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="text-sm">
                 Batal
               </Button>
-              <Button type="submit" disabled={isLoading} className="text-sm">
-                {submitLabel}
+              <Button type="submit" disabled={isSaving} className="text-sm">
+                {isSaving ? "Menyimpan..." : editingId ? "Perbarui" : "Tambah"}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
