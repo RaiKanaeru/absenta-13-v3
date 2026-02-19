@@ -1198,6 +1198,171 @@ export const checkScheduleConflicts = async (req, res) => {
     }
 };
 
+const validateBulkCreateRequest = async ({
+    kelas_ids,
+    hari,
+    jam_ke,
+    jam_mulai,
+    jam_selesai,
+    jenis_aktivitas,
+    guru_ids,
+    mapel_id,
+    ruang_id
+}) => {
+    if (!Array.isArray(kelas_ids) || kelas_ids.length === 0) {
+        return { valid: false, error: 'Minimal satu kelas harus dipilih' };
+    }
+
+    if (!hari || jam_ke === undefined || jam_mulai === undefined || jam_selesai === undefined) {
+        return { valid: false, error: 'Hari, jam ke, dan waktu wajib diisi' };
+    }
+
+    const normalizedHari = normalizeHariName(hari);
+    if (!ALLOWED_DAYS.has(normalizedHari)) {
+        return { valid: false, error: 'Hari tidak valid' };
+    }
+
+    const normalizedJenisAktivitas = normalizeJenisAktivitas(jenis_aktivitas);
+    if (!normalizedJenisAktivitas) {
+        return { valid: false, error: 'Jenis aktivitas tidak valid' };
+    }
+
+    const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
+    if (!timeValidation.valid) {
+        return { valid: false, error: timeValidation.error };
+    }
+
+    const kelasIds = Array.from(new Set(kelas_ids.map(normalizeId).filter(Boolean)));
+    if (kelasIds.length === 0) {
+        return { valid: false, error: 'Kelas tidak valid' };
+    }
+
+    const jamKe = Number(jam_ke);
+    if (!Number.isInteger(jamKe) || jamKe < 0) {
+        return { valid: false, error: 'Jam ke tidak valid' };
+    }
+
+    const jamSlotValidation = await validateJamSlotExists(normalizedHari, jamKe);
+    if (!jamSlotValidation.valid) {
+        return { valid: false, error: jamSlotValidation.error };
+    }
+
+    const isPelajaran = normalizedJenisAktivitas === 'pelajaran';
+    const { primaryGuruId, guruIds } = isPelajaran
+        ? normalizeGuruIds({ guru_ids })
+        : { primaryGuruId: null, guruIds: [] };
+    const finalMapelId = isPelajaran ? normalizeId(mapel_id) : null;
+    const finalRuangId = normalizeId(ruang_id);
+
+    if (isPelajaran && (!finalMapelId || guruIds.length === 0)) {
+        return { valid: false, error: 'Mapel dan guru wajib diisi' };
+    }
+
+    return {
+        valid: true,
+        normalizedHari,
+        normalizedJenisAktivitas,
+        kelasIds,
+        jamKe,
+        guruIds,
+        finalMapelId,
+        finalRuangId,
+        isAbsenable: isPelajaran,
+        primaryId: primaryGuruId || guruIds[0] || null
+    };
+};
+
+const validateBulkCreateReferences = async ({ finalMapelId, finalRuangId, guruIds }) => {
+    if (finalMapelId) {
+        const mapelExists = await validateMapelExists(finalMapelId);
+        if (!mapelExists) {
+            return { valid: false, error: 'Mata pelajaran tidak ditemukan' };
+        }
+    }
+
+    if (finalRuangId) {
+        const ruangExists = await validateRuangExists(finalRuangId);
+        if (!ruangExists) {
+            return { valid: false, error: 'Ruang tidak ditemukan' };
+        }
+    }
+
+    const guruValidation = await validateGuruIdsExist(guruIds);
+    if (!guruValidation.valid) {
+        return { valid: false, error: guruValidation.error };
+    }
+
+    return { valid: true };
+};
+
+const fetchBulkCreateKelasMap = async (kelasIds) => {
+    const placeholders = kelasIds.map(() => '?').join(',');
+    const [kelasRows] = await db.execute(
+        `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${placeholders}) AND status = "aktif"`,
+        kelasIds
+    );
+
+    const kelasMap = new Map(kelasRows.map(row => [row.id_kelas, row.nama_kelas]));
+    const missingIds = kelasIds.filter(id => !kelasMap.has(id));
+
+    return { kelasMap, missingIds };
+};
+
+const addBulkConflictEntries = (conflicts, kelasMap, kelasId, conflictList) => {
+    for (const conflict of conflictList) {
+        conflicts.push({
+            kelas_id: kelasId,
+            kelas_name: kelasMap.get(kelasId) || String(kelasId),
+            conflict_type: conflict.type,
+            message: conflict.message
+        });
+    }
+};
+
+const createBulkJadwalForClass = async ({
+    connection,
+    kelasId,
+    normalizedHari,
+    jam_mulai,
+    jam_selesai,
+    finalRuangId,
+    guruIds,
+    finalMapelId,
+    primaryId,
+    jamKe,
+    normalizedJenisAktivitas,
+    isAbsenable,
+    keteranganKhusus
+}) => {
+    const conflictCheck = await checkAllScheduleConflicts({
+        kelas_id: kelasId,
+        hari: normalizedHari,
+        jam_mulai: String(jam_mulai),
+        jam_selesai: String(jam_selesai),
+        ruang_id: finalRuangId,
+        guruIds,
+        connection,
+        collectConflicts: true
+    });
+
+    if (conflictCheck.hasConflict) {
+        return { skipped: true, conflicts: conflictCheck.conflicts };
+    }
+
+    const [insertResult] = await connection.execute(
+        `INSERT INTO jadwal 
+         (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
+        [kelasId, finalMapelId, primaryId, finalRuangId, normalizedHari, jamKe, jam_mulai, jam_selesai, normalizedJenisAktivitas, isAbsenable ? 1 : 0, keteranganKhusus ?? null, guruIds.length > 1 ? 1 : 0]
+    );
+
+    if (normalizedJenisAktivitas === 'pelajaran' && guruIds.length > 0) {
+        await insertJadwalGuru(insertResult.insertId, guruIds, connection);
+    }
+
+    return { skipped: false, conflicts: [] };
+};
+
 /**
  * Bulk create schedules
  * POST /api/admin/jadwal/bulk
@@ -1213,6 +1378,7 @@ export const bulkCreateJadwal = async (req, res) => {
         jam_ke,
         jam_mulai,
         jam_selesai,
+        keterangan_khusus,
         jenis_aktivitas = 'pelajaran'
     } = req.body;
 
@@ -1221,81 +1387,43 @@ export const bulkCreateJadwal = async (req, res) => {
     let connection;
 
     try {
-        if (!Array.isArray(kelas_ids) || kelas_ids.length === 0) {
-            return sendValidationError(res, 'Minimal satu kelas harus dipilih');
-        }
-        if (!hari || jam_ke === undefined || jam_mulai === undefined || jam_selesai === undefined) {
-            return sendValidationError(res, 'Hari, jam ke, dan waktu wajib diisi');
-        }
-
-        const normalizedHari = normalizeHariName(hari);
-        if (!ALLOWED_DAYS.has(normalizedHari)) {
-            return sendValidationError(res, 'Hari tidak valid');
-        }
-
-        const normalizedJenisAktivitas = normalizeJenisAktivitas(jenis_aktivitas);
-        if (!normalizedJenisAktivitas) {
-            return sendValidationError(res, 'Jenis aktivitas tidak valid');
+        const inputValidation = await validateBulkCreateRequest({
+            kelas_ids,
+            hari,
+            jam_ke,
+            jam_mulai,
+            jam_selesai,
+            jenis_aktivitas,
+            guru_ids,
+            mapel_id,
+            ruang_id
+        });
+        if (!inputValidation.valid) {
+            return sendValidationError(res, inputValidation.error);
         }
 
-        const timeValidation = validateTimeLogic(String(jam_mulai), String(jam_selesai));
-        if (!timeValidation.valid) {
-            return sendValidationError(res, timeValidation.error);
+        const {
+            normalizedHari,
+            normalizedJenisAktivitas,
+            kelasIds,
+            jamKe,
+            guruIds,
+            finalMapelId,
+            finalRuangId,
+            isAbsenable,
+            primaryId
+        } = inputValidation;
+
+        const referenceValidation = await validateBulkCreateReferences({
+            finalMapelId,
+            finalRuangId,
+            guruIds
+        });
+        if (!referenceValidation.valid) {
+            return sendValidationError(res, referenceValidation.error);
         }
 
-        const kelasIds = Array.from(new Set(kelas_ids.map(normalizeId).filter(Boolean)));
-        if (kelasIds.length === 0) {
-            return sendValidationError(res, 'Kelas tidak valid');
-        }
-
-        const jamKe = Number(jam_ke);
-        if (!Number.isInteger(jamKe) || jamKe < 0) {
-            return sendValidationError(res, 'Jam ke tidak valid');
-        }
-
-        const jamSlotValidation = await validateJamSlotExists(normalizedHari, jamKe);
-        if (!jamSlotValidation.valid) {
-            return sendValidationError(res, jamSlotValidation.error);
-        }
-
-        const isPelajaran = normalizedJenisAktivitas === 'pelajaran';
-        const { primaryGuruId, guruIds } = isPelajaran ? normalizeGuruIds({ guru_ids }) : { primaryGuruId: null, guruIds: [] };
-        const finalMapelId = isPelajaran ? normalizeId(mapel_id) : null;
-        const finalRuangId = normalizeId(ruang_id);
-        const isAbsenable = isPelajaran;
-        const primaryId = primaryGuruId || guruIds[0] || null;
-
-        if (isPelajaran && (!finalMapelId || guruIds.length === 0)) {
-            return sendValidationError(res, 'Mapel dan guru wajib diisi');
-        }
-
-        if (finalMapelId) {
-            const mapelExists = await validateMapelExists(finalMapelId);
-            if (!mapelExists) {
-                return sendValidationError(res, 'Mata pelajaran tidak ditemukan');
-            }
-        }
-
-        if (finalRuangId) {
-            const ruangExists = await validateRuangExists(finalRuangId);
-            if (!ruangExists) {
-                return sendValidationError(res, 'Ruang tidak ditemukan');
-            }
-        }
-
-        const guruValidation = await validateGuruIdsExist(guruIds);
-        if (!guruValidation.valid) {
-            return sendValidationError(res, guruValidation.error);
-        }
-
-        const placeholders = kelasIds.map(() => '?').join(',');
-        const [kelasRows] = await db.execute(
-            `SELECT id_kelas, nama_kelas FROM kelas WHERE id_kelas IN (${placeholders}) AND status = "aktif"`,
-            kelasIds
-        );
-
-        const kelasMap = new Map(kelasRows.map(row => [row.id_kelas, row.nama_kelas]));
-        const missingIds = kelasIds.filter(id => !kelasMap.has(id));
+        const { kelasMap, missingIds } = await fetchBulkCreateKelasMap(kelasIds);
         if (missingIds.length > 0) {
             return sendValidationError(res, 'Kelas tidak ditemukan', { missing: missingIds });
         }
@@ -1308,39 +1436,26 @@ export const bulkCreateJadwal = async (req, res) => {
         const conflicts = [];
 
         for (const kelasId of kelasIds) {
-            const conflictCheck = await checkAllScheduleConflicts({
-                kelas_id: kelasId,
-                hari: normalizedHari,
-                jam_mulai: String(jam_mulai),
-                jam_selesai: String(jam_selesai),
-                ruang_id: finalRuangId,
-                guruIds,
+            const createResult = await createBulkJadwalForClass({
                 connection,
-                collectConflicts: true
+                kelasId,
+                normalizedHari,
+                jam_mulai,
+                jam_selesai,
+                finalRuangId,
+                guruIds,
+                finalMapelId,
+                primaryId,
+                jamKe,
+                normalizedJenisAktivitas,
+                isAbsenable,
+                keteranganKhusus: keterangan_khusus
             });
 
-            if (conflictCheck.hasConflict) {
+            if (createResult.skipped) {
                 skipped++;
-                for (const conflict of conflictCheck.conflicts) {
-                    conflicts.push({
-                        kelas_id: kelasId,
-                        kelas_name: kelasMap.get(kelasId) || String(kelasId),
-                        conflict_type: conflict.type,
-                        message: conflict.message
-                    });
-                }
+                addBulkConflictEntries(conflicts, kelasMap, kelasId, createResult.conflicts);
                 continue;
-            }
-
-            const [insertResult] = await connection.execute(
-                `INSERT INTO jadwal 
-                 (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status, jenis_aktivitas, is_absenable, keterangan_khusus, is_multi_guru)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif', ?, ?, ?, ?)`,
-                [kelasId, finalMapelId, primaryId, finalRuangId, normalizedHari, jamKe, jam_mulai, jam_selesai, normalizedJenisAktivitas, isAbsenable ? 1 : 0, keterangan_khusus, guruIds.length > 1 ? 1 : 0]
-            );
-
-            if (normalizedJenisAktivitas === 'pelajaran' && guruIds.length > 0) {
-                await insertJadwalGuru(insertResult.insertId, guruIds, connection);
             }
 
             created++;

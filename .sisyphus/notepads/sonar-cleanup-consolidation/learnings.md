@@ -73,3 +73,33 @@
 - Properly belongs to T8-T12 complexity refactor tasks — applying a quick fix would risk introducing bugs in a critical import pipeline.
 - **Rule**: Map and document, but defer complexity fixes to dedicated refactor tasks with proper test coverage.
 
+
+## Task T8 Learnings — 2026-02-19T06:06:58.914Z
+
+- Refactoring high-complexity controller paths is safer when split into staged helpers: input validation, context construction, execution, and final response shaping.
+- Preserving endpoint behavior required keeping original validation messages and order, especially for create/update jadwal shared processing.
+- Conflict checks remained equivalent by centralizing early-return vs collect mode into a single helper ().
+
+### Task T8 Addendum — 2026-02-19T06:07:13.064Z
+- Helper referenced in equivalence note: collectOrReturnConflict (name recorded explicitly).
+
+## Task T9 Learnings — 2026-02-19T06:13:49.740Z
+
+- batchUpdateMatrix complexity drops safely when loop responsibilities are split into helpers: slot resolution, conflict gate, upsert application, and counter mapping.
+- Keeping rollback in controller-level flow (instead of helper internals) preserves original transaction ownership and failure semantics.
+- Using original request day text in validation messages for per-cell errors keeps client-facing message parity.
+
+## Task T10 Learnings — 2026-02-19T06:19:18.188Z
+
+- bulkCreateJadwal complexity is reduced safely by separating request validation, reference checks, class-map lookup, and per-class creation/conflict handling.
+- Keeping beginTransaction/commit/rollback in controller scope preserves transaction ownership while helpers stay side-effect scoped to DB operations only.
+- Conflict list enrichment is best extracted into a dedicated helper to keep loop logic linear and maintain exact conflict object schema.
+
+### Task T10 Addendum — 2026-02-19T06:21:47.764Z
+- Final hotspot-C refactor is centered on bulkCreateJadwal with extracted guards/helpers and unchanged transaction control points in controller scope.
+
+### Task T10 Correction — 2026-02-19T06:24:07.502Z
+- Fixed regression in bulk create helper: undefined  was replaced by explicit  param passed from controller callsite with null fallback to preserve insert semantics.
+
+### Task T10 Correction Addendum — 2026-02-19T06:24:23.749Z
+- Corrected note: undefined field name was keterangan_khusus, fixed by passing keteranganKhusus into helper and writing keteranganKhusus ?? null.
