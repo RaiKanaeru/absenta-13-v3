@@ -1,0 +1,21 @@
+Task 15 - ExcelPreview Stability Evidence
+Date: 2026-02-19
+Status: Success
+
+1. Refactoring:
+   - Extracted `LetterheadSection` to `ExcelPreview.components.tsx`.
+   - Fixed nested ternary operators in letterhead rendering by using extracted component logic.
+   - Replaced array index keys with stable keys where possible:
+     - `getLetterheadLineKey` now generates a key based on content and index (as fallback) but formatted as a string to be unique.
+     - Table rows use `getDataRowKey` which prioritizes unique IDs (`id`, `nis`, `nip`, etc.) over JSON stringification.
+     - Table columns use `column.key` which is stable.
+
+2. Verification:
+   - ESLint passed with 0 errors.
+   - `npm run test:client` passed all tests including `ExcelPreview.test.tsx`.
+   - Tests cover rendering with data and letterhead.
+
+3. Key Improvements:
+   - Improved rendering stability with better key generation.
+   - Reduced complexity in `ExcelPreview.tsx` by extracting letterhead logic.
+   - Cleaner code structure.

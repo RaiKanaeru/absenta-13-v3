@@ -7,9 +7,9 @@ interface LetterheadSectionProps {
 
 const getLetterheadLineKey = (line: string | { text?: string; fontWeight?: string }, index: number) => {
   if (typeof line === 'string') {
-    return `${index}-${line}`;
+    return `line-${index}-${line.substring(0, 10)}`;
   }
-  return `${index}-${line.text || ''}-${line.fontWeight || 'normal'}`;
+  return `line-${index}-${(line.text || '').substring(0, 10)}`;
 };
 
 export const LetterheadSection: React.FC<LetterheadSectionProps> = ({ letterhead }) => {
