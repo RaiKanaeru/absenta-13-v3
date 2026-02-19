@@ -185,6 +185,8 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
     return <ExcelImportView entityType="guru" entityName="Data Guru" onBack={() => setShowImport(false)} />;
   }
 
+  const submitActionLabel = editingId ? 'Update' : 'Tambah';
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -326,7 +328,7 @@ const ManageTeacherDataView = ({ onBack, onLogout }: { onBack: () => void; onLog
               <div className="flex items-end">
                 <div className="flex flex-col sm:flex-row gap-2 w-full">
                   <Button type="submit" disabled={isLoading} className="bg-purple-600 hover:bg-purple-700 text-sm">
-                    {isLoading ? 'Menyimpan...' : (editingId ? 'Update' : 'Tambah')}
+                    {isLoading ? 'Menyimpan...' : submitActionLabel}
                   </Button>
                   {editingId && (
                     <Button type="button" variant="outline" onClick={() => {

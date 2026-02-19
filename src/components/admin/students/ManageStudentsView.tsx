@@ -294,6 +294,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
     return <ExcelImportView entityType="siswa" entityName="Data Siswa" onBack={() => setShowImport(false)} />;
   }
 
+  const submitButtonLabel = editingId ? 'Simpan Perubahan' : 'Tambah Siswa';
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -443,8 +445,8 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                         <SelectValue placeholder="Pilih kelas" />
                       </SelectTrigger>
                       <SelectContent>
-                        {classes.filter(kelas => kelas.id).map((kelas, index) => (
-                          <SelectItem key={`class-select-${kelas.id}-${index}`} value={kelas.id.toString()}>
+                        {classes.filter(kelas => kelas.id).map((kelas) => (
+                          <SelectItem key={`class-select-${kelas.id}`} value={kelas.id.toString()}>
                             {kelas.nama_kelas} {kelas.tingkat ? `(${kelas.tingkat})` : ''}
                           </SelectItem>
                         ))}
@@ -554,7 +556,7 @@ export const ManageStudentsView = ({ onBack, onLogout }: ManageStudentsViewProps
                       Menyimpan...
                     </>
                   ) : (
-                    editingId ? 'Simpan Perubahan' : 'Tambah Siswa'
+                    submitButtonLabel
                   )}
                 </Button>
               </DialogFooter>

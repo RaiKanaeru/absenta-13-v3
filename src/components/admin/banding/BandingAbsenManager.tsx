@@ -97,7 +97,7 @@ export const BandingAbsenManager: React.FC<BandingManagerProps> = ({ onLogout })
       document.body.appendChild(a);
       a.click();
       globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      a.remove();
       
       toast({
         title: "Berhasil",

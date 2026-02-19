@@ -428,7 +428,8 @@ app.use(globalErrorHandler);  // Handle all unhandled errors
 // SERVER STARTUP
 // ================================================
 
-initializeDatabase(ddosProtection).then(() => {
+try {
+    await initializeDatabase(ddosProtection);
     // Initialize scheduled tasks (Cron Jobs)
     initAutoAttendanceScheduler();
 
@@ -479,7 +480,7 @@ initializeDatabase(ddosProtection).then(() => {
         shutdown('UNCAUGHT_EXCEPTION');
     });
 
-}).catch(error => {
+} catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
-});
+}

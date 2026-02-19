@@ -330,7 +330,8 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
   const handleDeleteLogo = async (logoType: 'logo' | 'logoLeft' | 'logoRight') => {
     try {
       const token = localStorage.getItem('token');
-      const url = getApiUrl(`/api/admin/letterhead/logo/${logoType}?scope=${scope}${scope === 'report' ? `&reportKey=${selectedReportKey}` : ''}`);
+      const reportKeyQuery = scope === 'report' ? `&reportKey=${selectedReportKey}` : '';
+      const url = getApiUrl(`/api/admin/letterhead/logo/${logoType}?scope=${scope}${reportKeyQuery}`);
       
       const response = await fetch(url, {
         method: 'DELETE',
@@ -501,7 +502,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
           <div className={`text-${alignment} space-y-1 clear-both`}>
             {logoElement}
             {config.lines.map((line, index) => (
-              <div key={`line-preview-${index}-${line.text?.slice(0, 10) || 'empty'}`} className={`${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'} text-sm`}>
+              <div key={`line-preview-${line.text?.slice(0, 10) || 'empty'}-${line.fontWeight || 'normal'}-${(line.text || '').length}`} className={`${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'} text-sm`}>
                 {line.text || `Baris ${index + 1}`}
               </div>
             ))}
@@ -723,7 +724,7 @@ export default function ReportLetterheadSettings({ onBack, onLogout }: ReportLet
                   </div>
                   
                   {config.lines.map((line, index) => (
-                    <div key={`line-edit-${index}-${line.text?.slice(0, 10) || 'empty'}`} className="space-y-2">
+                    <div key={`line-edit-${line.text?.slice(0, 10) || 'empty'}-${line.fontWeight || 'normal'}-${(line.text || '').length}`} className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <Input
                           value={line.text}

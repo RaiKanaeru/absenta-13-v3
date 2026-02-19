@@ -1,10 +1,6 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import mysql from 'mysql2/promise';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import path from 'node:path';
 
 // Get file from command line arg
 const sqlFile = process.argv[2];

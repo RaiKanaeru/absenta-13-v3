@@ -796,13 +796,11 @@ export const getMonitoringDashboard = async (req, res) => {
                     percentage: 0,
                     note: 'Disk metrics not available on Windows in Node.js'
                 };
-            } else {
+            } else if (globalThis.systemMonitor) {
                 // Unix-like systems - get from systemMonitor if available
-                if (globalThis.systemMonitor) {
-                    const monitorMetrics = globalThis.systemMonitor.getMetrics();
-                    if (monitorMetrics?.system?.disk) {
-                        diskMetrics = monitorMetrics.system.disk;
-                    }
+                const monitorMetrics = globalThis.systemMonitor.getMetrics();
+                if (monitorMetrics?.system?.disk) {
+                    diskMetrics = monitorMetrics.system.disk;
                 }
             }
         } catch {

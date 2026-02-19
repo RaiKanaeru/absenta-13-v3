@@ -14,9 +14,8 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
-import { } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -109,7 +108,6 @@ async function seed() {
         await connection.execute('TRUNCATE TABLE jadwal');
         await connection.execute('TRUNCATE TABLE ruang_kelas');
         await connection.execute('TRUNCATE TABLE mapel');
-        // await connection.execute('TRUNCATE TABLE kelas'); // Let's keep existing classes or upsert? Truncate is cleaner.
         await connection.execute('TRUNCATE TABLE kelas'); 
         // We iterate and delete dummy teachers only? Or truncate? 
         // Let's truncate guru and users related to guru for clean state.
@@ -499,4 +497,4 @@ async function seed() {
     }
 }
 
-seed();
+await seed();

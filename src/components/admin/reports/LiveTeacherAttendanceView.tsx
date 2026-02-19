@@ -356,11 +356,19 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
         // Create CSV content with UTF-8 BOM
         const BOM = '\uFEFF';
         const headers = Object.keys(exportData[0]).join(',');
+        const formatCsvValue = (value: unknown): string => {
+          if (typeof value === 'string') {
+            return value.includes(',') ? `"${value}"` : value;
+          }
+
+          if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value);
+          }
+
+          return String(value ?? '');
+        };
         const rows = exportData.map(row => 
-          Object.values(row).map(value => 
-            typeof value === 'string' && value.includes(',') ? `"${value}"` : 
-            (typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? ''))
-          ).join(',')
+          Object.values(row).map(formatCsvValue).join(',')
         );
         const csvContent = BOM + headers + '\n' + rows.join('\n');
 
@@ -530,8 +538,8 @@ const colorMap: Record<string, { bg: string; border: string; text: string; icon:
                   className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground"
                 >
                   <option value="all">Semua Mata Pelajaran</option>
-                  {mapelList.map((mapel, index) => (
-                    <option key={`mapel-${mapel.id_mapel}-${index}`} value={mapel.nama_mapel}>
+                  {mapelList.map((mapel) => (
+                    <option key={`mapel-${mapel.id_mapel || 'unknown'}-${mapel.nama_mapel}`} value={mapel.nama_mapel}>
                       {mapel.nama_mapel}
                     </option>
                   ))}

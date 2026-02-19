@@ -1,6 +1,6 @@
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import swaggerSpec from '../server/config/swaggerConfig.js';
 
 const outputPath = path.join(process.cwd(), 'docs-site/specs/swagger.json');

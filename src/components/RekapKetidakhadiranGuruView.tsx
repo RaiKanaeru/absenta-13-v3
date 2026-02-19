@@ -121,19 +121,6 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
     });
   };
 
-  const handleExportSMKN13 = async () => {
-    const params = new URLSearchParams({ tahun: selectedTahun });
-    await downloadExcel({
-      endpoint: '/api/export/rekap-ketidakhadiran-guru-smkn13',
-      params,
-      fileName: `REKAP_KETIDAKHADIRAN_GURU_${selectedTahun}.xlsx`,
-      successMessage: 'File Excel SMKN 13 berhasil diunduh',
-      fallbackErrorMessage: 'Gagal mengunduh file Excel SMKN 13',
-      onLogout,
-    });
-  };
-
-
   const handleExportPdf = async () => {
     try {
       setExporting(true);
@@ -168,43 +155,93 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
     }
   }, [selectedTahun, selectedBulan, selectedTanggalAwal, selectedTanggalAkhir, viewMode, fetchRekapData]);
 
-  // Get rekap data for specific teacher and month
-  const getRekapForTeacher = (guruId: number, monthNumber: number) => {
-    return rekapData.find(p => p.id === guruId && p.bulan === monthNumber);
-  };
-
-  // Get rekap data for specific teacher in date range
-  const getRekapForTeacherByDate = (guruId: number) => {
-    return rekapData.find(p => p.id === guruId);
-  };
-
-  // Get total ketidakhadiran for teacher
-  const getTotalKetidakhadiran = (guruId: number) => {
-    const teacherData = rekapData.filter(p => p.id === guruId);
-    return teacherData.reduce((total, data) => total + data.total_ketidakhadiran, 0);
-  };
-
-  // Get total persentase ketidakhadiran for teacher
-  const getTotalPersentaseKetidakhadiran = (guruId: number) => {
-    const teacherData = rekapData.filter(p => p.id === guruId);
-    if (teacherData.length === 0) return 0;
-    
-    // Gunakan persentase yang sudah dihitung dari API
-    const data = teacherData[0];
-    return data ? (data.persentase_ketidakhadiran || 0) : 0;
-  };
-
-  // Get total persentase kehadiran for teacher
-  const getTotalPersentaseKehadiran = (guruId: number) => {
-    const teacherData = rekapData.filter(p => p.id === guruId);
-    if (teacherData.length === 0) return 100;
-    
-    // Gunakan persentase yang sudah dihitung dari API
-    const data = teacherData[0];
-    return data ? (data.persentase_kehadiran || 100) : 100;
-  };
-
   // Use shared getEffectiveDays from academic-constants instead of local function
+
+  let periodInfo: string | undefined;
+  if (viewMode === 'bulanan' && selectedBulan) {
+    periodInfo = `BULAN ${getMonthName(Number.parseInt(selectedBulan)).toUpperCase()}`;
+  } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
+    periodInfo = `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`;
+  }
+
+  const renderPeriodHeader = () => {
+    if (viewMode === 'tahunan') {
+      return (
+        <>
+          {ACADEMIC_MONTHS.map((month) => (
+            <th key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+              {month.key}
+            </th>
+          ))}
+        </>
+      );
+    }
+
+    if (viewMode === 'bulanan') {
+      return (
+        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+          {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
+        </th>
+      );
+    }
+
+    return (
+      <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+        PERIODE TANGGAL
+      </th>
+    );
+  };
+
+  const renderPeriodValueCell = (guru: RekapGuru) => {
+    if (viewMode === 'tahunan') {
+      return (
+        <>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.jul || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.agt || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.sep || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.okt || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.nov || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.des || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.jan || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.feb || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.mar || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.apr || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.mei || 0}</td>
+          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">{guru.jun || 0}</td>
+        </>
+      );
+    }
+
+    if (viewMode === 'bulanan') {
+      const monthNumber = Number.parseInt(selectedBulan);
+      const monthData: Record<number, number | undefined> = {
+        7: guru.jul,
+        8: guru.agt,
+        9: guru.sep,
+        10: guru.okt,
+        11: guru.nov,
+        12: guru.des,
+        1: guru.jan,
+        2: guru.feb,
+        3: guru.mar,
+        4: guru.apr,
+        5: guru.mei,
+        6: guru.jun
+      };
+
+      return (
+        <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+          {monthData[monthNumber] || 0}
+        </td>
+      );
+    }
+
+    return (
+      <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+        {guru.total_ketidakhadiran || 0}
+      </td>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -361,13 +398,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                 letterhead={letterhead}
                 reportTitle="REKAP KETIDAKHADIRAN GURU"
                 selectedTahun={selectedTahun}
-                periodInfo={
-                  viewMode === 'bulanan' && selectedBulan
-                    ? `BULAN ${getMonthName(Number.parseInt(selectedBulan)).toUpperCase()}`
-                    : viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir
-                    ? `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`
-                    : undefined
-                }
+                periodInfo={periodInfo}
               />
 
               {/* Rekap Table */}
@@ -377,23 +408,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                     <tr className="bg-muted border-b-2 border-border">
                       <th className="border border-border p-2 text-center w-12">NO.</th>
                       <th className="border border-border p-2 text-center w-48">NAMA GURU</th>
-                      {viewMode === 'tahunan' ? (
-                        <>
-                          {ACADEMIC_MONTHS.map((month) => (
-                            <th key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {month.key}
-                            </th>
-                          ))}
-                        </>
-                      ) : viewMode === 'bulanan' ? (
-                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                          {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
-                        </th>
-                      ) : (
-                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                          PERIODE TANGGAL
-                        </th>
-                      )}
+                      {renderPeriodHeader()}
                       <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-24">JUMLAH KETIDAKHADIRAN</th>
                       <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KETIDAKHADIRAN (%)</th>
                       <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KEHADIRAN (%)</th>
@@ -404,61 +419,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
                       <tr key={guru.id} className="hover:bg-muted">
                         <td className="border border-border p-2 text-center">{index + 1}</td>
                         <td className="border border-border p-2">{guru.nama_guru}</td>
-                        {viewMode === 'tahunan' ? (
-                          <>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.jul || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.agt || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.sep || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.okt || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.nov || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.des || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.jan || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.feb || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.mar || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.apr || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.mei || 0}
-                            </td>
-                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {guru.jun || 0}
-                            </td>
-                          </>
-                        ) : viewMode === 'bulanan' ? (
-                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                            {(() => {
-                              const monthNumber = Number.parseInt(selectedBulan);
-                              const monthData = {
-                                7: guru.jul, 8: guru.agt, 9: guru.sep, 10: guru.okt, 11: guru.nov, 12: guru.des,
-                                1: guru.jan, 2: guru.feb, 3: guru.mar, 4: guru.apr, 5: guru.mei, 6: guru.jun
-                              };
-                              return monthData[monthNumber] || 0;
-                            })()}
-                          </td>
-                        ) : (
-                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                            {guru.total_ketidakhadiran || 0}
-                          </td>
-                        )}
+                        {renderPeriodValueCell(guru)}
                         <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {guru.total_ketidakhadiran || 0}
                         </td>

@@ -6,7 +6,7 @@
  */
 
 import assert from 'node:assert';
-import { describe, it, before, after, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import { setPool } from '../config/db.js';
 
 // Mock DB Pool
@@ -29,12 +29,13 @@ const mockExecute = async (query, params) => {
 setPool({ execute: mockExecute });
 
 // Import after mocking
-import attendanceCalculator, { 
+import {
     getEffectiveDaysMapFromDB, 
     calculateEffectiveDaysForRange, 
     calculateAttendancePercentage,
     clearAttendanceCache
 } from '../utils/attendanceCalculator.js';
+// Note: attendanceCalculator destructuring is for module imports, not usage
 
 describe('Attendance Calculator', () => {
     
@@ -109,12 +110,12 @@ describe('Attendance Calculator', () => {
     describe('calculateAttendancePercentage', () => {
         it('should calculate basic percentage', () => {
             const { percentage } = calculateAttendancePercentage(18, 20);
-            assert.strictEqual(percentage, 90.00);
+            assert.strictEqual(percentage, 90);
         });
 
         it('should cap at 100% and flag capped', () => {
             const { percentage, capped } = calculateAttendancePercentage(22, 20);
-            assert.strictEqual(percentage, 100.00);
+            assert.strictEqual(percentage, 100);
             assert.strictEqual(capped, true);
         });
 

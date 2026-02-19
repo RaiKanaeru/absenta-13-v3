@@ -12,8 +12,9 @@ const config = {
     port: process.env.DB_PORT
 };
 
-async function run() {
-    const conn = await mysql.createConnection(config);
+let conn;
+try {
+    conn = await mysql.createConnection(config);
     const pass = 'admin123';
     const hash = await bcrypt.hash(pass, 10);
     
@@ -30,6 +31,10 @@ async function run() {
         console.log('Created admin user with password', pass);
     }
     await conn.end();
+} catch (error) {
+    if (conn) {
+        await conn.end();
+    }
+    console.error(error);
+    process.exit(1);
 }
-
-run().catch(console.error);

@@ -333,8 +333,8 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Hari</SelectItem>
-                  {daysOfWeek.map((hari, index) => (
-                    <SelectItem key={`day-${hari}-${index}`} value={hari}>
+                  {daysOfWeek.map((hari) => (
+                    <SelectItem key={`day-${hari}`} value={hari}>
                       {hari}
                     </SelectItem>
                   ))}
@@ -405,9 +405,9 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
             )}
             
             {/* Baris teks kop laporan */}
-            {letterhead.lines.map((line: { text: string; fontWeight?: string }, index: number) => (
+            {letterhead.lines.map((line: { text: string; fontWeight?: string }) => (
               <div 
-                key={index} 
+                key={`letterhead-line-${line.text || 'empty'}-${line.fontWeight || 'normal'}-${(line.text || '').length}`}
                 className={`text-xs lg:text-sm ${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'}`}
                 style={{ textAlign: letterhead.alignment as React.CSSProperties['textAlign'] }}
               >
@@ -470,8 +470,8 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                 <thead>
                   <tr className="bg-muted">
                     <th className="border border-border px-2 lg:px-4 py-2 text-left font-semibold sticky left-0 bg-muted z-10 min-w-[80px] lg:min-w-[120px]">KELAS</th>
-                    {daysOfWeek.map((day, index) => (
-                      <th key={`day-header-${day}-${index}`} className="border border-border px-1 lg:px-4 py-2 text-center font-semibold min-w-[100px] lg:min-w-[150px]">
+                    {daysOfWeek.map((day) => (
+                      <th key={`day-header-${day}`} className="border border-border px-1 lg:px-4 py-2 text-center font-semibold min-w-[100px] lg:min-w-[150px]">
                         <span className="hidden sm:inline">{day}</span>
                         <span className="sm:hidden">{day.substring(0, 3)}</span>
                       </th>
@@ -479,20 +479,25 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                   </tr>
                 </thead>
                 <tbody>
-                  {uniqueClassesForDisplay.map((kelasName, index) => (
-                    <tr key={`schedule-class-${kelasName}-${index}`}>
+                  {uniqueClassesForDisplay.map((kelasName) => (
+                    <tr key={`schedule-class-${kelasName}`}>
                       <td className="border border-border px-2 lg:px-4 py-2 font-medium sticky left-0 bg-card z-10 min-w-[80px] lg:min-w-[120px]">
                         <span className="hidden sm:inline">{kelasName}</span>
                         <span className="sm:hidden text-xs">{kelasName.length > 8 ? kelasName.substring(0, 8) + '...' : kelasName}</span>
                       </td>
-                      {daysOfWeek.map((day, dayIndex) => {
+                      {daysOfWeek.map((day) => {
                         const daySchedules = filteredSchedules
                           .filter(s => s.nama_kelas === kelasName && s.hari === day)
                           .sort((a, b) => (a.jam_ke || 0) - (b.jam_ke || 0));
                         return (
-                          <td key={`day-cell-${day}-${dayIndex}`} className="border border-border px-1 lg:px-2 py-1 text-xs min-w-[100px] lg:min-w-[150px]">
-                            {daySchedules.map((schedule, idx) => (
-                              <div key={`schedule-${schedule.id}-${idx}`} className="mb-1 p-1 bg-primary/10 rounded border border-primary/20">
+                          <td key={`day-cell-${day}`} className="border border-border px-1 lg:px-2 py-1 text-xs min-w-[100px] lg:min-w-[150px]">
+                            {daySchedules.map((schedule) => {
+                              const scheduleKey = schedule.id
+                                ? `schedule-${schedule.id}`
+                                : `schedule-${schedule.nama_mapel || schedule.keterangan_khusus || 'unknown'}-${schedule.jam_mulai || '00:00'}-${schedule.jam_selesai || '00:00'}`;
+
+                              return (
+                              <div key={scheduleKey} className="mb-1 p-1 bg-primary/10 rounded border border-primary/20">
                                 <div className="font-semibold text-xs text-primary truncate">
                                   {schedule.nama_guru || 'Sistem'}
                                 </div>
@@ -509,7 +514,8 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
                                   <MultiGuruDisplay guruList={schedule.guru_list} />
                                 )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </td>
                         );
                       })}

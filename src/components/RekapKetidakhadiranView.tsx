@@ -321,6 +321,47 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
     selectedTanggalAkhir,
   );
 
+  let periodInfo: string | undefined;
+  if (viewMode === 'bulanan' && selectedBulan) {
+    periodInfo = `BULAN ${getMonthName(Number.parseInt(selectedBulan)).toUpperCase()}`;
+  } else if (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir) {
+    periodInfo = `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`;
+  }
+
+  const getDisplayedTotalKetidakhadiran = (siswaId: number) => {
+    if (viewMode === 'tahunan') {
+      return getTotalKetidakhadiran(siswaId);
+    }
+    if (viewMode === 'bulanan') {
+      return getPresensiForStudent(siswaId, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0;
+    }
+    return getPresensiForStudentByDate(siswaId)?.total_ketidakhadiran || 0;
+  };
+
+  const getDisplayedPersentaseKetidakhadiran = (siswaId: number) => {
+    if (viewMode === 'tahunan') {
+      return getTotalPersentaseKetidakhadiran(siswaId).toFixed(2);
+    }
+    if (viewMode === 'bulanan') {
+      const value = getPresensiForStudent(siswaId, Number.parseInt(selectedBulan))?.persentase_ketidakhadiran || '0';
+      return Number.parseFloat(String(value)).toFixed(2);
+    }
+    const value = getPresensiForStudentByDate(siswaId)?.persentase_ketidakhadiran || '0';
+    return Number.parseFloat(String(value)).toFixed(2);
+  };
+
+  const getDisplayedPersentaseKehadiran = (siswaId: number) => {
+    if (viewMode === 'tahunan') {
+      return getTotalPersentaseKehadiran(siswaId).toFixed(2);
+    }
+    if (viewMode === 'bulanan') {
+      const value = getPresensiForStudent(siswaId, Number.parseInt(selectedBulan))?.persentase_kehadiran || '0';
+      return Number.parseFloat(String(value)).toFixed(2);
+    }
+    const value = getPresensiForStudentByDate(siswaId)?.persentase_kehadiran || '0';
+    return Number.parseFloat(String(value)).toFixed(2);
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       {/* Header */}
@@ -485,13 +526,7 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                 reportTitle="REKAP KETIDAKHADIRAN SISWA"
                 selectedTahun={selectedTahun}
                 className={classes.find(c => c.id.toString() === selectedKelas)?.nama_kelas}
-                periodInfo={
-                  viewMode === 'bulanan' && selectedBulan
-                    ? `BULAN ${getMonthName(Number.parseInt(selectedBulan)).toUpperCase()}`
-                    : viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir
-                    ? `PERIODE ${formatDateOnly(selectedTanggalAwal)} - ${formatDateOnly(selectedTanggalAkhir)}`
-                    : undefined
-                }
+                periodInfo={periodInfo}
               />
 
               {/* Rekap Table */}
@@ -549,19 +584,13 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                           </td>
                         )}
                         <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
-                          {viewMode === 'tahunan' ? getTotalKetidakhadiran(siswa.id) : 
-                           viewMode === 'bulanan' ? getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0 :
-                           getPresensiForStudentByDate(siswa.id)?.total_ketidakhadiran || 0}
+                          {getDisplayedTotalKetidakhadiran(siswa.id)}
                         </td>
                         <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
-                          {viewMode === 'tahunan' ? getTotalPersentaseKetidakhadiran(siswa.id).toFixed(2) : 
-                           viewMode === 'bulanan' ? (Number.parseFloat(String(getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.persentase_ketidakhadiran || '0'))).toFixed(2) :
-                           (Number.parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_ketidakhadiran || '0'))).toFixed(2)}
+                          {getDisplayedPersentaseKetidakhadiran(siswa.id)}
                         </td>
                         <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
-                          {viewMode === 'tahunan' ? getTotalPersentaseKehadiran(siswa.id).toFixed(2) : 
-                           viewMode === 'bulanan' ? (Number.parseFloat(String(getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.persentase_kehadiran || '0'))).toFixed(2) :
-                           (Number.parseFloat(String(getPresensiForStudentByDate(siswa.id)?.persentase_kehadiran || '0'))).toFixed(2)}
+                          {getDisplayedPersentaseKehadiran(siswa.id)}
                         </td>
                       </tr>
                     ))}

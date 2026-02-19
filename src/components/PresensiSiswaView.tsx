@@ -194,7 +194,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
       document.body.appendChild(a);
       a.click();
       globalThis.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      a.remove();
 
       toast({
         title: "Berhasil",
@@ -255,12 +255,22 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
   const daysInMonth = getDaysInMonth(selectedBulan, selectedTahun);
   const { lakiLaki, perempuan } = countByGender();
 
+  const getStatusBadgeClass = (status: string) => {
+    if (status === 'H') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    if (status === 'S') return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
+    if (status === 'A') return 'bg-destructive/15 text-destructive';
+    if (status === 'I') return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
+    if (status === 'D') return 'bg-purple-500/15 text-purple-700 dark:text-purple-400';
+    return 'bg-muted text-muted-foreground';
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
@@ -383,7 +393,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
             <div className="overflow-x-auto">
               {/* School Header */}
               <div className="text-center mb-6 p-4 bg-card border-2 border-border">
-                {letterhead && letterhead.enabled && letterhead.lines && letterhead.lines.length > 0 ? (
+                {letterhead?.enabled && letterhead?.lines?.length > 0 ? (
                   <>
                     {/* Logo kiri dan kanan jika tersedia */}
                     {(letterhead.logoLeftUrl || letterhead.logoRightUrl) && (
@@ -407,9 +417,9 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                     )}
                     
                     {/* Baris teks kop laporan */}
-                    {letterhead.lines.map((line, index) => (
+                    {letterhead.lines.map((line) => (
                       <div 
-                        key={index} 
+                        key={`${line.text}-${line.fontWeight || 'normal'}`} 
                         className={`text-sm ${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'}`}
                         style={{ textAlign: letterhead.alignment }}
                       >
@@ -495,12 +505,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                             <td key={day} className="border border-border p-1 text-center">
                               {status && (
                                 <span className={`px-1 py-0.5 text-xs rounded ${
-                                  status === 'H' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' :
-                                  status === 'S' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400' :
-                                  status === 'A' ? 'bg-destructive/15 text-destructive' :
-                                  status === 'I' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                                  status === 'D' ? 'bg-purple-500/15 text-purple-700 dark:text-purple-400' :
-                                  'bg-muted text-muted-foreground'
+                                  getStatusBadgeClass(status)
                                 }`}>
                                   {status}
                                 </span>
@@ -520,8 +525,8 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
                             
                             return keteranganList.length > 0 ? (
                               <div className="text-xs text-muted-foreground text-left max-w-32">
-                                {keteranganList.map((item, idx) => (
-                                  <div key={idx} className="mb-1">
+                                {keteranganList.map((item) => (
+                                  <div key={`${item.day}-${item.keterangan}`} className="mb-1">
                                     <span className="font-semibold text-primary">{item.day}:</span> {item.keterangan}
                                   </div>
                                 ))}

@@ -11,7 +11,7 @@ import db from '../config/db.js';
 
 const logger = createLogger('Jadwal');
 
-const ALLOWED_DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const ALLOWED_DAYS = new Set(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
 const DAY_NAME_MAP = {
     senin: 'Senin',
     selasa: 'Selasa',
@@ -25,7 +25,7 @@ const ACTIVITY_ALIASES = {
     'kegiatan khusus': 'kegiatan_khusus',
     'kegiatan-khusus': 'kegiatan_khusus'
 };
-const ALLOWED_ACTIVITY_TYPES = [
+const ALLOWED_ACTIVITY_TYPES = new Set([
     'pelajaran',
     'upacara',
     'istirahat',
@@ -33,7 +33,7 @@ const ALLOWED_ACTIVITY_TYPES = [
     'libur',
     'ujian',
     'lainnya'
-];
+]);
 
 const normalizeHariName = (value) => {
     if (!value) return '';
@@ -44,7 +44,7 @@ const normalizeHariName = (value) => {
 const normalizeJenisAktivitas = (value) => {
     const raw = value ? String(value).trim().toLowerCase() : 'pelajaran';
     const normalized = ACTIVITY_ALIASES[raw] || raw;
-    return ALLOWED_ACTIVITY_TYPES.includes(normalized) ? normalized : '';
+    return ALLOWED_ACTIVITY_TYPES.has(normalized) ? normalized : '';
 };
 
 // ================================================
@@ -266,7 +266,7 @@ const checkAllScheduleConflicts = async ({
     if (!normalizedHari || !jam_mulai || !jam_selesai) {
         return { hasConflict: true, error: "Data waktu tidak lengkap" };
     }
-    if (!ALLOWED_DAYS.includes(normalizedHari)) {
+    if (!ALLOWED_DAYS.has(normalizedHari)) {
         return { hasConflict: true, error: 'Hari tidak valid' };
     }
 
@@ -500,7 +500,7 @@ const normalizeMatrixChanges = (changes, fallbackHari) => {
         const jamKe = Number(change.jam_ke);
         const hari = normalizeHariName(change.hari || fallbackHari);
 
-        if (!Number.isFinite(kelasId) || !Number.isFinite(jamKe) || !hari || !ALLOWED_DAYS.includes(hari)) {
+        if (!Number.isFinite(kelasId) || !Number.isFinite(jamKe) || !hari || !ALLOWED_DAYS.has(hari)) {
             continue;
         }
 
@@ -732,7 +732,7 @@ const processJadwalData = async (payload, log, options = {}) => {
         return { success: false, error: 'Semua field wajib diisi' };
     }
 
-    if (!ALLOWED_DAYS.includes(normalizedHari)) {
+    if (!ALLOWED_DAYS.has(normalizedHari)) {
         log.validationFail('hari', normalizedHari, 'Invalid day');
         return { success: false, error: 'Hari tidak valid (gunakan Senin-Sabtu)' };
     }
@@ -962,7 +962,7 @@ export const batchUpdateMatrix = async (req, res) => {
     }
 
     const normalizedHari = normalizeHariName(hari);
-    if (!ALLOWED_DAYS.includes(normalizedHari)) {
+    if (!ALLOWED_DAYS.has(normalizedHari)) {
         return sendValidationError(res, 'Hari tidak valid');
     }
 
@@ -1132,7 +1132,7 @@ export const checkScheduleConflicts = async (req, res) => {
         }
 
         const normalizedHari = normalizeHariName(hari);
-        if (!ALLOWED_DAYS.includes(normalizedHari)) {
+        if (!ALLOWED_DAYS.has(normalizedHari)) {
             return sendValidationError(res, 'Hari tidak valid');
         }
         if (!Array.isArray(kelas_ids) || kelas_ids.length === 0) {
@@ -1214,7 +1214,6 @@ export const bulkCreateJadwal = async (req, res) => {
         jam_mulai,
         jam_selesai,
         jenis_aktivitas = 'pelajaran',
-        is_absenable,
         keterangan_khusus = null
     } = req.body;
 
@@ -1231,7 +1230,7 @@ export const bulkCreateJadwal = async (req, res) => {
         }
 
         const normalizedHari = normalizeHariName(hari);
-        if (!ALLOWED_DAYS.includes(normalizedHari)) {
+        if (!ALLOWED_DAYS.has(normalizedHari)) {
             return sendValidationError(res, 'Hari tidak valid');
         }
 
@@ -1706,8 +1705,12 @@ export const getJadwal = async (req, res) => {
 export const createJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const {
-        kelas_id, mapel_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
-        jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
+        kelas_id,
+        mapel_id,
+        hari,
+        jam_ke,
+        jenis_aktivitas = 'pelajaran',
+        keterangan_khusus = null
     } = req.body;
 
     log.requestStart('CreateJadwal', { kelas_id, mapel_id, hari, jam_ke });
@@ -1766,8 +1769,11 @@ export const updateJadwal = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { id } = req.params;
     const {
-        kelas_id, mapel_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai,
-        jenis_aktivitas = 'pelajaran', is_absenable = true, keterangan_khusus = null
+        kelas_id,
+        hari,
+        jam_ke,
+        jenis_aktivitas = 'pelajaran',
+        keterangan_khusus = null
     } = req.body;
 
     log.requestStart('UpdateJadwal', { id, kelas_id, hari, jam_ke });

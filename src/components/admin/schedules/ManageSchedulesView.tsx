@@ -553,8 +553,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                     <SelectValue placeholder="Pilih Kelas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.filter(kelas => kelas.id).map((kelas, index) => (
-                      <SelectItem key={`class-${kelas.id}-${index}`} value={kelas.id.toString()}>
+                    {classes.filter(kelas => kelas.id).map((kelas) => (
+                      <SelectItem key={`class-${kelas.id}`} value={kelas.id.toString()}>
                         {kelas.nama_kelas}
                       </SelectItem>
                     ))}
@@ -572,8 +572,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                       <SelectValue placeholder="Pilih Mata Pelajaran" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subjects.filter(subject => subject.id).map((subject, index) => (
-                        <SelectItem key={`subject-${subject.id}-${index}`} value={subject.id.toString()}>
+                      {subjects.filter(subject => subject.id).map((subject) => (
+                        <SelectItem key={`subject-${subject.id}`} value={subject.id.toString()}>
                           {subject.nama_mapel}
                         </SelectItem>
                       ))}
@@ -602,10 +602,10 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                   <Label className="text-sm font-medium">Guru Pengajar *</Label>
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-2">
-                      {formData.guru_ids.map((guruId, index) => {
+                      {formData.guru_ids.map((guruId) => {
                         const teacher = teachers.find(t => t.id === guruId);
                         return teacher ? (
-                          <div key={`selected-guru-${guruId}-${index}`} className="flex items-center gap-1 bg-blue-500/15 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-md text-sm">
+                          <div key={`selected-guru-${guruId}`} className="flex items-center gap-1 bg-blue-500/15 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-md text-sm">
                             <span>{teacher.nama}</span>
                             <button
                               type="button"
@@ -637,8 +637,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                             );
                           }
                           
-                          return filteredTeachers.map((teacher, index) => (
-                            <SelectItem key={`teacher-${teacher.id}-${index}`} value={teacher.id.toString()}>
+                          return filteredTeachers.map((teacher) => (
+                            <SelectItem key={`teacher-${teacher.id}`} value={teacher.id.toString()}>
                               {teacher.nama} - {teacher.nama_mapel || teacher.mata_pelajaran || 'Tidak ada mata pelajaran'}
                             </SelectItem>
                           ));
@@ -663,8 +663,8 @@ const ManageSchedulesView = ({ onBack, onLogout }: { onBack: () => void; onLogou
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Tidak ada ruang</SelectItem>
-                    {rooms.filter(room => room.status === 'aktif').map((room, index) => (
-                      <SelectItem key={`room-${room.id}-${index}`} value={room.id.toString()}>
+                    {rooms.filter(room => room.status === 'aktif').map((room) => (
+                      <SelectItem key={`room-${room.id}`} value={room.id.toString()}>
                         {room.kode_ruang} - {room.nama_ruang || 'Ruang'}
                       </SelectItem>
                     ))}

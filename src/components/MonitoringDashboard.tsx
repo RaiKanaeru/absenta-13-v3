@@ -138,29 +138,6 @@ const MonitoringDashboard: React.FC = () => {
         }
     };
 
-    const testAlert = async (type: string, severity: string) => {
-        try {
-            await apiCall('/api/admin/test-alert', {
-                method: 'POST',
-                body: JSON.stringify({ type, severity })
-            });
-
-            toast({
-                title: 'Test Alert Sent',
-                description: `${type.charAt(0).toUpperCase() + type.slice(1)} alert (${severity}) has been sent successfully`,
-                variant: 'default'
-            });
-
-            await fetchMonitoringData();
-        } catch (err) {
-            toast({
-                title: 'Error',
-                description: getErrorMessage(err),
-                variant: 'destructive'
-            });
-        }
-    };
-
     useEffect(() => {
         fetchMonitoringData();
         
@@ -359,32 +336,42 @@ const DashboardHeader = ({ autoRefresh, setAutoRefresh, onRefresh }) => (
     </div>
 );
 
-const SystemHealthCard = ({ health, system, getStatusColor, formatUptime }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center text-base sm:text-lg">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(health?.status || 'unknown')} mr-3`}></div>
-                System Health Status
-            </CardTitle>
-        </CardHeader>
-        <CardContent>
-            <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                <div className="min-w-0 flex-1">
-                    <Badge variant="outline" className={health?.status === 'healthy' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : health?.status === 'warning' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : 'bg-destructive/15 text-destructive'}>
-                        {(health?.status || 'unknown').toUpperCase()}
-                    </Badge>
-                    {health?.issues && health.issues.length > 0 && (
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-2 break-words">Issues: {health.issues.join(', ')}</p>
-                    )}
+const SystemHealthCard = ({ health, system, getStatusColor, formatUptime }) => {
+    const status = health?.status || 'unknown';
+    let badgeClass = 'bg-destructive/15 text-destructive';
+    if (status === 'healthy') {
+        badgeClass = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    } else if (status === 'warning') {
+        badgeClass = 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center text-base sm:text-lg">
+                    <div className={`w-3 h-3 rounded-full ${getStatusColor(status)} mr-3`}></div>
+                    System Health Status
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                    <div className="min-w-0 flex-1">
+                        <Badge variant="outline" className={badgeClass}>
+                            {status.toUpperCase()}
+                        </Badge>
+                        {health?.issues && health.issues.length > 0 && (
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-2 break-words">Issues: {health.issues.join(', ')}</p>
+                        )}
+                    </div>
+                    <div className="text-left sm:text-right">
+                        <p className="text-xs sm:text-sm text-muted-foreground">System Uptime</p>
+                        <p className="font-semibold text-sm sm:text-base">{formatUptime((system.uptime as number) || 0)}</p>
+                    </div>
                 </div>
-                <div className="text-left sm:text-right">
-                    <p className="text-xs sm:text-sm text-muted-foreground">System Uptime</p>
-                    <p className="font-semibold text-sm sm:text-base">{formatUptime((system.uptime as number) || 0)}</p>
-                </div>
-            </div>
-        </CardContent>
-    </Card>
-);
+            </CardContent>
+        </Card>
+    );
+};
 
 const KeyMetricsGrid = ({ metrics, formatBytes }) => {
     const memoryUsed = metrics?.system?.memory?.used || 0;
@@ -394,6 +381,18 @@ const KeyMetricsGrid = ({ metrics, formatBytes }) => {
     const heapTotal = metrics?.system?.heap?.total || 0;
     const heapPercentage = metrics?.system?.heap?.percentage || 0;
     const cpuUsage = metrics?.system?.cpu?.usage || 0;
+
+    const getUsageProgressClass = (value: number) => {
+        if (value > 80) return 'mt-2 [&>div]:bg-red-500';
+        if (value > 60) return 'mt-2 [&>div]:bg-yellow-500';
+        return 'mt-2';
+    };
+
+    const getResponseTextClass = (value: number) => {
+        if (value > 1000) return 'text-red-600';
+        if (value > 500) return 'text-yellow-600';
+        return 'text-green-600';
+    };
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -406,7 +405,7 @@ const KeyMetricsGrid = ({ metrics, formatBytes }) => {
                     <div className="text-2xl font-bold">{formatBytes(memoryUsed)}</div>
                     <Progress
                         value={Math.min(Math.max(memoryPercentage, 0), 100)}
-                        className={`mt-2 ${memoryPercentage > 80 ? '[&>div]:bg-red-500' : memoryPercentage > 60 ? '[&>div]:bg-yellow-500' : ''}`}
+                        className={getUsageProgressClass(memoryPercentage)}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                         {memoryPercentage.toFixed(1)}% of {formatBytes(memoryTotal)}
@@ -428,7 +427,7 @@ const KeyMetricsGrid = ({ metrics, formatBytes }) => {
                     <div className="text-2xl font-bold">{cpuUsage.toFixed(1)}%</div>
                     <Progress
                         value={Math.min(Math.max(cpuUsage, 0), 100)}
-                        className={`mt-2 ${cpuUsage > 80 ? '[&>div]:bg-red-500' : cpuUsage > 60 ? '[&>div]:bg-yellow-500' : ''}`}
+                        className={getUsageProgressClass(cpuUsage)}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                         Load Average: {(metrics?.system?.cpu?.loadAverage || [0, 0, 0]).map((l: number) => l?.toFixed(2) || '0').join(' | ')}
@@ -459,7 +458,7 @@ const KeyMetricsGrid = ({ metrics, formatBytes }) => {
                     <Zap className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className={`text-2xl font-bold ${(metrics?.application?.responseTime?.average || 0) > 1000 ? 'text-red-600' : (metrics?.application?.responseTime?.average || 0) > 500 ? 'text-yellow-600' : 'text-green-600'}`}>
+                    <div className={`text-2xl font-bold ${getResponseTextClass(metrics?.application?.responseTime?.average || 0)}`}>
                         {(metrics?.application?.responseTime?.average || 0).toFixed(0)}ms
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -471,25 +470,34 @@ const KeyMetricsGrid = ({ metrics, formatBytes }) => {
     );
 };
 
-const SystemInfoBar = ({ system, diskPercentage, diskUsed, diskTotal, highUsageDisks, formatBytes }) => (
-    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
-        <span>Node.js: <span className="font-medium text-foreground">{system.nodeVersion || 'N/A'}</span></span>
-        <span className="hidden sm:inline">•</span>
-        <span>PID: <span className="font-medium text-foreground">{system.pid || 'N/A'}</span></span>
-        <span className="hidden sm:inline">•</span>
-        <span>Platform: <span className="font-medium text-foreground">{system.platform || 'N/A'}</span></span>
-        <span className="hidden sm:inline">•</span>
-        <span>Host: <span className="font-medium text-foreground">{system.hostname || 'N/A'}</span></span>
-        {diskPercentage > 0 && (
-            <>
-                High usage detected on <span>{highUsageDisks.map(d => d.fs).join(', ')}</span>
-                <span>Disk: <span className={`font-medium ${diskPercentage > 80 ? 'text-red-600' : diskPercentage > 60 ? 'text-yellow-600' : 'text-foreground'}`}>
-                    {diskPercentage.toFixed(1)}% used ({formatBytes(diskUsed)} / {formatBytes(diskTotal)})
-                </span></span>
-            </>
-        )}
-    </div>
-);
+const SystemInfoBar = ({ system, diskPercentage, diskUsed, diskTotal, highUsageDisks, formatBytes }) => {
+    let diskClass = 'text-foreground';
+    if (diskPercentage > 80) {
+        diskClass = 'text-red-600';
+    } else if (diskPercentage > 60) {
+        diskClass = 'text-yellow-600';
+    }
+
+    return (
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+            <span>Node.js: <span className="font-medium text-foreground">{system.nodeVersion || 'N/A'}</span></span>
+            <span className="hidden sm:inline">•</span>
+            <span>PID: <span className="font-medium text-foreground">{system.pid || 'N/A'}</span></span>
+            <span className="hidden sm:inline">•</span>
+            <span>Platform: <span className="font-medium text-foreground">{system.platform || 'N/A'}</span></span>
+            <span className="hidden sm:inline">•</span>
+            <span>Host: <span className="font-medium text-foreground">{system.hostname || 'N/A'}</span></span>
+            {diskPercentage > 0 && (
+                <>
+                    High usage detected on <span>{highUsageDisks.map(d => d.fs).join(', ')}</span>
+                    <span>Disk: <span className={`font-medium ${diskClass}`}>
+                        {diskPercentage.toFixed(1)}% used ({formatBytes(diskUsed)} / {formatBytes(diskTotal)})
+                    </span></span>
+                </>
+            )}
+        </div>
+    );
+};
 
 const OverviewTabContent = ({ metrics, loadBalancer }) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

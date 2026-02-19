@@ -144,9 +144,16 @@ function recordFailedAttempt(username, clientId, ip) {
 
         if (attempts.count >= config.maxAttempts && !attempts.lockedUntil) {
             attempts.lockedUntil = Date.now() + config.duration;
+            let identifier = ip;
+            if (type === 'account') {
+                identifier = username;
+            } else if (type === 'client') {
+                identifier = '[client-id]';
+            }
+
             logger.warn('Lockout triggered', {
                 type,
-                identifier: type === 'account' ? username : (type === 'client' ? '[client-id]' : ip),
+                identifier,
                 count: attempts.count,
                 durationMin: config.duration / 60000
             });

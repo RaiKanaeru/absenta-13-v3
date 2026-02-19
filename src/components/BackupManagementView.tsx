@@ -502,7 +502,7 @@ const BackupManagementView: React.FC = () => {
             document.body.appendChild(a);
             a.click();
             globalThis.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            a.remove();
             
             toast({
                 title: "Berhasil",
@@ -852,106 +852,116 @@ const BackupManagementView: React.FC = () => {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {loadingStates.backups ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-                                    Memuat backup...
-                                </div>
-                            ) : backups.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                    <h3 className="text-lg font-semibold mb-2">Belum ada backup</h3>
-                                    <p className="text-muted-foreground mb-4">
-                                        Buat backup pertama untuk melindungi data Anda
-                                    </p>
-                                    <Button onClick={() => setShowCreateDialog(true)}>
-                                        <Database className="h-4 w-4 mr-2" />
-                                        Buat Backup Pertama
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="min-w-[200px]">Nama File</TableHead>
-                                                <TableHead className="min-w-[80px]">Ukuran</TableHead>
-                                                <TableHead className="min-w-[120px]">Dibuat</TableHead>
-                                                <TableHead className="min-w-[80px]">Tipe</TableHead>
-                                                <TableHead className="min-w-[100px]">Info</TableHead>
-                                                <TableHead className="min-w-[80px]">Status</TableHead>
-                                                <TableHead className="min-w-[120px]">Aksi</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {backups.map((backup) => (
-                                                <TableRow key={backup.id}>
-                                                    <TableCell className="font-medium">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileSpreadsheet className="h-4 w-4 flex-shrink-0" />
-                                                            <span className="truncate">{backup.filename}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm">{formatFileSize(backup.size)}</TableCell>
-                                                    <TableCell className="text-sm">{formatDate(backup.created)}</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={backup.backupType === 'semester' ? 'default' : 'secondary'} className="text-xs">
-                                                            {backup.backupType === 'semester' ? 'Semester' : 'Tanggal'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {backup.backupType === 'semester' ? (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {backup.semester} {backup.year}
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge variant="outline" className="text-xs">
-                                                                Date Range
-                                                            </Badge>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary" className="text-xs">
-                                                            {backup.status || 'Siap'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-1">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => downloadBackup(backup.id)}
-                                                                className="h-8 w-8 p-0"
-                                                                title="Download"
-                                                            >
-                                                                <Download className="h-3 w-3" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => restoreBackup(backup.id)}
-                                                                className="h-8 w-8 p-0"
-                                                                title="Restore"
-                                                            >
-                                                                <RotateCcw className="h-3 w-3" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => deleteBackup(backup.id)}
-                                                                className="h-8 w-8 p-0"
-                                                                title="Delete"
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
+                            {(() => {
+                                if (loadingStates.backups) {
+                                    return (
+                                        <div className="flex items-center justify-center py-8">
+                                            <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                                            Memuat backup...
+                                        </div>
+                                    );
+                                }
+
+                                if (backups.length === 0) {
+                                    return (
+                                        <div className="text-center py-8">
+                                            <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                                            <h3 className="text-lg font-semibold mb-2">Belum ada backup</h3>
+                                            <p className="text-muted-foreground mb-4">
+                                                Buat backup pertama untuk melindungi data Anda
+                                            </p>
+                                            <Button onClick={() => setShowCreateDialog(true)}>
+                                                <Database className="h-4 w-4 mr-2" />
+                                                Buat Backup Pertama
+                                            </Button>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="overflow-x-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="min-w-[200px]">Nama File</TableHead>
+                                                    <TableHead className="min-w-[80px]">Ukuran</TableHead>
+                                                    <TableHead className="min-w-[120px]">Dibuat</TableHead>
+                                                    <TableHead className="min-w-[80px]">Tipe</TableHead>
+                                                    <TableHead className="min-w-[100px]">Info</TableHead>
+                                                    <TableHead className="min-w-[80px]">Status</TableHead>
+                                                    <TableHead className="min-w-[120px]">Aksi</TableHead>
                                                 </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
+                                            </TableHeader>
+                                            <TableBody>
+                                                {backups.map((backup) => (
+                                                    <TableRow key={backup.id}>
+                                                        <TableCell className="font-medium">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileSpreadsheet className="h-4 w-4 flex-shrink-0" />
+                                                                <span className="truncate">{backup.filename}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-sm">{formatFileSize(backup.size)}</TableCell>
+                                                        <TableCell className="text-sm">{formatDate(backup.created)}</TableCell>
+                                                        <TableCell>
+                                                            <Badge variant={backup.backupType === 'semester' ? 'default' : 'secondary'} className="text-xs">
+                                                                {backup.backupType === 'semester' ? 'Semester' : 'Tanggal'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {backup.backupType === 'semester' ? (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {backup.semester} {backup.year}
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    Date Range
+                                                                </Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="secondary" className="text-xs">
+                                                                {backup.status || 'Siap'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-1">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => downloadBackup(backup.id)}
+                                                                    className="h-8 w-8 p-0"
+                                                                    title="Download"
+                                                                >
+                                                                    <Download className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => restoreBackup(backup.id)}
+                                                                    className="h-8 w-8 p-0"
+                                                                    title="Restore"
+                                                                >
+                                                                    <RotateCcw className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => deleteBackup(backup.id)}
+                                                                    className="h-8 w-8 p-0"
+                                                                    title="Delete"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                );
+                            })()}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -1241,9 +1251,12 @@ const BackupManagementView: React.FC = () => {
                                         <div className="flex justify-between">
                                             <span className="text-blue-700">Jadwal:</span>
                                             <span className="font-medium text-blue-900">
-                                                {backupSettings.autoBackupSchedule === 'daily' ? 'Harian' :
-                                                 backupSettings.autoBackupSchedule === 'weekly' ? 'Mingguan' :
-                                                 backupSettings.autoBackupSchedule === 'monthly' ? 'Bulanan' : 'Nonaktif'}
+                                                {(() => {
+                                                    if (backupSettings.autoBackupSchedule === 'daily') return 'Harian';
+                                                    if (backupSettings.autoBackupSchedule === 'weekly') return 'Mingguan';
+                                                    if (backupSettings.autoBackupSchedule === 'monthly') return 'Bulanan';
+                                                    return 'Nonaktif';
+                                                })()}
                                             </span>
                                         </div>
                                         <div className="flex justify-between">

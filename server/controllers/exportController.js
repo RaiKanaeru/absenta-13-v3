@@ -28,9 +28,7 @@ import {
     EXCEL_MIME_TYPE, 
     CONTENT_TYPE, 
     CONTENT_DISPOSITION,
-    EXPORT_TITLES,
-    MONTH_NAMES_SHORT,
-    EXPORT_HEADERS
+    EXPORT_TITLES
 } from '../config/exportConfig.js';
 import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
@@ -200,7 +198,6 @@ const MONTH_NAMES = {
     1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MEI', 6: 'JUN',
     7: 'JUL', 8: 'AGT', 9: 'SEP', 10: 'OKT', 11: 'NOV', 12: 'DES'
 };
-// Use MONTH_NAMES_SHORT from config where applicable if needed, but keeping this map for index lookup consistency
 
 /**
  * Calculate attendance percentages for a student

@@ -78,7 +78,7 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
   const handleDownloadTemplate = async () => {
     try {
       // All entities now use user-friendly template
-      let endpoint;
+      let endpoint: string;
       if (entityType === 'guru') {
         endpoint = `/api/admin/guru/template-friendly`;
       } else if (entityType === 'teacher-account') {
@@ -275,82 +275,88 @@ CATATAN PENTING:
   };
 
   const getPreviewTableCells = (data: PreviewDataRow) => {
-    const cells = {
-      'mapel': [
-        data.kode_mapel,
-        data.nama_mapel,
-        data.deskripsi || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+    type PreviewCell = { key: string; value: React.ReactNode };
+    const statusBadge = <Badge variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>;
+    const cells: Record<string, PreviewCell[]> = {
+      mapel: [
+        { key: 'kode_mapel', value: data.kode_mapel },
+        { key: 'nama_mapel', value: data.nama_mapel },
+        { key: 'deskripsi', value: data.deskripsi || '-' },
+        { key: 'status', value: statusBadge }
       ],
-      'kelas': [
-        data.nama_kelas,
-        data.tingkat || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+      kelas: [
+        { key: 'nama_kelas', value: data.nama_kelas },
+        { key: 'tingkat', value: data.tingkat || '-' },
+        { key: 'status', value: statusBadge }
       ],
-      'ruang': [
-        data.kode_ruang,
-        data.nama_ruang,
-        data.lokasi || '-',
-        data.kapasitas || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+      ruang: [
+        { key: 'kode_ruang', value: data.kode_ruang },
+        { key: 'nama_ruang', value: data.nama_ruang },
+        { key: 'lokasi', value: data.lokasi || '-' },
+        { key: 'kapasitas', value: data.kapasitas || '-' },
+        { key: 'status', value: statusBadge }
       ],
-      'jadwal': [
-        data.kelas || '-',
-        data.mata_pelajaran || '-',
-        data.guru || '-',
-        data.guru_tambahan || '-',
-        data.kode_ruang || '-',
-        data.hari,
-        data.jam_ke,
-        data.jam_mulai,
-        data.jam_selesai,
-        data.jenis_aktivitas || 'pelajaran',
-        data.keterangan_khusus || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+      jadwal: [
+        { key: 'kelas', value: data.kelas || '-' },
+        { key: 'mata_pelajaran', value: data.mata_pelajaran || '-' },
+        { key: 'guru', value: data.guru || '-' },
+        { key: 'guru_tambahan', value: data.guru_tambahan || '-' },
+        { key: 'kode_ruang', value: data.kode_ruang || '-' },
+        { key: 'hari', value: data.hari },
+        { key: 'jam_ke', value: data.jam_ke },
+        { key: 'jam_mulai', value: data.jam_mulai },
+        { key: 'jam_selesai', value: data.jam_selesai },
+        { key: 'jenis_aktivitas', value: data.jenis_aktivitas || 'pelajaran' },
+        { key: 'keterangan_khusus', value: data.keterangan_khusus || '-' },
+        { key: 'status', value: statusBadge }
       ],
-      'guru': [
-        data.nip,
-        data.nama,
-        data.email || '-',
-        data.mata_pelajaran || '-',
-        data.no_telp || '-',
-        data.jenis_kelamin || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+      guru: [
+        { key: 'nip', value: data.nip },
+        { key: 'nama', value: data.nama },
+        { key: 'email', value: data.email || '-' },
+        { key: 'mata_pelajaran', value: data.mata_pelajaran || '-' },
+        { key: 'no_telp', value: data.no_telp || '-' },
+        { key: 'jenis_kelamin', value: data.jenis_kelamin || '-' },
+        { key: 'status', value: statusBadge }
       ],
       'teacher-account': [
-        data.nama,
-        data.nip,
-        data.username,
-        data.email || '-',
-        data.no_telp || '-',
-        data.jenis_kelamin || '-',
-        data.alamat || '-',
-        data.mata_pelajaran || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+        { key: 'nama', value: data.nama },
+        { key: 'nip', value: data.nip },
+        { key: 'username', value: data.username },
+        { key: 'email', value: data.email || '-' },
+        { key: 'no_telp', value: data.no_telp || '-' },
+        { key: 'jenis_kelamin', value: data.jenis_kelamin || '-' },
+        { key: 'alamat', value: data.alamat || '-' },
+        { key: 'mata_pelajaran', value: data.mata_pelajaran || '-' },
+        { key: 'status', value: statusBadge }
       ],
-      'siswa': [
-        data.nis,
-        data.nama,
-        data.kelas,
-        data.jenis_kelamin || '-',
-        data.telepon_orangtua || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+      siswa: [
+        { key: 'nis', value: data.nis },
+        { key: 'nama', value: data.nama },
+        { key: 'kelas', value: data.kelas },
+        { key: 'jenis_kelamin', value: data.jenis_kelamin || '-' },
+        { key: 'telepon_orangtua', value: data.telepon_orangtua || '-' },
+        { key: 'status', value: statusBadge }
       ],
       'student-account': [
-        data.nama,
-        data.username,
-        data.nis,
-        data.kelas,
-        data.jabatan || '-',
-        data.jenis_kelamin || '-',
-        data.email || '-',
-        <Badge key="status" variant={data.status === 'aktif' ? 'default' : 'secondary'}>{data.status}</Badge>
+        { key: 'nama', value: data.nama },
+        { key: 'username', value: data.username },
+        { key: 'nis', value: data.nis },
+        { key: 'kelas', value: data.kelas },
+        { key: 'jabatan', value: data.jabatan || '-' },
+        { key: 'jenis_kelamin', value: data.jenis_kelamin || '-' },
+        { key: 'email', value: data.email || '-' },
+        { key: 'status', value: statusBadge }
       ]
     };
-    
-    return cells[entityType]?.map((cell, index) => (
-      <TableCell key={index}>{cell}</TableCell>
+
+    return cells[entityType]?.map((cell) => (
+      <TableCell key={`${entityType}-${cell.key}`}>{cell.value}</TableCell>
     )) || [];
+  };
+
+  const getPreviewRowKey = (data: PreviewDataRow) => {
+    return `${entityType}-${JSON.stringify(data)}`;
   };
 
   return (
@@ -565,8 +571,8 @@ CATATAN PENTING:
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              {error.errors.map((err, i) => (
-                                <Badge key={i} variant="destructive" className="mr-1">
+                              {error.errors.map((err) => (
+                                <Badge key={`${error.index}-${err}`} variant="destructive" className="mr-1">
                                   {err}
                                 </Badge>
                               ))}
@@ -602,8 +608,8 @@ CATATAN PENTING:
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {previewData.slice(0, 10).map((data, index) => (
-                        <TableRow key={index}>
+                      {previewData.slice(0, 10).map((data) => (
+                        <TableRow key={getPreviewRowKey(data)}>
                           {getPreviewTableCells(data)}
                         </TableRow>
                       ))}
@@ -686,5 +692,3 @@ CATATAN PENTING:
 };
 
 export default ExcelImportView;
-
-

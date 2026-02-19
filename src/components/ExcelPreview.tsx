@@ -102,6 +102,24 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
     return `${baseStyle} ${alignMap[align || ''] || 'text-left'}`;
   };
 
+  const getLetterheadLineKey = (line: string | { text?: string; fontWeight?: string }) => {
+    if (typeof line === 'string') {
+      return line;
+    }
+    return `${line.text || ''}-${line.fontWeight || 'normal'}`;
+  };
+
+  const getDataRowKey = (row: Record<string, string | number | Date | null | undefined>) => {
+    const preferredKeys = ['id', 'id_siswa', 'id_guru', 'nis', 'nip', 'id_mapel', 'kode_mapel'];
+    for (const key of preferredKeys) {
+      const value = row[key];
+      if (value !== undefined && value !== null && value !== '') {
+        return `${key}-${String(value)}`;
+      }
+    }
+    return JSON.stringify(columns.map((column) => row[column.key] ?? null));
+  };
+
   if (!showPreview || !data || data.length === 0) {
     return null;
   }
@@ -229,11 +247,16 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
               {letterhead.lines.map((line, index) => {
                 // Handle both old format (string) and new format (object)
                 const text = typeof line === 'string' ? line : line.text;
-                const fontWeight = typeof line === 'object' ? line.fontWeight : (index === 0 ? 'bold' : 'normal');
+                let fontWeight = 'normal';
+                if (typeof line === 'object') {
+                  fontWeight = line.fontWeight || 'normal';
+                } else if (index === 0) {
+                  fontWeight = 'bold';
+                }
                 
                 return (
                   <div 
-                    key={index}
+                    key={getLetterheadLineKey(line)}
                     className={`${fontWeight === 'bold' ? 'font-bold' : 'font-normal'} ${index === 0 ? 'text-sm sm:text-base lg:text-lg' : 'text-xs sm:text-sm'} break-words`}
                   >
                     {text}
@@ -315,12 +338,12 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
               <tbody>
                 {data.map((row, rowIndex) => (
                   <tr
-                    key={rowIndex}
+                    key={getDataRowKey(row)}
                     className={`${
                       rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted'
                     } hover:bg-muted transition-colors`}
                   >
-                    {columns.map((column, colIndex) => {
+                    {columns.map((column) => {
                       const cellValue = row[column.key];
                       const safeValue = cellValue instanceof Date 
                         ? cellValue.toLocaleDateString('id-ID') 

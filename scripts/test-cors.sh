@@ -19,6 +19,8 @@ BOLD='\033[1m'
 
 # Configuration
 ENV="${1:-local}"
+CORS_ORIGIN_HEADER_PATTERN='^access-control-allow-origin:'
+NOT_SET='(not set)'
 
 if [[ "$ENV" = "production" ]]; then
     API_URL="https://api.absenta13.my.id"
@@ -27,8 +29,8 @@ elif [[ "$ENV" = "local" ]]; then
     API_URL="http://localhost:3001"
     ORIGIN="http://localhost:5173"
 else
-    echo -e "${RED}Unknown environment: $ENV${NC}"
-    echo "Usage: $0 [local|production]"
+    echo -e "${RED}Unknown environment: $ENV${NC}" >&2
+    echo "Usage: $0 [local|production]" >&2
     exit 1
 fi
 
@@ -62,6 +64,8 @@ log_test() {
         echo -e "  ${RED}✗ FAIL${NC} - $details"
         TEST_RESULTS+=("FAIL: $test_name - $details")
     fi
+
+    return
 }
 
 # ============================================
@@ -77,11 +81,11 @@ if [[ "$HEALTH_RESPONSE" = "200" ]]; then
     log_test "Server Health" "true" "Server responding (HTTP $HEALTH_RESPONSE)"
 else
     log_test "Server Health" "false" "Server not responding (HTTP $HEALTH_RESPONSE)"
-    echo -e "\n${RED}Server is not accessible. Cannot continue tests.${NC}"
-    echo -e "Possible causes:"
-    echo -e "  • Server is down (check: pm2 status)"
-    echo -e "  • DNS not resolving (check: nslookup $API_URL)"
-    echo -e "  • Firewall blocking (check: telnet $(echo $API_URL | sed 's|https://||;s|http://||') 443)"
+    echo -e "\n${RED}Server is not accessible. Cannot continue tests.${NC}" >&2
+    echo -e "Possible causes:" >&2
+    echo -e "  • Server is down (check: pm2 status)" >&2
+    echo -e "  • DNS not resolving (check: nslookup $API_URL)" >&2
+    echo -e "  • Firewall blocking (check: telnet $(echo $API_URL | sed 's|https://||;s|http://||') 443)" >&2
     exit 1
 fi
 echo ""
@@ -97,18 +101,18 @@ CORS_HEADERS=$(curl -s -D - -o /dev/null "$API_URL/api/health" \
     -H "Origin: $ORIGIN" 2>/dev/null)
 
 # Extract headers
-CORS_ORIGIN=$(echo "$CORS_HEADERS" | grep -i "^access-control-allow-origin:" | tr -d '\r' | cut -d' ' -f2-)
+CORS_ORIGIN=$(echo "$CORS_HEADERS" | grep -i "$CORS_ORIGIN_HEADER_PATTERN" | tr -d '\r' | cut -d' ' -f2-)
 CORS_CREDS=$(echo "$CORS_HEADERS" | grep -i "^access-control-allow-credentials:" | tr -d '\r' | cut -d' ' -f2-)
 CORS_STATUS=$(echo "$CORS_HEADERS" | grep -i "^x-cors-status:" | tr -d '\r' | cut -d' ' -f2-)
 CORS_ERROR=$(echo "$CORS_HEADERS" | grep -i "^x-cors-error-code:" | tr -d '\r' | cut -d' ' -f2-)
 
 echo -e "  Headers received:"
-echo -e "    Access-Control-Allow-Origin: ${CYAN}${CORS_ORIGIN:-'(not set)'}${NC}"
-echo -e "    Access-Control-Allow-Credentials: ${CYAN}${CORS_CREDS:-'(not set)'}${NC}"
-echo -e "    X-CORS-Status: ${CYAN}${CORS_STATUS:-'(not set)'}${NC}"
+echo -e "    Access-Control-Allow-Origin: ${CYAN}${CORS_ORIGIN:-$NOT_SET}${NC}"
+echo -e "    Access-Control-Allow-Credentials: ${CYAN}${CORS_CREDS:-$NOT_SET}${NC}"
+echo -e "    X-CORS-Status: ${CYAN}${CORS_STATUS:-$NOT_SET}${NC}"
 
 if [[ -n "$CORS_ERROR" ]]; then
-    echo -e "    X-CORS-Error-Code: ${RED}${CORS_ERROR}${NC}"
+    echo -e "    X-CORS-Error-Code: ${RED}${CORS_ERROR}${NC}" >&2
 fi
 
 # Check if origin matches
@@ -116,7 +120,7 @@ if [[ "$CORS_ORIGIN" = "$ORIGIN" ]]; then
     log_test "Origin Match" "true" "Origin header correctly set to $ORIGIN"
 elif [[ -z "$CORS_ORIGIN" ]]; then
     log_test "Origin Match" "false" "Access-Control-Allow-Origin header MISSING"
-    echo -e "    ${YELLOW}→ This is the main CORS error cause!${NC}"
+    echo -e "    ${YELLOW}→ This is the main CORS error cause!${NC}" >&2
 else
     log_test "Origin Match" "false" "Origin mismatch: got '$CORS_ORIGIN' expected '$ORIGIN'"
 fi
@@ -142,15 +146,15 @@ PREFLIGHT=$(curl -s -D - -o /tmp/cors_preflight_body.txt -X OPTIONS "$API_URL/ap
     -H "Access-Control-Request-Headers: Content-Type, Authorization" 2>/dev/null)
 
 PREFLIGHT_STATUS=$(echo "$PREFLIGHT" | head -1 | grep -oE "[0-9]{3}")
-PREFLIGHT_ORIGIN=$(echo "$PREFLIGHT" | grep -i "^access-control-allow-origin:" | tr -d '\r' | cut -d' ' -f2-)
+PREFLIGHT_ORIGIN=$(echo "$PREFLIGHT" | grep -i "$CORS_ORIGIN_HEADER_PATTERN" | tr -d '\r' | cut -d' ' -f2-)
 PREFLIGHT_METHODS=$(echo "$PREFLIGHT" | grep -i "^access-control-allow-methods:" | tr -d '\r' | cut -d' ' -f2-)
 PREFLIGHT_HEADERS_ALLOWED=$(echo "$PREFLIGHT" | grep -i "^access-control-allow-headers:" | tr -d '\r' | cut -d' ' -f2-)
 
 echo -e "  Preflight Response:"
 echo -e "    HTTP Status: ${CYAN}$PREFLIGHT_STATUS${NC}"
-echo -e "    Allow-Origin: ${CYAN}${PREFLIGHT_ORIGIN:-'(not set)'}${NC}"
-echo -e "    Allow-Methods: ${CYAN}${PREFLIGHT_METHODS:-'(not set)'}${NC}"
-echo -e "    Allow-Headers: ${CYAN}${PREFLIGHT_HEADERS_ALLOWED:-'(not set)'}${NC}"
+echo -e "    Allow-Origin: ${CYAN}${PREFLIGHT_ORIGIN:-$NOT_SET}${NC}"
+echo -e "    Allow-Methods: ${CYAN}${PREFLIGHT_METHODS:-$NOT_SET}${NC}"
+echo -e "    Allow-Headers: ${CYAN}${PREFLIGHT_HEADERS_ALLOWED:-$NOT_SET}${NC}"
 
 # Check status
 if [[ "$PREFLIGHT_STATUS" = "204" ]] || [[ "$PREFLIGHT_STATUS" = "200" ]]; then
@@ -165,8 +169,8 @@ else
         ERROR_TITLE=$(echo "$ERROR_BODY" | grep -o '"title":"[^"]*"' | cut -d'"' -f4)
         
         if [[ -n "$ERROR_CODE" ]]; then
-            echo -e "    ${RED}Error Code: $ERROR_CODE${NC}"
-            echo -e "    ${RED}Error: $ERROR_TITLE${NC}"
+            echo -e "    ${RED}Error Code: $ERROR_CODE${NC}" >&2
+            echo -e "    ${RED}Error: $ERROR_TITLE${NC}" >&2
         fi
     fi
 fi
@@ -205,7 +209,7 @@ echo -e "    Status: ${CYAN}$DEBUG_STATUS${NC}"
 echo -e "    Allowed: ${CYAN}$DEBUG_ALLOWED${NC}"
 
 if [[ -n "$DEBUG_ERROR_CODE" ]] && [[ "$DEBUG_ERROR_CODE" != "null" ]]; then
-    echo -e "    Error Code: ${RED}$DEBUG_ERROR_CODE${NC}"
+    echo -e "    Error Code: ${RED}$DEBUG_ERROR_CODE${NC}" >&2
 fi
 
 if [[ "$DEBUG_ALLOWED" = "true" ]]; then
@@ -234,7 +238,7 @@ echo -e "${MAGENTA}━━━━━━━━━━━━━━━━━━━━�
 FULL_HEADERS=$(curl -s -D - -o /dev/null "$API_URL/api/health" \
     -H "Origin: $ORIGIN" 2>/dev/null)
 
-ORIGIN_COUNT=$(echo "$FULL_HEADERS" | grep -ci "^access-control-allow-origin:")
+ORIGIN_COUNT=$(echo "$FULL_HEADERS" | grep -ci "$CORS_ORIGIN_HEADER_PATTERN")
 
 echo -e "  Access-Control-Allow-Origin header count: ${CYAN}$ORIGIN_COUNT${NC}"
 
@@ -260,16 +264,16 @@ MALICIOUS_ORIGIN="https://malicious-attacker.com"
 SECURITY_HEADERS=$(curl -s -D - -o /dev/null "$API_URL/api/health" \
     -H "Origin: $MALICIOUS_ORIGIN" 2>/dev/null)
 
-SECURITY_CORS=$(echo "$SECURITY_HEADERS" | grep -i "^access-control-allow-origin:" | tr -d '\r' | cut -d' ' -f2-)
+SECURITY_CORS=$(echo "$SECURITY_HEADERS" | grep -i "$CORS_ORIGIN_HEADER_PATTERN" | tr -d '\r' | cut -d' ' -f2-)
 SECURITY_STATUS=$(echo "$SECURITY_HEADERS" | grep -i "^x-cors-status:" | tr -d '\r' | cut -d' ' -f2-)
 
 echo -e "  Testing with malicious origin: ${CYAN}$MALICIOUS_ORIGIN${NC}"
-echo -e "    X-CORS-Status: ${CYAN}${SECURITY_STATUS:-'(not set)'}${NC}"
+echo -e "    X-CORS-Status: ${CYAN}${SECURITY_STATUS:-$NOT_SET}${NC}"
 echo -e "    Allow-Origin: ${CYAN}${SECURITY_CORS:-'(not set/null)'}${NC}"
 
 if [[ "$SECURITY_CORS" = "$MALICIOUS_ORIGIN" ]]; then
     log_test "Security Check" "false" "SECURITY ISSUE: Malicious origin was ALLOWED!"
-    echo -e "    ${RED}⚠️  WARNING: Server allows any origin!${NC}"
+    echo -e "    ${RED}⚠️  WARNING: Server allows any origin!${NC}" >&2
 else
     log_test "Security Check" "true" "Malicious origin correctly rejected"
 fi

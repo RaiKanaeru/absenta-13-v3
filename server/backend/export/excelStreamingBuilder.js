@@ -4,7 +4,6 @@
  */
 
 import ExcelJS from 'exceljs';
-import { getLetterhead } from '../utils/letterheadService.js';
 
 /**
  * Write a single data row with column mapping
@@ -68,11 +67,11 @@ export async function streamExcel(res, options) {
         title,
         subtitle,
         reportPeriod,
-        letterhead = {},
         columns = [],
         dataIterator,
         rowMapper
     } = options;
+    // letterhead is passed in options but not used in this streaming-only function
 
     // Set headers for streaming response
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

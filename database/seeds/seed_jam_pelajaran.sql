@@ -95,4 +95,4 @@ SELECT
     SUM(CASE WHEN jenis = 'pembiasaan' THEN 1 ELSE 0 END) as pembiasaan
 FROM jam_pelajaran 
 GROUP BY hari 
-ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu');
+ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu') ASC;

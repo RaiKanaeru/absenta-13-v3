@@ -11,7 +11,8 @@ import path from 'node:path';
 
 console.log('[START] Starting Database Optimization Process...');
 console.log('[LOG] Phase 1: Database Indexing, Connection Pooling, and Partitioning');
-console.log('[TARGET] Target: 150 concurrent users, 250K+ records, 2GB RAM, 2 Core\\n');
+console.log('[TARGET] Target: 150 concurrent users, 250K+ records, 2GB RAM, 2 Core');
+console.log('');
 
 const dbOptimization = new DatabaseOptimization();
 
@@ -19,7 +20,8 @@ try {
     console.log('[WAIT] Step 1: Initializing database optimization system...');
     await dbOptimization.initialize();
     
-    console.log('\\n[WAIT] Step 2: Testing connection pool performance...');
+    console.log('');
+    console.log('[WAIT] Step 2: Testing connection pool performance...');
     const stats = dbOptimization.getPoolStats();
     console.log('[STATS] Connection Pool Statistics:');
     console.log(`   Total Connections: ${stats.totalConnections}`);
@@ -27,7 +29,8 @@ try {
     console.log(`   Idle Connections: ${stats.idleConnections}`);
     console.log(`   Queued Requests: ${stats.queuedRequests}`);
     
-    console.log('\\n[WAIT] Step 3: Running performance tests...');
+    console.log('');
+    console.log('[WAIT] Step 3: Running performance tests...');
     
     // Test concurrent connections
     const concurrentTests = [];
@@ -43,7 +46,8 @@ try {
     
     console.log(`[OK] Concurrent query test: ${endTime - startTime}ms for 10 parallel queries`);
     
-    console.log('\\n[WAIT] Step 4: Testing query performance with indexes...');
+    console.log('');
+    console.log('[WAIT] Step 4: Testing query performance with indexes...');
     
     // Test optimized queries
     const testQueries = [
@@ -70,7 +74,8 @@ try {
         console.log(`[OK] ${test.name}: ${executionTime}ms`);
     }
     
-    console.log('\\n[WAIT] Step 5: Creating optimization report...');
+    console.log('');
+    console.log('[WAIT] Step 5: Creating optimization report...');
     
     // Create optimization report
     const report = {
@@ -107,12 +112,14 @@ try {
     
     console.log(`[FILE] Optimization report saved to: ${reportFile}`);
     
-    console.log('\\n[DONE] Database Optimization Phase 1 Completed Successfully!');
+    console.log('');
+    console.log('[DONE] Database Optimization Phase 1 Completed Successfully!');
     console.log('[OK] All indexes added');
     console.log('[OK] Connection pooling active');
     console.log('[OK] Archive tables created');
     console.log('[OK] Performance optimized');
-    console.log('\\n[LOG] Ready for Phase 2: Backup & Archive System');
+    console.log('');
+    console.log('[LOG] Ready for Phase 2: Backup & Archive System');
     
     // Close connection pool
     await dbOptimization.close();

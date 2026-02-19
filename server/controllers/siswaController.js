@@ -474,9 +474,10 @@ function buildSiswaUpdateFields(data) {
 async function buildSiswaUserUpdateFields(data, saltRounds) {
     const fields = [];
     const values = [];
-    const normalizedIsPerwakilan = data.is_perwakilan === undefined
-        ? undefined
-        : data.is_perwakilan ? 1 : 0;
+    let normalizedIsPerwakilan;
+    if (data.is_perwakilan !== undefined) {
+        normalizedIsPerwakilan = data.is_perwakilan ? 1 : 0;
+    }
     const fieldMap = {
         nama: data.nama,
         username: data.username,

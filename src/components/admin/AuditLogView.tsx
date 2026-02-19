@@ -369,68 +369,78 @@ export default function AuditLogView({ onBack, onLogout }: AuditLogViewProps) {
       </Card>
 
       {/* Data Table */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden shadow-md border-0">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[180px]">Waktu</TableHead>
-                <TableHead className="w-[150px]">Admin</TableHead>
-                <TableHead className="w-[120px]">Aksi</TableHead>
-                <TableHead className="w-[120px]">Target</TableHead>
-                <TableHead className="min-w-[200px]">Detail</TableHead>
-                <TableHead className="w-[120px] hidden md:table-cell">IP Address</TableHead>
+                <TableHead className="w-[180px] font-bold">Waktu (WIB)</TableHead>
+                <TableHead className="w-[150px] font-bold">Admin</TableHead>
+                <TableHead className="w-[120px] font-bold">Aksi</TableHead>
+                <TableHead className="w-[120px] font-bold">Target</TableHead>
+                <TableHead className="min-w-[250px] font-bold">Detail Perubahan</TableHead>
+                <TableHead className="w-[120px] hidden md:table-cell font-bold">IP Address</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={`skeleton-${i}`}>
+                [1, 2, 3, 4, 5].map((val) => (
+                  <TableRow key={`skeleton-row-${val}`}>
                     <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
                     <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
                     <TableCell><div className="h-6 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
                     <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-4 w-48 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell><div className="h-4 w-64 bg-muted animate-pulse rounded" /></TableCell>
                     <TableCell className="hidden md:table-cell"><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
                   </TableRow>
                 ))
               ) : logs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <Search className="w-8 h-8 mb-2 opacity-50" />
-                      <p>Tidak ada data log aktivitas ditemukan</p>
+                  <TableCell colSpan={6} className="h-48 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
+                      <div className="p-4 bg-muted rounded-full">
+                        <Search className="w-8 h-8 opacity-20" />
+                      </div>
+                      <p className="font-medium">Tidak ada data log aktivitas ditemukan</p>
+                      <p className="text-xs">Coba sesuaikan filter atau rentang waktu pencarian Anda</p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 logs.map((log) => (
-                  <TableRow key={log.id} className="group hover:bg-muted/50 transition-colors">
-                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                  <TableRow key={log.id} className="group hover:bg-muted/30 transition-colors border-b last:border-0">
+                    <TableCell className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                       {formatDate(log.created_at)}
                     </TableCell>
-                    <TableCell className="font-medium text-sm">
-                      {log.admin_name}
+                    <TableCell className="font-semibold text-sm">
+                      <div className="flex flex-col">
+                        <span>{log.admin_name}</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">ID: #{log.admin_id || 'sys'}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge 
                         variant="outline" 
-                        className={cn("text-[10px] font-bold uppercase tracking-wider", getActionColor(log.action))}
+                        className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-md", getActionColor(log.action))}
                       >
                         {log.action}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      <span className="font-medium text-muted-foreground">{log.target}</span>
-                      {log.target_id && (
-                        <span className="text-xs text-muted-foreground ml-1 opacity-70">#{log.target_id}</span>
-                      )}
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-medium">
+                        {log.target}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="max-w-[300px]">
-                      {parseDetails(log.details)}
+                    <TableCell className="max-w-[400px]">
+                      <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-100 dark:border-slate-800">
+                        {parseDetails(log.details)}
+                      </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-xs font-mono text-muted-foreground">
-                      {log.ip_address || '-'}
+                    <TableCell className="hidden md:table-cell text-[11px] font-mono text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                        {log.ip_address || '-'}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

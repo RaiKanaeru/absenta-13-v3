@@ -43,7 +43,7 @@ const parseSettingValue = (value) => {
         // Ignore JSON parse errors, fall back to raw value.
     }
     // Fix: Regex precedence ambiguity S5850 - Group the alternatives
-    return raw.replaceAll(/(^")|(\"$)/g, '');
+    return raw.replaceAll(/(^")|("$)/g, '');
 };
 
 const getActiveAcademicYear = async (conn) => {
@@ -175,8 +175,6 @@ export const importMasterSchedule = async (req, res) => {
                 const rowC = rows[i+2].row;
 
                 // Validate Block Structure
-                // const labelB = getVal(rowB, 3).toUpperCase();
-                // const labelC_ = getVal(rowC, 3).toUpperCase();
                 // We trust the structure: Mapel, Ruang, Guru
                 
                 // Parse Columns for each Day

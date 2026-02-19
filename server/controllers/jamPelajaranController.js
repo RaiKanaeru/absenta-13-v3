@@ -44,11 +44,12 @@ const DEFAULT_JAM_PELAJARAN = [
 /** SQL query to get class name by ID (S1192 duplicate literal fix) */
 const SQL_GET_KELAS_NAME = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
 
-async function executeJamPelajaranUpsert(kelasId, jam) {
-    const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis']; // Default to Mon-Thu if generic
-    
+async function executeJamPelajaranUpsert(jam) {
+    const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'];
+
     // We execute insert for each day to ensure schedule exists for lookup
-                await db.execute(`
+    for (const hari of daysToInsert) {
+        await db.execute(`
             INSERT INTO jam_pelajaran (hari, jam_ke, jam_mulai, jam_selesai, label)
             VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
@@ -57,6 +58,7 @@ async function executeJamPelajaranUpsert(kelasId, jam) {
                 label = VALUES(label),
                 updated_at = CURRENT_TIMESTAMP
         `, [hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
+    }
 }
 
 /**

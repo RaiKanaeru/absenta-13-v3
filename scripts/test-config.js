@@ -28,7 +28,8 @@ const warnings = [];
 const errors = [];
 let validCount = 0;
 
-console.log('[LOG] Required Environment Variables:\\n');
+console.log('[LOG] Required Environment Variables:');
+console.log('');
 
 required.forEach(key => {
     const value = process.env[key];
@@ -44,7 +45,9 @@ required.forEach(key => {
     }
 });
 
-console.log('\\n[LOG] Optional Environment Variables:\\n');
+console.log('');
+console.log('[LOG] Optional Environment Variables:');
+console.log('');
 
 optional.forEach(key => {
     const value = process.env[key];
@@ -59,7 +62,9 @@ optional.forEach(key => {
 
 // Security checks for production
 if (process.env.NODE_ENV === 'production') {
-    console.log('\\n[SECURITY] Production Security Checks:\\n');
+    console.log('');
+    console.log('[SECURITY] Production Security Checks:');
+    console.log('');
     
     if (process.env.JWT_SECRET === 'absenta-super-secret-key-2025') {
         warnings.push('[WARN] JWT_SECRET using default value in production!');
@@ -82,14 +87,20 @@ if (process.env.NODE_ENV === 'production') {
 console.log('\n═══════════════════════════════════════════════════════\n');
 
 if (warnings.length > 0) {
-    console.log('[WARN] WARNINGS:\\n');
-    warnings.forEach(w => console.log(`   ${w}`));
+    console.log('[WARN] WARNINGS:');
+    console.log('');
+    warnings.forEach((w) => {
+        console.log(`   ${w}`);
+    });
     console.log('');
 }
 
 if (errors.length > 0) {
-    console.log('[ERROR] ERRORS:\\n');
-    errors.forEach(e => console.log(`   ${e}`));
+    console.log('[ERROR] ERRORS:');
+    console.log('');
+    errors.forEach((e) => {
+        console.log(`   ${e}`);
+    });
     console.log('');
 }
 
@@ -101,13 +112,16 @@ console.log(`   Errors: ${errors.length}`);
 console.log('═══════════════════════════════════════════════════════\n');
 
 if (errors.length > 0) {
-    console.log('[ERROR] Configuration validation FAILED!\\n');
+    console.log('[ERROR] Configuration validation FAILED!');
+    console.log('');
     process.exit(1);
 } else if (warnings.length > 0) {
-    console.log('[WARN] Configuration validation passed with warnings.\\n');
+    console.log('[WARN] Configuration validation passed with warnings.');
+    console.log('');
     process.exit(0);
 } else {
-    console.log('[OK] Configuration validation PASSED!\\n');
+    console.log('[OK] Configuration validation PASSED!');
+    console.log('');
     process.exit(0);
 }
 

@@ -10,44 +10,39 @@ import { seedJamPelajaran } from './seed_jam_pelajaran.js';
 
 dotenv.config();
 
-async function main() {
-  console.log('[START] Connecting to database...');
-  
-  const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'absenta13',
-    waitForConnections: true,
-    connectionLimit: 2
-  });
+console.log('[START] Connecting to database...');
 
-  try {
-    // Test connection
-    const [rows] = await pool.execute('SELECT 1');
-    console.log('[OK] Database connected');
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'absenta13',
+  waitForConnections: true,
+  connectionLimit: 2
+});
 
-    // Run seeder
-    const count = await seedJamPelajaran(pool);
-    console.log(`[DONE] Seeding complete! ${count} records inserted.`);
+try {
+  // Test connection
+  await pool.execute('SELECT 1');
+  console.log('[OK] Database connected');
 
-    // Verify
-    const [result] = await pool.execute(
-      'SELECT hari, COUNT(*) as count FROM jam_pelajaran GROUP BY hari'
-    );
-    console.log('[STATS] Summary:');
-    for (const row of result) {
-      console.log(`   ${row.hari}: ${row.count} jam slots`);
-    }
+  // Run seeder
+  const count = await seedJamPelajaran(pool);
+  console.log(`[DONE] Seeding complete! ${count} records inserted.`);
 
-  } catch (error) {
-    console.error('[ERROR] Error:', error.message);
-    process.exit(1);
-  } finally {
-    await pool.end();
-    console.log('[BYE] Connection closed');
+  // Verify
+  const [result] = await pool.execute(
+    'SELECT hari, COUNT(*) as count FROM jam_pelajaran GROUP BY hari'
+  );
+  console.log('[STATS] Summary:');
+  for (const row of result) {
+    console.log(`   ${row.hari}: ${row.count} jam slots`);
   }
+} catch (error) {
+  console.error('[ERROR] Error:', error.message);
+  process.exit(1);
+} finally {
+  await pool.end();
+  console.log('[BYE] Connection closed');
 }
-
-main();

@@ -2,7 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createLogger } from '../utils/logger.js';
 import { splitSqlStatements } from '../utils/sqlParser.js';
-import { sendDatabaseError, sendValidationError, sendPermissionError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendPermissionError } from '../utils/errorHandler.js';
 import db from '../config/db.js';
 
 const logger = createLogger('DatabaseFile');

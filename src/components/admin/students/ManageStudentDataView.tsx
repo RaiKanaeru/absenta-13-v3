@@ -222,6 +222,8 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
     return <ExcelImportView entityType="siswa" entityName="Data Siswa" onBack={() => setShowImport(false)} />;
   }
 
+  const submitActionLabel = editingId ? 'Update' : 'Tambah';
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -289,8 +291,8 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
                     <SelectValue placeholder="Pilih kelas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.filter(cls => cls.id).map((cls, index) => (
-                      <SelectItem key={`class-filter-${cls.id}-${index}`} value={cls.id.toString()}>
+                    {classes.filter(cls => cls.id).map((cls) => (
+                      <SelectItem key={`class-filter-${cls.id}`} value={cls.id.toString()}>
                         {cls.nama_kelas}
                       </SelectItem>
                     ))}
@@ -364,8 +366,8 @@ const ManageStudentDataView = ({ onBack, onLogout }: Readonly<{ onBack: () => vo
               <div className="flex items-end">
                 <div className="flex flex-col sm:flex-row gap-2 w-full">
                   <Button type="submit" disabled={isLoading} className="bg-orange-600 hover:bg-orange-700 text-sm">
-                {isLoading ? 'Menyimpan...' : (editingId ? 'Update' : 'Tambah')}
-              </Button>
+                    {isLoading ? 'Menyimpan...' : submitActionLabel}
+                  </Button>
                   {editingId && (
                     <Button type="button" variant="outline" onClick={() => {
                       setEditingId(null);

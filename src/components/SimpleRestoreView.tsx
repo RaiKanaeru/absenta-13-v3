@@ -338,37 +338,11 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
           <CardContent>
             <div className="flex flex-col gap-4">
               <div 
-                role="button"
-                tabIndex={0}
-                aria-label="Area upload file backup. Klik atau drag & drop file .sql / .zip"
                 className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
                   selectedFile 
                     ? 'border-primary bg-primary/5' 
                     : 'border-border hover:border-primary/50 hover:bg-muted/50'
                 }`}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (restoreStatus === 'restoring' || uploading) return;
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) {
-                    const validationError = validateUploadFile(file);
-                    if (validationError) {
-                      setError(validationError);
-                      return;
-                    }
-                    setSelectedFile(file);
-                    setError('');
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (restoreStatus !== 'restoring' && !uploading) {
-                      fileInputRef.current?.click();
-                    }
-                  }
-                }}
               >
                 <input
                   type="file"
@@ -400,11 +374,36 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 cursor-pointer">
+                  <button
+                    type="button"
+                    className="flex w-full flex-col items-center gap-2 cursor-pointer bg-transparent"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (restoreStatus === 'restoring' || uploading) return;
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        const validationError = validateUploadFile(file);
+                        if (validationError) {
+                          setError(validationError);
+                          return;
+                        }
+                        setSelectedFile(file);
+                        setError('');
+                      }
+                    }}
+                    onClick={() => {
+                      if (restoreStatus !== 'restoring' && !uploading) {
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    disabled={uploading || restoreStatus === 'restoring'}
+                    aria-label="Klik untuk upload file backup"
+                  >
                     <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground/50" />
                     <p className="font-medium sm:text-lg text-foreground">Klik untuk upload file backup</p>
                     <p className="text-sm text-muted-foreground">atau drag & drop file .sql / .zip disini</p>
-                  </div>
+                  </button>
                 )}
               </div>
 
@@ -566,15 +565,23 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
             </div>
           </CardHeader>
           <CardContent>
-            {loadingBackups ? (
+            {(() => {
+              if (loadingBackups) {
+                return (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Memuat daftar backup...</p>
               </div>
-            ) : availableBackups.length > 0 ? (
+                );
+              }
+
+              if (availableBackups.length > 0) {
+                return (
               <div className="space-y-3">
-                {availableBackups.map((backup) => (
-                  <div key={backup?.id || Math.random()} className={`border rounded-lg p-3 sm:p-4 transition-colors ${
+                {availableBackups.map((backup) => {
+                  const backupKey = backup?.id || backup?.filename || backup?.name || `${backup?.date || 'unknown'}-${backup?.size || 0}`;
+                  return (
+                  <div key={backupKey} className={`border rounded-lg p-3 sm:p-4 transition-colors ${
                     selectedBackups.has(backup.id!) 
                       ? 'bg-accent/50 border-primary/50' 
                       : 'bg-card hover:bg-muted/50 border-border'
@@ -651,15 +658,20 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
                     </div>
                   </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
-            ) : (
+                );
+              }
+
+              return (
               <div className="text-center py-8 text-muted-foreground">
                 <Database className="w-12 h-12 mx-auto mb-2 text-muted-foreground/30" />
                 <p>Tidak ada backup yang tersedia</p>
                 <p className="text-sm">Buat backup terlebih dahulu di menu Backup & Archive</p>
               </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

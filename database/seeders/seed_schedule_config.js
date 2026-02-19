@@ -187,4 +187,9 @@ async function runSeeder() {
 }
 
 // Run seeder
-runSeeder().catch(console.error);
+try {
+  await runSeeder();
+} catch (error) {
+  console.error(error);
+  process.exit(1);
+}

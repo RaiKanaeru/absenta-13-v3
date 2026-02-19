@@ -38,7 +38,7 @@ describe('Download Access Utilities', () => {
 
     it('should reject unsafe filenames', () => {
         assert.strictEqual(isSafeFilename('../secret.txt'), false);
-        assert.strictEqual(isSafeFilename('..\\secret.txt'), false);
+        assert.strictEqual(isSafeFilename(String.raw`..\secret.txt`), false);
         assert.strictEqual(isSafeFilename('reports/abc.xlsx'), false);
         assert.strictEqual(isSafeFilename('%2e%2e%2fsecret.xlsx'), false);
         assert.strictEqual(isSafeFilename('..%5csecret.xlsx'), false);

@@ -48,7 +48,7 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({title, image, alt, description}: FeatureItem) {
+function Feature({title, image, alt, description}: Readonly<FeatureItem>) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center">
@@ -67,8 +67,8 @@ export default function HomepageFeatures(): ReactNode {
     <section className={styles.features}>
       <div className="container">
         <div className="row">
-          {FeatureList.map((props, idx) => (
-            <Feature key={idx} {...props} />
+          {FeatureList.map((props) => (
+            <Feature key={props.title} {...props} />
           ))}
         </div>
       </div>

@@ -19,7 +19,6 @@ import {
     sendDatabaseError,
     sendValidationError,
     sendNotFoundError,
-    sendSuccessResponse,
     sendPermissionError,
     sendServiceUnavailableError
 } from '../utils/errorHandler.js';
@@ -41,7 +40,7 @@ const logger = createLogger('Absensi');
 // ===========================
 
 /** Valid status values for student attendance */
-const VALID_STUDENT_STATUSES = ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen'];
+const VALID_STUDENT_STATUSES = new Set(['Hadir', 'Izin', 'Sakit', 'Alpa', 'Dispen']);
 
 /** Valid status values for teacher attendance */
 const VALID_TEACHER_STATUSES = new Set(['Hadir', 'Tidak Hadir', 'Izin', 'Sakit']);
@@ -322,7 +321,7 @@ async function processStudentAttendanceRecord(connection, studentId, data, jadwa
         : data;
 
     // Validate status
-    if (!VALID_STUDENT_STATUSES.includes(status)) {
+    if (!VALID_STUDENT_STATUSES.has(status)) {
         return false; // Skip invalid status
     }
 
@@ -617,7 +616,7 @@ export async function submitStudentAttendance(req, res) {
 
                 const { status, terlambat, ada_tugas } = parsed;
 
-                if (!VALID_STUDENT_STATUSES.includes(status)) {
+                if (!VALID_STUDENT_STATUSES.has(status)) {
                     log.validationFail('status', status, 'Invalid status');
                     throw new Error(`Status tidak valid: ${status}`);
                 }

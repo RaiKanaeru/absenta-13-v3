@@ -72,7 +72,9 @@ function validateBatchRows(rows, rowValidator, context = {}) {
         } catch (error) {
             // Try to extract some identifier for preview even on crash
             const safePreview = {};
-            Object.keys(rowData).slice(0, 2).forEach(k => safePreview[k] = rowData[k]);
+            Object.keys(rowData).slice(0, 2).forEach((k) => {
+                safePreview[k] = rowData[k];
+            });
             errors.push({ index: rowNum, errors: [error.message], data: safePreview });
         }
     }
@@ -192,7 +194,7 @@ const ACTIVITY_ALIASES = {
     'kegiatan khusus': 'kegiatan_khusus',
     'kegiatan-khusus': 'kegiatan_khusus'
 };
-const ALLOWED_JENIS_AKTIVITAS = [
+const ALLOWED_JENIS_AKTIVITAS = new Set([
     'pelajaran',
     'upacara',
     'istirahat',
@@ -200,7 +202,7 @@ const ALLOWED_JENIS_AKTIVITAS = [
     'libur',
     'ujian',
     'lainnya'
-];
+]);
 
 const normalizeHariName = (value) => {
     if (!value) return '';
@@ -211,7 +213,7 @@ const normalizeHariName = (value) => {
 const normalizeJenisAktivitas = (value) => {
     const raw = value ? String(value).trim().toLowerCase() : 'pelajaran';
     const normalized = ACTIVITY_ALIASES[raw] || raw;
-    return ALLOWED_JENIS_AKTIVITAS.includes(normalized) ? normalized : '';
+    return ALLOWED_JENIS_AKTIVITAS.has(normalized) ? normalized : '';
 };
 
 /**
@@ -336,7 +338,14 @@ function buildJadwalObject(rowData, kelas_id, mapel_id, guru_id, ruang_id, guru_
     
     // Normalize guru_ids
     const uniqueGuruIds = isPelajaran ? Array.from(new Set(guru_ids_array)) : [];
-    const primaryGuru = isPelajaran ? (guru_id ? Number(guru_id) : (uniqueGuruIds[0] || null)) : null;
+    let primaryGuru = null;
+    if (isPelajaran) {
+        if (guru_id) {
+            primaryGuru = Number(guru_id);
+        } else {
+            primaryGuru = uniqueGuruIds[0] || null;
+        }
+    }
     const finalMapelId = isPelajaran && mapel_id ? Number(mapel_id) : null;
     
     return {

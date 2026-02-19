@@ -301,9 +301,12 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                       const totalAbsen = (Number(item.izin) || 0) + (Number(item.sakit) || 0) + (Number(item.alpa) || 0) + (Number(item.dispen) || 0);
                       const presentaseHadir = Number(totalSiswa) > 0 ? ((Number(hadir) / Number(totalSiswa)) * 100).toFixed(1) : '0.0';
                       const presentaseAbsen = Number(totalSiswa) > 0 ? ((Number(totalAbsen) / Number(totalSiswa)) * 100).toFixed(1) : '0.0';
+                      const rowKey = item.id
+                        ? String(item.id)
+                        : `${item.periode || 'unknown'}-${item.nama_kelas || 'unknown'}-${totalSiswa}-${hadir}-${totalAbsen}`;
                       
                       return (
-                        <TableRow key={item.id || index}>
+                        <TableRow key={rowKey}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{item.periode}</TableCell>
                           <TableCell>{item.nama_kelas}</TableCell>

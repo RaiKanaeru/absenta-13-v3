@@ -7,7 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import AdmZip from 'adm-zip';
-import { sendDatabaseError, sendErrorResponse, sendValidationError, sendNotFoundError, sendServiceUnavailableError, sendSuccessResponse } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendErrorResponse, sendValidationError, sendNotFoundError, sendServiceUnavailableError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
 import { exec } from 'node:child_process';
@@ -469,7 +469,12 @@ async function deleteSingleBackup(backupId) {
         // Try system delete first
         await globalThis.backupSystem.deleteBackup(backupId);
         return { success: true, id: backupId };
-    } catch (err) {
+    } catch (error_) {
+        logger.warn('Primary backup delete failed, trying manual delete fallback', {
+            backupId,
+            error: error_?.message
+        });
+
         // Fallback to manual delete
         try {
             const { filePath } = await resolveBackupFilePath(BACKUP_DIR, backupId);
@@ -486,8 +491,8 @@ async function deleteSingleBackup(backupId) {
             }
             
             return { success: true, id: backupId };
-        } catch (manualErr) {
-            return { success: false, id: backupId, reason: manualErr.message };
+        } catch (manualError) {
+            return { success: false, id: backupId, reason: manualError.message };
         }
     }
 }

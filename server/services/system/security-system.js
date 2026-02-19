@@ -27,7 +27,7 @@ class SecuritySystem extends EventEmitter {
                 enabled: options.inputValidation?.enabled !== false,
                 maxLength: options.inputValidation?.maxLength || 1000,
                 // Fixed: removed duplicate characters (@, _, -, ()) from character class
-                allowedChars: options.inputValidation?.allowedChars || /^[a-zA-Z0-9\s\-_@.!#$%^&*()+=[\]{};':"\\|,.<>/?`~]+$/,
+                allowedChars: options.inputValidation?.allowedChars || /^[a-zA-Z0-9\s_@.!#$%^&*()+=[\]{};':"\\|,<>/?`~-]+$/,
                 sqlInjectionPatterns: options.inputValidation?.sqlInjectionPatterns || [
                     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/i,
                     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,

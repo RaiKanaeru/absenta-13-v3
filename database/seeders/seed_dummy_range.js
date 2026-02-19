@@ -319,12 +319,9 @@ async function main() {
       if (kelasNameSet.has(nama)) continue;
       kelasRows.push([nama, tingkat, 0, 'aktif']);
     }
-    let kelasIds = [];
     if (kelasRows.length) {
       const sql = 'INSERT INTO kelas (nama_kelas, tingkat, jumlah_siswa, status) VALUES ?';
-      const [result] = await connection.query(sql, [kelasRows]);
-      const firstId = result.insertId;
-      kelasIds = kelasRows.map((_, idx) => firstId + idx);
+      await connection.query(sql, [kelasRows]);
     }
 
     const [kelasFinal] = await connection.execute(
@@ -827,7 +824,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error(error);
   process.exit(1);
-});
+}
