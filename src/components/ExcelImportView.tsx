@@ -269,8 +269,8 @@ CATATAN PENTING:
       'student-account': ['Nama', 'Username', 'NIS', 'Kelas', 'Jabatan', 'Jenis Kelamin', 'Email', 'Status']
     };
     
-    return headers[entityType]?.map(header => (
-      <TableHead key={header}>{header}</TableHead>
+    return headers[entityType]?.map((header, index) => (
+      <TableHead key={`${entityType}-header-${index}-${header}`}>{header}</TableHead>
     )) || [];
   };
 
@@ -571,8 +571,8 @@ CATATAN PENTING:
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              {error.errors.map((err) => (
-                                <Badge key={`${error.index}-${err}`} variant="destructive" className="mr-1">
+                              {error.errors.map((err, errIndex) => (
+                                <Badge key={`${error.index}-err-${errIndex}-${err.substring(0, 10)}`} variant="destructive" className="mr-1">
                                   {err}
                                 </Badge>
                               ))}
@@ -608,8 +608,8 @@ CATATAN PENTING:
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {previewData.slice(0, 10).map((data) => (
-                        <TableRow key={getPreviewRowKey(data)}>
+                      {previewData.slice(0, 10).map((data, index) => (
+                        <TableRow key={getPreviewRowKey(data) || `preview-row-${index}`}>
                           {getPreviewTableCells(data)}
                         </TableRow>
                       ))}

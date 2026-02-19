@@ -1,0 +1,32 @@
+# Evidence for Task 16: ExcelImport Stability
+
+## Changes in src/components/ExcelImportView.tsx
+
+### 1. Stable Keys for Table Headers
+```typescript
+    return headers[entityType]?.map((header, index) => (
+      <TableHead key={`${entityType}-header-${index}-${header}`}>{header}</TableHead>
+    )) || [];
+```
+
+### 2. Stable Keys for Error Badges
+```typescript
+                              {error.errors.map((err, errIndex) => (
+                                <Badge key={`${error.index}-err-${errIndex}-${err.substring(0, 10)}`} variant="destructive" className="mr-1">
+                                  {err}
+                                </Badge>
+                              ))}
+```
+
+### 3. Stable Keys for Preview Rows
+```typescript
+                      {previewData.slice(0, 10).map((data, index) => (
+                        <TableRow key={getPreviewRowKey(data) || `preview-row-${index}`}>
+                          {getPreviewTableCells(data)}
+                        </TableRow>
+                      ))}
+```
+
+## Verification
+- Lint passed.
+- Tests passed.

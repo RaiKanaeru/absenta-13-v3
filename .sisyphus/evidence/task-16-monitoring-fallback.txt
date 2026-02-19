@@ -1,0 +1,54 @@
+# Evidence for Task 16: Monitoring Dashboard Fallback
+
+## Changes in src/components/MonitoringDashboard.tsx
+
+### 1. Refactored Nested Ternaries (Circuit Breaker)
+```typescript
+const OverviewTabContent = ({ metrics, loadBalancer }) => {
+    const isCircuitOpen = (loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen;
+    const circuitClass = isCircuitOpen 
+        ? 'bg-destructive/15 text-destructive' 
+        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    const circuitText = isCircuitOpen ? 'OPEN' : 'CLOSED';
+
+    return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        // ...
+                <div className="flex justify-between"><span>Circuit Breaker:</span><Badge variant="outline" className={circuitClass}>{circuitText}</Badge></div>
+            </CardContent>
+        </Card>
+    </div>
+    );
+};
+```
+
+### 2. Fixed useEffect Dependency
+```typescript
+    const fetchMonitoringData = React.useCallback(async () => {
+        try {
+            const result = await apiCall<{ data: MonitoringData }>('/api/admin/monitoring-dashboard');
+            setData(result.data);
+            setError(null);
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchMonitoringData();
+        
+        if (autoRefresh) {
+            const interval = setInterval(fetchMonitoringData, 5000); // Refresh every 5 seconds
+            return () => clearInterval(interval);
+        }
+    }, [autoRefresh, fetchMonitoringData]);
+```
+
+### 3. Renamed Alert Interface
+Renamed `Alert` to `MonitoringAlert` to avoid conflict with UI component.
+
+## Verification
+- Lint passed.
+- Tests passed.

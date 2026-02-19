@@ -304,7 +304,7 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className={`grid grid-cols-1 gap-4 ${viewMode === 'tanggal' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+            <div className={`grid grid-cols-1 gap-4 ${viewMode === 'tanggal' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
             <div className="space-y-2">
               <Label htmlFor="tahun">Tahun Pelajaran</Label>
               <Input
@@ -384,7 +384,11 @@ const RekapKetidakhadiranGuruView: React.FC<RekapKetidakhadiranGuruViewProps> = 
       )}
 
       {/* Rekap Table */}
-      {selectedTahun && (viewMode === 'tahunan' || (viewMode === 'bulanan' && selectedBulan) || (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir)) && (
+      {selectedTahun && (
+        (viewMode === 'tahunan') ||
+        (viewMode === 'bulanan' && selectedBulan) ||
+        (viewMode === 'tanggal' && selectedTanggalAwal && selectedTanggalAkhir)
+      ) && (
         <Card>
           <CardHeader>
             <CardTitle>

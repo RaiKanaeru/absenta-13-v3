@@ -393,7 +393,7 @@ const PresensiSiswaView: React.FC<{ onBack: () => void; onLogout: () => void }> 
             <div className="overflow-x-auto">
               {/* School Header */}
               <div className="text-center mb-6 p-4 bg-card border-2 border-border">
-                {letterhead?.enabled && letterhead?.lines?.length > 0 ? (
+                {letterhead?.enabled && letterhead.lines?.length > 0 ? (
                   <>
                     {/* Logo kiri dan kanan jika tersedia */}
                     {(letterhead.logoLeftUrl || letterhead.logoRightUrl) && (

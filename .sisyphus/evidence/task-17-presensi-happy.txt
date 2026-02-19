@@ -1,0 +1,40 @@
+Task 17: Resolve PresensiSiswaView Sonar findings pack
+
+1. Replace parentNode.removeChild(childNode) with childNode.remove()
+   - Verified: The code at line 197 (approx) was already using `a.remove()`.
+   - No changes needed.
+
+2. Simplify optional chaining
+   - Applied fix at line 396 (approx):
+     Old: {letterhead?.enabled && letterhead?.lines?.length > 0 ? (
+     New: {letterhead?.enabled && letterhead.lines?.length > 0 ? (
+   - This simplifies the check as `letterhead` is already confirmed to be truthy by the first part of the AND condition.
+
+3. Replace index-key usage with stable keys
+   - Verified:
+     - Line 422: key={`${line.text}-${line.fontWeight || 'normal'}`} (Stable)
+     - Line 529: key={`${item.day}-${item.keterangan}`} (Stable)
+     - Line 486: key={day} (Stable for day of month)
+     - Line 309: key={kelas.id} (Stable)
+   - No index keys found in critical lists.
+
+4. Extract nested ternaries
+   - Verified: No nested ternaries found at lines 499-502 or nearby.
+   - `getStatusBadgeClass` uses if/else statements, which is clean.
+
+Verification:
+- npm run lint: PASSED
+- npm run test:client: PASSED
+
+Diff:
+--- a/src/components/PresensiSiswaView.tsx
++++ b/src/components/PresensiSiswaView.tsx
+@@ -393,7 +393,7 @@
+             <div className="overflow-x-auto">
+               {/* School Header */}
+               <div className="text-center mb-6 p-4 bg-card border-2 border-border">
+-                {letterhead?.enabled && letterhead?.lines?.length > 0 ? (
++                {letterhead?.enabled && letterhead.lines?.length > 0 ? (
+                   <>
+                     {/* Logo kiri dan kanan jika tersedia */}
+                     {(letterhead.logoLeftUrl || letterhead.logoRightUrl) && (

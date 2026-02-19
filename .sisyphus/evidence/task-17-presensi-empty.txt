@@ -1,0 +1,49 @@
+Task 17: PresensiSiswaView Empty State Handling
+
+The component correctly handles various empty states:
+
+1. No Filter Selected:
+   - Condition: !loading && (!selectedKelas || !selectedBulan || !selectedTahun)
+   - Renders: "Pilih Filter" message with Calendar icon.
+
+2. No Students Found:
+   - Condition: !loading && selectedKelas && selectedBulan && selectedTahun && students.length === 0
+   - Renders: "Tidak ada siswa" message with Users icon.
+
+3. No Presensi Data Found:
+   - Condition: !loading && selectedKelas && selectedBulan && selectedTahun && students.length > 0 && presensiData.length === 0
+   - Renders: "Tidak ada data presensi" message with Calendar icon.
+
+Code snippet:
+```typescript
+      {/* Empty State */}
+      {!loading && (!selectedKelas || !selectedBulan || !selectedTahun) && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Pilih Filter</h3>
+            <p className="text-muted-foreground text-center">Pilih kelas, bulan, dan tahun untuk melihat presensi siswa</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && selectedKelas && selectedBulan && selectedTahun && students.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Users className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada siswa</h3>
+            <p className="text-muted-foreground text-center">Tidak ada siswa ditemukan untuk kelas yang dipilih</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && selectedKelas && selectedBulan && selectedTahun && students.length > 0 && presensiData.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Calendar className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada data presensi</h3>
+            <p className="text-muted-foreground text-center">Tidak ada data presensi untuk periode yang dipilih. Pastikan ada data absensi siswa untuk kelas dan periode yang dipilih.</p>
+          </CardContent>
+        </Card>
+      )}
+```

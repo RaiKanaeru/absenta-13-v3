@@ -55,7 +55,7 @@ interface SystemHealth {
     timestamp: string;
 }
 
-interface Alert {
+interface MonitoringAlert {
     id: string;
     type: string;
     severity: 'warning' | 'critical' | 'emergency';
@@ -83,7 +83,7 @@ interface AlertStatistics {
 interface MonitoringData {
     metrics: SystemMetrics;
     health: SystemHealth;
-    alerts: Alert[];
+    alerts: MonitoringAlert[];
     alertStats: AlertStatistics;
     loadBalancer: Record<string, unknown> | null;
     queryOptimizer: Record<string, unknown> | null;
@@ -107,10 +107,10 @@ const MonitoringDashboard: React.FC = () => {
         const saved = localStorage.getItem('monitoringAutoRefresh');
         return saved === null ? true : JSON.parse(saved);
     });
-    const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+    const [selectedAlert, setSelectedAlert] = useState<MonitoringAlert | null>(null);
     const { toast } = useToast();
 
-    const fetchMonitoringData = async () => {
+    const fetchMonitoringData = React.useCallback(async () => {
         try {
             const result = await apiCall<{ data: MonitoringData }>('/api/admin/monitoring-dashboard');
             setData(result.data);
@@ -120,7 +120,7 @@ const MonitoringDashboard: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const resolveAlert = async (alertId: string) => {
         try {
@@ -145,7 +145,7 @@ const MonitoringDashboard: React.FC = () => {
             const interval = setInterval(fetchMonitoringData, 5000); // Refresh every 5 seconds
             return () => clearInterval(interval);
         }
-    }, [autoRefresh]);
+    }, [autoRefresh, fetchMonitoringData]);
 
     const formatBytes = (bytes: number) => {
         // Handle invalid or undefined values
@@ -499,7 +499,14 @@ const SystemInfoBar = ({ system, diskPercentage, diskUsed, diskTotal, highUsageD
     );
 };
 
-const OverviewTabContent = ({ metrics, loadBalancer }) => (
+const OverviewTabContent = ({ metrics, loadBalancer }) => {
+    const isCircuitOpen = (loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen;
+    const circuitClass = isCircuitOpen 
+        ? 'bg-destructive/15 text-destructive' 
+        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+    const circuitText = isCircuitOpen ? 'OPEN' : 'CLOSED';
+
+    return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card>
             <CardHeader>
@@ -518,11 +525,12 @@ const OverviewTabContent = ({ metrics, loadBalancer }) => (
             <CardContent className="space-y-4">
                 <div className="flex justify-between"><span>Active Requests:</span><Badge variant="outline">{(loadBalancer?.activeRequests as number) ?? 0}</Badge></div>
                 <div className="flex justify-between"><span>Queue Size:</span><Badge variant="outline">{(loadBalancer?.totalQueueSize as number) ?? 0}</Badge></div>
-                <div className="flex justify-between"><span>Circuit Breaker:</span><Badge variant="outline" className={(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'bg-destructive/15 text-destructive' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'}>{(loadBalancer?.circuitBreaker as { isOpen?: boolean })?.isOpen ? 'OPEN' : 'CLOSED'}</Badge></div>
+                <div className="flex justify-between"><span>Circuit Breaker:</span><Badge variant="outline" className={circuitClass}>{circuitText}</Badge></div>
             </CardContent>
         </Card>
     </div>
-);
+    );
+};
 
 const AlertsTabContent = ({ alertStats, alerts, getSeverityColor, onViewDetails, onResolve }) => (
     <>
