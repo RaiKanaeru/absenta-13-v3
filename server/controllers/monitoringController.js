@@ -746,6 +746,63 @@ export const getSystemPerformance = async (req, res) => {
 };
 
 /**
+ * Helper: gather disk metrics based on platform
+ */
+function getDiskMetrics() {
+    try {
+        const platform = os.platform();
+        if (platform === 'win32') {
+            return {
+                used: 0,
+                total: 100 * 1024 * 1024 * 1024,
+                percentage: 0,
+                note: 'Disk metrics not available on Windows in Node.js'
+            };
+        }
+        if (globalThis.systemMonitor) {
+            const monitorMetrics = globalThis.systemMonitor.getMetrics();
+            if (monitorMetrics?.system?.disk) {
+                return monitorMetrics.system.disk;
+            }
+        }
+    } catch {
+        // Fallback to defaults
+    }
+    return { used: 0, total: 0, percentage: 0 };
+}
+
+/**
+ * Helper: gather database connection pool stats
+ */
+function getDbConnectionStats() {
+    const extractPoolStats = (pool) => ({
+        active: pool._allConnections?.length || 0,
+        idle: pool._freeConnections?.length || 0,
+        total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
+    });
+
+    if (globalThis.dbOptimization?.pool) {
+        return extractPoolStats(globalThis.dbOptimization.pool);
+    }
+    if (db?.pool) {
+        return extractPoolStats(db.pool);
+    }
+    return { active: 0, idle: 0, total: 0 };
+}
+
+/**
+ * Helper: gather system monitor data (metrics, alerts, health)
+ */
+function getSystemMonitorData() {
+    const monitor = globalThis.systemMonitor;
+    return {
+        systemMonitorMetrics: monitor ? monitor.getMetrics() : null,
+        alerts: monitor ? monitor.getAlerts() : [],
+        healthStatus: monitor ? monitor.getHealthStatus() : { status: 'unknown', issues: [] }
+    };
+}
+
+/**
  * Get monitoring dashboard
  * GET /api/admin/monitoring-dashboard
  */
@@ -768,7 +825,7 @@ export const getMonitoringDashboard = async (req, res) => {
             rss: memUsage.rss
         };
         
-        // CPU usage
+        // CPU usage with load-average fallback
         const cpuUsageData = process.cpuUsage();
         const cpus = os.cpus();
         const loadAverage = os.loadavg();
@@ -777,64 +834,15 @@ export const getMonitoringDashboard = async (req, res) => {
         globalThis.lastCpuUsage = cpuUsageData;
         globalThis.lastCpuTime = Date.now();
         
-        // Fallback to load average for CPU usage (relevant for Unix systems)
         if (cpuUsage === 0 && loadAverage[0] > 0) {
-            // Scale by number of cores for percentage
             cpuUsage = Math.min(Math.max((loadAverage[0] / cpus.length) * 100, 0), 100);
         }
 
-        // Disk metrics - try to get actual usage
-        let diskMetrics = { used: 0, total: 0, percentage: 0 };
-        try {
-            // For Windows, use a rough estimate based on current drive
-            const platform = os.platform();
-            if (platform === 'win32') {
-                // Approximate disk usage - server's process memory as reference
-                diskMetrics = {
-                    used: 0,
-                    total: 100 * 1024 * 1024 * 1024, // Assume 100GB default
-                    percentage: 0,
-                    note: 'Disk metrics not available on Windows in Node.js'
-                };
-            } else if (globalThis.systemMonitor) {
-                // Unix-like systems - get from systemMonitor if available
-                const monitorMetrics = globalThis.systemMonitor.getMetrics();
-                if (monitorMetrics?.system?.disk) {
-                    diskMetrics = monitorMetrics.system.disk;
-                }
-            }
-        } catch {
-            // Fallback to defaults
-        }
-
-        // Get load balancer stats
+        // Gather data via helpers
+        const diskMetrics = getDiskMetrics();
         const loadBalancerStats = getLoadBalancerSafeStats();
-
-        // Get database connection stats
-        let dbConnectionStats = { active: 0, idle: 0, total: 0 };
-        if (globalThis.dbOptimization && globalThis.dbOptimization.pool) {
-            const pool = globalThis.dbOptimization.pool;
-            dbConnectionStats = {
-                active: pool._allConnections?.length || 0,
-                idle: pool._freeConnections?.length || 0,
-                total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
-            };
-        } else if (db) {
-            // Alternative: use main dbPool
-            const pool = db.pool;
-            if (pool) {
-                dbConnectionStats = {
-                    active: pool._allConnections?.length || 0,
-                    idle: pool._freeConnections?.length || 0,
-                    total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
-                };
-            }
-        }
-
-        // Get system monitor data
-        const systemMonitorMetrics = globalThis.systemMonitor ? globalThis.systemMonitor.getMetrics() : null;
-        const alerts = globalThis.systemMonitor ? globalThis.systemMonitor.getAlerts() : [];
-        const healthStatus = globalThis.systemMonitor ? globalThis.systemMonitor.getHealthStatus() : { status: 'unknown', issues: [] };
+        const dbConnectionStats = getDbConnectionStats();
+        const { systemMonitorMetrics, alerts, healthStatus } = getSystemMonitorData();
 
         // Structure response to match frontend expectations
         const responseData = buildDashboardResponse(
