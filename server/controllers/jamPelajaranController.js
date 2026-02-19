@@ -44,23 +44,6 @@ const DEFAULT_JAM_PELAJARAN = [
 /** SQL query to get class name by ID (S1192 duplicate literal fix) */
 const SQL_GET_KELAS_NAME = 'SELECT nama_kelas FROM kelas WHERE id_kelas = ?';
 
-async function executeJamPelajaranUpsert(jam) {
-    const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'];
-
-    // We execute insert for each day to ensure schedule exists for lookup
-    for (const hari of daysToInsert) {
-        await db.execute(`
-            INSERT INTO jam_pelajaran (hari, jam_ke, jam_mulai, jam_selesai, label)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                jam_mulai = VALUES(jam_mulai),
-                jam_selesai = VALUES(jam_selesai),
-                label = VALUES(label),
-                updated_at = CURRENT_TIMESTAMP
-        `, [hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
-    }
-}
-
 /**
  * Validate time format (HH:MM or HH:MM:SS)
  */
@@ -323,9 +306,7 @@ export const upsertJamPelajaran = async (req, res) => {
         try {
             let upsertedCount = 0;
             for (const jam of jam_pelajaran) {
-                const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'];
-                
-                for (const hari of daysToInsert) {
+                for (const hari of (jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'])) {
                     await connection.execute(`
                         INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
                         VALUES (?, ?, ?, ?, ?, ?)
@@ -423,8 +404,7 @@ async function copyScheduleToClass(connection, targetId, sourceJam, log) {
     }
     
     for (const jam of sourceJam) {
-        const daysToInsert = jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'];
-        for (const hari of daysToInsert) {
+        for (const hari of (jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'])) {
             await connection.execute(`
                 INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
                 VALUES (?, ?, ?, ?, ?, ?)

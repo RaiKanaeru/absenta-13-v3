@@ -476,7 +476,8 @@ async function buildSiswaUserUpdateFields(data, saltRounds) {
     const values = [];
     let normalizedIsPerwakilan;
     if (data.is_perwakilan !== undefined) {
-        normalizedIsPerwakilan = data.is_perwakilan ? 1 : 0;
+        const isPerwakilan = Boolean(data.is_perwakilan);
+        normalizedIsPerwakilan = isPerwakilan ? 1 : 0;
     }
     const fieldMap = {
         nama: data.nama,
@@ -538,7 +539,7 @@ async function applySiswaUpdates(connection, siswa, payload) {
 export const updateSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { nis: paramNis } = req.params;
-    const { nis, nama, username } = req.body;
+    const { nama, username } = req.body;
 
     log.requestStart('Update', { nis: paramNis, nama, username });
 
