@@ -84,58 +84,144 @@ const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 // Ensure 2 digits
 const pad = (n) => String(n).padStart(2, '0');
 
-// ============================================================================
-// MAIN
-// ============================================================================
+const formatTime = (hours, minutes) => `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-async function seed() {
-    console.log('[START] STARTING DUMMY SEEDER (FULL)...');
-    
-    const connection = await mysql.createConnection({
-        host: process.env.DB_HOST === 'mysql' ? '127.0.0.1' : (process.env.DB_HOST || 'localhost'),
-        user: process.env.DB_HOST === 'mysql' ? 'root' : (process.env.DB_USER || 'root'),
-        password: process.env.DB_HOST === 'mysql' ? '' : (process.env.DB_PASSWORD || ''),
-        database: process.env.DB_NAME || 'absenta13',
-    });
+async function cleanupTables(connection) {
+    console.log('\n[CLEAN] Cleaning up old data...');
+    await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.execute('TRUNCATE TABLE jadwal');
+    await connection.execute('TRUNCATE TABLE ruang_kelas');
+    await connection.execute('TRUNCATE TABLE mapel');
+    await connection.execute('TRUNCATE TABLE kelas');
+    await connection.execute("DELETE g FROM guru g JOIN users u ON g.user_id = u.id WHERE u.username LIKE 'guru%'");
+    await connection.execute("DELETE FROM users WHERE username LIKE 'guru%' AND role='guru'");
+    await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+    console.log('[OK] Cleanup done.');
+}
 
-    try {
-        // ---------------------------------------------------------
-        // 1. CLEANUP (Truncate tables to start fresh)
-        // ---------------------------------------------------------
-        console.log('\n[CLEAN] Cleaning up old data...');
-        // Order matters due to Foreign Keys
-        await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
-        await connection.execute('TRUNCATE TABLE jadwal');
-        await connection.execute('TRUNCATE TABLE ruang_kelas');
-        await connection.execute('TRUNCATE TABLE mapel');
-        await connection.execute('TRUNCATE TABLE kelas'); 
-        // We iterate and delete dummy teachers only? Or truncate? 
-        // Let's truncate guru and users related to guru for clean state.
-        // BE CAREFUL with Admin account!
-        await connection.execute("DELETE g FROM guru g JOIN users u ON g.user_id = u.id WHERE u.username LIKE 'guru%'"); 
-        await connection.execute("DELETE FROM users WHERE username LIKE 'guru%' AND role='guru'");
-        await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
-        console.log('[OK] Cleanup done.');
+async function seedRooms(connection, roomData) {
+    console.log('\n[SCHOOL] Seeding Rooms...');
+    const roomIds = [];
+    for (const r of roomData) {
+        const [res] = await connection.execute(
+            'INSERT INTO ruang_kelas (kode_ruang, nama_ruang, lokasi, status) VALUES (?, ?, ?, ?)',
+            [r.kode, r.nama, r.lokasi, 'aktif']
+        );
+        roomIds.push(res.insertId);
+    }
+    console.log(`[OK] Inserted ${roomIds.length} rooms.`);
+    return roomIds;
+}
 
-        // ---------------------------------------------------------
-        // 2. SEED ROOMS
-        // ---------------------------------------------------------
-        console.log('\n[SCHOOL] Seeding Rooms...');
-        const roomIds = [];
-        for (const r of ROOMS) {
-            const [res] = await connection.execute(
-                'INSERT INTO ruang_kelas (kode_ruang, nama_ruang, lokasi, status) VALUES (?, ?, ?, ?)',
-                [r.kode, r.nama, r.lokasi, 'aktif']
-            );
-            roomIds.push(res.insertId);
+function getScheduleConfig() {
+    return {
+        Senin: {
+            startTime: { hours: 6, minutes: 30 },
+            slots: [
+                { jam_ke: 0, durasi: 30, jenis: 'pembiasaan', label: 'Upacara/Apel' },
+                { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
+                { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
+                { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
+            ]
+        },
+        Selasa: {
+            startTime: { hours: 6, minutes: 30 },
+            slots: [
+                { jam_ke: 0, durasi: 15, jenis: 'pembiasaan', label: 'Tadarus/Doa' },
+                { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
+                { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
+                { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
+            ]
+        },
+        Rabu: {
+            startTime: { hours: 6, minutes: 30 },
+            slots: [
+                { jam_ke: 0, durasi: 15, jenis: 'pembiasaan', label: 'Tadarus/Doa' },
+                { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
+                { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
+                { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
+            ]
+        },
+        Kamis: {
+            startTime: { hours: 6, minutes: 30 },
+            slots: [
+                { jam_ke: 0, durasi: 15, jenis: 'pembiasaan', label: 'Tadarus/Doa' },
+                { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
+                { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
+                { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
+            ]
+        },
+        Jumat: {
+            startTime: { hours: 6, minutes: 30 },
+            slots: [
+                { jam_ke: 0, durasi: 30, jenis: 'pembiasaan', label: 'Jumat Barokah' },
+                { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: -1, durasi: 60, jenis: 'istirahat', label: 'Sholat Jumat' },
+                { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
+                { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
+            ]
         }
-        console.log(`[OK] Inserted ${roomIds.length} rooms.`);
+    };
+}
 
-        // ---------------------------------------------------------
-        // 2.5 ENSURE JAM PELAJARAN
-        // ---------------------------------------------------------
-        console.log('\n[TIME] Ensuring Jam Pelajaran...');
-        await connection.execute(`
+function buildJamPelajaranInserts(scheduleConfig) {
+    const jamInserts = [];
+    for (const [hari, config] of Object.entries(scheduleConfig)) {
+        let currentMinutes = config.startTime.hours * 60 + config.startTime.minutes;
+        for (const slot of config.slots) {
+            const jamMulai = formatTime(Math.floor(currentMinutes / 60), currentMinutes % 60);
+            currentMinutes += slot.durasi;
+            const jamSelesai = formatTime(Math.floor(currentMinutes / 60), currentMinutes % 60);
+            if (slot.jam_ke >= 0) {
+                jamInserts.push([hari, slot.jam_ke, jamMulai, jamSelesai, slot.durasi, slot.jenis, slot.label || null, TAHUN_AJARAN]);
+            }
+        }
+    }
+    return jamInserts;
+}
+
+async function ensureJamPelajaran(connection) {
+    console.log('\n[TIME] Ensuring Jam Pelajaran...');
+    await connection.execute(`
             CREATE TABLE IF NOT EXISTS jam_pelajaran (
               id int PRIMARY KEY AUTO_INCREMENT,
               hari enum('Senin','Selasa','Rabu','Kamis','Jumat','Sabtu') NOT NULL,
@@ -152,340 +238,247 @@ async function seed() {
               UNIQUE KEY unique_hari_jam_tahun (hari, jam_ke, tahun_ajaran)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
         `);
+    await connection.execute('DELETE FROM jam_pelajaran WHERE tahun_ajaran = ?', [TAHUN_AJARAN]);
 
-        // Check if empty or just always ensuring it's populated for this run
-        // Let's truncate/delete for this cohort to be safe
-        await connection.execute('DELETE FROM jam_pelajaran WHERE tahun_ajaran = ?', [TAHUN_AJARAN]);
+    const scheduleConfig = getScheduleConfig();
+    const jamInserts = buildJamPelajaranInserts(scheduleConfig);
 
-        const formatTime = (hours, minutes) => `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-
-        const scheduleConfig = {
-            Senin: {
-                startTime: { hours: 6, minutes: 30 },
-                slots: [
-                    { jam_ke: 0, durasi: 30, jenis: 'pembiasaan', label: 'Upacara/Apel' },
-                    { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
-                    { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
-                    { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
-                ]
-            },
-            Selasa: {
-                startTime: { hours: 6, minutes: 30 },
-                slots: [
-                    { jam_ke: 0, durasi: 15, jenis: 'pembiasaan', label: 'Tadarus/Doa' },
-                    { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
-                    { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
-                    { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
-                ]
-            },
-            Rabu: {
-                startTime: { hours: 6, minutes: 30 },
-                slots: [
-                    { jam_ke: 0, durasi: 15, jenis: 'pembiasaan', label: 'Tadarus/Doa' },
-                    { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
-                    { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
-                    { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
-                ]
-            },
-             Kamis: {
-                startTime: { hours: 6, minutes: 30 },
-                slots: [
-                    { jam_ke: 0, durasi: 15, jenis: 'pembiasaan', label: 'Tadarus/Doa' },
-                    { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -1, durasi: 15, jenis: 'istirahat', label: 'Istirahat 1' },
-                    { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 7, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -2, durasi: 30, jenis: 'istirahat', label: 'Istirahat 2' },
-                    { jam_ke: 8, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 9, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 10, durasi: 45, jenis: 'pelajaran' },
-                ]
-            },
-            Jumat: {
-                startTime: { hours: 6, minutes: 30 },
-                slots: [
-                    { jam_ke: 0, durasi: 30, jenis: 'pembiasaan', label: 'Jumat Barokah' },
-                    { jam_ke: 1, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 2, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 3, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: -1, durasi: 60, jenis: 'istirahat', label: 'Sholat Jumat' },
-                    { jam_ke: 4, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 5, durasi: 45, jenis: 'pelajaran' },
-                    { jam_ke: 6, durasi: 45, jenis: 'pelajaran' },
-                ]
-            }
-        };
-
-        const jamInserts = [];
-        for (const [hari, config] of Object.entries(scheduleConfig)) {
-            let currentMinutes = config.startTime.hours * 60 + config.startTime.minutes;
-            for (const slot of config.slots) {
-                const jamMulai = formatTime(Math.floor(currentMinutes / 60), currentMinutes % 60);
-                currentMinutes += slot.durasi;
-                const jamSelesai = formatTime(Math.floor(currentMinutes / 60), currentMinutes % 60);
-                if (slot.jam_ke >= 0) { // Keep only non-negative for lookup? Or all?
-                    // Original logic: if (slot.jam_ke >= 0) inserts.push(...)
-                    // Actually, we usually want breaks in DB if detailed view uses them, but standard logic filtered them.
-                    // Let's stick to original logic: >= 0 only for "jam_pelajaran" usually used for scheduling.
-                    jamInserts.push([hari, slot.jam_ke, jamMulai, jamSelesai, slot.durasi, slot.jenis, slot.label || null, TAHUN_AJARAN]);
-                }
-            }
-        }
-
-        if (jamInserts.length > 0) {
-            await connection.query(
-                `INSERT INTO jam_pelajaran (hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label, tahun_ajaran) VALUES ?`,
-                [jamInserts]
-            );
-            console.log(`   [OK] Inserted ${jamInserts.length} jam_pelajaran slots.`);
-        }
-
-        // ---------------------------------------------------------
-        // 3. SEED MAPEL
-        // ---------------------------------------------------------
-        console.log('\n[BOOKS] Seeding Mapel...');
-        const mapelIds = []; // Array of {id, kode}
-        for (const m of MAPEL_LIST) {
-            const [res] = await connection.execute(
-                'INSERT INTO mapel (kode_mapel, nama_mapel, status) VALUES (?, ?, ?)',
-                [m.kode, m.nama, 'aktif']
-            );
-            mapelIds.push({ id: res.insertId, kode: m.kode });
-        }
-        console.log(`[OK] Inserted ${mapelIds.length} subjects.`);
-
-        // ---------------------------------------------------------
-        // 4. SEED KELAS
-        // ---------------------------------------------------------
-        console.log('\n[STUDENTS] Seeding Classes...');
-        const kelasIds = [];
-        for (const k of KELAS_LIST) {
-            const [res] = await connection.execute(
-                'INSERT INTO kelas (nama_kelas, tingkat, status) VALUES (?, ?, ?)',
-                [k.nama, k.tingkat, 'aktif']
-            );
-            kelasIds.push(res.insertId);
-        }
-        console.log(`[OK] Inserted ${kelasIds.length} classes.`);
-
-        // ---------------------------------------------------------
-        // 5. SEED GURU (and Users)
-        // ---------------------------------------------------------
-        console.log('\n[TEACHERS] Seeding Teachers...');
-        const guruIds = []; // Array of {id, mapel_id} so we know what they teach
-        const defaultPass = await bcrypt.hash('123456', 10);
-
-        for (let i = 0; i < GURU_NAMES.length; i++) {
-            const name = GURU_NAMES[i];
-            const username = `guru${i+1}`;
-            const nip = `198001012025011${pad(i+1)}`;
-            const assignedMapel = assignMapelToGuru(i);
-            const mapelObj = mapelIds.find(m => m.kode === assignedMapel.kode);
-
-            // 1. Create User
-            const [userRes] = await connection.execute(
-                'INSERT INTO users (username, password, role, nama, status) VALUES (?, ?, ?, ?, ?)',
-                [username, defaultPass, 'guru', name, 'aktif']
-            );
-            const userId = userRes.insertId;
-
-            // 2. Create Guru
-            // Note: id_guru in schema seems to be custom int, let's just make it auto-inc or same as ID
-            // Checking schema: id_guru is INT NOT NULL. It's not auto-inc in some schemas, but usually is.
-            // Let's assume `id` is primary key auto inc, `id_guru` is data field.
-            // Based on prev `absenta13.sql`, `id` is PK, `id_guru` is separate. Let's make `id_guru` = `id`.
-            
-            await connection.execute(
-                'INSERT INTO guru (id_guru, user_id, nip, nama, mapel_id, status, jenis_kelamin) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [userId + 1000, userId, nip, name, mapelObj.id, 'aktif', i % 2 === 0 ? 'L' : 'P']
-            );
-            
-            // We need the ACTUAL guru ID (usually just `id` field from insert, but let's check schema again)
-            // The `guru` table in SQL dump has `id` (PK) and `id_guru` (manual?).
-            // Let's use `guruRes.insertId` as the PK reference for `jadwal`.
-            // Wait, `jadwal.guru_id` usually refers to `guru.id_guru` or `guru.id`?
-            // Convention: Check if FK references manual ID or Auto ID. 
-            // Previous error hint suggested FK checks id_guru? Or we just try standardizing.
-            // Let's use the Manual ID if that's what we inserted as 'id_guru'.
-            guruIds.push({ 
-                id: userId + 1000, 
-                mapel_id: mapelObj.id,
-                name 
-            });
-        }
-        console.log(`[OK] Inserted ${guruIds.length} teachers.`);
-
-        // ---------------------------------------------------------
-        // 6. GENERATE SCHEDULE
-        // ---------------------------------------------------------
-        console.log('\n[SCHEDULE] Generating Conflict-Free Schedule...');
-        
-        // Fetch valid slots from DB
-        const [slots] = await connection.execute(
-            'SELECT * FROM jam_pelajaran WHERE tahun_ajaran = ? ORDER BY jam_ke ASC',
-            [TAHUN_AJARAN]
+    if (jamInserts.length > 0) {
+        await connection.query(
+            'INSERT INTO jam_pelajaran (hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label, tahun_ajaran) VALUES ?',
+            [jamInserts]
         );
-        
-        // Group slots by day
-        const slotsByDay = {};
-        for (const slot of slots) {
-            if (!slotsByDay[slot.hari]) slotsByDay[slot.hari] = [];
-            slotsByDay[slot.hari].push(slot);
+        console.log(`   [OK] Inserted ${jamInserts.length} jam_pelajaran slots.`);
+    }
+}
+
+async function seedMapel(connection, mapelData) {
+    console.log('\n[BOOKS] Seeding Mapel...');
+    const mapelIds = [];
+    for (const m of mapelData) {
+        const [res] = await connection.execute(
+            'INSERT INTO mapel (kode_mapel, nama_mapel, status) VALUES (?, ?, ?)',
+            [m.kode, m.nama, 'aktif']
+        );
+        mapelIds.push({ id: res.insertId, kode: m.kode });
+    }
+    console.log(`[OK] Inserted ${mapelIds.length} subjects.`);
+    return mapelIds;
+}
+
+async function seedKelas(connection, kelasData) {
+    console.log('\n[STUDENTS] Seeding Classes...');
+    const kelasIds = [];
+    for (const k of kelasData) {
+        const [res] = await connection.execute(
+            'INSERT INTO kelas (nama_kelas, tingkat, status) VALUES (?, ?, ?)',
+            [k.nama, k.tingkat, 'aktif']
+        );
+        kelasIds.push(res.insertId);
+    }
+    console.log(`[OK] Inserted ${kelasIds.length} classes.`);
+    return kelasIds;
+}
+
+function getMapelByKode(mapelIds, kode) {
+    return mapelIds.find((m) => m.kode === kode);
+}
+
+async function seedGuruAndUsers(connection, guruNames, mapelIds) {
+    console.log('\n[TEACHERS] Seeding Teachers...');
+    const guruIds = [];
+    const defaultPass = await bcrypt.hash('123456', 10);
+
+    for (let i = 0; i < guruNames.length; i += 1) {
+        const name = guruNames[i];
+        const username = `guru${i + 1}`;
+        const nip = `198001012025011${pad(i + 1)}`;
+        const assignedMapel = assignMapelToGuru(i);
+        const mapelObj = getMapelByKode(mapelIds, assignedMapel.kode);
+
+        const [userRes] = await connection.execute(
+            'INSERT INTO users (username, password, role, nama, status) VALUES (?, ?, ?, ?, ?)',
+            [username, defaultPass, 'guru', name, 'aktif']
+        );
+        const userId = userRes.insertId;
+
+        await connection.execute(
+            'INSERT INTO guru (id_guru, user_id, nip, nama, mapel_id, status, jenis_kelamin) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [userId + 1000, userId, nip, name, mapelObj.id, 'aktif', i % 2 === 0 ? 'L' : 'P']
+        );
+
+        guruIds.push({
+            id: userId + 1000,
+            mapel_id: mapelObj.id,
+            name
+        });
+    }
+
+    console.log(`[OK] Inserted ${guruIds.length} teachers.`);
+    return guruIds;
+}
+
+function groupSlotsByDay(slots) {
+    const slotsByDay = {};
+    for (const slot of slots) {
+        if (!slotsByDay[slot.hari]) {
+            slotsByDay[slot.hari] = [];
         }
+        slotsByDay[slot.hari].push(slot);
+    }
+    return slotsByDay;
+}
 
-        /*
-         * ALGORITHM:
-         * We need to fill `jadwal` table.
-         * Structure: map<Day, map<Slot, set<GuruID>>> to track availability
-         */
-        
-        // Track allocations to prevent conflicts
-        // busyTeachers[hari][jam_ke] = Set(guruId)
-        // busyRooms[hari][jam_ke] = Set(roomId)
-        const busyTeachers = {}; 
-        const busyRooms = {};
+async function loadSlotsByDay(connection) {
+    const [slots] = await connection.execute(
+        'SELECT * FROM jam_pelajaran WHERE tahun_ajaran = ? ORDER BY jam_ke ASC',
+        [TAHUN_AJARAN]
+    );
+    return groupSlotsByDay(slots);
+}
 
-        const isTeacherBusy = (hari, jam, guruId) => {
-            if (!busyTeachers[hari]) return false;
-            if (!busyTeachers[hari][jam]) return false;
-            return busyTeachers[hari][jam].has(guruId);
-        };
+function isTeacherBusy(busyTeachers, hari, jam, guruId) {
+    if (!busyTeachers[hari]) return false;
+    if (!busyTeachers[hari][jam]) return false;
+    return busyTeachers[hari][jam].has(guruId);
+}
 
-        const markTeacherBusy = (hari, jam, guruId) => {
-            if (!busyTeachers[hari]) busyTeachers[hari] = {};
-            if (!busyTeachers[hari][jam]) busyTeachers[hari][jam] = new Set();
-            busyTeachers[hari][jam].add(guruId);
-        };
+function markTeacherBusy(busyTeachers, hari, jam, guruId) {
+    if (!busyTeachers[hari]) busyTeachers[hari] = {};
+    if (!busyTeachers[hari][jam]) busyTeachers[hari][jam] = new Set();
+    busyTeachers[hari][jam].add(guruId);
+}
 
-        const isRoomBusy = (hari, jam, roomId) => {
-            if (!busyRooms[hari]) return false;
-            if (!busyRooms[hari][jam]) return false;
-            return busyRooms[hari][jam].has(roomId);
-        };
+function isRoomBusy(busyRooms, hari, jam, roomId) {
+    if (!busyRooms[hari]) return false;
+    if (!busyRooms[hari][jam]) return false;
+    return busyRooms[hari][jam].has(roomId);
+}
 
-        const markRoomBusy = (hari, jam, roomId) => {
-            if (!busyRooms[hari]) busyRooms[hari] = {};
-            if (!busyRooms[hari][jam]) busyRooms[hari][jam] = new Set();
-            busyRooms[hari][jam].add(roomId);
-        };
+function markRoomBusy(busyRooms, hari, jam, roomId) {
+    if (!busyRooms[hari]) busyRooms[hari] = {};
+    if (!busyRooms[hari][jam]) busyRooms[hari][jam] = new Set();
+    busyRooms[hari][jam].add(roomId);
+}
 
-        let jadwalCount = 0;
+function selectTeacherForSlot(eligibleTeachers, busyTeachers, hari, jam, allTeachers) {
+    for (const teacher of eligibleTeachers) {
+        if (!isTeacherBusy(busyTeachers, hari, jam, teacher.id)) {
+            return teacher;
+        }
+    }
+    return allTeachers.find((teacher) => !isTeacherBusy(busyTeachers, hari, jam, teacher.id)) || null;
+}
 
-        // Iterate Classes
-        for (const kelasId of kelasIds) {
-            console.log(`   Processing Class ID ${kelasId}...`);
+function selectRoomForClass(kelasId, roomIds, busyRooms, hari, jam) {
+    let selectedRoomId = roomIds[kelasId % roomIds.length];
+    if (!isRoomBusy(busyRooms, hari, jam, selectedRoomId)) {
+        return selectedRoomId;
+    }
+    selectedRoomId = roomIds.find((roomId) => !isRoomBusy(busyRooms, hari, jam, roomId));
+    return selectedRoomId || null;
+}
 
-            // Iterate Days
-            for (const day of Object.keys(slotsByDay)) {
-                
-                // Iterate Slots
-                for (const slot of slotsByDay[day]) {
-                    // Skip non-lesson slots (Istirahat, Upacara - usually jam 0 or negative)
-                    if (slot.jenis !== 'pelajaran') continue;
+function pickMapelForSlot(mapelIds) {
+    const forcedMapelIndex = Math.floor(Math.random() * mapelIds.length);
+    return mapelIds[forcedMapelIndex];
+}
 
-                    // 1. Pick a random subject
-                    // Improved: Cycle through subjects to distribute evenly
-                    // For now, random is fine for dummy data
-                    const forcedMapelIndex = Math.floor(Math.random() * mapelIds.length);
-                    const mapel = mapelIds[forcedMapelIndex];
+async function insertScheduleRow(connection, kelasId, mapel, selectedGuru, selectedRoomId, day, slot) {
+    await connection.execute(`
+        INSERT INTO jadwal 
+        (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+        kelasId,
+        mapel.id,
+        selectedGuru.id,
+        selectedRoomId,
+        day,
+        slot.jam_ke,
+        slot.jam_mulai,
+        slot.jam_selesai,
+        'aktif'
+    ]);
+}
 
-                    // 2. Find a teacher who teaches this mapel AND is free
-                    const eligibleTeachers = guruIds.filter(g => g.mapel_id === mapel.id);
-                    let selectedGuru = null;
+async function allocateScheduleSlot(connection, kelasId, day, slot, mapelIds, guruIds, roomIds, busyTeachers, busyRooms) {
+    if (slot.jenis !== 'pelajaran') {
+        return false;
+    }
 
-                    for (const g of eligibleTeachers) {
-                        if (!isTeacherBusy(day, slot.jam_ke, g.id)) {
-                            selectedGuru = g;
-                            break;
-                        }
-                    }
+    const mapel = pickMapelForSlot(mapelIds);
+    const eligibleTeachers = guruIds.filter((g) => g.mapel_id === mapel.id);
+    const selectedGuru = selectTeacherForSlot(eligibleTeachers, busyTeachers, day, slot.jam_ke, guruIds);
+    if (!selectedGuru) {
+        return false;
+    }
 
-                    // If all eligible teachers are busy, pick ANY free teacher (substitute) 
-                    // or generate a "TUGAS MANDIRI" (guru_id=0 if exists, or skip)
-                    if (!selectedGuru) {
-                        // Try any free teacher
-                        const anyFree = guruIds.find(g => !isTeacherBusy(day, slot.jam_ke, g.id));
-                        if (anyFree) {
-                            selectedGuru = anyFree; // They teach a sub subject today
-                            // Update mapel to match teacher? Nah, let's assume valid substitution
-                        } else {
-                            // Everyone busy? Skip this slot (Free Class)
-                            continue;
-                        }
-                    }
+    const selectedRoomId = selectRoomForClass(kelasId, roomIds, busyRooms, day, slot.jam_ke);
+    if (!selectedRoomId) {
+        return false;
+    }
 
-                    // 3. Pick a free Room
-                    // In reality, class stays in same room, but moving class is possible.
-                    // Let's assign a "Home Room" for each class ideally.
-                    // For simplicity: Class ID X uses Room ID Y (modulo) -> if busy, pick another
-                    let selectedRoomId = roomIds[(kelasId) % roomIds.length];
-                    
-                    // Note: If our logic says "Class stays in R-X", then R-X is always busy by this class.
-                    // But if we want to test "Room Conflicts", we might accidentally double book if we are not careful.
-                    // Since we iterate by Class, this class is the ONLY one using this room allocation right now.
-                    // BUT other classes might have claimed it.
-                    if (isRoomBusy(day, slot.jam_ke, selectedRoomId)) {
-                        // Find another free room
-                        const freeRoomId = roomIds.find(r => !isRoomBusy(day, slot.jam_ke, r));
-                        if (freeRoomId) selectedRoomId = freeRoomId;
-                        else continue; // No rooms left!
-                    }
+    await insertScheduleRow(connection, kelasId, mapel, selectedGuru, selectedRoomId, day, slot);
+    markTeacherBusy(busyTeachers, day, slot.jam_ke, selectedGuru.id);
+    markRoomBusy(busyRooms, day, slot.jam_ke, selectedRoomId);
+    return true;
+}
 
-                    // 4. Insert
-                    await connection.execute(`
-                        INSERT INTO jadwal 
-                        (kelas_id, mapel_id, guru_id, ruang_id, hari, jam_ke, jam_mulai, jam_selesai, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `, [
-                        kelasId, 
-                        mapel.id, 
-                        selectedGuru.id, 
-                        selectedRoomId, 
-                        day, 
-                        slot.jam_ke, 
-                        slot.jam_mulai, 
-                        slot.jam_selesai, 
-                        'aktif'
-                    ]);
+async function generateSchedule(connection, kelasIds, mapelIds, guruIds, slotsByDay, roomIds) {
+    console.log('\n[SCHEDULE] Generating Conflict-Free Schedule...');
+    const busyTeachers = {};
+    const busyRooms = {};
+    let jadwalCount = 0;
 
-                    // 5. Mark constraints
-                    markTeacherBusy(day, slot.jam_ke, selectedGuru.id);
-                    markRoomBusy(day, slot.jam_ke, selectedRoomId);
-                    jadwalCount++;
+    for (const kelasId of kelasIds) {
+        console.log(`   Processing Class ID ${kelasId}...`);
+        for (const [day, slots] of Object.entries(slotsByDay)) {
+            for (const slot of slots) {
+                const wasInserted = await allocateScheduleSlot(
+                    connection,
+                    kelasId,
+                    day,
+                    slot,
+                    mapelIds,
+                    guruIds,
+                    roomIds,
+                    busyTeachers,
+                    busyRooms
+                );
+                if (wasInserted) {
+                    jadwalCount += 1;
                 }
             }
         }
+    }
+
+    return jadwalCount;
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
+async function seed() {
+    console.log('[START] STARTING DUMMY SEEDER (FULL)...');
+    
+    const connection = await mysql.createConnection({
+        host: process.env.DB_HOST === 'mysql' ? '127.0.0.1' : (process.env.DB_HOST || 'localhost'),
+        user: process.env.DB_HOST === 'mysql' ? 'root' : (process.env.DB_USER || 'root'),
+        password: process.env.DB_HOST === 'mysql' ? '' : (process.env.DB_PASSWORD || ''),
+        database: process.env.DB_NAME || 'absenta13',
+    });
+
+    try {
+        await cleanupTables(connection);
+        const roomIds = await seedRooms(connection, ROOMS);
+        await ensureJamPelajaran(connection);
+        const mapelIds = await seedMapel(connection, MAPEL_LIST);
+        const kelasIds = await seedKelas(connection, KELAS_LIST);
+        const guruIds = await seedGuruAndUsers(connection, GURU_NAMES, mapelIds);
+        const slotsByDay = await loadSlotsByDay(connection);
+        const jadwalCount = await generateSchedule(connection, kelasIds, mapelIds, guruIds, slotsByDay, roomIds);
 
         console.log(`\n[OK] Generated ${jadwalCount} schedule entries.`);
         console.log('[DONE] Seed Complete!');
