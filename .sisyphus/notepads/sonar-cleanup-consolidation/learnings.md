@@ -109,3 +109,26 @@
 - cloneJadwal complexity dropped by extracting request validation, source/target fetchers, guru map building, per-schedule clone execution, and conflict appending helpers.
 - Keeping transaction begin/commit/rollback in cloneJadwal preserved controller-level transaction ownership and failure behavior.
 - Extracted helper cloneScheduleToTarget kept insert payload fields and conflict behavior stable while flattening nested loops.
+
+
+## Task T14 Learnings — 2026-02-19
+
+### BackupManagementView Refactoring
+- Successfully extracted 323 lines of helpers into separate file
+- Main component reduced from 1623 to 985 lines (40% reduction)
+- Pattern: Extract interfaces, constants, and pure helper functions to .helpers.ts file
+- API call functions with toast notifications can be safely extracted while maintaining behavior
+- TypeScript interfaces must be exported from helper file for cross-file usage
+
+### Complexity Reduction Strategy
+- Extract all data fetching functions (loadBackups, loadArchiveStats, etc.)
+- Extract utility functions (formatFileSize, formatDate, etc.)
+- Keep React hooks and JSX in main component
+- Export/import pattern maintains type safety across files
+
+### Verification Pattern
+- tsc --noEmit: Must pass with no errors
+- ESLint: 0 errors, 0 warnings in both files
+- Vitest: All existing tests must pass
+- No behavioral changes: Error handling, toast notifications, API calls preserved
+

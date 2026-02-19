@@ -4,7 +4,7 @@
  * Phase 2: Backup & Archive System
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -13,205 +13,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
-import { formatDateTime24, getCurrentYearWIB } from '../lib/time-utils';
+import { getCurrentYearWIB } from '../lib/time-utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar, Download, Archive, Trash2, RefreshCw, CheckCircle, Clock, Database, FileSpreadsheet, Settings, Play, Pause, RotateCcw, Info, Zap } from 'lucide-react';
-import { apiCall, getErrorMessage } from '@/utils/apiClient';
+import { getErrorMessage } from '@/utils/apiClient';
 import { useToast } from '../hooks/use-toast';
-
-interface BackupInfo {
-    id: string;
-    filename: string;
-    size: number;
-    created: string;
-    modified: string;
-    semester?: string;
-    year?: number;
-    type?: string;
-    status?: string;
-    backupType?: 'semester' | 'date';
-}
-
-interface BackupProgress {
-    isRunning: boolean;
-    progress: number;
-    currentStep: string;
-    estimatedTime: string;
-}
-
-interface ArchiveStats {
-    studentRecords: number;
-    teacherRecords: number;
-    totalSize: number;
-    lastArchive: string;
-}
-
-interface BackupSettings {
-    autoBackupSchedule: string;
-    maxBackups: number;
-    archiveAge: number;
-    compression: boolean;
-    emailNotifications: boolean;
-    lastBackupDate?: string;
-    nextBackupDate?: string;
-    customScheduleDate?: string;
-    customScheduleTime?: string;
-    customScheduleEnabled?: boolean;
-}
-
-interface CustomSchedule {
-    id: string;
-    name: string;
-    date: string;
-    time: string;
-    enabled: boolean;
-    created: string;
-    lastRun?: string;
-}
-
-// =============================================================================
-// HELPER FUNCTIONS (extracted to reduce cognitive complexity)
-// =============================================================================
-
-const DEFAULT_LOADING_STATES = {
-    backups: false,
-    archive: false,
-    settings: false,
-    schedules: false
-};
-
-const DEFAULT_BACKUP_PROGRESS: BackupProgress = {
-    isRunning: false,
-    progress: 0,
-    currentStep: '',
-    estimatedTime: ''
-};
-
-const DEFAULT_ARCHIVE_STATS: ArchiveStats = {
-    studentRecords: 0,
-    teacherRecords: 0,
-    totalSize: 0,
-    lastArchive: ''
-};
-
-const DEFAULT_BACKUP_SETTINGS: BackupSettings = {
-    autoBackupSchedule: 'weekly',
-    maxBackups: 10,
-    archiveAge: 24,
-    compression: true,
-    emailNotifications: false,
-    customScheduleDate: '',
-    customScheduleTime: '02:00',
-    customScheduleEnabled: false
-};
-
-const DEFAULT_NEW_SCHEDULE: Partial<CustomSchedule> = {
-    name: '',
-    date: '',
-    time: '02:00',
-    enabled: true
-};
-
-/**
- * Get today's date in YYYY-MM-DD format for date input max attribute
- */
-const getTodayDateString = (): string => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-/**
- * Get progress step description based on percentage
- */
-function getProgressStep(progress: number): string {
-    if (progress < 15) return 'Menginisialisasi backup...';
-    if (progress < 25) return 'Membuat backup database...';
-    if (progress < 35) return 'Mengekspor data absensi siswa...';
-    if (progress < 45) return 'Mengekspor data absensi guru...';
-    if (progress < 55) return 'Mengekspor data jadwal...';
-    if (progress < 65) return 'Mengekspor data kelas...';
-    if (progress < 75) return 'Membuat laporan Excel...';
-    if (progress < 85) return 'Mengarsipkan data lama...';
-    if (progress < 95) return 'Mengompresi file backup...';
-    return 'Menyelesaikan backup...';
-}
-
-/**
- * Format file size in human readable format
- */
-function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-/**
- * Validate backup parameters based on type
- */
-function validateBackupParams(
-    backupType: 'semester' | 'date',
-    selectedSemester: string,
-    selectedDate: string
-): { isValid: boolean; errorMessage: string } {
-    if (backupType === 'semester' && !selectedSemester) {
-        return { isValid: false, errorMessage: 'Pilih semester terlebih dahulu' };
-    }
-    if (backupType === 'date' && !selectedDate) {
-        return { isValid: false, errorMessage: 'Pilih tanggal mulai backup terlebih dahulu' };
-    }
-    return { isValid: true, errorMessage: '' };
-}
-
-/**
- * Build backup API config based on type
- */
-function buildBackupConfig(
-    backupType: 'semester' | 'date',
-    selectedSemester: string,
-    selectedYear: number,
-    selectedDate: string,
-    selectedEndDate: string
-): { endpoint: string; payload: object } {
-    if (backupType === 'semester') {
-        return {
-            endpoint: '/api/admin/create-semester-backup',
-            payload: { semester: selectedSemester, year: selectedYear }
-        };
-    }
-    return {
-        endpoint: '/api/admin/create-date-backup',
-        payload: { startDate: selectedDate, endDate: selectedEndDate || selectedDate }
-    };
-}
-
-/**
- * Calculate progress update values
- */
-function calculateProgressUpdate(currentProgress: number): BackupProgress {
-    if (currentProgress >= 95) {
-        return {
-            isRunning: true,
-            progress: 100,
-            currentStep: 'Backup selesai!',
-            estimatedTime: '0 menit'
-        };
-    }
-    const increment = Math.random() * 15 + 5;
-    const newProgress = Math.min(currentProgress + increment, 95);
-    return {
-        isRunning: true,
-        progress: newProgress,
-        currentStep: getProgressStep(newProgress),
-        estimatedTime: `${Math.max(0, Math.ceil((100 - newProgress) / 10))} menit`
-    };
-}
+import {
+    BackupInfo,
+    BackupProgress,
+    ArchiveStats,
+    BackupSettings,
+    CustomSchedule,
+    DEFAULT_LOADING_STATES,
+    DEFAULT_BACKUP_PROGRESS,
+    DEFAULT_ARCHIVE_STATS,
+    DEFAULT_BACKUP_SETTINGS,
+    DEFAULT_NEW_SCHEDULE,
+    getTodayDateString,
+    formatFileSize,
+    formatDate,
+    validateBackupParams,
+    buildBackupConfig,
+    calculateProgressUpdate,
+    BackupService
+} from './BackupManagementView.helpers';
 
 const BackupManagementView: React.FC = () => {
     const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -237,14 +64,62 @@ const BackupManagementView: React.FC = () => {
     const completedSchedules = customSchedules.filter(s => s.lastRun);
     const nextSchedule = pendingSchedules.sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())[0];
 
+    const loadBackups = useCallback(async () => {
+        try {
+            setLoadingStates(prev => ({ ...prev, backups: true }));
+            const data = await BackupService.fetchBackups();
+            setBackups(data);
+            toast({ title: "Berhasil", description: "Daftar backup berhasil dimuat" });
+        } catch (error) {
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal memuat daftar backup", variant: "destructive" });
+        } finally {
+            setLoadingStates(prev => ({ ...prev, backups: false }));
+        }
+    }, [toast]);
+
+    const loadArchiveStats = useCallback(async () => {
+        try {
+            setLoadingStates(prev => ({ ...prev, archive: true }));
+            const stats = await BackupService.fetchArchiveStats();
+            setArchiveStats(stats);
+        } catch (error) {
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal memuat statistik arsip", variant: "destructive" });
+        } finally {
+            setLoadingStates(prev => ({ ...prev, archive: false }));
+        }
+    }, [toast]);
+
+    const loadBackupSettings = useCallback(async () => {
+        try {
+            setLoadingStates(prev => ({ ...prev, settings: true }));
+            const settings = await BackupService.fetchSettings();
+            setBackupSettings(settings);
+        } catch (error) {
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal memuat pengaturan backup", variant: "destructive" });
+        } finally {
+            setLoadingStates(prev => ({ ...prev, settings: false }));
+        }
+    }, [toast]);
+
+    const loadCustomSchedules = useCallback(async () => {
+        try {
+            setLoadingStates(prev => ({ ...prev, schedules: true }));
+            const schedules = await BackupService.fetchCustomSchedules();
+            setCustomSchedules(schedules);
+        } catch (error) {
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal memuat jadwal custom", variant: "destructive" });
+        } finally {
+            setLoadingStates(prev => ({ ...prev, schedules: false }));
+        }
+    }, [toast]);
+
     // Load backups on component mount
     useEffect(() => {
         loadBackups();
         loadArchiveStats();
         loadBackupSettings();
         loadCustomSchedules();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: Load only on component mount
-    }, []); // Intentional: Load only on component mount, no dependencies needed.
+    }, [loadBackups, loadArchiveStats, loadBackupSettings, loadCustomSchedules]);
 
     // Auto-refresh custom schedules every minute to update countdown
     useEffect(() => {
@@ -253,191 +128,59 @@ const BackupManagementView: React.FC = () => {
         }, 60000); // Refresh every minute
 
         return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: set up interval only on mount
-    }, []);
-
-    const loadBackups = async () => {
-        try {
-            setLoadingStates(prev => ({ ...prev, backups: true }));
-            const data = await apiCall<{ backups: BackupInfo[] }>('/api/admin/backups');
-            
-            setBackups(data.backups || []);
-            toast({
-                title: "Berhasil",
-                description: "Daftar backup berhasil dimuat",
-            });
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal memuat daftar backup",
-                variant: "destructive"
-            });
-        } finally {
-            setLoadingStates(prev => ({ ...prev, backups: false }));
-        }
-    };
-
-    const loadArchiveStats = async () => {
-        try {
-            setLoadingStates(prev => ({ ...prev, archive: true }));
-            const data = await apiCall<{ stats: ArchiveStats }>('/api/admin/archive-stats');
-            
-            setArchiveStats(data.stats || {
-                studentRecords: 0,
-                teacherRecords: 0,
-                totalSize: 0,
-                lastArchive: ''
-            });
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal memuat statistik arsip",
-                variant: "destructive"
-            });
-        } finally {
-            setLoadingStates(prev => ({ ...prev, archive: false }));
-        }
-    };
-
-    const loadBackupSettings = async () => {
-        try {
-            setLoadingStates(prev => ({ ...prev, settings: true }));
-            const data = await apiCall<{ settings: BackupSettings }>('/api/admin/backup-settings');
-            
-            setBackupSettings(data.settings || backupSettings);
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal memuat pengaturan backup",
-                variant: "destructive"
-            });
-        } finally {
-            setLoadingStates(prev => ({ ...prev, settings: false }));
-        }
-    };
-
-    const loadCustomSchedules = async () => {
-        try {
-            setLoadingStates(prev => ({ ...prev, schedules: true }));
-            const data = await apiCall<{ schedules: CustomSchedule[] }>('/api/admin/custom-schedules');
-            
-            setCustomSchedules(data.schedules || []);
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal memuat jadwal custom",
-                variant: "destructive"
-            });
-        } finally {
-            setLoadingStates(prev => ({ ...prev, schedules: false }));
-        }
-    };
+    }, [loadCustomSchedules]);
 
     const createCustomSchedule = async () => {
         if (!newSchedule.name || !newSchedule.date || !newSchedule.time) {
-            toast({
-                title: "Error",
-                description: "Isi semua field yang diperlukan",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: "Isi semua field yang diperlukan", variant: "destructive" });
             return;
         }
 
         try {
-            await apiCall('/api/admin/custom-schedules', {
-                method: 'POST',
-                body: JSON.stringify(newSchedule)
-            });
-
+            await BackupService.createCustomSchedule(newSchedule);
             setShowScheduleDialog(false);
-            setNewSchedule({
-                name: '',
-                date: '',
-                time: '02:00',
-                enabled: true
-            });
+            setNewSchedule(DEFAULT_NEW_SCHEDULE);
             loadCustomSchedules();
-            toast({
-                title: "Berhasil",
-                description: "Jadwal backup custom berhasil dibuat",
-            });
+            toast({ title: "Berhasil", description: "Jadwal backup custom berhasil dibuat" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal membuat jadwal backup custom",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal membuat jadwal backup custom", variant: "destructive" });
         }
     };
 
     const deleteCustomSchedule = async (scheduleId: string) => {
-        if (!confirm('Apakah Anda yakin ingin menghapus jadwal backup ini?')) {
-            return;
-        }
+        if (!confirm('Apakah Anda yakin ingin menghapus jadwal backup ini?')) return;
 
         try {
-            await apiCall(`/api/admin/custom-schedules/${scheduleId}`, {
-                method: 'DELETE'
-            });
-
+            await BackupService.deleteCustomSchedule(scheduleId);
             loadCustomSchedules();
-            toast({
-                title: "Berhasil",
-                description: "Jadwal backup berhasil dihapus",
-            });
+            toast({ title: "Berhasil", description: "Jadwal backup berhasil dihapus" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal menghapus jadwal backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal menghapus jadwal backup", variant: "destructive" });
         }
     };
 
     const toggleCustomSchedule = async (scheduleId: string, enabled: boolean) => {
         try {
-            await apiCall(`/api/admin/custom-schedules/${scheduleId}`, {
-                method: 'PUT',
-                body: JSON.stringify({ enabled })
-            });
-
+            await BackupService.toggleCustomSchedule(scheduleId, enabled);
             loadCustomSchedules();
-            toast({
-                title: "Berhasil",
-                description: `Jadwal backup ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`,
-            });
+            toast({ title: "Berhasil", description: `Jadwal backup ${enabled ? 'diaktifkan' : 'dinonaktifkan'}` });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal mengubah status jadwal backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal mengubah status jadwal backup", variant: "destructive" });
         }
     };
 
     const runCustomSchedule = async (scheduleId: string) => {
         try {
-            await apiCall(`/api/admin/run-custom-schedule/${scheduleId}`, {
-                method: 'POST'
-            });
-
+            await BackupService.runCustomSchedule(scheduleId);
             loadCustomSchedules();
             loadBackups();
-            toast({
-                title: "Berhasil",
-                description: "Jadwal backup berhasil dijalankan",
-            });
+            toast({ title: "Berhasil", description: "Jadwal backup berhasil dijalankan" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal menjalankan jadwal backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal menjalankan jadwal backup", variant: "destructive" });
         }
     };
 
     const createBackup = async () => {
-        // Use extracted validation helper
         const validation = validateBackupParams(backupType, selectedSemester, selectedDate);
         if (!validation.isValid) {
             toast({ title: "Error", description: validation.errorMessage, variant: "destructive" });
@@ -452,20 +195,12 @@ const BackupManagementView: React.FC = () => {
                 estimatedTime: '5-10 menit'
             });
 
-            // Use extracted config builder
             const { endpoint, payload } = buildBackupConfig(
                 backupType, selectedSemester, selectedYear, selectedDate, selectedEndDate
             );
 
-            const result = await apiCall<{ data?: { backupId?: string } }>(
-                endpoint,
-                {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                }
-            );
+            const result = await BackupService.createBackup(endpoint, payload);
 
-            // Progress simulation using extracted calculator
             const progressInterval = setInterval(() => {
                 setBackupProgress(prev => {
                     const shouldStop = prev.progress >= 95;
@@ -478,117 +213,56 @@ const BackupManagementView: React.FC = () => {
                 setBackupProgress(DEFAULT_BACKUP_PROGRESS);
                 setShowCreateDialog(false);
                 loadBackups();
-                toast({ title: "Berhasil", description: `Backup berhasil dibuat: ${result.data?.backupId || 'Backup'}` });
-         }, 10000);
+                toast({ title: "Berhasil", description: `Backup berhasil dibuat: ${result.backupId || 'Backup'}` });
+            }, 10000);
 
-         } catch (error) {
-             setBackupProgress(DEFAULT_BACKUP_PROGRESS);
-             console.error('BackupManagementView: Failed to create backup', error);
-             toast({ title: "Error", description: "Gagal membuat backup", variant: "destructive" });
-         }
+        } catch (error) {
+            setBackupProgress(DEFAULT_BACKUP_PROGRESS);
+            console.error('BackupManagementView: Failed to create backup', error);
+            toast({ title: "Error", description: "Gagal membuat backup", variant: "destructive" });
+        }
     };
-
 
     const downloadBackup = async (backupId: string) => {
         try {
-            const blob = await apiCall<Blob>(`/api/admin/download-backup/${backupId}`, {
-                responseType: 'blob'
-            });
-            
-            const url = globalThis.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${backupId}.zip`;
-            document.body.appendChild(a);
-            a.click();
-            globalThis.URL.revokeObjectURL(url);
-            a.remove();
-            
-            toast({
-                title: "Berhasil",
-                description: "Backup berhasil diunduh",
-            });
+            await BackupService.downloadBackup(backupId);
+            toast({ title: "Berhasil", description: "Backup berhasil diunduh" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal mengunduh backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal mengunduh backup", variant: "destructive" });
         }
     };
 
     const deleteBackup = async (backupId: string) => {
-        if (!confirm('Apakah Anda yakin ingin menghapus backup ini? Tindakan ini tidak dapat dibatalkan.')) {
-            return;
-        }
+        if (!confirm('Apakah Anda yakin ingin menghapus backup ini? Tindakan ini tidak dapat dibatalkan.')) return;
 
         try {
-
-            
-            const data = await apiCall<{ message: string }>(`/api/admin/delete-backup/${backupId}`, {
-                method: 'DELETE'
-            });
-            
-
-            
+            const message = await BackupService.deleteBackup(backupId);
             loadBackups();
-            toast({
-                title: "Berhasil",
-                description: data.message || "Backup berhasil dihapus",
-            });
+            toast({ title: "Berhasil", description: message || "Backup berhasil dihapus" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal menghapus backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal menghapus backup", variant: "destructive" });
         }
     };
 
     const restoreBackup = async (backupId: string) => {
-        if (!confirm('Apakah Anda yakin ingin memulihkan backup ini? Ini akan menimpa data saat ini.')) {
-            return;
-        }
+        if (!confirm('Apakah Anda yakin ingin memulihkan backup ini? Ini akan menimpa data saat ini.')) return;
 
         try {
-            await apiCall(`/api/admin/restore-backup/${backupId}`, {
-                method: 'POST'
-            });
-
-            toast({
-                title: "Berhasil",
-                description: "Backup berhasil dipulihkan",
-            });
+            await BackupService.restoreBackup(backupId);
+            toast({ title: "Berhasil", description: "Backup berhasil dipulihkan" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal memulihkan backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal memulihkan backup", variant: "destructive" });
         }
     };
 
     const archiveOldData = async () => {
         try {
             setArchiveLoading(true);
-            await apiCall('/api/admin/archive-old-data', {
-                method: 'POST',
-                body: JSON.stringify({
-                    monthsOld: backupSettings.archiveAge
-                })
-            });
-
+            await BackupService.archiveOldData(backupSettings.archiveAge);
             loadArchiveStats();
-            toast({
-                title: "Berhasil",
-                description: "Data lama berhasil diarsipkan",
-            });
+            toast({ title: "Berhasil", description: "Data lama berhasil diarsipkan" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal mengarsipkan data lama",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal mengarsipkan data lama", variant: "destructive" });
         } finally {
             setArchiveLoading(false);
         }
@@ -597,21 +271,11 @@ const BackupManagementView: React.FC = () => {
     const createTestArchiveData = async () => {
         try {
             setArchiveLoading(true);
-            const data = await apiCall<{ data: { studentRecordsCreated: number, teacherRecordsCreated: number } }>('/api/admin/create-test-archive-data', {
-                method: 'POST'
-            });
-
+            const data = await BackupService.createTestArchiveData();
             loadArchiveStats();
-            toast({
-                title: "Berhasil",
-                description: `Data test berhasil dibuat: ${data.data.studentRecordsCreated} siswa, ${data.data.teacherRecordsCreated} guru`,
-            });
+            toast({ title: "Berhasil", description: `Data test berhasil dibuat: ${data.studentRecordsCreated} siswa, ${data.teacherRecordsCreated} guru` });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal membuat data test",
-                variant: "destructive",
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal membuat data test", variant: "destructive" });
         } finally {
             setArchiveLoading(false);
         }
@@ -620,41 +284,24 @@ const BackupManagementView: React.FC = () => {
     const saveBackupSettings = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, settings: true }));
-            await apiCall('/api/admin/backup-settings', {
-                method: 'POST',
-                body: JSON.stringify(backupSettings)
-            });
-
-            toast({
-                title: "Berhasil",
-                description: "Pengaturan backup berhasil disimpan",
-            });
+            await BackupService.saveSettings(backupSettings);
+            toast({ title: "Berhasil", description: "Pengaturan backup berhasil disimpan" });
         } catch (error) {
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Gagal menyimpan pengaturan backup",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: getErrorMessage(error) || "Gagal menyimpan pengaturan backup", variant: "destructive" });
         } finally {
             setLoadingStates(prev => ({ ...prev, settings: false }));
         }
     };
-
-    const formatDate = (dateString: string): string => {
-        return formatDateTime24(dateString, true);
-    };
-
-
 
     return (
         <div className="space-y-6">
             {/* Header Section - Mobile Responsive */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="flex-1 min-w-0">
-            <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Backup & Archive Management</h2>
-            <p className="text-sm lg:text-base text-muted-foreground mt-1">
-                Kelola backup database dan operasi arsip
-            </p>
+                    <h2 className="text-xl lg:text-2xl font-bold tracking-tight">Backup & Archive Management</h2>
+                    <p className="text-sm lg:text-base text-muted-foreground mt-1">
+                        Kelola backup database dan operasi arsip
+                    </p>
                     
                     {/* Status Information - Mobile Optimized */}
                     <div className="mt-3 space-y-1">
@@ -684,7 +331,7 @@ const BackupManagementView: React.FC = () => {
                             <div className="text-xs lg:text-sm text-orange-600 flex items-center">
                                 <Clock className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">
-                                    Jadwal berikutnya: {nextSchedule ? formatDateTime24(`${nextSchedule.date}T${nextSchedule.time}`, true) : ''}
+                                    Jadwal berikutnya: {nextSchedule ? formatDate(`${nextSchedule.date}T${nextSchedule.time}`) : ''}
                                 </span>
                             </div>
                         )}
@@ -700,7 +347,7 @@ const BackupManagementView: React.FC = () => {
                 {/* Action Buttons - Mobile Responsive */}
                 <div className="flex flex-col sm:flex-row gap-2 lg:flex-shrink-0">
                     <div className="flex gap-2">
-                        <Button onClick={loadBackups} variant="outline" size="sm" disabled={loadingStates.backups} className="flex-1 sm:flex-none">
+                        <Button onClick={loadBackups} variant="outline" size="sm" disabled={loadingStates.backups} className="flex-1 sm:flex-none" data-testid="backup-refresh-button">
                             <RefreshCw className={`h-4 w-4 mr-2 ${loadingStates.backups ? 'animate-spin' : ''}`} />
                             <span className="hidden sm:inline">{loadingStates.backups ? 'Memuat...' : 'Refresh'}</span>
                             <span className="sm:hidden">{loadingStates.backups ? '...' : '↻'}</span>
@@ -864,7 +511,7 @@ const BackupManagementView: React.FC = () => {
 
                                 if (backups.length === 0) {
                                     return (
-                                        <div className="text-center py-8">
+                                        <div className="text-center py-8" data-testid="backup-error-alert">
                                             <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                                             <h3 className="text-lg font-semibold mb-2">Belum ada backup</h3>
                                             <p className="text-muted-foreground mb-4">
@@ -880,7 +527,7 @@ const BackupManagementView: React.FC = () => {
 
                                 return (
                                     <div className="overflow-x-auto">
-                                        <Table>
+                                        <Table data-testid="backup-table">
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead className="min-w-[200px]">Nama File</TableHead>
@@ -1089,532 +736,247 @@ const BackupManagementView: React.FC = () => {
                                 >
                                     <RefreshCw className={`h-4 w-4 mr-2 ${loadingStates.archive ? 'animate-spin' : ''}`} />
                                     <span className="hidden sm:inline">{loadingStates.archive ? 'Memuat...' : 'Refresh Stats'}</span>
-                                    <span className="sm:hidden">{loadingStates.archive ? '...' : 'Refresh'}</span>
+                                    <span className="sm:hidden">{loadingStates.archive ? '...' : '↻'}</span>
                                 </Button>
                                 <Button 
                                     onClick={createTestArchiveData} 
+                                    variant="outline" 
+                                    className="flex-1 sm:flex-none" 
                                     disabled={archiveLoading}
-                                    variant="secondary"
-                                    className="flex-1 sm:flex-none sm:min-w-[180px]"
                                 >
                                     <Database className="h-4 w-4 mr-2" />
-                                    <span className="hidden sm:inline">Buat Data Test (25 bulan)</span>
-                                    <span className="sm:hidden">Data Test</span>
+                                    <span className="hidden sm:inline">Generate Test Data</span>
+                                    <span className="sm:hidden">Test Data</span>
                                 </Button>
-                            </div>
-                            
-                            <div className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                                <p><strong>Catatan:</strong></p>
-                                <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li>Data yang berusia lebih dari {backupSettings.archiveAge} bulan akan dipindahkan ke tabel arsip</li>
-                                    <li>Proses arsip akan memindahkan data dari tabel utama ke tabel arsip</li>
-                                    <li>Data yang diarsipkan tetap dapat diakses melalui sistem backup</li>
-                                    <li>Arsip otomatis berjalan setiap hari pada jam 02:00 WIB</li>
-                                </ul>
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
                 <TabsContent value="settings" className="space-y-4">
-                    <Tabs defaultValue="general" className="space-y-4">
-                        <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:grid-cols-none lg:inline-flex">
-                            <TabsTrigger value="general" className="text-xs sm:text-sm">Pengaturan Umum</TabsTrigger>
-                            <TabsTrigger value="schedule" className="text-xs sm:text-sm">Jadwal Backup</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="general" className="space-y-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Pengaturan Backup</CardTitle>
-                                    <CardDescription>
-                                        Konfigurasi pengaturan backup dan arsip
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-sm">Jadwal Auto Backup</Label>
-                                            <Select 
-                                                value={backupSettings.autoBackupSchedule} 
-                                                onValueChange={(value) => setBackupSettings(prev => ({ ...prev, autoBackupSchedule: value }))}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="daily">Harian</SelectItem>
-                                                    <SelectItem value="weekly">Mingguan</SelectItem>
-                                                    <SelectItem value="monthly">Bulanan</SelectItem>
-                                                    <SelectItem value="disabled">Nonaktif</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                
-                                        <div className="space-y-2">
-                                            <Label className="text-sm">Max Backup yang Disimpan</Label>
-                                            <Input 
-                                                type="number" 
-                                                value={backupSettings.maxBackups} 
-                                                onChange={(e) => setBackupSettings(prev => ({ ...prev, maxBackups: Number.parseInt(e.target.value) }))}
-                                                min="1" 
-                                                max="50" 
-                                            />
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                            <Label className="text-sm">Usia Arsip (bulan)</Label>
-                                            <Input 
-                                                type="number" 
-                                                value={backupSettings.archiveAge} 
-                                                onChange={(e) => setBackupSettings(prev => ({ ...prev, archiveAge: Number.parseInt(e.target.value) }))}
-                                                min="6" 
-                                                max="60" 
-                                            />
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                            <Label className="text-sm">Kompresi</Label>
-                                            <Select 
-                                                value={backupSettings.compression ? 'enabled' : 'disabled'} 
-                                                onValueChange={(value) => setBackupSettings(prev => ({ ...prev, compression: value === 'enabled' }))}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="enabled">Aktif</SelectItem>
-                                                    <SelectItem value="disabled">Nonaktif</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                            
-                            {/* Custom Schedule Section Removed - Use 'Jadwal Backup' tab instead */}
-                            
-                            {/* Informasi Tanggal Backup */}
-                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                                <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                                    <Calendar className="w-4 h-4" />
-                                    Informasi Tanggal Backup
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-xs sm:text-sm font-medium text-blue-800">Backup Terakhir</Label>
-                                        <div className="p-3 bg-card border border-blue-200 rounded-lg">
-                                            <p className="text-xs sm:text-sm text-muted-foreground">
-                                                {backupSettings.lastBackupDate 
-                                                    ? new Date(backupSettings.lastBackupDate).toLocaleDateString('id-ID', {
-                                                        weekday: 'long',
-                                                        year: 'numeric',
-                                                        month: 'long',
-                                                        day: 'numeric',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })
-                                                    : 'Belum ada backup'
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-xs sm:text-sm font-medium text-blue-800">Backup Berikutnya</Label>
-                                        <div className="p-3 bg-card border border-blue-200 rounded-lg">
-                                            <p className="text-xs sm:text-sm text-muted-foreground">
-                                                {backupSettings.nextBackupDate 
-                                                    ? new Date(backupSettings.nextBackupDate).toLocaleDateString('id-ID', {
-                                                        weekday: 'long',
-                                                        year: 'numeric',
-                                                        month: 'long',
-                                                        day: 'numeric',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })
-                                                    : 'Tidak terjadwal'
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                {/* Informasi Tambahan */}
-                                <div className="mt-4 p-3 bg-blue-500/15 border border-blue-500/30 rounded-lg">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Clock className="w-4 h-4 text-blue-600" />
-                                        <span className="text-sm font-medium text-blue-800">Status Backup</span>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                        <div className="flex justify-between">
-                                            <span className="text-blue-700">Total Backup:</span>
-                                            <span className="font-medium text-blue-900">{backups.length} file</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-blue-700">Jadwal:</span>
-                                            <span className="font-medium text-blue-900">
-                                                {(() => {
-                                                    if (backupSettings.autoBackupSchedule === 'daily') return 'Harian';
-                                                    if (backupSettings.autoBackupSchedule === 'weekly') return 'Mingguan';
-                                                    if (backupSettings.autoBackupSchedule === 'monthly') return 'Bulanan';
-                                                    return 'Nonaktif';
-                                                })()}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-blue-700">Usia Arsip:</span>
-                                            <span className="font-medium text-blue-900">{backupSettings.archiveAge} bulan</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <Button onClick={saveBackupSettings} className="w-full" disabled={loadingStates.settings}>
-                                <Settings className="h-4 w-4 mr-2" />
-                                {loadingStates.settings ? 'Menyimpan...' : 'Simpan Pengaturan'}
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="schedule" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Jadwal Backup Custom</CardTitle>
+                            <CardTitle>Pengaturan Backup</CardTitle>
                             <CardDescription>
-                                Kelola jadwal backup berdasarkan tanggal dan waktu spesifik
+                                Konfigurasi jadwal backup otomatis dan retensi data
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-base sm:text-lg font-semibold">Jadwal Backup yang Dikonfigurasi</h3>
-                                    <p className="text-xs sm:text-sm text-muted-foreground">
-                                        Buat jadwal backup untuk tanggal dan waktu tertentu
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label>Jadwal Backup Otomatis</Label>
+                                    <Select 
+                                        value={backupSettings.autoBackupSchedule} 
+                                        onValueChange={(value) => setBackupSettings({...backupSettings, autoBackupSchedule: value})}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="daily">Harian (Setiap 00:00)</SelectItem>
+                                            <SelectItem value="weekly">Mingguan (Setiap Minggu 00:00)</SelectItem>
+                                            <SelectItem value="monthly">Bulanan (Tanggal 1 00:00)</SelectItem>
+                                            <SelectItem value="disabled">Nonaktif</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Maksimal Backup Disimpan</Label>
+                                    <Select 
+                                        value={backupSettings.maxBackups.toString()} 
+                                        onValueChange={(value) => setBackupSettings({...backupSettings, maxBackups: parseInt(value)})}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">5 Backup Terakhir</SelectItem>
+                                            <SelectItem value="10">10 Backup Terakhir</SelectItem>
+                                            <SelectItem value="20">20 Backup Terakhir</SelectItem>
+                                            <SelectItem value="50">50 Backup Terakhir</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Umur Arsip (Bulan)</Label>
+                                    <Select 
+                                        value={backupSettings.archiveAge.toString()} 
+                                        onValueChange={(value) => setBackupSettings({...backupSettings, archiveAge: parseInt(value)})}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="6">Lebih dari 6 Bulan</SelectItem>
+                                            <SelectItem value="12">Lebih dari 1 Tahun</SelectItem>
+                                            <SelectItem value="24">Lebih dari 2 Tahun</SelectItem>
+                                            <SelectItem value="36">Lebih dari 3 Tahun</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Data yang lebih tua dari ini akan otomatis dipindahkan ke arsip
                                     </p>
                                 </div>
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                    <Button onClick={loadCustomSchedules} variant="outline" size="sm" disabled={loadingStates.schedules} className="w-full sm:w-auto">
-                                        <RefreshCw className={`h-4 w-4 mr-2 ${loadingStates.schedules ? 'animate-spin' : ''}`} />
-                                        <span className="hidden sm:inline">{loadingStates.schedules ? 'Memuat...' : 'Refresh'}</span>
-                                        <span className="sm:hidden">{loadingStates.schedules ? '...' : '↻'}</span>
-                                    </Button>
-                                    <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
-                                    <DialogTrigger asChild>
-                                        <Button className="w-full sm:w-auto">
-                                            <Calendar className="h-4 w-4 mr-2" />
-                                            <span className="hidden sm:inline">Tambah Jadwal</span>
-                                            <span className="sm:hidden">Tambah</span>
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-md mx-4 sm:mx-auto">
-                                        <DialogHeader>
-                                            <DialogTitle className="text-lg sm:text-xl">Tambah Jadwal Backup</DialogTitle>
-                                            <DialogDescription className="text-sm">
-                                                Buat jadwal backup untuk tanggal dan waktu tertentu
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label>Nama Jadwal</Label>
-                                                <Input 
-                                                    placeholder="Contoh: Backup Akhir Semester"
-                                                    value={newSchedule.name || ''}
-                                                    onChange={(e) => setNewSchedule(prev => ({ ...prev, name: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Tanggal Backup</Label>
-                                                <Input 
-                                                    type="date" 
-                                                    value={newSchedule.date || ''}
-                                                    onChange={(e) => setNewSchedule(prev => ({ ...prev, date: e.target.value }))}
-                                                    min={(() => {
-                                                  const now = new Date();
-                                                  const year = now.getFullYear();
-                                                  const month = String(now.getMonth() + 1).padStart(2, '0');
-                                                  const day = String(now.getDate()).padStart(2, '0');
-                                                  return `${year}-${month}-${day}`;
-                                                })()}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Waktu Backup</Label>
-                                                <Input 
-                                                    type="time" 
-                                                    value={newSchedule.time || '02:00'}
-                                                    onChange={(e) => setNewSchedule(prev => ({ ...prev, time: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    id="enabled"
-                                                    checked={newSchedule.enabled || false}
-                                                    onChange={(e) => setNewSchedule(prev => ({ ...prev, enabled: e.target.checked }))}
-                                                    className="rounded"
-                                                />
-                                                <Label htmlFor="enabled">Aktifkan jadwal ini</Label>
-                                            </div>
-                                            <Button onClick={createCustomSchedule} className="w-full">
-                                                <Calendar className="h-4 w-4 mr-2" />
-                                                Buat Jadwal
-                                            </Button>
-                                        </div>
-                                    </DialogContent>
-                                </Dialog>
+
+                                <div className="space-y-2">
+                                    <Label>Kompresi Backup</Label>
+                                    <div className="flex items-center space-x-2 mt-2">
+                                        <input 
+                                            type="checkbox" 
+                                            id="compression" 
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            checked={backupSettings.compression}
+                                            onChange={(e) => setBackupSettings({...backupSettings, compression: e.target.checked})}
+                                        />
+                                        <label htmlFor="compression" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            Aktifkan Kompresi (ZIP)
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Status Jadwal */}
-                            {customSchedules.length > 0 && (
-                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                                    <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        Status Jadwal Backup
-                                    </h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <div className="text-center">
-                                            <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                                                {customSchedules.filter(s => s.enabled).length}
-                                            </div>
-                                            <p className="text-xs sm:text-sm text-blue-800">Jadwal Aktif</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-xl sm:text-2xl font-bold text-green-600">
-                                                {customSchedules.filter(s => s.lastRun).length}
-                                            </div>
-                                            <p className="text-xs sm:text-sm text-green-800">Sudah Dijalankan</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-xl sm:text-2xl font-bold text-orange-600">
-                                                {customSchedules.filter(s => s.enabled && !s.lastRun).length}
-                                            </div>
-                                            <p className="text-xs sm:text-sm text-orange-800">Menunggu Waktu</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="flex justify-end mt-4">
+                                <Button onClick={saveBackupSettings} disabled={loadingStates.settings}>
+                                    {loadingStates.settings ? (
+                                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Settings className="h-4 w-4 mr-2" />
+                                    )}
+                                    Simpan Pengaturan
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                            {customSchedules.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                                    <h3 className="text-lg font-semibold mb-2">Belum ada jadwal custom</h3>
-                                    <p className="text-muted-foreground mb-4">
-                                        Buat jadwal backup untuk tanggal dan waktu tertentu
-                                    </p>
+                    {/* Custom Schedule Section */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Jadwal Backup Custom</CardTitle>
+                                <CardDescription>
+                                    Atur jadwal backup spesifik untuk kebutuhan khusus
+                                </CardDescription>
+                            </div>
+                            <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" variant="outline">
+                                        <Calendar className="h-4 w-4 mr-2" />
+                                        Tambah Jadwal
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Tambah Jadwal Backup</DialogTitle>
+                                        <DialogDescription>
+                                            Buat jadwal backup otomatis untuk waktu tertentu
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                        <div className="space-y-2">
+                                            <Label>Nama Jadwal</Label>
+                                            <Input 
+                                                placeholder="Contoh: Backup Sebelum Ujian" 
+                                                value={newSchedule.name}
+                                                onChange={(e) => setNewSchedule({...newSchedule, name: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Tanggal</Label>
+                                                <Input 
+                                                    type="date" 
+                                                    value={newSchedule.date}
+                                                    onChange={(e) => setNewSchedule({...newSchedule, date: e.target.value})}
+                                                    min={getTodayDateString()}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Waktu</Label>
+                                                <Input 
+                                                    type="time" 
+                                                    value={newSchedule.time}
+                                                    onChange={(e) => setNewSchedule({...newSchedule, time: e.target.value})}
+                                                />
+                                            </div>
+                                        </div>
+                                        <Button onClick={createCustomSchedule} className="w-full">
+                                            Simpan Jadwal
+                                        </Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        </CardHeader>
+                        <CardContent>
+                            {loadingStates.schedules ? (
+                                <div className="flex justify-center py-4">
+                                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : customSchedules.length === 0 ? (
+                                <div className="text-center py-6 text-muted-foreground">
+                                    <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                                    <p>Belum ada jadwal custom</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="min-w-[150px]">Nama Jadwal</TableHead>
-                                                <TableHead className="min-w-[120px]">Tanggal</TableHead>
-                                                <TableHead className="min-w-[80px]">Waktu</TableHead>
-                                                <TableHead className="min-w-[80px]">Status</TableHead>
-                                                <TableHead className="min-w-[120px]">Terakhir Dijalankan</TableHead>
-                                                <TableHead className="min-w-[100px]">Dibuat</TableHead>
-                                                <TableHead className="min-w-[120px]">Aksi</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {customSchedules.map((schedule) => (
-                                                <TableRow key={schedule.id}>
-                                                    <TableCell className="font-medium">
-                                                        <span className="truncate block">{schedule.name}</span>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm">
-                                                        {(() => {
-                                                            try {
-                                                                const dateObj = new Date(schedule.date + 'T00:00:00');
-                                                                if (Number.isNaN(dateObj.getTime())) return schedule.date;
-                                                                return dateObj.toLocaleDateString('id-ID', {
-                                                                    weekday: 'long',
-                                                                    year: 'numeric',
-                                                                    month: 'long',
-                                                                    day: 'numeric'
-                                                                });
-                                                            } catch {
-                                                                return schedule.date;
-                                                            }
-                                                        })()}
-                                                    </TableCell>
-                                                    <TableCell className="text-sm">
+                                <div className="space-y-4">
+                                    {customSchedules.map((schedule) => (
+                                        <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-medium">{schedule.name}</h4>
+                                                    <Badge variant={schedule.enabled ? (schedule.lastRun ? "secondary" : "default") : "outline"}>
+                                                        {schedule.lastRun ? 'Selesai' : (schedule.enabled ? 'Aktif' : 'Nonaktif')}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex items-center text-sm text-muted-foreground gap-4">
+                                                    <span className="flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {formatDate(schedule.date)}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" />
                                                         {schedule.time}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={schedule.enabled ? 'default' : 'secondary'} className="text-xs">
-                                                            {schedule.enabled ? 'Aktif' : 'Nonaktif'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm">
-                                                        {schedule.lastRun 
-                                                            ? new Date(schedule.lastRun).toLocaleDateString('id-ID', {
-                                                                year: 'numeric',
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })
-                                                            : 'Belum pernah dijalankan'
-                                                        }
-                                                    </TableCell>
-                                                    <TableCell className="text-sm">
-                                                        {(() => {
-                                                            try {
-                                                                const dateObj = new Date(schedule.created);
-                                                                if (Number.isNaN(dateObj.getTime())) return 'N/A';
-                                                                return dateObj.toLocaleDateString('id-ID');
-                                                            } catch {
-                                                                // Ignore invalid date errors
-                                                                return 'N/A';
-                                                            }
-                                                        })()}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-1">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => runCustomSchedule(schedule.id)}
-                                                                title="Jalankan sekarang"
-                                                                className="h-8 w-8 p-0"
-                                                            >
-                                                                <Zap className="h-3 w-3" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => toggleCustomSchedule(schedule.id, !schedule.enabled)}
-                                                                title={schedule.enabled ? "Nonaktifkan jadwal" : "Aktifkan jadwal"}
-                                                                className="h-8 w-8 p-0"
-                                                            >
-                                                                {schedule.enabled ? (
-                                                                    <Pause className="h-3 w-3" />
-                                                                ) : (
-                                                                    <Play className="h-3 w-3" />
-                                                                )}
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => deleteCustomSchedule(schedule.id)}
-                                                                title="Hapus jadwal"
-                                                                className="h-8 w-8 p-0"
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-
-                            {/* Jadwal yang Sudah Dijalankan */}
-                            {customSchedules.some(s => s.lastRun) && (
-                                <div className="bg-muted border border-border rounded-lg p-4">
-                                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                                        <CheckCircle className="w-4 h-4" />
-                                        Jadwal yang Sudah Dijalankan
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {customSchedules
-                                            .filter(s => !!s.lastRun)
-                                            .sort((a, b) => new Date(b.lastRun).getTime() - new Date(a.lastRun).getTime())
-                                            .slice(0, 3)
-                                            .map((schedule) => (
-                                                <div key={schedule.id} className="flex justify-between items-center p-2 bg-card rounded border">
-                                                    <div>
-                                                        <span className="font-medium">{schedule.name}</span>
-                                                        <span className="text-sm text-muted-foreground ml-2">
-                                                            Dijalankan: {new Date(schedule.lastRun).toLocaleDateString('id-ID', {
-                                                                year: 'numeric',
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </span>
-                                                    </div>
-                                                    <Badge variant="default" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-                                                        Selesai
-                                                    </Badge>
+                                                    </span>
                                                 </div>
-                                            ))}
-                                    </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {!schedule.lastRun && (
+                                                    <>
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            onClick={() => toggleCustomSchedule(schedule.id, !schedule.enabled)}
+                                                            title={schedule.enabled ? "Nonaktifkan" : "Aktifkan"}
+                                                        >
+                                                            {schedule.enabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                                        </Button>
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            onClick={() => runCustomSchedule(schedule.id)}
+                                                            title="Jalankan Sekarang"
+                                                        >
+                                                            <Zap className="h-4 w-4 text-yellow-500" />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="ghost" 
+                                                    className="text-destructive hover:text-destructive"
+                                                    onClick={() => deleteCustomSchedule(schedule.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
-
-                            {/* Jadwal Mendatang */}
-                            {customSchedules.some(s => s.enabled && !s.lastRun) && (
-                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
-                                    <h4 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        Jadwal Mendatang
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {customSchedules
-                                            .filter(s => s.enabled && !s.lastRun)
-                                            .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())
-                                            .slice(0, 3)
-                                            .map((schedule) => (
-                                                <div key={schedule.id} className="flex justify-between items-center p-2 bg-card rounded border">
-                                                    <div>
-                                                        <span className="font-medium">{schedule.name}</span>
-                                                        <span className="text-sm text-muted-foreground ml-2">
-                                                            {new Date(`${schedule.date}T${schedule.time}`).toLocaleDateString('id-ID', {
-                                                                weekday: 'long',
-                                                                year: 'numeric',
-                                                                month: 'long',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </span>
-                                                        <div className="text-xs text-muted-foreground mt-1">
-                                                            {(() => {
-                                                                const now = new Date();
-                                                                const scheduleTime = new Date(`${schedule.date}T${schedule.time}`);
-                                                                const diff = scheduleTime.getTime() - now.getTime();
-                                                                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                                                                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                                                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                                                
-                                                                if (days > 0) {
-                                                                    return `Tersisa ${days} hari ${hours} jam`;
-                                                                } else if (hours > 0) {
-                                                                    return `Tersisa ${hours} jam ${minutes} menit`;
-                                                                } else if (minutes > 0) {
-                                                                    return `Tersisa ${minutes} menit`;
-                                                                } else {
-                                                                    return 'Akan segera dijalankan';
-                                                                }
-                                                            })()}
-                                                        </div>
-                                                    </div>
-                                                    <Badge variant="outline" className="text-green-700 border-green-300">
-                                                        Menunggu
-                                                    </Badge>
-                                                </div>
-                                            ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>
-                                    <strong>Info:</strong> Jadwal backup custom akan berjalan pada tanggal dan waktu yang ditentukan. 
-                                    Pastikan server berjalan pada waktu yang dijadwalkan untuk memastikan backup berhasil dibuat.
-                                </AlertDescription>
-                            </Alert>
                         </CardContent>
                     </Card>
                 </TabsContent>
-            </Tabs>
-        </TabsContent>
             </Tabs>
         </div>
     );
