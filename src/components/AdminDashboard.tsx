@@ -358,7 +358,7 @@ export const AdminDashboard = () => {
             <Route path="rooms" element={<SubView><ManageRoomsView onBack={handleBack} onLogout={logout} /></SubView>} />
             <Route path="backups" element={<SubView><ErrorBoundary><BackupManagementView /></ErrorBoundary></SubView>} />
             <Route path="monitoring" element={<SubView><ErrorBoundary><MonitoringDashboard /></ErrorBoundary></SubView>} />
-            <Route path="restore" element={<SubView><ErrorBoundary><SimpleRestoreView onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
+            <Route path="restore" element={<SubView><ErrorBoundary><SimpleRestoreView onBack={handleBack} /></ErrorBoundary></SubView>} />
             <Route path="letterhead" element={<SubView><ErrorBoundary><ReportLetterheadSettings onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
             <Route path="reports" element={<SubView><ErrorBoundary><ReportsView onBack={handleBack} onLogout={logout} /></ErrorBoundary></SubView>} />
             <Route path="jam-pelajaran" element={<SubView><ErrorBoundary><JamPelajaranConfig /></ErrorBoundary></SubView>} />

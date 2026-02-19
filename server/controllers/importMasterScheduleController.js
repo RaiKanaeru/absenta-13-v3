@@ -36,14 +36,15 @@ const parseSettingValue = (value) => {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
     if (!raw) return null;
-    try {
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === 'string') return parsed;
-    } catch (_error) {
-        // Ignore JSON parse errors, fall back to raw value.
-    }
+     try {
+         const parsed = JSON.parse(raw);
+         if (typeof parsed === 'string') return parsed;
+     } catch (_error) {
+         // Ignore JSON parse errors, fall back to raw value. Expected when cell contains non-JSON string.
+         logger.debug('Setting value is not valid JSON, using raw value', _error);
+     }
     // Fix: Regex precedence ambiguity S5850 - Group the alternatives
-    return raw.replace(/(^")|("$)/g, '');
+    return raw.replaceAll(/(^")|("$)/g, '');
 };
 
 const getActiveAcademicYear = async (conn) => {
@@ -318,13 +319,13 @@ export const importMasterSchedule = async (req, res) => {
                             );
                         }
                     }
-                } catch (dataErr) {
+                } catch (error_) {
                    // Correctly handle individual row errors if we want partial success?
                    // Current logic seems to prefer throwing to rollback everything.
                    // Or we can collect errors. Let's throw for now to support the transaction.
                    results.failed++;
-                   results.errors.push(`Row error: ${dataErr.message}`);
-                   throw dataErr;
+                   results.errors.push(`Row error: ${error_.message}`);
+                   throw error_;
                 }
                 
                 results.success++;
@@ -339,11 +340,11 @@ export const importMasterSchedule = async (req, res) => {
                 errors: results.errors.slice(0, 100) // Limit response size
             });
 
-        } catch (dbErr) {
-            if (transactionStarted) {
-                await conn.rollback();
-            }
-            throw dbErr;
+        } catch (error_) {
+             if (transactionStarted) {
+                 await conn.rollback();
+             }
+             throw error_;
         } finally {
             conn.release();
         }

@@ -617,12 +617,12 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
   const [adaTugasData, setAdaTugasData] = useState<{[key: number]: boolean}>({});
   const [riwayatData, setRiwayatData] = useState<RiwayatData[]>([]);
   const [bandingAbsen, setBandingAbsen] = useState<BandingAbsen[]>([]);
-  const [expandedBanding, setExpandedBanding] = useState<number | null>(null);
-  const [detailRiwayat, setDetailRiwayat] = useState<RiwayatJadwal | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [siswaId, setSiswaId] = useState<number | null>(null);
-  const [kelasInfo, setKelasInfo] = useState<string>('');
-  const [initialLoading, setInitialLoading] = useState(true);
+   const [expandedBanding, setExpandedBanding] = useState<number | null>(null);
+   const [detailRiwayat, setDetailRiwayat] = useState<RiwayatJadwal | null>(null);
+   const [loading, setLoading] = useState(false);
+   const [siswaId] = useState<number | null>(userData?.id ?? null);
+   const [kelasInfo] = useState<string>('');
+   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -737,11 +737,10 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
     kelas: string;
     nama: string;
     kelas_id: number;
-  } | null>(null);
-  
-  const [riwayatPage, setRiwayatPage] = useState(1);
-  const riwayatItemsPerPage = 5;
-  const [showFormBanding, setShowFormBanding] = useState(false);
+   } | null>(null);
+   
+   const [riwayatPage, setRiwayatPage] = useState(1);
+   const [showFormBanding, setShowFormBanding] = useState(false);
   
   // Pagination Banding Absen
   const [bandingAbsenPage, setBandingAbsenPage] = useState(1);

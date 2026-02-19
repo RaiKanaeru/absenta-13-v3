@@ -14,9 +14,8 @@
 
 import { ERROR_CODES, AppError, generateRequestId } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
-import { asyncHandler, asyncMiddleware } from '../utils/asyncHandler.js';
-
-export { asyncHandler, asyncMiddleware };
+export { asyncHandler } from '../utils/asyncHandler.js';
+export { asyncMiddleware } from '../utils/asyncHandler.js';
 
 const logger = createLogger('ErrorMiddleware');
 

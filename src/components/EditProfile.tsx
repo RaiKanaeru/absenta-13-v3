@@ -105,7 +105,6 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
                 userData={userData} 
                 formData={formData} 
                 handleInputChange={handleInputChange} 
-                errors={errors}
               />
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -165,7 +164,6 @@ export const EditProfile = ({ userData, onUpdate, onClose, role }: EditProfilePr
               {/* Field tambahan hanya untuk guru dan siswa */}
               <RoleSpecificFieldsBottom 
                 role={role} 
-                userData={userData} 
                 formData={formData} 
                 handleInputChange={handleInputChange} 
                 errors={errors}

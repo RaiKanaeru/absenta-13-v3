@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  ArrowLeft, Clock, AlertTriangle, CheckCircle2, FileText, X, Users, RefreshCw, Download, AlertCircle, Loader2 
+  ArrowLeft, Clock, AlertTriangle, CheckCircle2, FileText, X, Users, RefreshCw, Download, Loader2 
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiCall } from '@/utils/apiClient';

@@ -5,13 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, Eye, EyeOff, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-interface RoleSpecificFieldsProps {
+interface RoleSpecificFieldsBaseProps {
   role: 'admin' | 'guru' | 'siswa';
-  userData: {
-    nip?: string;
-    nis?: string;
-    kelas?: string;
-  };
   formData: {
     mata_pelajaran: string;
     telepon_orangtua: string;
@@ -20,11 +15,22 @@ interface RoleSpecificFieldsProps {
     alamat: string;
     no_telepon: string;
   };
-  errors: Record<string, string>;
   handleInputChange: (field: string, value: string) => void;
 }
 
-export const RoleSpecificFieldsTop: React.FC<RoleSpecificFieldsProps> = ({
+interface RoleSpecificFieldsTopProps extends RoleSpecificFieldsBaseProps {
+  userData: {
+    nip?: string;
+    nis?: string;
+    kelas?: string;
+  };
+}
+
+interface RoleSpecificFieldsBottomProps extends RoleSpecificFieldsBaseProps {
+  errors: Record<string, string>;
+}
+
+export const RoleSpecificFieldsTop: React.FC<RoleSpecificFieldsTopProps> = ({
   role,
   userData,
   formData,
@@ -86,7 +92,7 @@ export const RoleSpecificFieldsTop: React.FC<RoleSpecificFieldsProps> = ({
   return null;
 };
 
-export const RoleSpecificFieldsBottom: React.FC<RoleSpecificFieldsProps> = ({
+export const RoleSpecificFieldsBottom: React.FC<RoleSpecificFieldsBottomProps> = ({
   role,
   formData,
   errors,

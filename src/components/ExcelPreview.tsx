@@ -5,9 +5,11 @@ import { Download, FileText, Loader2 } from 'lucide-react';
 import { useLetterhead } from '../hooks/useLetterhead';
 import { LetterheadSection } from './ExcelPreview.components';
 
+export type ExcelDataValue = string | number | Date | null | undefined;
+
 interface ExcelPreviewProps {
   title: string;
-  data: Record<string, string | number | Date | null | undefined>[];
+  data: Record<string, ExcelDataValue>[];
   columns: {
     key: string;
     label: string;
@@ -50,7 +52,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
 }) => {
   // Load letterhead configuration
   const { letterhead } = useLetterhead(reportKey);
-  const formatCellValue = (value: string | number | Date | null | undefined, format?: string): string => {
+  const formatCellValue = (value: ExcelDataValue, format?: string): string => {
     if (value === null || value === undefined) return '';
     
     const formatters: Record<string, () => string> = {
@@ -103,7 +105,7 @@ const ExcelPreview: React.FC<ExcelPreviewProps> = ({
     return `${baseStyle} ${alignMap[align || ''] || 'text-left'}`;
   };
 
-  const getDataRowKey = (row: Record<string, string | number | Date | null | undefined>) => {
+  const getDataRowKey = (row: Record<string, ExcelDataValue>) => {
     const preferredKeys = ['id', 'id_siswa', 'id_guru', 'nis', 'nip', 'id_mapel', 'kode_mapel'];
     for (const key of preferredKeys) {
       const value = row[key];

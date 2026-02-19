@@ -1944,8 +1944,7 @@ export const updateJadwal = async (req, res) => {
     const {
         kelas_id,
         hari,
-        jam_ke,
-        jenis_aktivitas = 'pelajaran'
+        jam_ke
     } = req.body;
 
     log.requestStart('UpdateJadwal', { id, kelas_id, hari, jam_ke });

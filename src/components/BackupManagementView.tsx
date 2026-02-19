@@ -785,7 +785,7 @@ const BackupManagementView: React.FC = () => {
                                     <Label>Maksimal Backup Disimpan</Label>
                                     <Select 
                                         value={backupSettings.maxBackups.toString()} 
-                                        onValueChange={(value) => setBackupSettings({...backupSettings, maxBackups: parseInt(value)})}
+                                        onValueChange={(value) => setBackupSettings({...backupSettings, maxBackups: Number.parseInt(value)})}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
@@ -803,7 +803,7 @@ const BackupManagementView: React.FC = () => {
                                     <Label>Umur Arsip (Bulan)</Label>
                                     <Select 
                                         value={backupSettings.archiveAge.toString()} 
-                                        onValueChange={(value) => setBackupSettings({...backupSettings, archiveAge: parseInt(value)})}
+                                        onValueChange={(value) => setBackupSettings({...backupSettings, archiveAge: Number.parseInt(value)})}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />

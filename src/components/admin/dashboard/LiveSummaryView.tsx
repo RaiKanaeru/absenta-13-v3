@@ -9,7 +9,6 @@ import {
   AlertCircle, 
   Zap, 
   Database, 
-  HardDrive,
   Activity,
   ShieldCheck
 } from "lucide-react";

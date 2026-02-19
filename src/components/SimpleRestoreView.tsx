@@ -22,7 +22,6 @@ import { Checkbox } from './ui/checkbox';
 
 interface SimpleRestoreViewProps {
   onBack: () => void;
-  onLogout: () => void;
 }
 
 // =============================================================================
@@ -151,6 +150,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
             setSelectedFile(null);
             loadAvailableBackups();
           } catch (e) {
+            console.error('Failed to parse restore response:', e instanceof Error ? e.message : String(e));
             setRestoreStatus('error');
             setError('Gagal memproses respon server');
           }
@@ -159,9 +159,10 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
           try {
             const response = JSON.parse(xhr.responseText);
             setError(response.message || 'Gagal memulihkan database');
-          } catch (e) {
-            setError(`Upload gagal: ${xhr.statusText}`);
-          }
+           } catch (e) {
+             console.error('Failed to parse error response:', e instanceof Error ? e.message : String(e));
+             setError(`Upload gagal: ${xhr.statusText}`);
+           }
         }
         setUploading(false);
       });
@@ -178,6 +179,7 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
       xhr.send(formData);
 
     } catch (err) {
+      console.error('Upload operation failed:', err instanceof Error ? err.message : String(err));
       setRestoreStatus('error');
       setError('Terjadi kesalahan saat upload');
       setUploading(false);
@@ -577,22 +579,22 @@ const SimpleRestoreView: React.FC<SimpleRestoreViewProps> = ({ onBack }) => {
 
               if (availableBackups.length > 0) {
                 return (
-              <div className="space-y-3">
-                {availableBackups.map((backup) => {
-                  const backupKey = backup?.id || backup?.filename || backup?.name || `${backup?.date || 'unknown'}-${backup?.size || 0}`;
-                  return (
-                  <div key={backupKey} className={`border rounded-lg p-3 sm:p-4 transition-colors ${
-                    selectedBackups.has(backup.id!) 
-                      ? 'bg-accent/50 border-primary/50' 
-                      : 'bg-card hover:bg-muted/50 border-border'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <div className="pt-1">
-                         <Checkbox 
-                            checked={selectedBackups.has(backup.id!)}
-                            onCheckedChange={() => toggleSelectId(backup.id!)}
-                            id={`backup-${backup.id}`}
-                         />
+               <div className="space-y-3">
+                 {availableBackups.filter(backup => backup.id).map((backup) => {
+                   const backupKey = backup.id || backup.filename || backup.name || `${backup.date || 'unknown'}-${backup.size || 0}`;
+                   return (
+                   <div key={backupKey} className={`border rounded-lg p-3 sm:p-4 transition-colors ${
+                     selectedBackups.has(backup.id) 
+                       ? 'bg-accent/50 border-primary/50' 
+                       : 'bg-card hover:bg-muted/50 border-border'
+                   }`}>
+                     <div className="flex items-start gap-3">
+                       <div className="pt-1">
+                          <Checkbox 
+                             checked={selectedBackups.has(backup.id)}
+                             onCheckedChange={() => toggleSelectId(backup.id)}
+                             id={`backup-${backup.id}`}
+                          />
                       </div>
                       <div className="flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 min-w-0">
                         <div className="flex-1 min-w-0">
