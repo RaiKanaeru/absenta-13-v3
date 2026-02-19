@@ -536,23 +536,31 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                     <tr className="bg-muted border-b-2 border-border">
                       <th className="border border-border p-2 text-center w-12">NO.</th>
                       <th className="border border-border p-2 text-center w-48">NAMA SISWA</th>
-                      {viewMode === 'tahunan' ? (
-                        <>
-                          {ACADEMIC_MONTHS.map((month) => (
-                            <th key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                              {month.key}
+                      {(() => {
+                        if (viewMode === 'tahunan') {
+                          return (
+                            <>
+                              {ACADEMIC_MONTHS.map((month) => (
+                                <th key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+                                  {month.key}
+                                </th>
+                              ))}
+                            </>
+                          );
+                        }
+                        if (viewMode === 'bulanan') {
+                          return (
+                            <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+                              {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
                             </th>
-                          ))}
-                        </>
-                      ) : viewMode === 'bulanan' ? (
-                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                          {ACADEMIC_MONTHS.find(m => m.number.toString() === selectedBulan)?.key}
-                        </th>
-                      ) : (
-                        <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                          PERIODE TANGGAL
-                        </th>
-                      )}
+                          );
+                        }
+                        return (
+                          <th className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+                            PERIODE TANGGAL
+                          </th>
+                        );
+                      })()}
                       <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-24">JUMLAH KETIDAKHADIRAN</th>
                       <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KETIDAKHADIRAN (%)</th>
                       <th className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 w-32">PERSENTASE KEHADIRAN (%)</th>
@@ -563,26 +571,34 @@ const RekapKetidakhadiranView: React.FC<{ onBack: () => void; onLogout: () => vo
                       <tr key={siswa.id} className="hover:bg-muted">
                         <td className="border border-border p-2 text-center">{index + 1}</td>
                         <td className="border border-border p-2">{siswa.nama}</td>
-                        {viewMode === 'tahunan' ? (
-                          <>
-                            {ACADEMIC_MONTHS.map((month) => {
-                              const presensi = getPresensiForStudent(siswa.id, month.number);
-                              return (
-                                <td key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                                  {presensi ? presensi.total_ketidakhadiran : 0}
-                                </td>
-                              );
-                            })}
-                          </>
-                        ) : viewMode === 'bulanan' ? (
-                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                            {getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0}
-                          </td>
-                        ) : (
-                          <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
-                            {getPresensiForStudentByDate(siswa.id)?.total_ketidakhadiran || 0}
-                          </td>
-                        )}
+                        {(() => {
+                          if (viewMode === 'tahunan') {
+                            return (
+                              <>
+                                {ACADEMIC_MONTHS.map((month) => {
+                                  const presensi = getPresensiForStudent(siswa.id, month.number);
+                                  return (
+                                    <td key={month.key} className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+                                      {presensi ? presensi.total_ketidakhadiran : 0}
+                                    </td>
+                                  );
+                                })}
+                              </>
+                            );
+                          }
+                          if (viewMode === 'bulanan') {
+                            return (
+                              <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+                                {getPresensiForStudent(siswa.id, Number.parseInt(selectedBulan))?.total_ketidakhadiran || 0}
+                              </td>
+                            );
+                          }
+                          return (
+                            <td className="border border-border p-2 text-center bg-blue-500/10 dark:bg-blue-500/20">
+                              {getPresensiForStudentByDate(siswa.id)?.total_ketidakhadiran || 0}
+                            </td>
+                          );
+                        })()}
                         <td className="border border-border p-2 text-center bg-emerald-500/10 dark:bg-emerald-500/20 font-semibold">
                           {getDisplayedTotalKetidakhadiran(siswa.id)}
                         </td>
