@@ -48,9 +48,9 @@ function statusBadgeClass(status: string): string {
 // ---------------------------------------------------------------------------
 
 interface NotificationPanelProps {
-  notifications: NotificationItem[];
-  isLoading: boolean;
-  onRefresh: () => void;
+  readonly notifications: NotificationItem[];
+  readonly isLoading: boolean;
+  readonly onRefresh: () => void;
 }
 
 export function NotificationPanel({

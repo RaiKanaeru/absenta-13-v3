@@ -10,12 +10,12 @@ import type { NotificationItem } from '@/hooks/useNotifications';
 // ---------------------------------------------------------------------------
 
 interface NotificationBellProps {
-  notifications: NotificationItem[];
-  unreadCount: number;
-  isLoading: boolean;
-  onRefresh: () => void;
+  readonly notifications: NotificationItem[];
+  readonly unreadCount: number;
+  readonly isLoading: boolean;
+  readonly onRefresh: () => void;
   /** Whether sidebar label text is visible (used for responsive layout). */
-  showLabel?: boolean;
+  readonly showLabel?: boolean;
 }
 
 // ---------------------------------------------------------------------------
