@@ -3,7 +3,7 @@
  * Handles teacher-specific attendance reports
  */
 
-import { sendDatabaseError, sendValidationError, sendNotFoundError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { getDaysDifferenceWIB, parseDateStringWIB, HARI_INDONESIA } from '../utils/timeUtils.js';
 import ExportService from '../services/ExportService.js';

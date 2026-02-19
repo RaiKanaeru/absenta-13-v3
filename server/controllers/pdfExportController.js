@@ -7,7 +7,7 @@
 import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
 import db from '../config/db.js';
-import { sendValidationError, sendDatabaseError } from '../utils/errorHandler.js';
+import { sendValidationError } from '../utils/errorHandler.js';
 import { buildPdf } from '../../backend/export/pdfBuilder.js';
 import { streamPdfResponse, generatePdfFilename, wrapPdfExport } from '../../backend/export/pdfHelpers.js';
 import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
