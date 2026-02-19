@@ -1,0 +1,24 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/CODING/absenta-13-v3[39m
+
+[90mstderr[2m | src/components/__tests__/SmokeTest.test.tsx[2m > [22m[2mSmoke Tests - Test Scaffolding[2m > [22m[2mrenders AuthProvider without errors
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/components/__tests__/SmokeTest.test.tsx[2m > [22mSmoke Tests - Test Scaffolding[2m > [22mrenders AuthProvider without errors
+ [32m✓[39m src/components/__tests__/SmokeTest.test.tsx[2m > [22mSmoke Tests - Test Scaffolding[2m > [22mAuthProvider is properly mocked and does not throw
+ [32m✓[39m src/components/__tests__/SmokeTest.test.tsx[2m > [22mSmoke Tests - Test Scaffolding[2m > [22mallows rendering child components within auth context
+ [32m✓[39m src/components/__tests__/SmokeTest.test.tsx[2m > [22mSmoke Tests - Test Scaffolding[2m > [22mtest environment has fetch mock
+ [32m✓[39m src/components/__tests__/SmokeTest.test.tsx[2m > [22mSmoke Tests - Test Scaffolding[2m > [22mmock auth utilities are available
+ [32m✓[39m src/components/__tests__/SmokeTest.test.tsx[2m > [22mSmoke Tests - Test Scaffolding[2m > [22mrenders multiple components without cache conflicts
+ [32m✓[39m src/contexts/__tests__/FontSizeContext.test.tsx[2m > [22mFontSizeContext[2m > [22mupdates font-size classes without removing unrelated root classes
+ [32m✓[39m src/contexts/__tests__/FontSizeContext.test.tsx[2m > [22mFontSizeContext[2m > [22mpersists font size changes to storage
+ [32m✓[39m src/contexts/__tests__/FontSizeContext.test.tsx[2m > [22mFontSizeContext[2m > [22mrestores font size preference from storage on load
+ [32m✓[39m src/contexts/__tests__/FontSizeContext.test.tsx[2m > [22mFontSizeContext[2m > [22mfalls back to session storage when local storage is empty
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m   Start at [22m 12:38:16
+[2m   Duration [22m 3.21s[2m (transform 103ms, setup 451ms, collect 471ms, tests 425ms, environment 1.91s, prepare 530ms)[22m
+
+VITEST_EXIT_CODE=0

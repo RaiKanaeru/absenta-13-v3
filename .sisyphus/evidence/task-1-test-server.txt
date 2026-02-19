@@ -1,0 +1,1869 @@
+
+> absenta-13@1.0.0 test:server
+> node --test server/**/__tests__/**/*.test.js
+
+TAP version 13
+# [32m2026-02-19 05:33:06.092 | INFO  | DB  | Database pool registered in centralized config[0m
+# Subtest: Attendance Calculator
+    # Subtest: getEffectiveDaysMapFromDB
+    not ok 1 - getEffectiveDaysMapFromDB
+      ---
+      duration_ms: 0.5228
+      type: 'suite'
+      location: 'D:\\CODING\\absenta-13-v3\\server\\__tests__\\attendanceCalculator.test.js:42:5'
+      failureType: 'testCodeFailure'
+      error: 'beforeEach is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        SuiteContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/attendanceCalculator.test.js:43:9)
+        Suite.runInAsyncScope (node:async_hooks:214:14)
+        Suite.createBuild (node:internal/test_runner/test:1402:13)
+        new Suite (node:internal/test_runner/test:1393:28)
+        Suite.createSubtest (node:internal/test_runner/test:808:18)
+        run (node:internal/test_runner/harness:302:28)
+        test (node:internal/test_runner/harness:316:12)
+        SuiteContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/attendanceCalculator.test.js:42:5)
+        Suite.runInAsyncScope (node:async_hooks:214:14)
+        Suite.createBuild (node:internal/test_runner/test:1402:13)
+      ...
+    # Subtest: calculateEffectiveDaysForRange
+    not ok 2 - calculateEffectiveDaysForRange
+      ---
+      duration_ms: 0.1546
+      type: 'suite'
+      location: 'D:\\CODING\\absenta-13-v3\\server\\__tests__\\attendanceCalculator.test.js:70:5'
+      failureType: 'testCodeFailure'
+      error: 'beforeEach is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        SuiteContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/attendanceCalculator.test.js:71:9)
+        Suite.runInAsyncScope (node:async_hooks:214:14)
+        Suite.createBuild (node:internal/test_runner/test:1402:13)
+        new Suite (node:internal/test_runner/test:1393:28)
+        Suite.createSubtest (node:internal/test_runner/test:808:18)
+        run (node:internal/test_runner/harness:302:28)
+        test (node:internal/test_runner/harness:316:12)
+        SuiteContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/attendanceCalculator.test.js:70:5)
+        Suite.runInAsyncScope (node:async_hooks:214:14)
+        Suite.createBuild (node:internal/test_runner/test:1402:13)
+      ...
+    # Subtest: calculateAttendancePercentage
+        # Subtest: should calculate basic percentage
+        ok 1 - should calculate basic percentage
+          ---
+          duration_ms: 0.9127
+          type: 'test'
+          ...
+        # Subtest: should cap at 100% and flag capped
+        ok 2 - should cap at 100% and flag capped
+          ---
+          duration_ms: 0.5287
+          type: 'test'
+          ...
+        # Subtest: should handle zero effective days
+        ok 3 - should handle zero effective days
+          ---
+          duration_ms: 0.3398
+          type: 'test'
+          ...
+        1..3
+    ok 3 - calculateAttendancePercentage
+      ---
+      duration_ms: 2.6845
+      type: 'suite'
+      ...
+    1..3
+not ok 1 - Attendance Calculator
+  ---
+  duration_ms: 5.1616
+  type: 'suite'
+  location: 'D:\\CODING\\absenta-13-v3\\server\\__tests__\\attendanceCalculator.test.js:40:1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# [33m2026-02-19 05:33:06.106 | WARN  | AttendanceCalculator  | Attendance percentage exceeds 100% - possible data inconsistency {"hadirCount":22,"totalEffectiveDays":20,"rawPercentage":"110.00","context":""}[0m
+# [33m2026-02-19 05:33:06.106 | WARN  | AttendanceCalculator  | Total effective days is zero or negative {"totalEffectiveDays":0,"context":""}[0m
+# Run tests with: node --test server/__tests__/auth.test.js
+# Subtest: Rate Limiting
+    # Subtest: should allow first login attempt
+    ok 1 - should allow first login attempt
+      ---
+      duration_ms: 3.5101
+      type: 'test'
+      ...
+    # Subtest: should track failed attempts
+    ok 2 - should track failed attempts
+      ---
+      duration_ms: 0.6797
+      type: 'test'
+      ...
+    # Subtest: should lock after max attempts
+    ok 3 - should lock after max attempts
+      ---
+      duration_ms: 0.785
+      type: 'test'
+      ...
+    # Subtest: should reset attempts on success
+    ok 4 - should reset attempts on success
+      ---
+      duration_ms: 0.6832
+      type: 'test'
+      ...
+    1..4
+ok 2 - Rate Limiting
+  ---
+  duration_ms: 7.559
+  type: 'suite'
+  ...
+# Subtest: Time Validation
+    # Subtest: should validate correct time formats
+    ok 1 - should validate correct time formats
+      ---
+      duration_ms: 0.3543
+      type: 'test'
+      ...
+    # Subtest: should reject invalid time formats
+    ok 2 - should reject invalid time formats
+      ---
+      duration_ms: 0.2744
+      type: 'test'
+      ...
+    1..2
+ok 3 - Time Validation
+  ---
+  duration_ms: 0.8672
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: Login Attempts - Lockout Logic
+    # Subtest: should allow first attempt
+    ok 1 - should allow first attempt
+      ---
+      duration_ms: 1.3949
+      type: 'test'
+      ...
+    # Subtest: should track remaining attempts
+    ok 2 - should track remaining attempts
+      ---
+      duration_ms: 0.2972
+      type: 'test'
+      ...
+    # Subtest: should lock after max attempts
+    ok 3 - should lock after max attempts
+      ---
+      duration_ms: 0.5024
+      type: 'test'
+      ...
+    # Subtest: should unlock after lockout expires
+    ok 4 - should unlock after lockout expires
+      ---
+      duration_ms: 0.2537
+      type: 'test'
+      ...
+    1..4
+ok 4 - Login Attempts - Lockout Logic
+  ---
+  duration_ms: 4.1346
+  type: 'suite'
+  ...
+# Subtest: Record Failed Attempt
+    # Subtest: should create new attempt record
+    ok 1 - should create new attempt record
+      ---
+      duration_ms: 0.4403
+      type: 'test'
+      ...
+    # Subtest: should increment count
+    ok 2 - should increment count
+      ---
+      duration_ms: 0.2266
+      type: 'test'
+      ...
+    # Subtest: should set lockout at max attempts
+    ok 3 - should set lockout at max attempts
+      ---
+      duration_ms: 0.3724
+      type: 'test'
+      ...
+    1..3
+ok 5 - Record Failed Attempt
+  ---
+  duration_ms: 1.7552
+  type: 'suite'
+  ...
+# Subtest: Login Input Validation
+    # Subtest: should accept valid credentials
+    ok 1 - should accept valid credentials
+      ---
+      duration_ms: 0.5049
+      type: 'test'
+      ...
+    # Subtest: should reject empty username
+    ok 2 - should reject empty username
+      ---
+      duration_ms: 0.3759
+      type: 'test'
+      ...
+    # Subtest: should reject empty password
+    ok 3 - should reject empty password
+      ---
+      duration_ms: 0.4963
+      type: 'test'
+      ...
+    # Subtest: should reject both empty
+    ok 4 - should reject both empty
+      ---
+      duration_ms: 0.2043
+      type: 'test'
+      ...
+    1..4
+ok 6 - Login Input Validation
+  ---
+  duration_ms: 1.9847
+  type: 'suite'
+  ...
+# Subtest: JWT Token Format Validation
+    # Subtest: should accept valid JWT format
+    ok 1 - should accept valid JWT format
+      ---
+      duration_ms: 0.3412
+      type: 'test'
+      ...
+    # Subtest: should reject token with wrong parts
+    ok 2 - should reject token with wrong parts
+      ---
+      duration_ms: 0.1489
+      type: 'test'
+      ...
+    # Subtest: should reject empty token
+    ok 3 - should reject empty token
+      ---
+      duration_ms: 0.1334
+      type: 'test'
+      ...
+    # Subtest: should reject null token
+    ok 4 - should reject null token
+      ---
+      duration_ms: 0.1138
+      type: 'test'
+      ...
+    1..4
+ok 7 - JWT Token Format Validation
+  ---
+  duration_ms: 0.9381
+  type: 'suite'
+  ...
+# Subtest: Download Access Utilities
+    # Subtest: should build filename with user id
+    ok 1 - should build filename with user id
+      ---
+      duration_ms: 1.512
+      type: 'test'
+      ...
+    # Subtest: should extract user id from filename
+    ok 2 - should extract user id from filename
+      ---
+      duration_ms: 2.3285
+      type: 'test'
+      ...
+    # Subtest: should verify ownership by user id
+    ok 3 - should verify ownership by user id
+      ---
+      duration_ms: 0.3747
+      type: 'test'
+      ...
+    # Subtest: should reject unsafe filenames
+    ok 4 - should reject unsafe filenames
+      ---
+      duration_ms: 0.4435
+      type: 'test'
+      ...
+    # Subtest: should allow xlsx extension only
+    ok 5 - should allow xlsx extension only
+      ---
+      duration_ms: 0.2089
+      type: 'test'
+      ...
+    1..5
+ok 8 - Download Access Utilities
+  ---
+  duration_ms: 6.9162
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: formatBytes
+    # Subtest: should return "0 Bytes" for 0
+    ok 1 - should return "0 Bytes" for 0
+      ---
+      duration_ms: 2.3624
+      type: 'test'
+      ...
+    # Subtest: should format bytes correctly
+    ok 2 - should format bytes correctly
+      ---
+      duration_ms: 0.2374
+      type: 'test'
+      ...
+    # Subtest: should format KB correctly
+    ok 3 - should format KB correctly
+      ---
+      duration_ms: 0.3178
+      type: 'test'
+      ...
+    # Subtest: should format MB correctly
+    ok 4 - should format MB correctly
+      ---
+      duration_ms: 0.1864
+      type: 'test'
+      ...
+    # Subtest: should format with custom decimals
+    ok 5 - should format with custom decimals
+      ---
+      duration_ms: 0.1888
+      type: 'test'
+      ...
+    # Subtest: should handle large values (GB)
+    ok 6 - should handle large values (GB)
+      ---
+      duration_ms: 0.1789
+      type: 'test'
+      ...
+    1..6
+ok 9 - formatBytes
+  ---
+  duration_ms: 5.2821
+  type: 'suite'
+  ...
+# Subtest: formatNumber
+    # Subtest: should format small numbers
+    ok 1 - should format small numbers
+      ---
+      duration_ms: 28.7021
+      type: 'test'
+      ...
+    # Subtest: should add thousand separators
+    ok 2 - should add thousand separators
+      ---
+      duration_ms: 0.5697
+      type: 'test'
+      ...
+    1..2
+ok 10 - formatNumber
+  ---
+  duration_ms: 29.7295
+  type: 'suite'
+  ...
+# Subtest: formatPercentage
+    # Subtest: should format whole percentage
+    ok 1 - should format whole percentage
+      ---
+      duration_ms: 0.471
+      type: 'test'
+      ...
+    # Subtest: should format decimal percentage
+    ok 2 - should format decimal percentage
+      ---
+      duration_ms: 0.4219
+      type: 'test'
+      ...
+    # Subtest: should respect custom decimals
+    ok 3 - should respect custom decimals
+      ---
+      duration_ms: 0.203
+      type: 'test'
+      ...
+    # Subtest: should format zero
+    ok 4 - should format zero
+      ---
+      duration_ms: 0.1525
+      type: 'test'
+      ...
+    1..4
+ok 11 - formatPercentage
+  ---
+  duration_ms: 1.6528
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: NIP Validation
+    # Subtest: should accept valid 18-digit NIP
+    ok 1 - should accept valid 18-digit NIP
+      ---
+      duration_ms: 1.4276
+      type: 'test'
+      ...
+    # Subtest: should accept valid 10-digit NIP
+    ok 2 - should accept valid 10-digit NIP
+      ---
+      duration_ms: 0.3042
+      type: 'test'
+      ...
+    # Subtest: should reject NIP with less than 10 digits
+    ok 3 - should reject NIP with less than 10 digits
+      ---
+      duration_ms: 0.2561
+      type: 'test'
+      ...
+    # Subtest: should reject NIP with more than 20 digits
+    ok 4 - should reject NIP with more than 20 digits
+      ---
+      duration_ms: 0.2328
+      type: 'test'
+      ...
+    # Subtest: should reject NIP with non-numeric characters
+    ok 5 - should reject NIP with non-numeric characters
+      ---
+      duration_ms: 0.1855
+      type: 'test'
+      ...
+    # Subtest: should reject empty NIP
+    ok 6 - should reject empty NIP
+      ---
+      duration_ms: 0.153
+      type: 'test'
+      ...
+    1..6
+ok 12 - NIP Validation
+  ---
+  duration_ms: 4.5195
+  type: 'suite'
+  ...
+# Subtest: Guru Nama Validation
+    # Subtest: should accept valid name
+    ok 1 - should accept valid name
+      ---
+      duration_ms: 0.5247
+      type: 'test'
+      ...
+    # Subtest: should accept 2-char name
+    ok 2 - should accept 2-char name
+      ---
+      duration_ms: 0.442
+      type: 'test'
+      ...
+    # Subtest: should reject 1-char name
+    ok 3 - should reject 1-char name
+      ---
+      duration_ms: 0.4565
+      type: 'test'
+      ...
+    # Subtest: should reject empty name
+    ok 4 - should reject empty name
+      ---
+      duration_ms: 0.3946
+      type: 'test'
+      ...
+    # Subtest: should reject whitespace-only name
+    ok 5 - should reject whitespace-only name
+      ---
+      duration_ms: 0.1679
+      type: 'test'
+      ...
+    1..5
+ok 13 - Guru Nama Validation
+  ---
+  duration_ms: 2.5216
+  type: 'suite'
+  ...
+# Subtest: Guru Username Validation
+    # Subtest: should accept valid lowercase username
+    ok 1 - should accept valid lowercase username
+      ---
+      duration_ms: 0.3457
+      type: 'test'
+      ...
+    # Subtest: should accept username with numbers
+    ok 2 - should accept username with numbers
+      ---
+      duration_ms: 0.1918
+      type: 'test'
+      ...
+    # Subtest: should reject username shorter than 4 chars
+    ok 3 - should reject username shorter than 4 chars
+      ---
+      duration_ms: 0.1585
+      type: 'test'
+      ...
+    # Subtest: should reject username with uppercase
+    ok 4 - should reject username with uppercase
+      ---
+      duration_ms: 1.3445
+      type: 'test'
+      ...
+    # Subtest: should reject username with spaces
+    ok 5 - should reject username with spaces
+      ---
+      duration_ms: 0.1993
+      type: 'test'
+      ...
+    1..5
+ok 14 - Guru Username Validation
+  ---
+  duration_ms: 2.5141
+  type: 'suite'
+  ...
+# Subtest: Guru Status Validation
+    # Subtest: should accept aktif
+    ok 1 - should accept aktif
+      ---
+      duration_ms: 0.3455
+      type: 'test'
+      ...
+    # Subtest: should accept nonaktif
+    ok 2 - should accept nonaktif
+      ---
+      duration_ms: 0.1474
+      type: 'test'
+      ...
+    # Subtest: should accept empty (optional)
+    ok 3 - should accept empty (optional)
+      ---
+      duration_ms: 0.1157
+      type: 'test'
+      ...
+    # Subtest: should reject invalid status
+    ok 4 - should reject invalid status
+      ---
+      duration_ms: 0.1127
+      type: 'test'
+      ...
+    1..4
+ok 15 - Guru Status Validation
+  ---
+  duration_ms: 0.9301
+  type: 'suite'
+  ...
+# Subtest: Teacher Attendance Status
+    # Subtest: should accept Hadir
+    ok 1 - should accept Hadir
+      ---
+      duration_ms: 0.2911
+      type: 'test'
+      ...
+    # Subtest: should accept Tidak Hadir
+    ok 2 - should accept Tidak Hadir
+      ---
+      duration_ms: 0.1405
+      type: 'test'
+      ...
+    # Subtest: should accept Izin
+    ok 3 - should accept Izin
+      ---
+      duration_ms: 0.1175
+      type: 'test'
+      ...
+    # Subtest: should accept Sakit
+    ok 4 - should accept Sakit
+      ---
+      duration_ms: 0.1207
+      type: 'test'
+      ...
+    # Subtest: should reject invalid status
+    ok 5 - should reject invalid status
+      ---
+      duration_ms: 0.1359
+      type: 'test'
+      ...
+    1..5
+ok 16 - Teacher Attendance Status
+  ---
+  duration_ms: 1.1748
+  type: 'suite'
+  ...
+# [32m2026-02-19 05:33:06.194 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.196 | INFO  | Jadwal [req_mlt0yw44_a11389f7] | CreateJadwal started {"kelas_id":1,"mapel_id":1,"hari":"Senin","jam_ke":1}[0m
+# [32m2026-02-19 05:33:06.201 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.201 | INFO  | Jadwal [req_mlt0yw49_afa14382] | CreateJadwal started {"kelas_id":1,"mapel_id":1,"hari":"Senin","jam_ke":1}[0m
+# [32m2026-02-19 05:33:06.202 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.203 | INFO  | Jadwal [req_mlt0yw4b_bd45a3b9] | GetJadwal started {}[0m
+# [32m2026-02-19 05:33:06.204 | INFO  | Jadwal [req_mlt0yw4b_bd45a3b9] | GetJadwal completed {"count":1}[0m
+# [32m2026-02-19 05:33:06.204 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.205 | INFO  | Jadwal [req_mlt0yw4c_fba36010] | GetJadwal started {}[0m
+# [32m2026-02-19 05:33:06.206 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.208 | INFO  | Jadwal [req_mlt0yw4g_aa7349c9] | CreateJadwal started {"kelas_id":1,"mapel_id":1,"hari":"Senin","jam_ke":1}[0m
+# [33m2026-02-19 05:33:06.197 | WARN  | Jadwal [req_mlt0yw44_a11389f7] | Validation failed {"field":"time","value":{"jam_mulai":"25:00","jam_selesai":"08:00"},"reason":"Format waktu tidak valid. Gunakan format 24 jam (HH:MM)"}[0m
+# [req_1771479186197_b7b75a53] Error: {
+#   message: 'Format waktu tidak valid. Gunakan format 24 jam (HH:MM)',
+#   code: 2001,
+#   stack: 'AppError: Format waktu tidak valid. Gunakan format 24 jam (HH:MM)\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at Module.createJadwal (file:///D:/CODING/absenta-13-v3/server/controllers/jadwalController.js:1721:20)\\n' +
+#     '    at async TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/jadwal.test.js:50:13)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1054:7)\\n' +
+#     '    at async Promise.all (index 0)\\n' +
+#     '    at async Suite.run (node:internal/test_runner/test:1442:7)\\n' +
+#     '    at async Promise.all (index 0)\\n' +
+#     '    at async Suite.run (node:internal/test_runner/test:1442:7)\\n' +
+#     '    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)'
+# }
+# [33m2026-02-19 05:33:06.201 | WARN  | Jadwal [req_mlt0yw49_afa14382] | Validation failed {"field":"time","value":{"jam_mulai":"08:00","jam_selesai":"07:00"},"reason":"Jam selesai harus setelah jam mulai"}[0m
+# [req_1771479186201_4e538cb6] Error: {
+#   message: 'Jam selesai harus setelah jam mulai',
+#   code: 2001,
+#   stack: 'AppError: Jam selesai harus setelah jam mulai\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at Module.createJadwal (file:///D:/CODING/absenta-13-v3/server/controllers/jadwalController.js:1721:20)\\n' +
+#     '    at async TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/jadwal.test.js:63:13)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1054:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [31m2026-02-19 05:33:06.205 | ERROR | Jadwal [req_mlt0yw4c_fba36010] | Database getJadwal failed {} | Error: DB Error[0m
+# [req_1771479186205_a76d09a3] Error: {
+#   message: 'DB Error',
+#   code: undefined,
+#   stack: 'Error: DB Error\\n' +
+#     '    at Object.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/jadwal.test.js:82:73)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:765:20)\\n' +
+#     '    at Object.execute (file:///D:/CODING/absenta-13-v3/server/config/db.js:31:21)\\n' +
+#     '    at Module.getJadwal (file:///D:/CODING/absenta-13-v3/server/controllers/jadwalController.js:1689:33)\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/jadwal.test.js:84:36)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [32m2026-02-19 05:33:06.209 | INFO  | Jadwal [req_mlt0yw4g_aa7349c9] | CreateJadwal completed {"jadwalId":10,"hari":"Senin","jam_ke":1,"guruCount":1}[0m
+# [32m2026-02-19 05:33:06.211 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.212 | INFO  | Jadwal [req_mlt0yw4k_6baf2fea] | CreateJadwal started {}[0m
+# [32m2026-02-19 05:33:06.213 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.213 | INFO  | Jadwal [req_mlt0yw4l_fedcc633] | DeleteJadwal started {"id":1}[0m
+# [32m2026-02-19 05:33:06.213 | INFO  | Jadwal [req_mlt0yw4l_fedcc633] | DeleteJadwal completed {"id":1}[0m
+# [33m2026-02-19 05:33:06.212 | WARN  | Jadwal [req_mlt0yw4k_6baf2fea] | Validation failed {"field":"jadwal","value":{"jam_mulai":"07:00","jam_selesai":"08:00","jenis_aktivitas":"pelajaran"},"reason":"Missing required fields"}[0m
+# [req_1771479186212_30e620cf] Error: {
+#   message: 'Semua field wajib diisi',
+#   code: 2001,
+#   stack: 'AppError: Semua field wajib diisi\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at Module.createJadwal (file:///D:/CODING/absenta-13-v3/server/controllers/jadwalController.js:1721:20)\\n' +
+#     '    at async TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/jadwal.test.js:128:13)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1054:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [32m2026-02-19 05:33:06.214 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.214 | INFO  | Jadwal [req_mlt0yw4m_34f49a2d] | DeleteJadwal started {"id":999}[0m
+# [33m2026-02-19 05:33:06.214 | WARN  | Jadwal [req_mlt0yw4m_34f49a2d] | DeleteJadwal - not found {"id":999}[0m
+# [req_1771479186214_30258f83] Error: {
+#   message: 'Jadwal tidak ditemukan',
+#   code: 1005,
+#   stack: 'AppError: Jadwal tidak ditemukan\\n' +
+#     '    at sendNotFoundError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:236:19)\\n' +
+#     '    at Module.deleteJadwal (file:///D:/CODING/absenta-13-v3/server/controllers/jadwalController.js:1854:20)\\n' +
+#     '    at async TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/jadwal.test.js:150:13)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1054:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# Subtest: Jadwal Controller
+    # Subtest: Helper Logic Validation (via createJadwal)
+        # Subtest: should reject invalid time format
+        ok 1 - should reject invalid time format
+          ---
+          duration_ms: 6.4962
+          type: 'test'
+          ...
+        # Subtest: should reject if end time is before start time
+        ok 2 - should reject if end time is before start time
+          ---
+          duration_ms: 1.5342
+          type: 'test'
+          ...
+        1..2
+    ok 1 - Helper Logic Validation (via createJadwal)
+      ---
+      duration_ms: 9.2142
+      type: 'suite'
+      ...
+    # Subtest: getJadwal
+        # Subtest: should return all schedules
+        ok 1 - should return all schedules
+          ---
+          duration_ms: 1.7082
+          type: 'test'
+          ...
+        # Subtest: should handle database errors
+        ok 2 - should handle database errors
+          ---
+          duration_ms: 1.6303
+          type: 'test'
+          ...
+        1..2
+    ok 2 - getJadwal
+      ---
+      duration_ms: 3.6243
+      type: 'suite'
+      ...
+    # Subtest: createJadwal
+        # Subtest: should create valid schedule
+        ok 1 - should create valid schedule
+          ---
+          duration_ms: 4.5621
+          type: 'test'
+          ...
+        # Subtest: should fail if missing required fields
+        ok 2 - should fail if missing required fields
+          ---
+          duration_ms: 1.1924
+          type: 'test'
+          ...
+        1..2
+    ok 3 - createJadwal
+      ---
+      duration_ms: 6.6256
+      type: 'suite'
+      ...
+    # Subtest: deleteJadwal
+        # Subtest: should delete existing schedule
+        ok 1 - should delete existing schedule
+          ---
+          duration_ms: 0.8598
+          type: 'test'
+          ...
+        # Subtest: should return 404 if not found
+        ok 2 - should return 404 if not found
+          ---
+          duration_ms: 1.0586
+          type: 'test'
+          ...
+        1..2
+    ok 4 - deleteJadwal
+      ---
+      duration_ms: 2.1584
+      type: 'suite'
+      ...
+    1..4
+ok 17 - Jadwal Controller
+  ---
+  duration_ms: 22.7456
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: Time Format Validation
+    # Subtest: should accept HH:MM format
+    ok 1 - should accept HH:MM format
+      ---
+      duration_ms: 2.2708
+      type: 'test'
+      ...
+    # Subtest: should accept H:MM format
+    ok 2 - should accept H:MM format
+      ---
+      duration_ms: 0.2312
+      type: 'test'
+      ...
+    # Subtest: should accept HH:MM:SS format
+    ok 3 - should accept HH:MM:SS format
+      ---
+      duration_ms: 0.2178
+      type: 'test'
+      ...
+    # Subtest: should reject invalid hours
+    ok 4 - should reject invalid hours
+      ---
+      duration_ms: 0.3419
+      type: 'test'
+      ...
+    # Subtest: should reject invalid minutes
+    ok 5 - should reject invalid minutes
+      ---
+      duration_ms: 0.1996
+      type: 'test'
+      ...
+    # Subtest: should reject invalid format
+    ok 6 - should reject invalid format
+      ---
+      duration_ms: 0.1809
+      type: 'test'
+      ...
+    1..6
+ok 18 - Time Format Validation
+  ---
+  duration_ms: 5.4123
+  type: 'suite'
+  ...
+# Subtest: Time Range Validation
+    # Subtest: should accept valid range (mulai < selesai)
+    ok 1 - should accept valid range (mulai < selesai)
+      ---
+      duration_ms: 0.4975
+      type: 'test'
+      ...
+    # Subtest: should reject invalid range (mulai >= selesai)
+    ok 2 - should reject invalid range (mulai >= selesai)
+      ---
+      duration_ms: 0.3917
+      type: 'test'
+      ...
+    # Subtest: should handle edge cases
+    ok 3 - should handle edge cases
+      ---
+      duration_ms: 0.3445
+      type: 'test'
+      ...
+    # Subtest: should reject null/empty values
+    ok 4 - should reject null/empty values
+      ---
+      duration_ms: 0.3782
+      type: 'test'
+      ...
+    1..4
+ok 19 - Time Range Validation
+  ---
+  duration_ms: 2.1452
+  type: 'suite'
+  ...
+# Subtest: Jam Ke Range Validation
+    # Subtest: should accept valid jam_ke (1-15)
+    ok 1 - should accept valid jam_ke (1-15)
+      ---
+      duration_ms: 0.259
+      type: 'test'
+      ...
+    # Subtest: should reject jam_ke below minimum
+    ok 2 - should reject jam_ke below minimum
+      ---
+      duration_ms: 0.1137
+      type: 'test'
+      ...
+    # Subtest: should reject jam_ke above maximum
+    ok 3 - should reject jam_ke above maximum
+      ---
+      duration_ms: 0.0966
+      type: 'test'
+      ...
+    # Subtest: should reject null/undefined
+    ok 4 - should reject null/undefined
+      ---
+      duration_ms: 0.4246
+      type: 'test'
+      ...
+    # Subtest: should accept string numbers
+    ok 5 - should accept string numbers
+      ---
+      duration_ms: 0.2323
+      type: 'test'
+      ...
+    1..5
+ok 20 - Jam Ke Range Validation
+  ---
+  duration_ms: 1.3953
+  type: 'suite'
+  ...
+# Subtest: Duplicate Jam Ke Detection
+    # Subtest: should detect no duplicates
+    ok 1 - should detect no duplicates
+      ---
+      duration_ms: 1.3025
+      type: 'test'
+      ...
+    # Subtest: should detect duplicates
+    ok 2 - should detect duplicates
+      ---
+      duration_ms: 0.1704
+      type: 'test'
+      ...
+    # Subtest: should handle empty array
+    ok 3 - should handle empty array
+      ---
+      duration_ms: 0.1219
+      type: 'test'
+      ...
+    1..3
+ok 21 - Duplicate Jam Ke Detection
+  ---
+  duration_ms: 1.7614
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: Kelas - Tingkat Extraction
+    # Subtest: should extract X from "X IPA 1"
+    ok 1 - should extract X from "X IPA 1"
+      ---
+      duration_ms: 2.7655
+      type: 'test'
+      ...
+    # Subtest: should extract XI from "XI RPL 2"
+    ok 2 - should extract XI from "XI RPL 2"
+      ---
+      duration_ms: 0.2627
+      type: 'test'
+      ...
+    # Subtest: should extract XII from "XII TKJ 3"
+    ok 3 - should extract XII from "XII TKJ 3"
+      ---
+      duration_ms: 0.1888
+      type: 'test'
+      ...
+    # Subtest: should return null for empty string
+    ok 4 - should return null for empty string
+      ---
+      duration_ms: 0.2941
+      type: 'test'
+      ...
+    # Subtest: should return null for null input
+    ok 5 - should return null for null input
+      ---
+      duration_ms: 0.2092
+      type: 'test'
+      ...
+    1..5
+ok 22 - Kelas - Tingkat Extraction
+  ---
+  duration_ms: 5.2912
+  type: 'suite'
+  ...
+# Subtest: Kelas - Safe Delete Check
+    # Subtest: should allow delete when no dependencies
+    ok 1 - should allow delete when no dependencies
+      ---
+      duration_ms: 0.3372
+      type: 'test'
+      ...
+    # Subtest: should block delete when has students
+    ok 2 - should block delete when has students
+      ---
+      duration_ms: 0.4256
+      type: 'test'
+      ...
+    # Subtest: should block delete when has jadwal
+    ok 3 - should block delete when has jadwal
+      ---
+      duration_ms: 0.4239
+      type: 'test'
+      ...
+    # Subtest: should report both reasons when has both
+    ok 4 - should report both reasons when has both
+      ---
+      duration_ms: 0.4038
+      type: 'test'
+      ...
+    1..4
+ok 23 - Kelas - Safe Delete Check
+  ---
+  duration_ms: 2.3512
+  type: 'suite'
+  ...
+# Subtest: Ruang - Kode Validation
+    # Subtest: should validate and uppercase valid code
+    ok 1 - should validate and uppercase valid code
+      ---
+      duration_ms: 0.4141
+      type: 'test'
+      ...
+    # Subtest: should reject empty code
+    ok 2 - should reject empty code
+      ---
+      duration_ms: 0.1558
+      type: 'test'
+      ...
+    # Subtest: should reject code longer than 10 chars
+    ok 3 - should reject code longer than 10 chars
+      ---
+      duration_ms: 0.1478
+      type: 'test'
+      ...
+    # Subtest: should accept exactly 10 chars
+    ok 4 - should accept exactly 10 chars
+      ---
+      duration_ms: 0.1228
+      type: 'test'
+      ...
+    1..4
+ok 24 - Ruang - Kode Validation
+  ---
+  duration_ms: 1.0824
+  type: 'suite'
+  ...
+# [dotenv@17.2.3] injecting env (25) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+# Subtest: DownloadQueue file access
+    # Subtest: purges expired file access entries
+    ok 1 - purges expired file access entries
+      ---
+      duration_ms: 0.8705
+      type: 'test'
+      ...
+    # Subtest: falls back to filename ownership when map entry expired
+    ok 2 - falls back to filename ownership when map entry expired
+      ---
+      duration_ms: 0.3189
+      type: 'test'
+      ...
+    # Subtest: removes filepath from job status result
+    ok 3 - removes filepath from job status result
+      ---
+      duration_ms: 0.4754
+      type: 'test'
+      ...
+    1..3
+ok 25 - DownloadQueue file access
+  ---
+  duration_ms: 2.9661
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: NIS Validation
+    # Subtest: should accept valid 10-digit NIS
+    ok 1 - should accept valid 10-digit NIS
+      ---
+      duration_ms: 1.4682
+      type: 'test'
+      ...
+    # Subtest: should accept valid 8-digit NIS
+    ok 2 - should accept valid 8-digit NIS
+      ---
+      duration_ms: 0.2505
+      type: 'test'
+      ...
+    # Subtest: should accept valid 15-digit NIS
+    ok 3 - should accept valid 15-digit NIS
+      ---
+      duration_ms: 0.154
+      type: 'test'
+      ...
+    # Subtest: should reject NIS with less than 8 digits
+    ok 4 - should reject NIS with less than 8 digits
+      ---
+      duration_ms: 0.1478
+      type: 'test'
+      ...
+    # Subtest: should reject NIS with more than 15 digits
+    ok 5 - should reject NIS with more than 15 digits
+      ---
+      duration_ms: 0.1389
+      type: 'test'
+      ...
+    # Subtest: should reject NIS with non-numeric characters
+    ok 6 - should reject NIS with non-numeric characters
+      ---
+      duration_ms: 0.1236
+      type: 'test'
+      ...
+    # Subtest: should reject empty NIS
+    ok 7 - should reject empty NIS
+      ---
+      duration_ms: 0.211
+      type: 'test'
+      ...
+    1..7
+ok 26 - NIS Validation
+  ---
+  duration_ms: 4.3357
+  type: 'suite'
+  ...
+# Subtest: Username Validation
+    # Subtest: should accept valid lowercase username
+    ok 1 - should accept valid lowercase username
+      ---
+      duration_ms: 0.589
+      type: 'test'
+      ...
+    # Subtest: should accept username with underscore
+    ok 2 - should accept username with underscore
+      ---
+      duration_ms: 0.5092
+      type: 'test'
+      ...
+    # Subtest: should reject username shorter than 4 chars
+    ok 3 - should reject username shorter than 4 chars
+      ---
+      duration_ms: 0.419
+      type: 'test'
+      ...
+    # Subtest: should reject username with uppercase
+    ok 4 - should reject username with uppercase
+      ---
+      duration_ms: 0.185
+      type: 'test'
+      ...
+    # Subtest: should reject username with spaces
+    ok 5 - should reject username with spaces
+      ---
+      duration_ms: 0.1509
+      type: 'test'
+      ...
+    1..5
+ok 27 - Username Validation
+  ---
+  duration_ms: 2.4938
+  type: 'suite'
+  ...
+# Subtest: Email Validation
+    # Subtest: should accept valid email
+    ok 1 - should accept valid email
+      ---
+      duration_ms: 0.3068
+      type: 'test'
+      ...
+    # Subtest: should accept empty email (optional)
+    ok 2 - should accept empty email (optional)
+      ---
+      duration_ms: 0.1248
+      type: 'test'
+      ...
+    # Subtest: should reject invalid email format
+    ok 3 - should reject invalid email format
+      ---
+      duration_ms: 0.173
+      type: 'test'
+      ...
+    1..3
+ok 28 - Email Validation
+  ---
+  duration_ms: 1.8472
+  type: 'suite'
+  ...
+# Subtest: Password Validation
+    # Subtest: should accept password with 6+ chars on create
+    ok 1 - should accept password with 6+ chars on create
+      ---
+      duration_ms: 0.2609
+      type: 'test'
+      ...
+    # Subtest: should reject short password on create
+    ok 2 - should reject short password on create
+      ---
+      duration_ms: 0.1344
+      type: 'test'
+      ...
+    # Subtest: should allow empty password on update
+    ok 3 - should allow empty password on update
+      ---
+      duration_ms: 0.1219
+      type: 'test'
+      ...
+    # Subtest: should reject short password on update if provided
+    ok 4 - should reject short password on update if provided
+      ---
+      duration_ms: 0.127
+      type: 'test'
+      ...
+    1..4
+ok 29 - Password Validation
+  ---
+  duration_ms: 0.8413
+  type: 'suite'
+  ...
+# Subtest: Jenis Kelamin Validation
+    # Subtest: should accept L
+    ok 1 - should accept L
+      ---
+      duration_ms: 0.2396
+      type: 'test'
+      ...
+    # Subtest: should accept P
+    ok 2 - should accept P
+      ---
+      duration_ms: 0.1289
+      type: 'test'
+      ...
+    # Subtest: should accept empty (optional)
+    ok 3 - should accept empty (optional)
+      ---
+      duration_ms: 0.1273
+      type: 'test'
+      ...
+    # Subtest: should reject invalid value
+    ok 4 - should reject invalid value
+      ---
+      duration_ms: 0.1134
+      type: 'test'
+      ...
+    1..4
+ok 30 - Jenis Kelamin Validation
+  ---
+  duration_ms: 0.9032
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: Student Data Validation
+    # Subtest: should pass with valid data
+    ok 1 - should pass with valid data
+      ---
+      duration_ms: 2.5817
+      type: 'test'
+      ...
+    # Subtest: should fail with missing NIS
+    ok 2 - should fail with missing NIS
+      ---
+      duration_ms: 0.3867
+      type: 'test'
+      ...
+    # Subtest: should fail with invalid jenis_kelamin
+    ok 3 - should fail with invalid jenis_kelamin
+      ---
+      duration_ms: 0.2247
+      type: 'test'
+      ...
+    1..3
+ok 31 - Student Data Validation
+  ---
+  duration_ms: 4.8213
+  type: 'suite'
+  ...
+# Subtest: Phone Number Validation
+    # Subtest: should accept valid phone numbers
+    ok 1 - should accept valid phone numbers
+      ---
+      duration_ms: 0.2319
+      type: 'test'
+      ...
+    # Subtest: should reject invalid phone numbers
+    ok 2 - should reject invalid phone numbers
+      ---
+      duration_ms: 0.1241
+      type: 'test'
+      ...
+    # Subtest: should accept empty/null phone (optional)
+    ok 3 - should accept empty/null phone (optional)
+      ---
+      duration_ms: 0.1386
+      type: 'test'
+      ...
+    1..3
+ok 32 - Phone Number Validation
+  ---
+  duration_ms: 0.8489
+  type: 'suite'
+  ...
+# Subtest: Student Promotion Business Rules
+    # Subtest: should allow X to XI promotion
+    ok 1 - should allow X to XI promotion
+      ---
+      duration_ms: 0.4881
+      type: 'test'
+      ...
+    # Subtest: should allow XI to XII promotion
+    ok 2 - should allow XI to XII promotion
+      ---
+      duration_ms: 0.3382
+      type: 'test'
+      ...
+    # Subtest: should reject XII promotion (sudah lulus)
+    ok 3 - should reject XII promotion (sudah lulus)
+      ---
+      duration_ms: 0.3347
+      type: 'test'
+      ...
+    # Subtest: should reject invalid promotion path (X to XII)
+    ok 4 - should reject invalid promotion path (X to XII)
+      ---
+      duration_ms: 0.4272
+      type: 'test'
+      ...
+    # Subtest: should reject downgrade (XI to X)
+    ok 5 - should reject downgrade (XI to X)
+      ---
+      duration_ms: 0.1743
+      type: 'test'
+      ...
+    1..5
+ok 33 - Student Promotion Business Rules
+  ---
+  duration_ms: 2.4659
+  type: 'suite'
+  ...
+# [32m2026-02-19 05:33:06.255 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.257 | INFO  | TeacherData [req_mlt0yw5t_1b6489d1] | GetAll started {"page":1,"limit":15,"search":""}[0m
+# [32m2026-02-19 05:33:06.258 | INFO  | TeacherData [req_mlt0yw5t_1b6489d1] | GetAll completed {"count":2,"total":2,"page":1}[0m
+# [32m2026-02-19 05:33:06.260 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.260 | INFO  | TeacherData [req_mlt0yw5w_a339f859] | GetAll started {"page":1,"limit":15,"search":""}[0m
+# [31m2026-02-19 05:33:06.261 | ERROR | TeacherData [req_mlt0yw5w_a339f859] | Database query failed {} | Error: DB Error[0m
+# [req_1771479186262_be5aa9a7] Error: {
+#   message: 'DB Error',
+#   code: undefined,
+#   stack: 'Error: DB Error\\n' +
+#     '    at Object.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/teacherData.test.js:67:71)\\n' +
+#     '    at Object.apply (node:internal/test_runner/mock/mock:765:20)\\n' +
+#     '    at Object.query (file:///D:/CODING/absenta-13-v3/server/config/db.js:33:41)\\n' +
+#     '    at Module.getTeachersPaginated (file:///D:/CODING/absenta-13-v3/server/services/teacherService.js:62:29)\\n' +
+#     '    at Module.getTeachersData (file:///D:/CODING/absenta-13-v3/server/controllers/teacherDataController.js:31:45)\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/teacherData.test.js:69:41)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [32m2026-02-19 05:33:06.263 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.263 | INFO  | TeacherData [req_mlt0yw5z_80c10c99] | Create started {"nama":"Guru Baru"}[0m
+# [33m2026-02-19 05:33:06.264 | WARN  | TeacherData [req_mlt0yw5z_80c10c99] | Validation failed {"field":"required_fields","value":null,"reason":"NIP, nama, jenis_kelamin required"}[0m
+# [req_1771479186265_a45c648b] Error: {
+#   message: 'NIP, nama, dan jenis kelamin wajib diisi',
+#   code: 2001,
+#   stack: 'AppError: NIP, nama, dan jenis kelamin wajib diisi\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at Module.addTeacherData (file:///D:/CODING/absenta-13-v3/server/controllers/teacherDataController.js:62:20)\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/teacherData.test.js:80:41)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at async Promise.all (index 0)\\n' +
+#     '    at async Suite.run (node:internal/test_runner/test:1442:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [32m2026-02-19 05:33:06.265 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.266 | INFO  | TeacherData [req_mlt0yw62_4c700ea0] | Create started {"nip":"123","nama":"Guru"}[0m
+# [33m2026-02-19 05:33:06.266 | WARN  | TeacherData [req_mlt0yw62_4c700ea0] | Create failed - NIP exists {"nip":"123"}[0m
+# [req_1771479186266_1e66c9f6] Error: {
+#   message: 'NIP sudah terdaftar',
+#   code: 1003,
+#   stack: 'AppError: NIP sudah terdaftar\\n' +
+#     '    at sendDuplicateError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:244:19)\\n' +
+#     '    at Module.addTeacherData (file:///D:/CODING/absenta-13-v3/server/controllers/teacherDataController.js:73:24)\\n' +
+#     '    at async TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/teacherData.test.js:101:13)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1054:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [32m2026-02-19 05:33:06.267 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.268 | INFO  | TeacherData [req_mlt0yw64_06fa8e25] | Create started {"nip":"123","nama":"Guru Baru"}[0m
+# Subtest: Teacher Data Controller
+    # Subtest: getTeachersData
+        # Subtest: should return teacher list
+        ok 1 - should return teacher list
+          ---
+          duration_ms: 4.5488
+          type: 'test'
+          ...
+        # Subtest: should handle database errors
+        ok 2 - should handle database errors
+          ---
+          duration_ms: 2.906
+          type: 'test'
+          ...
+        1..2
+    ok 1 - getTeachersData
+      ---
+      duration_ms: 8.4654
+      type: 'suite'
+      ...
+    # Subtest: addTeacherData
+        # Subtest: should fail if missing required fields
+        ok 1 - should fail if missing required fields
+          ---
+          duration_ms: 2.4232
+          type: 'test'
+          ...
+        # Subtest: should fail if NIP exists
+        ok 2 - should fail if NIP exists
+          ---
+          duration_ms: 1.6345
+          type: 'test'
+          ...
+# [32m2026-02-19 05:33:06.341 | INFO  | TeacherData [req_mlt0yw64_06fa8e25] | Create completed {"guruId":5,"nip":"123","nama":"Guru Baru"}[0m
+# [32m2026-02-19 05:33:06.342 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.342 | INFO  | TeacherData [req_mlt0yw86_cbc2e105] | Delete started {"id":1}[0m
+# [32m2026-02-19 05:33:06.342 | INFO  | TeacherData [req_mlt0yw86_cbc2e105] | Delete completed {"id":1}[0m
+# [32m2026-02-19 05:33:06.342 | INFO  | DB  | Database pool registered in centralized config[0m
+# [32m2026-02-19 05:33:06.343 | INFO  | TeacherData [req_mlt0yw87_1eb6228a] | Delete started {"id":999}[0m
+# [33m2026-02-19 05:33:06.343 | WARN  | TeacherData [req_mlt0yw87_1eb6228a] | Delete failed - not found {"id":999}[0m
+# [req_1771479186343_25bd37e8] Error: {
+#   message: 'Data guru tidak ditemukan',
+#   code: 1005,
+#   stack: 'AppError: Data guru tidak ditemukan\\n' +
+#     '    at sendNotFoundError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:236:19)\\n' +
+#     '    at Module.deleteTeacherData (file:///D:/CODING/absenta-13-v3/server/controllers/teacherDataController.js:136:24)\\n' +
+#     '    at async TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/__tests__/teacherData.test.js:190:13)\\n' +
+#     '    at async Test.run (node:internal/test_runner/test:1054:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+        # Subtest: should create teacher successfully
+        ok 3 - should create teacher successfully
+          ---
+          duration_ms: 74.216
+          type: 'test'
+          ...
+        1..3
+    ok 2 - addTeacherData
+      ---
+      duration_ms: 78.6091
+      type: 'suite'
+      ...
+    # Subtest: deleteTeacherData
+        # Subtest: should delete existing teacher
+        ok 1 - should delete existing teacher
+          ---
+          duration_ms: 0.7306
+          type: 'test'
+          ...
+        # Subtest: should return 404 if not found
+        ok 2 - should return 404 if not found
+          ---
+          duration_ms: 0.9617
+          type: 'test'
+          ...
+        1..2
+    ok 3 - deleteTeacherData
+      ---
+      duration_ms: 1.8945
+      type: 'suite'
+      ...
+    1..3
+ok 34 - Teacher Data Controller
+  ---
+  duration_ms: 89.6093
+  type: 'suite'
+  ...
+# Run tests with: npm test
+# Subtest: HARI Constants
+    # Subtest: should have 7 days in HARI_INDONESIA
+    ok 1 - should have 7 days in HARI_INDONESIA
+      ---
+      duration_ms: 1.4358
+      type: 'test'
+      ...
+    # Subtest: should start with Minggu (Sunday)
+    ok 2 - should start with Minggu (Sunday)
+      ---
+      duration_ms: 0.2124
+      type: 'test'
+      ...
+    # Subtest: should have 6 school days
+    ok 3 - should have 6 school days
+      ---
+      duration_ms: 0.1778
+      type: 'test'
+      ...
+    # Subtest: should not include Minggu in school days
+    ok 4 - should not include Minggu in school days
+      ---
+      duration_ms: 0.247
+      type: 'test'
+      ...
+    1..4
+ok 35 - HARI Constants
+  ---
+  duration_ms: 3.7933
+  type: 'suite'
+  ...
+# Subtest: getHariFromDate
+    # Subtest: should return correct day for known date
+    ok 1 - should return correct day for known date
+      ---
+      duration_ms: 0.4663
+      type: 'test'
+      ...
+    # Subtest: should return Minggu for Sunday
+    ok 2 - should return Minggu for Sunday
+      ---
+      duration_ms: 0.2251
+      type: 'test'
+      ...
+    1..2
+ok 36 - getHariFromDate
+  ---
+  duration_ms: 0.9547
+  type: 'suite'
+  ...
+# Subtest: formatWIBDate
+    # Subtest: should return YYYY-MM-DD format
+    ok 1 - should return YYYY-MM-DD format
+      ---
+      duration_ms: 25.2695
+      type: 'test'
+      ...
+    # Subtest: should format correctly for known date
+    ok 2 - should format correctly for known date
+      ---
+      duration_ms: 0.3881
+      type: 'test'
+      ...
+    1..2
+ok 37 - formatWIBDate
+  ---
+  duration_ms: 26.0476
+  type: 'suite'
+  ...
+# Subtest: parseDateStringWIB
+    # Subtest: should parse valid date string
+    ok 1 - should parse valid date string
+      ---
+      duration_ms: 0.5127
+      type: 'test'
+      ...
+    # Subtest: should throw for invalid format
+    ok 2 - should throw for invalid format
+      ---
+      duration_ms: 0.9777
+      type: 'test'
+      ...
+    1..2
+ok 38 - parseDateStringWIB
+  ---
+  duration_ms: 1.6533
+  type: 'suite'
+  ...
+# Subtest: getDaysDifferenceWIB
+    # Subtest: should return 0 for same date
+    ok 1 - should return 0 for same date
+      ---
+      duration_ms: 0.1786
+      type: 'test'
+      ...
+    # Subtest: should return positive for later date
+    ok 2 - should return positive for later date
+      ---
+      duration_ms: 0.0815
+      type: 'test'
+      ...
+    # Subtest: should return negative for earlier date
+    ok 3 - should return negative for earlier date
+      ---
+      duration_ms: 0.0602
+      type: 'test'
+      ...
+    1..3
+ok 39 - getDaysDifferenceWIB
+  ---
+  duration_ms: 0.4665
+  type: 'suite'
+  ...
+# Subtest: formatWIBTimeWithSeconds
+    # Subtest: should return HH:mm:ss format
+    ok 1 - should return HH:mm:ss format
+      ---
+      duration_ms: 1.8337
+      type: 'test'
+      ...
+    1..1
+ok 40 - formatWIBTimeWithSeconds
+  ---
+  duration_ms: 1.9018
+  type: 'suite'
+  ...
+# Subtest: attendanceConstants helpers
+    # Subtest: isPresent
+        # Subtest: returns true for present statuses and short codes
+        ok 1 - returns true for present statuses and short codes
+          ---
+          duration_ms: 1.0106
+          type: 'test'
+          ...
+        # Subtest: trims whitespace before checking
+        ok 2 - trims whitespace before checking
+          ---
+          duration_ms: 0.3813
+          type: 'test'
+          ...
+        # Subtest: is case sensitive and rejects nullish/empty values
+        ok 3 - is case sensitive and rejects nullish/empty values
+          ---
+          duration_ms: 0.223
+          type: 'test'
+          ...
+        1..3
+    ok 1 - isPresent
+      ---
+      duration_ms: 2.8181
+      type: 'suite'
+      ...
+    # Subtest: isAbsent
+        # Subtest: returns true for full statuses and short codes
+        ok 1 - returns true for full statuses and short codes
+          ---
+          duration_ms: 0.4895
+          type: 'test'
+          ...
+        # Subtest: handles trimmed inputs
+        ok 2 - handles trimmed inputs
+          ---
+          duration_ms: 0.2396
+          type: 'test'
+          ...
+        # Subtest: is case sensitive and guards against empty values
+        ok 3 - is case sensitive and guards against empty values
+          ---
+          duration_ms: 0.283
+          type: 'test'
+          ...
+        1..3
+    ok 2 - isAbsent
+      ---
+      duration_ms: 1.6575
+      type: 'suite'
+      ...
+    # Subtest: getAbsenceCategory
+        # Subtest: categorizes sickness, permission, and alpha variants
+        ok 1 - categorizes sickness, permission, and alpha variants
+          ---
+          duration_ms: 0.376
+          type: 'test'
+          ...
+        # Subtest: returns null for unknown, empty, or mismatched case inputs
+        ok 2 - returns null for unknown, empty, or mismatched case inputs
+          ---
+          duration_ms: 0.1446
+          type: 'test'
+          ...
+        1..2
+    ok 3 - getAbsenceCategory
+      ---
+      duration_ms: 0.7806
+      type: 'suite'
+      ...
+    # Subtest: normalizeStatus
+        # Subtest: maps short codes to full status names case-insensitively
+        ok 1 - maps short codes to full status names case-insensitively
+          ---
+          duration_ms: 0.3613
+          type: 'test'
+          ...
+        # Subtest: returns trimmed original values when no mapping exists
+        ok 2 - returns trimmed original values when no mapping exists
+          ---
+          duration_ms: 0.2612
+          type: 'test'
+          ...
+        # Subtest: returns null for missing or empty values
+        ok 3 - returns null for missing or empty values
+          ---
+          duration_ms: 0.1042
+          type: 'test'
+          ...
+        1..3
+    ok 4 - normalizeStatus
+      ---
+      duration_ms: 0.85
+      type: 'suite'
+      ...
+    1..4
+ok 41 - attendanceConstants helpers
+  ---
+  duration_ms: 7.0904
+  type: 'suite'
+  ...
+# [dotenv@17.2.3] injecting env (24) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+# [req_1771479186335_9227aaf1] Error: {
+#   message: 'Token tidak valid atau kadaluarsa',
+#   code: 3001,
+#   stack: 'AppError: Token tidak valid atau kadaluarsa\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:26:43\\n' +
+#     '    at D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:171:14\\n' +
+#     '    at getSecret (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:97:14)\\n' +
+#     '    at module.exports [as verify] (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:101:10)\\n' +
+#     '    at authenticateToken (file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:21:9)\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/middleware/__tests__/auth.test.js:77:7)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at Suite.processPendingSubtests (node:internal/test_runner/test:744:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1173:19)'
+# }
+# Subtest: auth middleware
+    # Subtest: authenticateToken
+        # Subtest: attaches user and calls next when token is valid
+        ok 1 - attaches user and calls next when token is valid
+          ---
+          duration_ms: 10.0379
+          type: 'test'
+          ...
+# [req_1771479186337_0647efd6] Error: {
+#   message: 'Token akses diperlukan',
+#   code: 3001,
+#   stack: 'AppError: Token akses diperlukan\\n' +
+#     '    at authenticateToken (file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:18:39)\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/middleware/__tests__/auth.test.js:98:7)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at Suite.processPendingSubtests (node:internal/test_runner/test:744:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1173:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1101:12)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+        # Subtest: returns 401 when token verification fails
+        ok 2 - returns 401 when token verification fails
+          ---
+          duration_ms: 2.655
+          type: 'test'
+          ...
+# [req_1771479186338_afc4cdc7] Error: {
+#   message: 'Pengguna belum terautentikasi',
+#   code: 3001,
+#   stack: 'AppError: Pengguna belum terautentikasi\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:39:43\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/middleware/__tests__/auth.test.js:130:7)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at Suite.processPendingSubtests (node:internal/test_runner/test:744:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1173:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1101:12)\\n' +
+#     '    at async Promise.all (index 0)\\n' +
+#     '    at async Suite.run (node:internal/test_runner/test:1442:7)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+# [req_1771479186339_cd336ae9] Error: {
+#   message: 'Anda tidak memiliki izin untuk akses ini',
+#   code: 3002,
+#   stack: 'AppError: Anda tidak memiliki izin untuk akses ini\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:42:43\\n' +
+#     '    at TestContext.<anonymous> (file:///D:/CODING/absenta-13-v3/server/middleware/__tests__/auth.test.js:146:7)\\n' +
+#     '    at Test.runInAsyncScope (node:async_hooks:214:14)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1047:25)\\n' +
+#     '    at Suite.processPendingSubtests (node:internal/test_runner/test:744:18)\\n' +
+#     '    at Test.postRun (node:internal/test_runner/test:1173:19)\\n' +
+#     '    at Test.run (node:internal/test_runner/test:1101:12)\\n' +
+#     '    at async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)'
+# }
+        # Subtest: returns 401 when token is missing
+        ok 3 - returns 401 when token is missing
+          ---
+          duration_ms: 0.6999
+          type: 'test'
+          ...
+        1..3
+    ok 1 - authenticateToken
+      ---
+      duration_ms: 14.0091
+      type: 'suite'
+      ...
+    # Subtest: requireRole
+        # Subtest: allows access when role is permitted
+        ok 1 - allows access when role is permitted
+          ---
+          duration_ms: 0.2291
+          type: 'test'
+          ...
+        # Subtest: denies access when user role is missing
+        ok 2 - denies access when user role is missing
+          ---
+          duration_ms: 0.4369
+          type: 'test'
+          ...
+        # Subtest: denies access when role is not permitted
+        ok 3 - denies access when role is not permitted
+          ---
+          duration_ms: 0.3879
+          type: 'test'
+          ...
+        1..3
+    ok 2 - requireRole
+      ---
+      duration_ms: 1.2748
+      type: 'suite'
+      ...
+    1..2
+ok 42 - auth middleware
+  ---
+  duration_ms: 38.8929
+  type: 'suite'
+  ...
+# [dotenv@17.2.3] injecting env (24) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+# Subtest: download routes
+    # Subtest: allows owner to download file
+    ok 1 - allows owner to download file
+      ---
+      duration_ms: 23.1496
+      type: 'test'
+      ...
+# [req_1771479186791_e9c6de7e] Error: {
+#   message: 'Akses ditolak',
+#   code: 3002,
+#   stack: 'AppError: Akses ditolak\\n' +
+#     '    at sendPermissionError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:252:19)\\n' +
+#     '    at downloadFile (file:///D:/CODING/absenta-13-v3/server/controllers/exportController.js:2641:20)\\n' +
+#     '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)'
+# }
+    # Subtest: denies access to other user file
+    ok 2 - denies access to other user file
+      ---
+      duration_ms: 5.3889
+      type: 'test'
+      ...
+# [req_1771479186795_675e4e11] Error: {
+#   message: 'Nama file tidak valid',
+#   code: 2001,
+#   stack: 'AppError: Nama file tidak valid\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at downloadFile (file:///D:/CODING/absenta-13-v3/server/controllers/exportController.js:2631:20)\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:44:9\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:31:9\\n' +
+#     '    at D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:261:12\\n' +
+#     '    at getSecret (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:97:14)\\n' +
+#     '    at module.exports [as verify] (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:101:10)\\n' +
+#     '    at authenticateToken (file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:21:9)\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at Route.dispatch (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:117:3)\\n' +
+#     '    at handle (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\index.js:435:11)'
+# }
+# [req_1771479186797_38346f94] Error: {
+#   message: 'Nama file tidak valid',
+#   code: 2001,
+#   stack: 'AppError: Nama file tidak valid\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at downloadFile (file:///D:/CODING/absenta-13-v3/server/controllers/exportController.js:2631:20)\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:44:9\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:31:9\\n' +
+#     '    at D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:261:12\\n' +
+#     '    at getSecret (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:97:14)\\n' +
+#     '    at module.exports [as verify] (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:101:10)\\n' +
+#     '    at authenticateToken (file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:21:9)\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at Route.dispatch (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:117:3)\\n' +
+#     '    at handle (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\index.js:435:11)'
+# }
+    # Subtest: blocks path traversal patterns
+    ok 3 - blocks path traversal patterns
+      ---
+      duration_ms: 4.4407
+      type: 'test'
+      ...
+# [req_1771479186800_0a6b5d88] Error: {
+#   message: 'Nama file tidak valid',
+#   code: 2001,
+#   stack: 'AppError: Nama file tidak valid\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at downloadFile (file:///D:/CODING/absenta-13-v3/server/controllers/exportController.js:2631:20)\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:44:9\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:31:9\\n' +
+#     '    at D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:261:12\\n' +
+#     '    at getSecret (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:97:14)\\n' +
+#     '    at module.exports [as verify] (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\jsonwebtoken\\\\verify.js:101:10)\\n' +
+#     '    at authenticateToken (file:///D:/CODING/absenta-13-v3/server/middleware/auth.js:21:9)\\n' +
+#     '    at Layer.handleRequest (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\layer.js:152:17)\\n' +
+#     '    at next (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:157:13)\\n' +
+#     '    at Route.dispatch (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\lib\\\\route.js:117:3)\\n' +
+#     '    at handle (D:\\\\CODING\\\\absenta-13-v3\\\\node_modules\\\\router\\\\index.js:435:11)'
+# }
+    # Subtest: blocks non-xlsx extensions
+    ok 4 - blocks non-xlsx extensions
+      ---
+      duration_ms: 3.3035
+      type: 'test'
+      ...
+# [req_1771479186805_c50f717d] Error: {
+#   message: 'Nama file tidak valid',
+#   code: 2001,
+#   stack: 'AppError: Nama file tidak valid\\n' +
+#     '    at sendValidationError (file:///D:/CODING/absenta-13-v3/server/utils/errorHandler.js:228:19)\\n' +
+#     '    at downloadFile (file:///D:/CODING/absenta-13-v3/server/controllers/exportController.js:2662:20)'
+# }
+    # Subtest: blocks symlink escape attempts
+    ok 5 - blocks symlink escape attempts
+      ---
+      duration_ms: 5.817
+      type: 'test'
+      ...
+    1..5
+ok 43 - download routes
+  ---
+  duration_ms: 382.8789
+  type: 'suite'
+  ...
+1..43
+# tests 185
+# suites 59
+# pass 185
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 803.6314

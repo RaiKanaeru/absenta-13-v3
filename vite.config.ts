@@ -62,7 +62,7 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: './src/setupTests.ts',
       css: true,
-      exclude: [...configDefaults.exclude, "server/**", "server_modern.js"],
+      exclude: [...configDefaults.exclude, "server/**", "server_modern.js", "qwen-code-repo/**"],
     },
   };
 });

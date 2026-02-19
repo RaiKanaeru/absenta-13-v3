@@ -1,0 +1,108 @@
+
+> absenta-13@1.0.0 lint
+> eslint .
+
+
+D:\CODING\absenta-13-v3\qwen-code-repo\integration-tests\sdk-typescript\abort-and-lifecycle.test.ts
+  6:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\assets\export-html\src\main.tsx
+  118:7  warning  Fast refresh only works when a file has exports. Move your component(s) to a separate file  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\patches\is-in-ci.ts
+  16:1  error  Definition for rule 'import/no-default-export' was not found  import/no-default-export
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\components\FolderTrustDialog.tsx
+  18:13  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\components\InputPrompt.tsx
+  69:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\components\ModelSwitchDialog.tsx
+  16:13  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\components\StandaloneSessionPicker.tsx
+  21:10  warning  Fast refresh only works when a file only exports components. Move your component(s) to a separate file  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\components\shared\MaxSizedBox.tsx
+  25:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\contexts\KeypressContext.tsx
+  72:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\contexts\OverflowContext.tsx
+  33:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  36:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\contexts\SessionContext.tsx
+   24:13  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  273:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\contexts\VimModeContext.tsx
+  74:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\hooks\vim.test.ts
+  68:14  error  'row' is never reassigned. Use 'const' instead  prefer-const
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\ui\utils\InlineMarkdownRenderer.tsx
+  170:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\cli\src\utils\sandbox.ts
+  468:14  error  'from' is never reassigned. Use 'const' instead  prefer-const
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\core\src\config\config.ts
+  1716:5  error  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\core\src\extension\extensionManager.ts
+  198:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\core\src\utils\retry.test.ts
+   87:5   error  Definition for rule 'vitest/valid-expect' was not found  vitest/valid-expect
+  110:5   error  Definition for rule 'vitest/valid-expect' was not found  vitest/valid-expect
+  127:5   error  Definition for rule 'vitest/valid-expect' was not found  vitest/valid-expect
+  179:61  error  Definition for rule 'vitest/valid-expect' was not found  vitest/valid-expect
+  247:5   error  Definition for rule 'vitest/valid-expect' was not found  vitest/valid-expect
+  262:5   error  Definition for rule 'vitest/valid-expect' was not found  vitest/valid-expect
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\core\src\utils\schemaValidator.ts
+  9:1  error  Definition for rule 'import/no-internal-modules' was not found  import/no-internal-modules
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\vscode-ide-companion\postcss.config.js
+  7:1  warning  Unused eslint-disable directive (no problems were reported from 'no-undef')
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\vscode-ide-companion\src\webview\components\messages\toolcalls\index.tsx
+  30:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\vscode-ide-companion\src\webview\index.tsx
+  15:1  error  Definition for rule 'import/no-internal-modules' was not found  import/no-internal-modules
+  17:1  error  Definition for rule 'import/no-internal-modules' was not found  import/no-internal-modules
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\webui\src\components\PermissionDrawer.stories.tsx
+  58:33  error  React Hook "useState" is called in function "render" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use"  react-hooks/rules-of-hooks
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\webui\src\components\layout\InputForm.tsx
+  46:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\webui\src\components\messages\CollapsibleFileContent.tsx
+  35:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\webui\src\components\toolcalls\shared\copyUtils.tsx
+  19:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\webui\src\context\PlatformContext.tsx
+  77:14  warning  Fast refresh only works when a file only exports components. Move your React context(s) to a separate file                      react-refresh/only-export-components
+  83:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\CODING\absenta-13-v3\qwen-code-repo\packages\webui\src\index.ts
+   7:1  error  Definition for rule 'import/no-internal-modules' was not found  import/no-internal-modules
+   9:1  error  Definition for rule 'import/no-internal-modules' was not found  import/no-internal-modules
+  11:1  error  Definition for rule 'import/no-internal-modules' was not found  import/no-internal-modules
+
+D:\CODING\absenta-13-v3\qwen-code-repo\scripts\local_telemetry.js
+  108:19  warning  Unused eslint-disable directive (no problems were reported from 'no-empty')
+  112:19  warning  Unused eslint-disable directive (no problems were reported from 'no-empty')
+
+✖ 41 problems (17 errors, 24 warnings)
+  0 errors and 5 warnings potentially fixable with the `--fix` option.
+
+EXIT_CODE=1
