@@ -157,12 +157,12 @@ const getSubjectId = (subject: Subject): number | undefined => {
 const getKelasId = (kelas: Kelas) => kelas.id_kelas ?? kelas.id;
 
 // Draggable Item Component
-function DraggableItem({ id, type, data, isDisabled }: {
+function DraggableItem({ id, type, data, isDisabled }: Readonly<{
   id: string;
   type: 'guru' | 'mapel';
   data: Teacher | Subject;
   isDisabled?: boolean;
-}) {
+}>) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { type, item: data },
@@ -215,12 +215,12 @@ function DroppableCell({
   children,
   isDisabled,
   onClick
-}: {
+}: Readonly<{
   cellId: string;
   children: React.ReactNode;
   isDisabled: boolean;
   onClick?: () => void;
-}) {
+}>) {
   const { isOver, setNodeRef } = useDroppable({
     id: cellId,
     disabled: isDisabled
@@ -1051,6 +1051,7 @@ export function ScheduleGridTable({
       {contextMenu && (
         <div
           role="menu"
+          tabIndex={0}
           className="fixed bg-background border rounded-lg shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}

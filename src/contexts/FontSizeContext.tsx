@@ -85,14 +85,14 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
     updateDocumentFontSize(internalFontSize);
   }, [internalFontSize]);
 
-  const value: FontSizeContextType = {
+  const value: FontSizeContextType = React.useMemo(() => ({
     fontSize: internalFontSize,
     setFontSize,
     increaseFontSize,
     decreaseFontSize,
     resetFontSize,
     getFontSizeClass,
-  };
+  }), [internalFontSize, setFontSize, increaseFontSize, decreaseFontSize, resetFontSize, getFontSizeClass]);
 
   return (
     <FontSizeContext.Provider value={value}>

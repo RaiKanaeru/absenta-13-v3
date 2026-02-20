@@ -86,37 +86,7 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
       fetchAnalyticsData();
     }, [onLogout]);
 
-    const handlePermissionRequest = async (notificationId: number, newStatus: 'disetujui' | 'ditolak') => {
-      try {
-        await apiCall(`/api/admin/izin/${notificationId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-          },
-          body: JSON.stringify({ status: newStatus }),
-        });
-        
-        toast({
-          title: "Berhasil",
-          description: `Permintaan berhasil ${newStatus}`
-        });
-        setAnalyticsData(prevData => {
-          if (!prevData) return null;
-          const updatedNotifications = prevData.notifications.map(notif =>
-            notif.id === notificationId ? { ...notif, status: newStatus } : notif
-          );
-          return { ...prevData, notifications: updatedNotifications };
-        });
-      } catch (error) {
-        // Notification permission error - non-critical, display user feedback
-        toast({
-          title: "Error",
-          description: "Tidak dapat terhubung ke server",
-          variant: "destructive"
-        });
-      }
-    };
+
 
     if (loading) {
       return (

@@ -265,12 +265,11 @@ export function setupCommonMocks() {
 
   // Mock IntersectionObserver
   globalThis.IntersectionObserver = class IntersectionObserver {
-    constructor() {}
-    disconnect() {}
-    observe() {}
+    disconnect() { return; }
+    observe() { return; }
     takeRecords() {
       return [];
     }
-    unobserve() {}
+    unobserve() { return; }
   } as unknown as typeof IntersectionObserver;
 }

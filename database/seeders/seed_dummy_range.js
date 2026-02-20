@@ -720,6 +720,40 @@ async function batchInsertAbsensi(connection, siswaBatch, guruBatch) {
   }
 }
 
+async function processClassSchedules(connection, { kelas, dateStr, dayName, jadwalByClassDay, siswaByClass }, batchArrays) {
+  const { absensiSiswaBatch, absensiGuruBatch } = batchArrays;
+  const siswaList = siswaByClass.get(kelas.id_kelas) || [];
+  if (!siswaList.length) return;
+
+  const dayMap = jadwalByClassDay.get(String(kelas.id_kelas));
+  const schedules = dayMap?.get(dayName) || [];
+  
+  for (const sched of schedules) {
+    const statusGuru = pickWeighted(STATUS_GURU);
+    const siswaPencatat = randomItem(siswaList);
+    const { guruRecord, siswaRecords } = generateAbsensiForSchedule(
+      sched,
+      siswaList,
+      dateStr,
+      statusGuru,
+      siswaPencatat
+    );
+
+    absensiGuruBatch.push(guruRecord);
+    absensiSiswaBatch.push(...siswaRecords);
+
+    if (absensiSiswaBatch.length >= 1000 || absensiGuruBatch.length >= 500) {
+      const siswaChunk = absensiSiswaBatch.length >= 1000
+        ? absensiSiswaBatch.splice(0, absensiSiswaBatch.length)
+        : [];
+      const guruChunk = absensiGuruBatch.length >= 500
+        ? absensiGuruBatch.splice(0, absensiGuruBatch.length)
+        : [];
+      await batchInsertAbsensi(connection, siswaChunk, guruChunk);
+    }
+  }
+}
+
 async function generateAbsensiData(connection, startDate, endDate, kelasFinal, jadwalByClassDay, siswaByClass, includeSaturdays) {
   const absensiSiswaBatch = [];
   const absensiGuruBatch = [];
@@ -731,35 +765,11 @@ async function generateAbsensiData(connection, startDate, endDate, kelasFinal, j
       const dayName = DAY_NAMES[current.getDay()];
 
       for (const kelas of kelasFinal) {
-        const siswaList = siswaByClass.get(kelas.id_kelas) || [];
-        if (!siswaList.length) continue;
-
-        const dayMap = jadwalByClassDay.get(String(kelas.id_kelas));
-        const schedules = dayMap?.get(dayName) || [];
-        for (const sched of schedules) {
-          const statusGuru = pickWeighted(STATUS_GURU);
-          const siswaPencatat = randomItem(siswaList);
-          const { guruRecord, siswaRecords } = generateAbsensiForSchedule(
-            sched,
-            siswaList,
-            dateStr,
-            statusGuru,
-            siswaPencatat
-          );
-
-          absensiGuruBatch.push(guruRecord);
-          absensiSiswaBatch.push(...siswaRecords);
-
-          if (absensiSiswaBatch.length >= 1000 || absensiGuruBatch.length >= 500) {
-            const siswaChunk = absensiSiswaBatch.length >= 1000
-              ? absensiSiswaBatch.splice(0, absensiSiswaBatch.length)
-              : [];
-            const guruChunk = absensiGuruBatch.length >= 500
-              ? absensiGuruBatch.splice(0, absensiGuruBatch.length)
-              : [];
-            await batchInsertAbsensi(connection, siswaChunk, guruChunk);
-          }
-        }
+        await processClassSchedules(
+          connection, 
+          { kelas, dateStr, dayName, jadwalByClassDay, siswaByClass }, 
+          { absensiSiswaBatch, absensiGuruBatch }
+        );
       }
     }
 

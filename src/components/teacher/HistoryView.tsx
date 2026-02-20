@@ -169,19 +169,23 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {loading && (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse bg-muted h-32 rounded"></div>
             ))}
           </div>
-        ) : Object.keys(historyData).length === 0 ? (
+        )}
+        
+        {!loading && Object.keys(historyData).length === 0 && (
           <div className="text-center py-12">
             <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">Belum ada riwayat</h3>
             <p className="text-muted-foreground">Riwayat absensi akan muncul setelah Anda mengambil absensi</p>
           </div>
-        ) : (
+        )}
+        
+        {!loading && Object.keys(historyData).length > 0 && (
           <div className="space-y-6">
             {Object.entries(historyData)
               .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
@@ -265,7 +269,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                               </TableHeader>
                               <TableBody>
                                 {classData.siswa.map((siswa, siswaIndex) => (
-                                  <TableRow key={siswaIndex}>
+                                  <TableRow key={siswa.nis || `siswa-${siswaIndex}`}>
                                     <TableCell>
                                       <div>
                                         <p className="font-medium">{siswa.nama || 'Nama tidak tersedia'}</p>
@@ -307,7 +311,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
                           {/* Mobile Card View */}
                           <div className="sm:hidden space-y-2">
                             {classData.siswa.map((siswa, siswaIndex) => (
-                              <div key={siswaIndex} className="bg-card border border-border rounded-lg p-3">
+                              <div key={siswa.nis || `siswa-${siswaIndex}`} className="bg-card border border-border rounded-lg p-3">
                                 <div className="flex justify-between items-start mb-2">
                                   <div className="flex-1">
                                     <p className="font-medium text-sm">{siswa.nama || 'Nama tidak tersedia'}</p>

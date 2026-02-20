@@ -80,12 +80,12 @@ function DroppableCell({
   jamKe, 
   children, 
   isDisabled 
-}: { 
+}: Readonly<{ 
   kelasId: number; 
   jamKe: number; 
   children: React.ReactNode;
   isDisabled: boolean;
-}) {
+}>) {
   const { setNodeRef, isOver } = useDroppable({
     id: `cell-${kelasId}-${jamKe}`,
     data: { kelasId, jamKe },
@@ -553,16 +553,19 @@ export function ScheduleGridEditor({
                             <td 
                               key={slot.jam_ke}
                               className={`border border-border p-0 relative min-w-16 h-16 transition-colors ${getCellBgColor(cell, slot)}`}
-                              onClick={() => handleCellClick(row.kelas_id, slot.jam_ke, cell)}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  handleCellClick(row.kelas_id, slot.jam_ke, cell);
-                                }
-                              }}
                             >
+                              <button
+                                type="button"
+                                className="w-full h-full text-left"
+                                onClick={() => handleCellClick(row.kelas_id, slot.jam_ke, cell)}
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleCellClick(row.kelas_id, slot.jam_ke, cell);
+                                  }
+                                }}
+                              >
                               <DroppableCell kelasId={row.kelas_id} jamKe={slot.jam_ke} isDisabled={slot.jenis !== 'pelajaran'}>
                                 {cell?.jenis_aktivitas === 'pelajaran' && (
                                   <div className="p-1 text-[10px] leading-tight space-y-1">
@@ -572,6 +575,7 @@ export function ScheduleGridEditor({
                                   </div>
                                 )}
                               </DroppableCell>
+                              </button>
                             </td>
                           );
                         })}
@@ -669,6 +673,7 @@ export function ScheduleGridEditor({
       {contextMenu && (
         <div
           role="menu"
+          tabIndex={0}
           className="fixed bg-background border border-border rounded-lg shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}

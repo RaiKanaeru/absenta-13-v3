@@ -584,19 +584,20 @@ async function validateAttendanceRequest(log, connection, body, res) {
 
 /**
  * Classifies attendance entries into insert and update operations
- * @param {Array} attendanceEntries - Array of [studentIdStr, attendanceData] pairs
- * @param {Map} existingMap - Map of siswa_id -> existing record id
- * @param {Object} notes - Notes keyed by studentIdStr
- * @param {string} waktuAbsen - Formatted attendance timestamp
- * @param {number} scheduleId - Schedule ID
- * @param {string} targetDate - Target date string
- * @param {number} guruId - Teacher ID
- * @param {Object} log - Logger instance
+ * @param {Object} params - Parameters object
+ * @param {Array} params.attendanceEntries - Array of [studentIdStr, attendanceData] pairs
+ * @param {Map} params.existingMap - Map of siswa_id -> existing record id
+ * @param {Object} params.notes - Notes keyed by studentIdStr
+ * @param {string} params.waktuAbsen - Formatted attendance timestamp
+ * @param {number} params.scheduleId - Schedule ID
+ * @param {string} params.targetDate - Target date string
+ * @param {number} params.guruId - Teacher ID
+ * @param {Object} params.log - Logger instance
  * @returns {Object} { updates, inserts, processedStudents }
  * @throws {Error} If attendance data format or status is invalid
  * @private
  */
-function classifyAttendanceEntries(attendanceEntries, existingMap, notes, waktuAbsen, scheduleId, targetDate, guruId, log) {
+function classifyAttendanceEntries({ attendanceEntries, existingMap, notes }, { waktuAbsen, scheduleId, targetDate, guruId }, log) {
     const updates = [];
     const inserts = [];
     const processedStudents = [];
@@ -704,7 +705,9 @@ export async function submitStudentAttendance(req, res) {
             });
 
             const { updates, inserts, processedStudents } = classifyAttendanceEntries(
-                Object.entries(attendance), existingMap, notes, waktuAbsen, scheduleId, targetDate, guruId, log
+                { attendanceEntries: Object.entries(attendance), existingMap, notes },
+                { waktuAbsen, scheduleId, targetDate, guruId },
+                log
             );
 
             await executeAttendanceBatchOperations(connection, updates, inserts);

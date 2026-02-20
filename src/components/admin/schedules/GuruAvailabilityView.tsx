@@ -50,13 +50,13 @@ export function GuruAvailabilityView({
     setIsLoading(true);
     try {
       // Fetch all teachers
-      const teacherRes = await apiCall('/api/admin/guru', { method: 'GET', onLogout }) as { data?: Teacher[] };
+      const teacherRes: { data?: Teacher[] } = await apiCall('/api/admin/guru', { method: 'GET', onLogout });
       const teachers: Teacher[] = teacherRes.data || [];
 
       // Fetch existing availability data  
-      const availRes = await apiCall('/api/admin/jadwal/guru-availability', { method: 'GET', onLogout }) as { 
+      const availRes: { 
         data?: Array<{ id_guru: number; hari: string; is_available: number; keterangan: string }> 
-      };
+      } = await apiCall('/api/admin/jadwal/guru-availability', { method: 'GET', onLogout });
       const availData = availRes.data || [];
 
       // Build availability map by guru_id and hari
@@ -162,6 +162,36 @@ export function GuruAvailabilityView({
   const getUnavailableCount = (hari: string) => 
     records.filter(r => !r.availability[hari]).length;
 
+  // Render a single teacher availability row
+  const renderTeacherRow = (record: AvailabilityRecord, idx: number) => (
+    <TableRow key={record.guru_id}>
+      <TableCell className="text-center">{idx + 1}</TableCell>
+      <TableCell className="font-medium">
+        {record.nama}
+        {record.is_system_entity && (
+          <Badge variant="secondary" className="ml-2 text-xs">System</Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-gray-600 text-sm">{record.nip || '-'}</TableCell>
+      {HARI_LIST.map(hari => (
+        <TableCell key={hari} className="text-center">
+          <button
+            type="button"
+            onClick={() => handleToggle(record.guru_id, hari)}
+            className="p-1 rounded hover:bg-gray-100 transition-colors"
+            disabled={record.is_system_entity}
+          >
+            {record.availability[hari] ? (
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+            ) : (
+              <XCircle className="w-5 h-5 text-red-400" />
+            )}
+          </button>
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+
   // Render table body content based on state
   const renderTableBody = () => {
     if (isLoading) {
@@ -184,34 +214,7 @@ export function GuruAvailabilityView({
       );
     }
 
-    return filteredRecords.map((record, idx) => (
-      <TableRow key={record.guru_id}>
-        <TableCell className="text-center">{idx + 1}</TableCell>
-        <TableCell className="font-medium">
-          {record.nama}
-          {record.is_system_entity && (
-            <Badge variant="secondary" className="ml-2 text-xs">System</Badge>
-          )}
-        </TableCell>
-        <TableCell className="text-gray-600 text-sm">{record.nip || '-'}</TableCell>
-        {HARI_LIST.map(hari => (
-          <TableCell key={hari} className="text-center">
-            <button
-              type="button"
-              onClick={() => handleToggle(record.guru_id, hari)}
-              className="p-1 rounded hover:bg-gray-100 transition-colors"
-              disabled={record.is_system_entity}
-            >
-              {record.availability[hari] ? (
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-              ) : (
-                <XCircle className="w-5 h-5 text-red-400" />
-              )}
-            </button>
-          </TableCell>
-        ))}
-      </TableRow>
-    ));
+    return filteredRecords.map((record, idx) => renderTeacherRow(record, idx));
   };
 
   return (

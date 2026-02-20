@@ -311,6 +311,84 @@ const BackupManagementView: React.FC = () => {
         }
     };
 
+    const renderSchedulesContent = () => {
+        if (loadingStates.schedules) {
+            return (
+                <div className="flex justify-center py-4">
+                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+            );
+        }
+
+        if (customSchedules.length === 0) {
+            return (
+                <div className="text-center py-6 text-muted-foreground">
+                    <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                    <p>Belum ada jadwal custom</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4">
+                {customSchedules.map((schedule) => (
+                    <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+                        <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{schedule.name}</h4>
+                                <Badge variant={getScheduleBadgeVariant(schedule)}>
+                                    {getScheduleBadgeText(schedule)}
+                                </Badge>
+                            </div>
+                            <div className="flex items-center text-sm text-muted-foreground gap-4">
+                                <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {formatDate(schedule.date)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {schedule.time}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {!schedule.lastRun && (
+                                <>
+                                    <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        onClick={() => toggleCustomSchedule(schedule.id, !schedule.enabled)}
+                                        title={schedule.enabled ? "Nonaktifkan" : "Aktifkan"}
+                                    >
+                                        {schedule.enabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        onClick={() => runCustomSchedule(schedule.id)}
+                                        title="Jalankan Sekarang"
+                                    >
+                                        <Zap className="h-4 w-4 text-yellow-500" />
+                                    </Button>
+                                </>
+                            )}
+                            <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => deleteCustomSchedule(schedule.id)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const schedulesContent = renderSchedulesContent();
+
     return (
         <div className="space-y-6">
             {/* Header Section - Mobile Responsive */}
@@ -927,71 +1005,7 @@ const BackupManagementView: React.FC = () => {
                             </Dialog>
                         </CardHeader>
                         <CardContent>
-                            {loadingStates.schedules ? (
-                                <div className="flex justify-center py-4">
-                                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                                </div>
-                            ) : customSchedules.length === 0 ? (
-                                <div className="text-center py-6 text-muted-foreground">
-                                    <Calendar className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                                    <p>Belum ada jadwal custom</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {customSchedules.map((schedule) => (
-                                        <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
-                                            <div className="space-y-1">
-                                                 <div className="flex items-center gap-2">
-                                                    <h4 className="font-medium">{schedule.name}</h4>
-                                                    <Badge variant={getScheduleBadgeVariant(schedule)}>
-                                                        {getScheduleBadgeText(schedule)}
-                                                    </Badge>
-                                                </div>
-                                                <div className="flex items-center text-sm text-muted-foreground gap-4">
-                                                    <span className="flex items-center gap-1">
-                                                        <Calendar className="h-3 w-3" />
-                                                        {formatDate(schedule.date)}
-                                                    </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {schedule.time}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {!schedule.lastRun && (
-                                                    <>
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="ghost" 
-                                                            onClick={() => toggleCustomSchedule(schedule.id, !schedule.enabled)}
-                                                            title={schedule.enabled ? "Nonaktifkan" : "Aktifkan"}
-                                                        >
-                                                            {schedule.enabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                                                        </Button>
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="ghost" 
-                                                            onClick={() => runCustomSchedule(schedule.id)}
-                                                            title="Jalankan Sekarang"
-                                                        >
-                                                            <Zap className="h-4 w-4 text-yellow-500" />
-                                                        </Button>
-                                                    </>
-                                                )}
-                                                <Button 
-                                                    size="sm" 
-                                                    variant="ghost" 
-                                                    className="text-destructive hover:text-destructive"
-                                                    onClick={() => deleteCustomSchedule(schedule.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                            {schedulesContent}
                         </CardContent>
                     </Card>
                 </TabsContent>

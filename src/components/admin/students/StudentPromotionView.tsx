@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -277,10 +276,9 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
     // Cari kelas dengan tingkat tujuan, jurusan sama, nomor sama
     const targetClass = classes.find(cls => {
       const targetParsed = parseClassName(cls.nama_kelas || '');
-      const isMatch = targetParsed &&
-             targetParsed.level === targetLevel &&
-             targetParsed.major === parsed.major &&
-             targetParsed.number === parsed.number;
+      const isMatch = targetParsed?.level === targetLevel &&
+             targetParsed?.major === parsed.major &&
+             targetParsed?.number === parsed.number;
       return isMatch;
     });
     return targetClass || null;

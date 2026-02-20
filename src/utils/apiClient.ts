@@ -110,20 +110,22 @@ function createApiErrorFromResponse(response: Response, responseData: unknown): 
         ? errorInfo.error as Record<string, unknown>
         : undefined;
 
-    const errorMessage = typeof errorObj?.message === 'string'
-        ? errorObj.message
-        : typeof errorInfo.message === 'string'
-            ? errorInfo.message
-            : typeof errorInfo.error === 'string'
-                ? errorInfo.error
-                : HTTP_STATUS_MESSAGES[response.status] || `Error: ${response.status}`;
+    let errorMessage = HTTP_STATUS_MESSAGES[response.status] || `Error: ${response.status}`;
+    if (typeof errorObj?.message === 'string') {
+        errorMessage = errorObj.message;
+    } else if (typeof errorInfo.message === 'string') {
+        errorMessage = errorInfo.message;
+    } else if (typeof errorInfo.error === 'string') {
+        errorMessage = errorInfo.error;
+    }
 
     const errorCode = typeof errorObj?.code === 'number' ? errorObj.code : response.status;
-    const errorDetails = (typeof errorObj?.details === 'string' || Array.isArray(errorObj?.details))
-        ? errorObj.details
-        : (typeof errorInfo.details === 'string' || Array.isArray(errorInfo.details))
-            ? errorInfo.details
-            : undefined;
+    let errorDetails;
+    if (typeof errorObj?.details === 'string' || Array.isArray(errorObj?.details)) {
+        errorDetails = errorObj.details;
+    } else if (typeof errorInfo.details === 'string' || Array.isArray(errorInfo.details)) {
+        errorDetails = errorInfo.details;
+    }
     const requestId = typeof errorInfo.requestId === 'string' ? errorInfo.requestId : undefined;
     
     return new ApiError(

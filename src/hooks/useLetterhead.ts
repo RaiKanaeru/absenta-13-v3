@@ -157,10 +157,8 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-// Utility function untuk mendapatkan konfigurasi kop dengan fallback
-export function getLetterheadConfig(reportKey?: string): LetterheadConfig {
-  const cacheKey = reportKey || 'global';
-  return letterheadCache.get(cacheKey) || DEFAULT_LETTERHEAD;
+export function getLetterheadConfig(reportKey: string = 'global'): LetterheadConfig {
+  return letterheadCache.get(reportKey) || DEFAULT_LETTERHEAD;
 }
 
 // Utility function untuk clear cache (untuk testing atau refresh manual)

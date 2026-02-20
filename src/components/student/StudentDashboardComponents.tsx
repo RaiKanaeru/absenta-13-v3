@@ -5,12 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, RefreshCw, Clock, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateWIB, formatTime24 } from '@/lib/time-utils';
-import { getErrorMessage } from '@/lib/utils';
 import { getBandingStatusInteractiveClass as getBandingStatusClass, getBandingStatusLabel } from '@/utils/statusMaps';
-import type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan } from './types';
+import type { BandingAbsen } from './types';
 
 // Re-export so existing consumers don't break
-export type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan };
+export type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan } from './types';
 
 // Types extracted/adapted from parent
 export interface EmptyScheduleViewProps {

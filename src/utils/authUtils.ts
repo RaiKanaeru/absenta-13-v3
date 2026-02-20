@@ -58,6 +58,7 @@ export const setAuthToken = (token: string): void => {
    try {
      localStorage.setItem('token', token);
    } catch (error) {
+     console.warn('localStorage.setItem failed, attempting fallback to sessionStorage', error);
      try {
        sessionStorage.setItem('token', token);
       } catch (sessionError) {

@@ -256,6 +256,33 @@ const buildOverlapCondition = (hari, jam_mulai, jam_selesai) => ({
     timeParams: [hari, jam_selesai, jam_mulai]
 });
 
+/**
+ * Process a conflict check result: either return early or collect for batch reporting.
+ * @param {Object|null} conflict - Conflict result from a check function
+ * @param {boolean} collectConflicts - Whether to collect all conflicts or return on first
+ * @param {Array} conflicts - Array to push collected conflicts into
+ * @param {string} type - Conflict type identifier ('guru', 'ruang', 'kelas')
+ * @returns {Object|null} The conflict object for early return, or null to continue
+ * @private
+ */
+const collectOrReturnConflict = (conflict, collectConflicts, conflicts, type) => {
+    if (!conflict) return null;
+    if (!collectConflicts) return conflict;
+    conflicts.push({ type, message: conflict.error });
+    return null;
+};
+
+const validateScheduleTime = (hari, jam_mulai, jam_selesai) => {
+    const normalizedHari = normalizeHariName(hari);
+    if (!normalizedHari || !jam_mulai || !jam_selesai) {
+        return { isValid: false, error: "Data waktu tidak lengkap" };
+    }
+    if (!ALLOWED_DAYS.has(normalizedHari)) {
+        return { isValid: false, error: 'Hari tidak valid' };
+    }
+    return { isValid: true, normalizedHari };
+};
+
 const checkAllScheduleConflicts = async ({
     kelas_id,
     hari,
@@ -267,13 +294,11 @@ const checkAllScheduleConflicts = async ({
     connection,
     collectConflicts = false
 }) => {
-    const normalizedHari = normalizeHariName(hari);
-    if (!normalizedHari || !jam_mulai || !jam_selesai) {
-        return { hasConflict: true, error: "Data waktu tidak lengkap" };
+    const timeValidation = validateScheduleTime(hari, jam_mulai, jam_selesai);
+    if (!timeValidation.isValid) {
+        return { hasConflict: true, error: timeValidation.error };
     }
-    if (!ALLOWED_DAYS.has(normalizedHari)) {
-        return { hasConflict: true, error: 'Hari tidak valid' };
-    }
+    const { normalizedHari } = timeValidation;
 
     const database = connection || db;
     const excludeId = normalizeId(excludeJadwalId);
@@ -284,25 +309,19 @@ const checkAllScheduleConflicts = async ({
     if (guruIds && guruIds.length > 0) {
         const qParams = [normalizedHari, jam_selesai, jam_mulai, ...guruIds, ...guruIds];
         const conflict = await checkGuruConflicts(database, { guruIds, hari: normalizedHari, sqlTime, qParams, excludeJadwalId: excludeId });
-        if (conflict) {
-            if (!collectConflicts) return conflict;
-            conflicts.push({ type: 'guru', message: conflict.error });
-        }
+        const earlyReturn = collectOrReturnConflict(conflict, collectConflicts, conflicts, 'guru');
+        if (earlyReturn) return earlyReturn;
     }
 
     // 2. Cek Konflik Ruang
     const roomConflict = await checkRoomConflicts(database, { ruang_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
-    if (roomConflict) {
-        if (!collectConflicts) return roomConflict;
-        conflicts.push({ type: 'ruang', message: roomConflict.error });
-    }
+    const roomReturn = collectOrReturnConflict(roomConflict, collectConflicts, conflicts, 'ruang');
+    if (roomReturn) return roomReturn;
 
     // 3. Cek Konflik Kelas
     const classConflict = await checkClassConflicts(database, { kelas_id, hari: normalizedHari, sqlTime, timeParams, excludeJadwalId: excludeId });
-    if (classConflict) {
-        if (!collectConflicts) return classConflict;
-        conflicts.push({ type: 'kelas', message: classConflict.error });
-    }
+    const classReturn = collectOrReturnConflict(classConflict, collectConflicts, conflicts, 'kelas');
+    if (classReturn) return classReturn;
 
     if (collectConflicts) {
         return {

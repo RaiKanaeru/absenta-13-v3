@@ -31,7 +31,7 @@ interface DraggableItemProps {
 }
 
 function DraggableItem({ id, type, data, isDisabled }: Readonly<DraggableItemProps>) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { type, item: data },
     disabled: isDisabled
@@ -96,7 +96,7 @@ export function DragPalette({
       .filter(t => t.status === 'aktif')
       .filter(t => 
         t.nama.toLowerCase().includes(term) || 
-        (t.nip && t.nip.includes(term))
+        t.nip?.includes(term)
       )
       .slice(0, 30); // Limit for performance
   }, [teachers, searchTerm]);
@@ -107,7 +107,7 @@ export function DragPalette({
       .filter(s => s.status === 'aktif')
       .filter(s => 
         s.nama_mapel.toLowerCase().includes(term) || 
-        (s.kode_mapel && s.kode_mapel.toLowerCase().includes(term))
+        s.kode_mapel?.toLowerCase().includes(term)
       )
       .slice(0, 30);
   }, [subjects, searchTerm]);

@@ -284,6 +284,10 @@ export const ManageRoomsView = ({
     { label: "Tidak Aktif", value: "tidak_aktif", count: stats.tidakAktif },
   ];
 
+  const editOrAddText = editingId ? "Perbarui" : "Tambah";
+  const saveButtonText = isSaving ? "Menyimpan..." : editOrAddText;
+  const isEmptyState = !isLoading && filteredRooms.length === 0;
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -396,7 +400,7 @@ export const ManageRoomsView = ({
       {/* Table / Data */}
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isLoading && (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={`row-skeleton-${String(i)}`} className="flex items-center gap-4">
@@ -409,7 +413,8 @@ export const ManageRoomsView = ({
                 </div>
               ))}
             </div>
-          ) : filteredRooms.length === 0 ? (
+          )}
+          {isEmptyState && (
             <div className="text-center py-12">
               <Home className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
               <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
@@ -425,7 +430,8 @@ export const ManageRoomsView = ({
                 </Button>
               )}
             </div>
-          ) : (
+          )}
+          {!isLoading && filteredRooms.length > 0 && (
             <>
               {/* Desktop Table - hidden on mobile */}
               <div className="hidden lg:block overflow-x-auto">
@@ -706,7 +712,7 @@ export const ManageRoomsView = ({
                 Batal
               </Button>
               <Button type="submit" disabled={isSaving} className="text-sm">
-                {isSaving ? "Menyimpan..." : editingId ? "Perbarui" : "Tambah"}
+                {saveButtonText}
               </Button>
             </SheetFooter>
           </form>

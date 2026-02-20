@@ -32,8 +32,8 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
         }
 
         // Parse pagination params (optional)
-        const pageNum = page ? parseInt(page, 10) : null;
-        const limitNum = limit ? parseInt(limit, 10) : null;
+        const pageNum = page ? Number.parseInt(page, 10) : null;
+        const limitNum = limit ? Number.parseInt(limit, 10) : null;
         const effectiveGuruId = isAdmin ? null : guruId;
 
         // Redis cache key

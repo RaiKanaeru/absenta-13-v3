@@ -7,5 +7,5 @@ export function cn(...inputs: ClassValue[]) {
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
-  return String(error);
+  return typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error);
 }

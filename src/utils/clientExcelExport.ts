@@ -30,7 +30,10 @@ export async function exportToExcel(
   worksheet.columns = headers.map(key => {
     const maxLen = Math.max(
       key.length,
-      ...data.map(row => String(row[key] ?? '').length)
+      ...data.map(row => {
+        const val = row[key];
+        return (typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '')).length;
+      })
     );
     return {
       header: key,
@@ -57,6 +60,6 @@ export async function exportToExcel(
   link.download = xlsxFilename;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  link.remove();
   URL.revokeObjectURL(url);
 }

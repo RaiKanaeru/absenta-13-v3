@@ -59,7 +59,12 @@ export function renderLetterheadHTML(letterhead: LetterheadConfig | null): strin
     .map((line, index) => {
       // Handle both old format (string) and new format (object)
       const text = typeof line === 'string' ? line : line.text;
-      const fontWeight = typeof line === 'object' ? line.fontWeight : (index === 0 ? 'bold' : 'normal');
+      let fontWeight = 'normal';
+      if (typeof line === 'object') {
+          fontWeight = line.fontWeight || 'normal';
+      } else if (index === 0) {
+          fontWeight = 'bold';
+      }
       const style = fontWeight === 'bold' ? 'font-weight:bold;font-size:18px;' : 'font-size:14px;';
       return `<div style="${style}">${escapeHtml(text)}</div>`;
     })
@@ -373,7 +378,7 @@ const generateOfficialLayout = (data: PrintData[], dateRange: DateRange, reportT
   const idLabel = isStudent ? 'Nomor Induk Siswa' : 'Nomor Induk Pegawai';
   
   // Use dynamic letterhead if available, otherwise fallback to hardcoded
-  const letterheadHTML = letterhead && letterhead.enabled ? 
+  const letterheadHTML = letterhead?.enabled ? 
     renderLetterheadHTML(letterhead) : 
     `
     <div class="header">

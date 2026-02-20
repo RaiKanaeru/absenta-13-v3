@@ -215,9 +215,9 @@ const ManageStudentDataView = ({ onLogout }: Readonly<{ onLogout: () => void }>)
   const filteredStudents = studentsData.filter(student => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      (student.nama && student.nama.toLowerCase().includes(searchLower)) ||
-      (student.nis && student.nis.toLowerCase().includes(searchLower)) ||
-      (student.nama_kelas && student.nama_kelas.toLowerCase().includes(searchLower))
+      student.nama?.toLowerCase().includes(searchLower) ||
+      student.nis?.toLowerCase().includes(searchLower) ||
+      student.nama_kelas?.toLowerCase().includes(searchLower)
     );
   });
 

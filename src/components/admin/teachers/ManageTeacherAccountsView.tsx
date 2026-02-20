@@ -275,9 +275,9 @@ const ManageTeacherAccountsView = ({ onLogout }: { onLogout: () => void }) => {
       mapel_id: teacher.mapel_id ? String(teacher.mapel_id) : '',
       email: teacher.email || teacher.user_email || '',
       no_telp: teacher.no_telp || '',
-      jenis_kelamin: (teacher.jenis_kelamin || '') as 'L' | 'P' | '',
+      jenis_kelamin: (teacher.jenis_kelamin || ''),
       alamat: teacher.alamat || teacher.address || teacher.user_alamat || teacher.user_address || '',
-      status: (teacher.status || 'aktif') as 'aktif' | 'nonaktif'
+      status: (teacher.status || 'aktif')
     });
     setEditingId(teacher.id);
     setDialogOpen(true);
@@ -311,6 +311,9 @@ const ManageTeacherAccountsView = ({ onLogout }: { onLogout: () => void }) => {
   if (showImport) {
     return <ExcelImportView entityType="teacher-account" entityName="Akun Guru" onBack={() => setShowImport(false)} />;
   }
+
+  const editOrSaveText = editingId ? 'Update' : 'Simpan';
+  const submitButtonText = isLoading ? 'Menyimpan...' : editOrSaveText;
 
   return (
     <div className="space-y-6">
@@ -533,7 +536,7 @@ const ManageTeacherAccountsView = ({ onLogout }: { onLogout: () => void }) => {
                   disabled={isLoading}
                   className="w-full sm:w-auto order-1 sm:order-2"
                 >
-                  {isLoading ? 'Menyimpan...' : editingId ? 'Update' : 'Simpan'}
+                  {submitButtonText}
                 </Button>
               </DialogFooter>
             </form>

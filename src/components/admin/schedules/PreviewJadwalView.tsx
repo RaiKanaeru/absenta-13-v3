@@ -54,7 +54,7 @@ const getScheduleKey = (schedule: Schedule): string => {
   return `schedule-${schedule.nama_mapel || schedule.keterangan_khusus || 'unknown'}-${schedule.jam_mulai || '00:00'}-${schedule.jam_selesai || '00:00'}`;
 };
 
-const shouldShowMultiGuru = (guruList?: string | null): guruList is string => Boolean(guruList && guruList.includes('||'));
+const shouldShowMultiGuru = (guruList?: string | null): guruList is string => Boolean(guruList?.includes('||'));
 
 const parseGuruName = (guru: string): string => {
   const parts = guru.split(':');
@@ -101,7 +101,7 @@ const triggerBlobDownload = (blob: Blob, filename: string): void => {
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  link.remove();
   globalThis.URL.revokeObjectURL(url);
 };
 
@@ -186,11 +186,14 @@ const EmptyScheduleState = ({
   schedules: Schedule[];
   filter: FilterState;
 }) => {
+  const kelasText = filter.kelas === 'all' ? 'semua kelas' : `kelas ${filter.kelas}`;
+  const hariText = filter.hari === 'all' ? 'semua hari' : `hari ${filter.hari}`;
+  const filterDescription = filter.kelas === 'all' && filter.hari === 'all'
+    ? 'Belum ada jadwal yang tersedia'
+    : `Tidak ada jadwal untuk ${kelasText} pada ${hariText}`;
   const emptyDescription = schedules.length === 0
     ? 'Belum ada jadwal yang tersedia. Silakan tambahkan jadwal terlebih dahulu.'
-    : filter.kelas === 'all' && filter.hari === 'all'
-      ? 'Belum ada jadwal yang tersedia'
-      : `Tidak ada jadwal untuk ${filter.kelas === 'all' ? 'semua kelas' : `kelas ${filter.kelas}`} pada ${filter.hari === 'all' ? 'semua hari' : `hari ${filter.hari}`}`;
+    : filterDescription;
 
   return (
     <div className="text-center py-12">
@@ -576,7 +579,7 @@ export const PreviewJadwalView = ({ onBack, schedules, classes }: PreviewJadwalV
               <span className="sm:hidden">Matrix</span>
             </Button>
             <Button
-              variant={!showMatrix ? 'default' : 'outline'}
+              variant={showMatrix ? 'outline' : 'default'}
               onClick={() => setDisplayMode('grid')}
               size="sm"
               className="w-full sm:w-auto"

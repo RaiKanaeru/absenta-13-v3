@@ -44,7 +44,7 @@ export const useJadwalSync = (role: string, siswaId?: number, tanggal?: string) 
         setJadwal(Array.isArray(data) ? data : []);
       }
      } catch (err: unknown) {
-       const message = err instanceof Error ? err.message : String(err);
+       const message = err instanceof Error ? err.message : (typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err));
        setError(message || 'Gagal memuat jadwal');
      } finally {
       setIsLoading(false);

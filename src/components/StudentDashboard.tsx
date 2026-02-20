@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -723,16 +723,10 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
   const [absenSiswaData, setAbsenSiswaData] = useState<{[key: number]: {status: string; keterangan: string}}>({});
   const [loadingAbsenKelas, setLoadingAbsenKelas] = useState(false);
 
-  // Memoized computed values for performance
-  const jadwalData = useMemo(() => 
-    isEditMode ? jadwalBerdasarkanTanggal : jadwalHariIni,
-    [isEditMode, jadwalBerdasarkanTanggal, jadwalHariIni]
-  );
-
   // Note: toggleRowExpansion removed - was unused (only defined, never called)
 
   // -- MISSING STATES ADDED BY QA ANALYST --
-  const [siswaInfo, setSiswaInfo] = useState<{
+  const [, setSiswaInfo] = useState<{
     nis: string;
     kelas: string;
     nama: string;

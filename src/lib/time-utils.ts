@@ -335,8 +335,6 @@ export const parseDateStringWIB = (dateStr: string): Date => {
     throw new Error(`Invalid date format: ${dateStr}. Expected YYYY-MM-DD`);
   }
   
-  const [year, month, day] = dateStr.split('-').map(Number);
-  
   // Create a date string with explicit WIB timezone offset
   // This ensures the date is interpreted correctly regardless of browser timezone
   const dateTimeStr = `${dateStr}T00:00:00+07:00`;

@@ -53,7 +53,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
     return getCurrentDateWIB();
   });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [maxDate, setMaxDate] = useState<string>(() => {
+  const [maxDate, _setMaxDate] = useState<string>(() => {
     return getCurrentDateWIB();
   });
   const [minDate] = useState<string>(() => {
@@ -233,124 +233,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
     }
   };
 
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header Section */}
-      <div className="space-y-4">
-        <Button onClick={onBack} variant="outline" className="w-full sm:w-auto">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Kembali ke Jadwal
-        </Button>
-        
-        <div className="space-y-2">
-          <h2 className="text-xl sm:text-2xl font-bold">{isEditMode ? 'Edit Absensi Siswa' : 'Ambil Absensi'}</h2>
-          <p className="text-sm sm:text-base text-muted-foreground break-words">{schedule.nama_mapel} - {schedule.nama_kelas}</p>
-          
-          {schedule.kode_ruang && (
-            <div className="text-sm text-blue-600 dark:text-blue-400">
-              <Badge variant="outline" className="text-xs">
-                {schedule.kode_ruang}
-                {schedule.nama_ruang && ` - ${schedule.nama_ruang}`}
-              </Badge>
-            </div>
-          )}
-          
-          <p className="text-xs sm:text-sm text-muted-foreground">{schedule.jam_mulai} - {schedule.jam_selesai}</p>
-          
-          {isEditMode && (
-            <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
-              Mengedit absensi untuk tanggal: {formatDateOnly(selectedDate)}
-            </p>
-          )}
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
-          <Button
-            onClick={toggleEditMode}
-            variant={isEditMode ? "destructive" : "default"}
-            size="sm"
-            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-          >
-            {isEditMode ? (
-              <>
-                <XCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Keluar Edit Mode</span>
-                <span className="sm:hidden">Keluar Edit</span>
-              </>
-            ) : (
-              <>
-                <Edit className="w-4 h-4" />
-                <span className="hidden sm:inline">Edit Absen (30 Hari)</span>
-                <span className="sm:hidden">Edit Absen</span>
-              </>
-            )}
-          </Button>
-          <Button 
-            onClick={() => globalThis.location.reload()} 
-            variant="outline" 
-            size="sm"
-            className="flex items-center justify-center gap-2 w-full sm:w-auto"
-            title="Refresh halaman untuk memuat data terbaru"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </Button>
-        </div>
-        
-        {schedule.is_multi_guru && schedule.other_teachers && (
-          <Alert className="mt-4">
-            <Users className="h-4 w-4" />
-            <AlertTitle className="text-sm sm:text-base">Jadwal Multi-Guru</AlertTitle>
-            <AlertDescription className="text-xs sm:text-sm">
-              Guru lain yang mengajar: {schedule.other_teachers.split('||').map(guru => guru.split(':')[1]).join(', ')}
-              <br />
-              <span className="text-xs text-green-600 font-medium">
-                Auto-Absensi: Saat Anda input absensi, guru lain ikut terabsensi dengan status yang sama
-              </span>
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* Edit Mode Controls */}
-      {isEditMode && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
-              Pilih Tanggal Absensi
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-              <Label htmlFor="date-picker" className="text-sm font-medium flex-shrink-0">
-                Tanggal:
-              </Label>
-              <input
-                id="date-picker"
-                type="date"
-                value={selectedDate}
-                min={minDate}
-                max={maxDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-full sm:w-auto bg-background"
-              />
-              <div className="text-xs sm:text-sm text-muted-foreground">
-                (Maksimal 30 hari yang lalu)
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base sm:text-lg">Daftar Siswa</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {loading ? (
+  const studentListContent = loading ? (
             <div className="space-y-3 sm:space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="animate-pulse bg-muted h-14 sm:h-16 rounded"></div>
@@ -549,7 +432,126 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
                 </div>
               )}
             </div>
+          );
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header Section */}
+      <div className="space-y-4">
+        <Button onClick={onBack} variant="outline" className="w-full sm:w-auto">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Kembali ke Jadwal
+        </Button>
+        
+        <div className="space-y-2">
+          <h2 className="text-xl sm:text-2xl font-bold">{isEditMode ? 'Edit Absensi Siswa' : 'Ambil Absensi'}</h2>
+          <p className="text-sm sm:text-base text-muted-foreground break-words">{schedule.nama_mapel} - {schedule.nama_kelas}</p>
+          
+          {schedule.kode_ruang && (
+            <div className="text-sm text-blue-600 dark:text-blue-400">
+              <Badge variant="outline" className="text-xs">
+                {schedule.kode_ruang}
+                {schedule.nama_ruang && ` - ${schedule.nama_ruang}`}
+              </Badge>
+            </div>
           )}
+          
+          <p className="text-xs sm:text-sm text-muted-foreground">{schedule.jam_mulai} - {schedule.jam_selesai}</p>
+          
+          {isEditMode && (
+            <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
+              Mengedit absensi untuk tanggal: {formatDateOnly(selectedDate)}
+            </p>
+          )}
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+          <Button
+            onClick={toggleEditMode}
+            variant={isEditMode ? "destructive" : "default"}
+            size="sm"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto"
+          >
+            {isEditMode ? (
+              <>
+                <XCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Keluar Edit Mode</span>
+                <span className="sm:hidden">Keluar Edit</span>
+              </>
+            ) : (
+              <>
+                <Edit className="w-4 h-4" />
+                <span className="hidden sm:inline">Edit Absen (30 Hari)</span>
+                <span className="sm:hidden">Edit Absen</span>
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={() => globalThis.location.reload()} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto"
+            title="Refresh halaman untuk memuat data terbaru"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </Button>
+        </div>
+        
+        {schedule.is_multi_guru && schedule.other_teachers && (
+          <Alert className="mt-4">
+            <Users className="h-4 w-4" />
+            <AlertTitle className="text-sm sm:text-base">Jadwal Multi-Guru</AlertTitle>
+            <AlertDescription className="text-xs sm:text-sm">
+              Guru lain yang mengajar: {schedule.other_teachers.split('||').map(guru => guru.split(':')[1]).join(', ')}
+              <br />
+              <span className="text-xs text-green-600 font-medium">
+                Auto-Absensi: Saat Anda input absensi, guru lain ikut terabsensi dengan status yang sama
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+
+      {/* Edit Mode Controls */}
+      {isEditMode && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+              Pilih Tanggal Absensi
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <Label htmlFor="date-picker" className="text-sm font-medium flex-shrink-0">
+                Tanggal:
+              </Label>
+              <input
+                id="date-picker"
+                type="date"
+                value={selectedDate}
+                min={minDate}
+                max={maxDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-full sm:w-auto bg-background"
+              />
+              <div className="text-xs sm:text-sm text-muted-foreground">
+                (Maksimal 30 hari yang lalu)
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Daftar Siswa</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {studentListContent}
         </CardContent>
       </Card>
     </div>

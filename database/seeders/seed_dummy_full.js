@@ -402,7 +402,11 @@ async function insertScheduleRow(connection, kelasId, mapel, selectedGuru, selec
     ]);
 }
 
-async function allocateScheduleSlot(connection, kelasId, day, slot, mapelIds, guruIds, roomIds, busyTeachers, busyRooms) {
+async function allocateScheduleSlot(
+    { connection, kelasId, day, slot },
+    { mapelIds, guruIds, roomIds },
+    { busyTeachers, busyRooms }
+) {
     if (slot.jenis !== 'pelajaran') {
         return false;
     }
@@ -436,15 +440,9 @@ async function generateSchedule(connection, kelasIds, mapelIds, guruIds, slotsBy
         for (const [day, slots] of Object.entries(slotsByDay)) {
             for (const slot of slots) {
                 const wasInserted = await allocateScheduleSlot(
-                    connection,
-                    kelasId,
-                    day,
-                    slot,
-                    mapelIds,
-                    guruIds,
-                    roomIds,
-                    busyTeachers,
-                    busyRooms
+                    { connection, kelasId, day, slot },
+                    { mapelIds, guruIds, roomIds },
+                    { busyTeachers, busyRooms }
                 );
                 if (wasInserted) {
                     jadwalCount += 1;

@@ -42,6 +42,9 @@ const getStatusBadgeVariant = (status: string): 'default' | 'secondary' => {
   return status === 'aktif' ? 'default' : 'secondary';
 };
 
+type GenderOption = 'L' | 'P' | '';
+type StatusOption = 'aktif' | 'nonaktif';
+
 // ManageTeacherDataView Component  
 const ManageTeacherDataView = ({ onLogout }: { onLogout: () => void }) => {
   const [formData, setFormData] = useState({ 
@@ -51,8 +54,8 @@ const ManageTeacherDataView = ({ onLogout }: { onLogout: () => void }) => {
     mata_pelajaran: '',
     alamat: '',
     telepon: '',
-    jenis_kelamin: '' as 'L' | 'P' | '',
-    status: 'aktif' as 'aktif' | 'nonaktif'
+    jenis_kelamin: '' as GenderOption,
+    status: 'aktif' as StatusOption
   });
   const [teachersData, setTeachersData] = useState<TeacherData[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -184,9 +187,9 @@ const ManageTeacherDataView = ({ onLogout }: { onLogout: () => void }) => {
   const filteredTeachers = teachersData.filter(teacher => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      (teacher.nama && teacher.nama.toLowerCase().includes(searchLower)) ||
-      (teacher.nip && teacher.nip.toLowerCase().includes(searchLower)) ||
-      (teacher.mata_pelajaran && teacher.mata_pelajaran.toLowerCase().includes(searchLower))
+      teacher.nama?.toLowerCase().includes(searchLower) ||
+      teacher.nip?.toLowerCase().includes(searchLower) ||
+      teacher.mata_pelajaran?.toLowerCase().includes(searchLower)
     );
   });
 

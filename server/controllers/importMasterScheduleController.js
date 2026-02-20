@@ -35,14 +35,16 @@ const normalizeDayName = (value) => {
 const parseSettingValue = (value) => {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
-    if (!raw) return null;
-     try {
-         const parsed = JSON.parse(raw);
-         if (typeof parsed === 'string') return parsed;
-     } catch (_error) {
-         // Ignore JSON parse errors, fall back to raw value. Expected when cell contains non-JSON string.
-         logger.debug('Setting value is not valid JSON, using raw value', _error);
-     }
+    if (!raw) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'string') return parsed;
+    } catch (_error) {
+        // Ignore JSON parse errors, fall back to raw value. Expected when cell contains non-JSON string.
+        logger.debug('Setting value is not valid JSON, using raw value', _error);
+    }
     // Fix: Regex precedence ambiguity S5850 - Group the alternatives
     return raw.replaceAll(/(^")|("$)/g, '');
 };
@@ -157,6 +159,37 @@ const parseScheduleRow = ({ className, mapelRow, ruangRow, guruRow, dayColumnMap
     return parsedRows;
 };
 
+const processRawRow = (i, rows, dayRanges, scheduleData, sheet, log) => {
+    const rowA = rows[i].row;
+    const className = getVal(rowA, 2);
+    const labelC = getVal(rowA, 3).toUpperCase();
+
+    if (!className || (!labelC.includes('MAPEL') && !getVal(rowA, 1))) {
+        return i + 1;
+    }
+
+    if (i + 2 >= rows.length) {
+        return rows.length; // force break
+    }
+
+    const rowB = rows[i + 1].row;
+    const rowC = rows[i + 2].row;
+
+    scheduleData.push(
+        ...parseScheduleRow({
+            className,
+            mapelRow: rowA,
+            ruangRow: rowB,
+            guruRow: rowC,
+            dayColumnMap: dayRanges,
+            sheet,
+            log
+        })
+    );
+
+    return i + 3;
+};
+
 const parseScheduleFromExcel = (workbook, log) => {
     const sheet = workbook.worksheets[0];
     const rows = [];
@@ -167,103 +200,83 @@ const parseScheduleFromExcel = (workbook, log) => {
 
     const dayRanges = detectDayColumns(rows);
     const scheduleData = [];
-    const startRowIdx = 10;
-    let i = startRowIdx;
+    let i = 10; // startRowIdx
 
     while (i < rows.length) {
-        const rowA = rows[i].row;
-        const className = getVal(rowA, 2);
-        const labelC = getVal(rowA, 3).toUpperCase();
-
-        if (!className || (!labelC.includes('MAPEL') && !getVal(rowA, 1))) {
-            i++;
-            continue;
-        }
-
-        if (i + 2 >= rows.length) {
-            break;
-        }
-
-        const rowB = rows[i + 1].row;
-        const rowC = rows[i + 2].row;
-
-        scheduleData.push(
-            ...parseScheduleRow({
-                className,
-                mapelRow: rowA,
-                ruangRow: rowB,
-                guruRow: rowC,
-                dayColumnMap: dayRanges,
-                sheet,
-                log
-            })
-        );
-
-        i += 3;
+        i = processRawRow(i, rows, dayRanges, scheduleData, sheet, log);
     }
 
     return { dayRanges, scheduleData };
 };
 
+/**
+ * Resolve a single schedule item's raw names to database IDs using cached lookups.
+ * @param {Object} item - Raw schedule item with className, rawMapel, rawGuru, rawRuang, day, jamKe
+ * @param {Object} maps - Shared lookup caches { classMap, mapelMap, guruMap, ruangMap }
+ * @param {Map} jamSlotMap - Day:jamKe → jam slot mapping
+ * @returns {Promise<Object>} Resolved schedule record with database IDs
+ * @private
+ */
+const resolveScheduleItem = async (item, maps, jamSlotMap) => {
+    const { classMap, mapelMap, guruMap, ruangMap } = maps;
+
+    if (!classMap.has(item.className)) {
+        classMap.set(item.className, await mapKelasByName(item.className));
+    }
+    const kelasId = classMap.get(item.className);
+    if (!kelasId) {
+        throw new Error(`Kelas tidak ditemukan: ${item.className}`);
+    }
+
+    if (!mapelMap.has(item.rawMapel)) {
+        mapelMap.set(item.rawMapel, await mapMapelByName(item.rawMapel));
+    }
+    const mapelId = mapelMap.get(item.rawMapel);
+
+    const guruNames = item.rawGuru.split(',').map(s => s.trim());
+    const guruIds = [];
+    for (const name of guruNames) {
+        if (!guruMap.has(name)) {
+            guruMap.set(name, await mapGuruByName(name));
+        }
+        const gid = guruMap.get(name);
+        if (gid) {
+            guruIds.push(gid);
+        }
+    }
+
+    if (item.rawRuang && !ruangMap.has(item.rawRuang)) {
+        ruangMap.set(item.rawRuang, await mapRuangByKode(item.rawRuang));
+    }
+
+    const jamSlot = jamSlotMap.get(`${item.day}:${item.jamKe}`);
+    if (!jamSlot) {
+        throw new Error(`Jam pelajaran tidak ditemukan untuk ${item.day} jam ke-${item.jamKe}`);
+    }
+
+    return {
+        kelasId,
+        mapelId: mapelId || null,
+        guruIds: Array.from(new Set(guruIds)),
+        ruangId: ruangMap.get(item.rawRuang) || null,
+        day: item.day,
+        jamKe: item.jamKe,
+        jamSlot
+    };
+};
+
 const resolveScheduleData = async (scheduleData, conn, jamSlotMap, results) => {
-    const classMap = new Map();
-    const mapelMap = new Map();
-    const guruMap = new Map();
-    const ruangMap = new Map();
+    const maps = {
+        classMap: new Map(),
+        mapelMap: new Map(),
+        guruMap: new Map(),
+        ruangMap: new Map()
+    };
     const resolvedData = [];
 
     for (const item of scheduleData) {
         try {
-            if (!classMap.has(item.className)) {
-                const id = await mapKelasByName(item.className);
-                classMap.set(item.className, id);
-            }
-            const kelasId = classMap.get(item.className);
-            if (!kelasId) {
-                throw new Error(`Kelas tidak ditemukan: ${item.className}`);
-            }
-
-            if (!mapelMap.has(item.rawMapel)) {
-                const id = await mapMapelByName(item.rawMapel);
-                mapelMap.set(item.rawMapel, id);
-            }
-            const mapelId = mapelMap.get(item.rawMapel);
-
-            const guruNames = item.rawGuru.split(',').map(s => s.trim());
-            const guruIds = [];
-            for (const name of guruNames) {
-                const cacheKey = name;
-                if (!guruMap.has(cacheKey)) {
-                    const id = await mapGuruByName(name);
-                    guruMap.set(cacheKey, id);
-                }
-                const gid = guruMap.get(cacheKey);
-                if (gid) {
-                    guruIds.push(gid);
-                }
-            }
-            const uniqueGuruIds = Array.from(new Set(guruIds));
-
-            if (item.rawRuang && !ruangMap.has(item.rawRuang)) {
-                const id = await mapRuangByKode(item.rawRuang);
-                ruangMap.set(item.rawRuang, id);
-            }
-            const ruangId = ruangMap.get(item.rawRuang) || null;
-
-            const jamSlot = jamSlotMap.get(`${item.day}:${item.jamKe}`);
-            if (!jamSlot) {
-                throw new Error(`Jam pelajaran tidak ditemukan untuk ${item.day} jam ke-${item.jamKe}`);
-            }
-
-            resolvedData.push({
-                kelasId,
-                mapelId: mapelId || null,
-                guruIds: uniqueGuruIds,
-                ruangId,
-                day: item.day,
-                jamKe: item.jamKe,
-                jamSlot
-            });
+            resolvedData.push(await resolveScheduleItem(item, maps, jamSlotMap));
         } catch (error_) {
             results.failed++;
             results.errors.push(`Row error: ${error_.message}`);
@@ -314,6 +327,45 @@ const persistScheduleRecords = async (resolvedData, conn, results) => {
     }
 };
 
+const processScheduleTransaction = async (conn, scheduleData, res) => {
+    const results = { success: 0, failed: 0, errors: [] };
+    let transactionStarted = false;
+
+    try {
+        const activeYear = await getActiveAcademicYear(conn);
+        const jamSlotMap = await loadJamPelajaranMap(conn, activeYear);
+        if (jamSlotMap.size === 0) {
+            return sendValidationError(
+                res,
+                'Jam pelajaran belum dikonfigurasi. Jalankan seeder jam_pelajaran sebelum import jadwal.'
+            );
+        }
+
+        await conn.beginTransaction();
+        transactionStarted = true;
+        
+        const resolvedData = await resolveScheduleData(scheduleData, conn, jamSlotMap, results);
+        await persistScheduleRecords(resolvedData, conn, results);
+
+        await conn.commit();
+        
+        return res.json({
+            success: true,
+            imported: results.success,
+            failed: results.failed,
+            errors: results.errors.slice(0, 100) // Limit response size
+        });
+
+    } catch (error_) {
+         if (transactionStarted) {
+             await conn.rollback();
+         }
+         throw error_;
+    } finally {
+        conn.release();
+    }
+};
+
 /**
  * Handle Master Schedule Import (CSV/XLSX)
  * Structure: 
@@ -348,44 +400,8 @@ export const importMasterSchedule = async (req, res) => {
             });
         }
 
-        // 3. Resolve & Persist
         const conn = await db.getConnection();
-        const results = { success: 0, failed: 0, errors: [] };
-        let transactionStarted = false;
-
-        try {
-            const activeYear = await getActiveAcademicYear(conn);
-            const jamSlotMap = await loadJamPelajaranMap(conn, activeYear);
-            if (jamSlotMap.size === 0) {
-                return sendValidationError(
-                    res,
-                    'Jam pelajaran belum dikonfigurasi. Jalankan seeder jam_pelajaran sebelum import jadwal.'
-                );
-            }
-
-            await conn.beginTransaction();
-            transactionStarted = true;
-            
-            const resolvedData = await resolveScheduleData(scheduleData, conn, jamSlotMap, results);
-            await persistScheduleRecords(resolvedData, conn, results);
-
-            await conn.commit();
-            
-            res.json({
-                success: true,
-                imported: results.success,
-                failed: results.failed,
-                errors: results.errors.slice(0, 100) // Limit response size
-            });
-
-        } catch (error_) {
-             if (transactionStarted) {
-                 await conn.rollback();
-             }
-             throw error_;
-        } finally {
-            conn.release();
-        }
+        await processScheduleTransaction(conn, scheduleData, res);
 
     } catch (error) {
         log.error('Master Import Error', error);

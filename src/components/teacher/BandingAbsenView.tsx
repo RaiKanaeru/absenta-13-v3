@@ -199,19 +199,23 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {loading && (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse bg-muted h-32 rounded"></div>
             ))}
           </div>
-        ) : bandingList.length === 0 ? (
+        )}
+        
+        {!loading && bandingList.length === 0 && (
           <div className="text-center py-12">
             <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">Tidak ada banding absen</h3>
             <p className="text-muted-foreground">Belum ada pengajuan banding absen dari siswa yang perlu diproses</p>
           </div>
-        ) : (
+        )}
+        
+        {!loading && bandingList.length > 0 && (
           <>
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto">
@@ -361,15 +365,15 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                   />
                                    <Button 
                                      onClick={() => {
-                                       const textarea = getTextareaElement(`reject-banding-${banding.id_banding}`);
-                                       if (textarea && textarea.value.trim()) {
-                                         handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
-                                       } else if (!textarea) {
-                                         toast({ title: "Error", description: "Form error, please reload", variant: "destructive" });
-                                       } else {
-                                         toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
-                                       }
-                                    }}
+                                     const textarea = getTextareaElement(`reject-banding-${banding.id_banding}`);
+                                     if (textarea?.value.trim()) {
+                                       handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
+                                     } else if (textarea) {
+                                       toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
+                                     } else {
+                                       toast({ title: "Error", description: "Form error, please reload", variant: "destructive" });
+                                     }
+                                  }}
                                     variant="destructive"
                                     className="w-full"
                                   >
@@ -533,12 +537,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                  <Button 
                                    onClick={() => {
                                      const textarea = getTextareaElement(`reject-banding-mobile-${banding.id_banding}`);
-                                     if (textarea && textarea.value.trim()) {
+                                     if (textarea?.value.trim()) {
                                        handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
-                                     } else if (!textarea) {
-                                       toast({ title: "Error", description: "Form error, please reload", variant: "destructive" });
-                                     } else {
+                                     } else if (textarea) {
                                        toast({ title: "Error", description: "Alasan penolakan harus diisi", variant: "destructive" });
+                                     } else {
+                                       toast({ title: "Error", description: "Form error, please reload", variant: "destructive" });
                                      }
                                   }}
                                   variant="destructive"
