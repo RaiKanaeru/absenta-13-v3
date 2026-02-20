@@ -66,7 +66,7 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
         try {
           setError('');
           const token = localStorage.getItem('token');
-          const data = await apiCall('/api/admin/analytics', {
+          const data = await apiCall<AnalyticsData>('/api/admin/analytics', {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : ''
@@ -76,7 +76,14 @@ export const AnalyticsDashboardView: React.FC<AnalyticsDashboardViewProps> = ({ 
           setAnalyticsData(data);
         } catch (error: unknown) {
           console.error('❌ Error fetching analytics data:', error);
-          const message = error instanceof Error ? error.message : String(error);
+          let message = "Gagal memuat data dashboard";
+          if (error instanceof Error) {
+            message = error.message;
+          } else if (typeof error === 'object' && error !== null) {
+            message = JSON.stringify(error);
+          } else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') {
+            message = String(error);
+          }
           setError('Gagal memuat data analitik: ' + message);
         } finally {
           setLoading(false);

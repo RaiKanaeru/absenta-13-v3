@@ -5,7 +5,7 @@
  */
 export const createSessionExpiredHandler = (
   onLogout: () => void,
-  toast: (opts: { title: string; description: string; variant?: string }) => void
+  toast: (opts: { title: string; description: string; variant?: "default" | "destructive" }) => void
 ) => {
   return () => {
     toast({

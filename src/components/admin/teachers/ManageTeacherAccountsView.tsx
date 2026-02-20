@@ -202,7 +202,14 @@ const ManageTeacherAccountsView = ({ onLogout }: { onLogout: () => void }) => {
       ? (error as { details?: unknown }).details
       : undefined;
     if (errorDetails) {
-      const errorMessage = Array.isArray(errorDetails) ? errorDetails.join(', ') : String(errorDetails);
+        let errorMessage = "Validation failed";
+        if (Array.isArray(errorDetails)) {
+          errorMessage = errorDetails.join(', ');
+        } else if (typeof errorDetails === 'object' && errorDetails !== null) {
+          errorMessage = JSON.stringify(errorDetails);
+        } else if (typeof errorDetails === 'string' || typeof errorDetails === 'number' || typeof errorDetails === 'boolean') {
+          errorMessage = String(errorDetails);
+        }
       toast({ 
         title: "Error Validasi", 
         description: errorMessage, 

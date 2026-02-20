@@ -67,7 +67,7 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
   const [reviewNote, setReviewNote] = useState('');
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
 
-  const handleSessionExpiredToast = (opts: { title: string; description: string; variant?: string }) => toast(opts);
+  const handleSessionExpiredToast = (opts: { title: string; description: string; variant?: "default" | "destructive" }) => toast(opts);
 
   const fetchBandingData = React.useCallback(async () => {
     try {
@@ -78,7 +78,10 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
       });
       setBandingData(data);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = "Unknown error";
+      if (error instanceof Error) message = error.message;
+      else if (typeof error === 'object' && error !== null) message = JSON.stringify(error);
+      else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') message = String(error);
       toast({ variant: "destructive", title: "Gagal memuat data banding", description: message });
       setError('Gagal memuat data banding: ' + message);
     } finally {
@@ -111,7 +114,10 @@ export const BandingAbsenReportView: React.FC<BandingAbsenReportViewProps> = ({ 
       setIsReviewOpen(false);
       fetchBandingData();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = "Unknown error";
+      if (error instanceof Error) message = error.message;
+      else if (typeof error === 'object' && error !== null) message = JSON.stringify(error);
+      else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') message = String(error);
       toast({
         title: "Gagal",
         description: message,

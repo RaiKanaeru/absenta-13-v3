@@ -83,7 +83,14 @@ export const AttendanceTrendChart: React.FC<AttendanceTrendChartProps> = ({ onLo
 
       setChartData(formatted);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      let message = "Gagal memuat data tren";
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        message = JSON.stringify(err);
+      } else if (typeof err === 'string' || typeof err === 'number' || typeof err === 'boolean') {
+        message = String(err);
+      }
       toast({ variant: "destructive", title: "Gagal memuat data tren", description: message });
       setError('Gagal memuat data tren: ' + message);
     } finally {

@@ -269,7 +269,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
       const fetchMapelList = async () => {
         try {
           const token = localStorage.getItem('token');
-          const data = await apiCall('/api/admin/mapel', {
+          const data = await apiCall<{id_mapel: number; nama_mapel: string}[]>('/api/admin/mapel', {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : ''
@@ -315,7 +315,7 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
         try {
           setError('');
           const token = localStorage.getItem('token');
-          const data = await apiCall('/api/admin/live-teacher-attendance', {
+          const data = await apiCall<LiveTeacherRow[]>('/api/admin/live-teacher-attendance', {
             headers: {
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : ''
@@ -325,7 +325,10 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
           setAttendanceData(data);
         } catch (error: unknown) {
           console.error('❌ Error fetching live teacher attendance:', error);
-          const message = error instanceof Error ? error.message : String(error);
+          let message = "Unknown error";
+          if (error instanceof Error) message = error.message;
+          else if (typeof error === 'object' && error !== null) message = JSON.stringify(error);
+          else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') message = String(error);
           setError('Gagal memuat data absensi guru: ' + message);
         } finally {
           setLoading(false);
@@ -383,7 +386,12 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
             return JSON.stringify(value);
           }
 
-          return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value ?? '');
+          if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value);
+          } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return String(value);
+          }
+          return '';
         };
         const rows = exportData.map(row => 
           Object.values(row).map(formatCsvValue).join(',')
@@ -404,7 +412,10 @@ export const LiveTeacherAttendanceView: React.FC<LiveTeacherAttendanceViewProps>
           description: "File CSV berhasil diunduh"
         });
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
+        let message = "Unknown error";
+        if (error instanceof Error) message = error.message;
+        else if (typeof error === 'object' && error !== null) message = JSON.stringify(error);
+        else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') message = String(error);
         toast({
           title: "Error",
           description: "Gagal mengekspor data: " + message,

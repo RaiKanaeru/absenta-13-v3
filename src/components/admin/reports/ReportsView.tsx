@@ -66,7 +66,10 @@ export const ReportsView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
       );
       toast({ title: "Export Berhasil", description: "File Excel Guru sedang diunduh...", variant: "default" });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = "Unknown error";
+      if (error instanceof Error) message = error.message;
+      else if (typeof error === 'object' && error !== null) message = JSON.stringify(error);
+      else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') message = String(error);
       setExportError(message);
       toast({ title: "Export Gagal", description: message, variant: "destructive" });
     } finally {

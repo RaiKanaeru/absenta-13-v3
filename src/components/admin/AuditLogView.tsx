@@ -60,7 +60,11 @@ const formatDate = (dateString: string) => {
       timeZone: 'Asia/Jakarta',
     }).format(new Date(dateString));
   } catch (error) {
-    console.error('Audit log date formatting failed:', error instanceof Error ? error.message : String(error));
+    let errMsg = "Audit log date formatting failed";
+    if (error instanceof Error) errMsg = error.message;
+    else if (typeof error === 'object' && error !== null) errMsg = JSON.stringify(error);
+    else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') errMsg = String(error);
+    console.error(errMsg);
     return dateString;
   }
 };
@@ -94,7 +98,11 @@ const parseDetails = (details: string | Record<string, unknown> | null) => {
     try {
       parsed = JSON.parse(details);
     } catch (error) {
-      console.error('Audit log details parsing failed:', error instanceof Error ? error.message : String(error));
+      let errMsg = "Audit log details parsing failed";
+      if (error instanceof Error) errMsg = error.message;
+      else if (typeof error === 'object' && error !== null) errMsg = JSON.stringify(error);
+      else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') errMsg = String(error);
+      console.error(errMsg);
       return <span className="text-xs font-mono truncate max-w-[200px] block" title={details}>{details}</span>;
     }
   } else {
@@ -105,14 +113,23 @@ const parseDetails = (details: string | Record<string, unknown> | null) => {
 
   return (
     <div className="flex flex-col gap-1 text-xs">
-      {Object.entries(parsed).slice(0, 3).map(([key, value]) => (
-        <div key={key} className="flex gap-1">
-          <span className="font-semibold text-muted-foreground">{key}:</span>
-          <span className="truncate max-w-[150px]" title={typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}>
-            {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
-          </span>
-        </div>
-      ))}
+      {Object.entries(parsed).slice(0, 3).map(([key, value]) => {
+        let displayValue = "";
+        if (typeof value === 'object' && value !== null) {
+          displayValue = JSON.stringify(value);
+        } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          displayValue = String(value);
+        }
+        
+        return (
+          <div key={key} className="flex gap-1">
+            <span className="font-semibold text-muted-foreground">{key}:</span>
+            <span className="truncate max-w-[150px]" title={displayValue}>
+              {displayValue}
+            </span>
+          </div>
+        );
+      })}
       {Object.keys(parsed).length > 3 && (
         <span className="text-muted-foreground text-[10px] italic">
           +{Object.keys(parsed).length - 3} lainnya...
@@ -183,7 +200,14 @@ export default function AuditLogView({ onBack, onLogout }: Readonly<AuditLogView
         }));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = "Gagal memuat data audit log";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        message = JSON.stringify(error);
+      } else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') {
+        message = String(error);
+      }
       toast({ 
         title: "Gagal memuat log aktivitas", 
         description: message, 
