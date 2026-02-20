@@ -194,9 +194,9 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
 
         <div className="relative z-10 text-white max-w-lg">
           {/* Logo & Brand */}
-          <div className="mb-10 flex items-center gap-4">
-            <div className="p-4 bg-gradient-to-br from-blue-500/20 to-emerald-500/20 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
-              <img src="/logo.png" alt="ABSENTA Logo" className="h-14 w-14 object-contain drop-shadow-lg" />
+          <div className="mb-10 flex items-center gap-4 animate-in fade-in slide-in-from-left-8 duration-700">
+            <div className="p-3 bg-white/95 shadow-2xl shadow-black/30 rounded-2xl border border-white/20">
+              <img src="/logo.png" alt="ABSENTA Logo" className="h-14 w-14 object-contain drop-shadow-md" />
             </div>
             <div>
               <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-blue-100 to-emerald-200 bg-clip-text text-transparent">ABSENTA</h1>
@@ -205,32 +205,34 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
           </div>
 
           {/* Tagline */}
-          <h2 className="text-2xl font-semibold mb-2 leading-tight text-white/90">
-            Sistem Absensi Digital
-          </h2>
-          <p className="text-lg text-blue-200/70 mb-8">
-            Praktis, Cepat, Akurat
-          </p>
+          <div className="animate-in fade-in slide-in-from-left-8 duration-700 delay-150 fill-mode-backwards">
+            <h2 className="text-2xl font-semibold mb-2 leading-tight text-white/90">
+              Sistem Absensi Digital
+            </h2>
+            <p className="text-lg text-blue-200/70 mb-8">
+              Praktis, Cepat, Akurat
+            </p>
+          </div>
 
           {/* Feature List */}
           <div className="space-y-5">
-            <div className="flex items-center gap-3 group">
-              <div className="p-2.5 bg-white/10 rounded-lg border border-white/10">
+            <div className="flex items-center gap-3 group animate-in fade-in slide-in-from-left-4 duration-700 delay-300 fill-mode-backwards">
+              <div className="p-2.5 bg-white/10 rounded-lg border border-white/10 group-hover:bg-white/20 transition-all duration-300 group-hover:scale-110">
                 <Zap className="w-4 h-4 text-blue-300" />
               </div>
-              <p className="text-white/80 text-sm">Pencatatan kehadiran otomatis</p>
+              <p className="text-white/80 text-sm group-hover:text-white transition-colors">Pencatatan kehadiran otomatis</p>
             </div>
-            <div className="flex items-center gap-3 group">
-              <div className="p-2.5 bg-white/10 rounded-lg border border-white/10">
+            <div className="flex items-center gap-3 group animate-in fade-in slide-in-from-left-4 duration-700 delay-500 fill-mode-backwards">
+              <div className="p-2.5 bg-white/10 rounded-lg border border-white/10 group-hover:bg-white/20 transition-all duration-300 group-hover:scale-110">
                 <Sparkles className="w-4 h-4 text-blue-300" />
               </div>
-              <p className="text-white/80 text-sm">Laporan & export Excel</p>
+              <p className="text-white/80 text-sm group-hover:text-white transition-colors">Laporan & export Excel</p>
             </div>
-            <div className="flex items-center gap-3 group">
-              <div className="p-2.5 bg-white/10 rounded-lg border border-white/10">
+            <div className="flex items-center gap-3 group animate-in fade-in slide-in-from-left-4 duration-700 delay-700 fill-mode-backwards">
+              <div className="p-2.5 bg-white/10 rounded-lg border border-white/10 group-hover:bg-white/20 transition-all duration-300 group-hover:scale-110">
                 <Shield className="w-4 h-4 text-blue-300" />
               </div>
-              <p className="text-white/80 text-sm">Data aman & terbackup</p>
+              <p className="text-white/80 text-sm group-hover:text-white transition-colors">Data aman & terbackup</p>
             </div>
           </div>
 
@@ -245,11 +247,11 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
 
       {/* Right Side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-12 bg-background">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500 ease-out fill-mode-both">
           {/* Mobile Logo */}
           <div className="text-center lg:hidden mb-10">
-            <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-blue-600 to-emerald-600 shadow-xl shadow-blue-500/20 mb-4">
-              <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12" />
+            <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-xl shadow-black/10 mb-4 border border-border animate-float">
+              <img src="/logo.png" alt="ABSENTA Logo" className="h-12 w-12 object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">ABSENTA</h1>
             <p className="text-muted-foreground text-sm">SMKN 13 Bandung</p>
@@ -297,7 +299,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                 </Label>
                 <div className={`relative group transition-all duration-300 ${focusedField === 'username' ? 'scale-[1.02]' : ''}`}>
                   <div className={`absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-300 ${focusedField === 'username' ? 'bg-primary/10' : 'bg-muted'}`}>
-                    <User className={`h-4 w-4 transition-colors duration-300 ${focusedField === 'username' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <User className={`h-4 w-4 transition-all duration-300 ${focusedField === 'username' ? 'text-primary scale-110 animate-pulse' : 'text-muted-foreground'}`} />
                   </div>
                   <Input
                     id="username"
@@ -307,7 +309,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     onChange={(e) => handleInputChange("username", e.target.value)}
                     onFocus={() => setFocusedField('username')}
                     onBlur={() => setFocusedField(null)}
-                    className="pl-14 h-14 bg-background border-input rounded-xl focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-300 font-medium text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="pl-14 h-14 bg-background border-input rounded-xl focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/20 focus:shadow-[0_0_15px_rgba(59,130,246,0.15)] transition-all duration-300 font-medium text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading || isLockedOut}
                     autoFocus
                     required
@@ -322,7 +324,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                 </Label>
                 <div className={`relative group transition-all duration-300 ${focusedField === 'password' ? 'scale-[1.02]' : ''}`}>
                   <div className={`absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all duration-300 ${focusedField === 'password' ? 'bg-primary/10' : 'bg-muted'}`}>
-                    <Lock className={`h-4 w-4 transition-colors duration-300 ${focusedField === 'password' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <Lock className={`h-4 w-4 transition-all duration-300 ${focusedField === 'password' ? 'text-primary scale-110 animate-pulse' : 'text-muted-foreground'}`} />
                   </div>
                   <Input
                     id="password"
@@ -332,7 +334,7 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
-                    className="pl-14 pr-14 h-14 bg-background border-input rounded-xl focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-300 font-medium text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="pl-14 pr-14 h-14 bg-background border-input rounded-xl focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/20 focus:shadow-[0_0_15px_rgba(59,130,246,0.15)] transition-all duration-300 font-medium text-foreground placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading || isLockedOut}
                     required
                   />
@@ -369,9 +371,9 @@ export const LoginForm = ({ onLogin, isLoading, error }: LoginFormProps) => {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className={`w-full h-14 text-lg font-semibold rounded-xl transition-all duration-300 ${
+                className={`w-full h-14 text-lg font-semibold rounded-xl transition-all duration-500 ${
                   isFormReady
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/60 hover:scale-[1.02] border border-transparent hover:border-blue-400/30'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}
                 disabled={isLoading || !isFormReady}
