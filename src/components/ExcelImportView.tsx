@@ -183,6 +183,11 @@ const ExcelImportView: React.FC<ExcelImportViewProps> = ({ entityType, entityNam
          title: "Import Berhasil",
          description: `Berhasil memproses ${result.processed || result.inserted_or_updated || result.inserted} baris data`
        });
+       
+       // Auto-navigate back after successful import
+       setTimeout(() => {
+         onBack();
+       }, 2000);
      } catch (error) {
        console.error('ExcelImportView: Failed to import file', error);
        toast({
