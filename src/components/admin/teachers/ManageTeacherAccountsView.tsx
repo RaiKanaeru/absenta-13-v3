@@ -885,3 +885,4 @@ export const ManageTeacherAccountsView = ({
     </div>
   );
 };
+export default ManageTeacherAccountsView;

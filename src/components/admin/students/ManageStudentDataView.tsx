@@ -815,3 +815,4 @@ export const ManageStudentDataView = ({
     </div>
   );
 };
+export default ManageStudentDataView;

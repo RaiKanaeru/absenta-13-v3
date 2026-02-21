@@ -819,3 +819,4 @@ export const ManageTeacherDataView = ({
     </div>
   );
 };
+export default ManageTeacherDataView;
