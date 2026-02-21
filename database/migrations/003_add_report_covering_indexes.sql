@@ -2,8 +2,8 @@
 -- Purpose: Reduce MySQL CPU from 223% to ~15-30% for attendance report queries
 -- 
 -- Context:
---   getPresensiSiswaSmkn13() scans absensi_siswa WHERE tanggal BETWEEN ? AND ?
---   then JOINs on jadwal_id, and aggregates with SUM(CASE WHEN status/terlambat).
+--   The presensi query filters by date range (tanggal BETWEEN),
+--   joins on schedule id, and aggregates using conditional sums.
 --   Without a covering index, MySQL does a full table scan + random I/O lookups.
 --
 -- Existing indexes that are insufficient:
@@ -21,15 +21,15 @@ ALTER TABLE `absensi_siswa`
   ADD INDEX `idx_absensi_report_covering` (`tanggal`, `jadwal_id`, `status`, `terlambat`);
 
 -- 2. Covering index for siswa count subquery
---    Covers: WHERE status = 'aktif' GROUP BY kelas_id → COUNT(*)
---    The LEFT JOIN subquery (SELECT kelas_id, COUNT(*) FROM siswa WHERE status='aktif' GROUP BY kelas_id)
+--    Covers filtering by active status grouped by class ID for counting
+--    The subquery that counts active students by class
 --    can now be resolved entirely from this index
 ALTER TABLE `siswa`
   ADD INDEX `idx_siswa_status_kelas` (`status`, `kelas_id`);
 
 -- 3. Covering index for rekap ketidakhadiran pre-dedup subquery
---    The rekap query uses: SELECT DISTINCT siswa_id, DATE(tanggal), status, terlambat
---    WHERE tanggal BETWEEN ? AND ? AND jadwal_id IN (...)
+--    The rekap query fetches distinct student ids, dates, statuses, and lateness
+--    filtered by date range and scheduled class IDs.
 --    This index covers the dedup subquery without table access
 ALTER TABLE `absensi_siswa`
   ADD INDEX `idx_absensi_rekap_covering` (`tanggal`, `jadwal_id`, `siswa_id`, `status`, `terlambat`);

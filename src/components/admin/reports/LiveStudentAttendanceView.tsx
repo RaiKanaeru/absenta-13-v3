@@ -392,15 +392,11 @@ export const LiveStudentAttendanceView: React.FC<LiveStudentAttendanceViewProps>
         if (typeof value === 'string') {
           return value.includes(',') ? `"${value}"` : value;
         }
-
-        if (typeof value === 'object' && value !== null) {
-          return JSON.stringify(value);
-        }
-
-        if (typeof value === 'object' && value !== null) {
-          return JSON.stringify(value);
-        } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        if (typeof value === 'number' || typeof value === 'boolean') {
           return String(value);
+        }
+        if (typeof value === 'object' && value !== null) {
+          return JSON.stringify(value);
         }
         return '';
       };

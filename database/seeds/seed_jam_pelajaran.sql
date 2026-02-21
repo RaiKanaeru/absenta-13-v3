@@ -7,76 +7,87 @@
 -- Clear existing data (optional, uncomment if needed)
 -- TRUNCATE TABLE jam_pelajaran;
 
+-- Define constants to avoid duplicate literals
+SET @TA = '2025/2026';
+SET @PEL = 'pelajaran';
+SET @IST = 'istirahat';
+SET @PEM = 'pembiasaan';
+SET @SEN = 'Senin';
+SET @SEL = 'Selasa';
+SET @RAB = 'Rabu';
+SET @KAM = 'Kamis';
+SET @JUM = 'Jumat';
+
 -- Insert jam_pelajaran data for 2025/2026
 INSERT INTO `jam_pelajaran` (`id`, `hari`, `jam_ke`, `jam_mulai`, `jam_selesai`, `durasi_menit`, `jenis`, `label`, `tahun_ajaran`, `created_at`, `updated_at`) VALUES
 -- SENIN (12 slots: 1 pembiasaan + 9 pelajaran + 2 istirahat)
-(1, 'Senin', 0, '06:30:00', '07:15:00', 45, 'pembiasaan', 'Upacara/Apel', '2025/2026', NOW(), NOW()),
-(2, 'Senin', 1, '07:15:00', '08:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(3, 'Senin', 2, '08:00:00', '08:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(4, 'Senin', 3, '08:45:00', '09:30:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(5, 'Senin', 4, '09:30:00', '10:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(6, 'Senin', 5, '10:15:00', '10:30:00', 15, 'istirahat', 'Istirahat 1', '2025/2026', NOW(), NOW()),
-(7, 'Senin', 6, '10:30:00', '11:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(8, 'Senin', 7, '11:15:00', '12:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(9, 'Senin', 8, '12:00:00', '12:45:00', 45, 'istirahat', 'Istirahat 2', '2025/2026', NOW(), NOW()),
-(10, 'Senin', 9, '12:45:00', '13:30:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(11, 'Senin', 10, '13:30:00', '14:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(12, 'Senin', 11, '14:15:00', '15:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
+(1, @SEN, 0, '06:30:00', '07:15:00', 45, @PEM, 'Upacara/Apel', @TA, NOW(), NOW()),
+(2, @SEN, 1, '07:15:00', '08:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(3, @SEN, 2, '08:00:00', '08:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(4, @SEN, 3, '08:45:00', '09:30:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(5, @SEN, 4, '09:30:00', '10:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(6, @SEN, 5, '10:15:00', '10:30:00', 15, @IST, 'Istirahat 1', @TA, NOW(), NOW()),
+(7, @SEN, 6, '10:30:00', '11:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(8, @SEN, 7, '11:15:00', '12:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(9, @SEN, 8, '12:00:00', '12:45:00', 45, @IST, 'Istirahat 2', @TA, NOW(), NOW()),
+(10, @SEN, 9, '12:45:00', '13:30:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(11, @SEN, 10, '13:30:00', '14:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(12, @SEN, 11, '14:15:00', '15:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
 
 -- SELASA (12 slots: 1 pembiasaan + 9 pelajaran + 2 istirahat)
-(13, 'Selasa', 0, '06:30:00', '07:00:00', 30, 'pembiasaan', 'Tadarus', '2025/2026', NOW(), NOW()),
-(14, 'Selasa', 1, '07:00:00', '07:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(15, 'Selasa', 2, '07:45:00', '08:30:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(16, 'Selasa', 3, '08:30:00', '09:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(17, 'Selasa', 4, '09:15:00', '10:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(18, 'Selasa', 5, '10:00:00', '10:15:00', 15, 'istirahat', 'Istirahat 1', '2025/2026', NOW(), NOW()),
-(19, 'Selasa', 6, '10:15:00', '11:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(20, 'Selasa', 7, '11:00:00', '11:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(21, 'Selasa', 8, '11:45:00', '12:30:00', 45, 'istirahat', 'Istirahat 2', '2025/2026', NOW(), NOW()),
-(22, 'Selasa', 9, '12:30:00', '13:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(23, 'Selasa', 10, '13:15:00', '14:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(24, 'Selasa', 11, '14:00:00', '14:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
+(13, @SEL, 0, '06:30:00', '07:00:00', 30, @PEM, 'Tadarus', @TA, NOW(), NOW()),
+(14, @SEL, 1, '07:00:00', '07:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(15, @SEL, 2, '07:45:00', '08:30:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(16, @SEL, 3, '08:30:00', '09:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(17, @SEL, 4, '09:15:00', '10:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(18, @SEL, 5, '10:00:00', '10:15:00', 15, @IST, 'Istirahat 1', @TA, NOW(), NOW()),
+(19, @SEL, 6, '10:15:00', '11:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(20, @SEL, 7, '11:00:00', '11:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(21, @SEL, 8, '11:45:00', '12:30:00', 45, @IST, 'Istirahat 2', @TA, NOW(), NOW()),
+(22, @SEL, 9, '12:30:00', '13:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(23, @SEL, 10, '13:15:00', '14:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(24, @SEL, 11, '14:00:00', '14:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
 
 -- RABU (12 slots: 1 pembiasaan + 9 pelajaran + 2 istirahat)
-(25, 'Rabu', 0, '06:30:00', '07:00:00', 30, 'pembiasaan', 'Sholat Dhuha', '2025/2026', NOW(), NOW()),
-(26, 'Rabu', 1, '07:00:00', '07:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(27, 'Rabu', 2, '07:45:00', '08:30:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(28, 'Rabu', 3, '08:30:00', '09:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(29, 'Rabu', 4, '09:15:00', '10:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(30, 'Rabu', 5, '10:00:00', '10:15:00', 15, 'istirahat', 'Istirahat 1', '2025/2026', NOW(), NOW()),
-(31, 'Rabu', 6, '10:15:00', '11:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(32, 'Rabu', 7, '11:00:00', '11:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(33, 'Rabu', 8, '11:45:00', '12:30:00', 45, 'istirahat', 'Istirahat 2', '2025/2026', NOW(), NOW()),
-(34, 'Rabu', 9, '12:30:00', '13:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(35, 'Rabu', 10, '13:15:00', '14:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(36, 'Rabu', 11, '14:00:00', '14:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
+(25, @RAB, 0, '06:30:00', '07:00:00', 30, @PEM, 'Sholat Dhuha', @TA, NOW(), NOW()),
+(26, @RAB, 1, '07:00:00', '07:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(27, @RAB, 2, '07:45:00', '08:30:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(28, @RAB, 3, '08:30:00', '09:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(29, @RAB, 4, '09:15:00', '10:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(30, @RAB, 5, '10:00:00', '10:15:00', 15, @IST, 'Istirahat 1', @TA, NOW(), NOW()),
+(31, @RAB, 6, '10:15:00', '11:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(32, @RAB, 7, '11:00:00', '11:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(33, @RAB, 8, '11:45:00', '12:30:00', 45, @IST, 'Istirahat 2', @TA, NOW(), NOW()),
+(34, @RAB, 9, '12:30:00', '13:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(35, @RAB, 10, '13:15:00', '14:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(36, @RAB, 11, '14:00:00', '14:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
 
 -- KAMIS (12 slots: 1 pembiasaan + 9 pelajaran + 2 istirahat)
-(37, 'Kamis', 0, '06:30:00', '07:00:00', 30, 'pembiasaan', 'Literasi', '2025/2026', NOW(), NOW()),
-(38, 'Kamis', 1, '07:00:00', '07:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(39, 'Kamis', 2, '07:45:00', '08:30:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(40, 'Kamis', 3, '08:30:00', '09:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(41, 'Kamis', 4, '09:15:00', '10:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(42, 'Kamis', 5, '10:00:00', '10:15:00', 15, 'istirahat', 'Istirahat 1', '2025/2026', NOW(), NOW()),
-(43, 'Kamis', 6, '10:15:00', '11:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(44, 'Kamis', 7, '11:00:00', '11:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(45, 'Kamis', 8, '11:45:00', '12:30:00', 45, 'istirahat', 'Istirahat 2', '2025/2026', NOW(), NOW()),
-(46, 'Kamis', 9, '12:30:00', '13:15:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(47, 'Kamis', 10, '13:15:00', '14:00:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(48, 'Kamis', 11, '14:00:00', '14:45:00', 45, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
+(37, @KAM, 0, '06:30:00', '07:00:00', 30, @PEM, 'Literasi', @TA, NOW(), NOW()),
+(38, @KAM, 1, '07:00:00', '07:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(39, @KAM, 2, '07:45:00', '08:30:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(40, @KAM, 3, '08:30:00', '09:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(41, @KAM, 4, '09:15:00', '10:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(42, @KAM, 5, '10:00:00', '10:15:00', 15, @IST, 'Istirahat 1', @TA, NOW(), NOW()),
+(43, @KAM, 6, '10:15:00', '11:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(44, @KAM, 7, '11:00:00', '11:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(45, @KAM, 8, '11:45:00', '12:30:00', 45, @IST, 'Istirahat 2', @TA, NOW(), NOW()),
+(46, @KAM, 9, '12:30:00', '13:15:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(47, @KAM, 10, '13:15:00', '14:00:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
+(48, @KAM, 11, '14:00:00', '14:45:00', 45, @PEL, NULL, @TA, NOW(), NOW()),
 
 -- JUMAT (10 slots: 1 pembiasaan + 7 pelajaran + 2 istirahat, jam lebih pendek)
-(49, 'Jumat', 0, '06:30:00', '07:00:00', 30, 'pembiasaan', 'Jumat Bersih', '2025/2026', NOW(), NOW()),
-(50, 'Jumat', 1, '07:00:00', '07:35:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(51, 'Jumat', 2, '07:35:00', '08:10:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(52, 'Jumat', 3, '08:10:00', '08:45:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(53, 'Jumat', 4, '08:45:00', '09:20:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(54, 'Jumat', 5, '09:20:00', '09:35:00', 15, 'istirahat', 'Istirahat 1', '2025/2026', NOW(), NOW()),
-(55, 'Jumat', 6, '09:35:00', '10:10:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(56, 'Jumat', 7, '10:10:00', '10:45:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(57, 'Jumat', 8, '10:45:00', '12:30:00', 105, 'istirahat', 'Sholat Jumat', '2025/2026', NOW(), NOW()),
-(58, 'Jumat', 9, '12:30:00', '13:05:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW()),
-(59, 'Jumat', 10, '13:05:00', '13:40:00', 35, 'pelajaran', NULL, '2025/2026', NOW(), NOW())
+(49, @JUM, 0, '06:30:00', '07:00:00', 30, @PEM, 'Jumat Bersih', @TA, NOW(), NOW()),
+(50, @JUM, 1, '07:00:00', '07:35:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(51, @JUM, 2, '07:35:00', '08:10:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(52, @JUM, 3, '08:10:00', '08:45:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(53, @JUM, 4, '08:45:00', '09:20:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(54, @JUM, 5, '09:20:00', '09:35:00', 15, @IST, 'Istirahat 1', @TA, NOW(), NOW()),
+(55, @JUM, 6, '09:35:00', '10:10:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(56, @JUM, 7, '10:10:00', '10:45:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(57, @JUM, 8, '10:45:00', '12:30:00', 105, @IST, 'Sholat Jumat', @TA, NOW(), NOW()),
+(58, @JUM, 9, '12:30:00', '13:05:00', 35, @PEL, NULL, @TA, NOW(), NOW()),
+(59, @JUM, 10, '13:05:00', '13:40:00', 35, @PEL, NULL, @TA, NOW(), NOW())
 
 ON DUPLICATE KEY UPDATE
     jam_mulai = VALUES(jam_mulai),

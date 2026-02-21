@@ -32,7 +32,10 @@ export async function exportToExcel(
       key.length,
       ...data.map(row => {
         const val = row[key];
-        return (typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '')).length;
+        if (typeof val === 'string') return val.length;
+        if (typeof val === 'number' || typeof val === 'boolean') return String(val).length;
+        if (typeof val === 'object' && val !== null) return JSON.stringify(val).length;
+        return 0;
       })
     );
     return {
@@ -42,9 +45,22 @@ export async function exportToExcel(
     };
   });
 
-  // Add data rows
+  // Add data rows with safe value conversion
   for (const row of data) {
-    worksheet.addRow(row);
+    const safeRow: Record<string, string | number | boolean | null> = {};
+    for (const key of headers) {
+      const val = row[key];
+      if (val === null || val === undefined) {
+        safeRow[key] = '';
+      } else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+        safeRow[key] = val;
+      } else if (typeof val === 'object') {
+        safeRow[key] = JSON.stringify(val);
+      } else {
+        safeRow[key] = String(val);
+      }
+    }
+    worksheet.addRow(safeRow);
   }
 
   // Generate buffer and trigger download

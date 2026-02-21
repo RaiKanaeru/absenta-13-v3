@@ -3,7 +3,7 @@
  * Extracted from TeacherDashboard.tsx
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,20 +53,18 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
     return getCurrentDateWIB();
   });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [maxDate, _setMaxDate] = useState<string>(() => {
-    return getCurrentDateWIB();
-  });
-  const [minDate] = useState<string>(() => {
+  const maxDate = useMemo(() => getCurrentDateWIB(), []);
+  const minDate = (() => {
     const wibNow = getWIBTime();
     const thirtyDaysAgo = new Date(wibNow.getTime() - 30 * 24 * 60 * 60 * 1000);
     return formatDateWIB(thirtyDaysAgo);
-  });
+  })();
 
   // Fetch students by date for edit mode
   const fetchStudentsByDate = async (tanggal: string) => {
     try {
       setLoading(true);
-      const data = await apiCall(`/api/schedule/${schedule.id}/students-by-date?tanggal=${tanggal}`);
+      const data = await apiCall<Student[]>(`/api/schedule/${schedule.id}/students-by-date?tanggal=${tanggal}`);
       setStudents(data);
       
       // Initialize attendance with existing data or default to 'Hadir'
@@ -95,7 +93,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        const data = await apiCall(`/api/schedule/${schedule.id}/students`);
+        const data = await apiCall<Student[]>(`/api/schedule/${schedule.id}/students`);
         setStudents(data);
         
         // Initialize attendance with existing data or default to 'Hadir'
@@ -196,7 +194,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
         };
       });
 
-      const response = await apiCall(`/api/attendance/submit`, {
+      const response = await apiCall<{ isMultiGuru?: boolean }>(`/api/attendance/submit`, {
         method: 'POST',
         body: JSON.stringify({
           scheduleId: schedule.id,
@@ -233,206 +231,224 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
     }
   };
 
-  const studentListContent = loading ? (
-            <div className="space-y-3 sm:space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="animate-pulse bg-muted h-14 sm:h-16 rounded"></div>
-              ))}
-            </div>
-          ) : students.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Tidak ada siswa dalam kelas ini</h3>
-              <p className="text-sm sm:text-base text-muted-foreground">Belum ada siswa yang terdaftar di kelas {schedule.nama_kelas}</p>
-            </div>
-          ) : (
-            <div className="space-y-3 sm:space-y-4">
-              {students.map((student, index) => (
-                <div key={student.id} className="border border-border rounded-lg p-3 sm:p-4 bg-card">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">{student.nama}</p>
-                      {student.nis && (
-                        <p className="text-xs sm:text-sm text-muted-foreground">NIS: {student.nis}</p>
-                      )}
-                      {student.waktu_absen && (
-                        <p className="text-xs text-muted-foreground">
-                          Absen terakhir: {formatTime24(student.waktu_absen)}
-                        </p>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="text-xs self-start sm:self-center">#{index + 1}</Badge>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {student.waktu_absen && (
-                      <div className="mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          Sudah diabsen sebelumnya
-                        </Badge>
-                      </div>
-                    )}
-                    <RadioGroup
-                      value={attendance[student.id]}
-                      onValueChange={(value) => {
-                        const newStatus = value as AttendanceStatus;
-                        setAttendance(prev => ({ ...prev, [student.id]: newStatus }));
-                        if (newStatus === 'Hadir') {
-                          setNotes(prev => ({ ...prev, [student.id]: '' }));
-                        }
-                      }}
-                    >
-                      <div className="grid grid-cols-2 sm:flex sm:space-x-6 gap-2 sm:gap-0">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Hadir" id={`hadir-${student.id}`} />
-                          <Label htmlFor={`hadir-${student.id}`} className="text-xs sm:text-sm">Hadir</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Izin" id={`izin-${student.id}`} />
-                          <Label htmlFor={`izin-${student.id}`} className="text-xs sm:text-sm">Izin</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Sakit" id={`sakit-${student.id}`} />
-                          <Label htmlFor={`sakit-${student.id}`} className="text-xs sm:text-sm">Sakit</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Alpa" id={`alpa-${student.id}`} />
-                          <Label htmlFor={`alpa-${student.id}`} className="text-xs sm:text-sm">Alpa</Label>
-                        </div>
-                        <div className="flex items-center space-x-2 col-span-2 sm:col-span-1">
-                          <RadioGroupItem value="Dispen" id={`dispen-${student.id}`} />
-                          <Label htmlFor={`dispen-${student.id}`} className="text-xs sm:text-sm">Dispen</Label>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                    
-                    <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:gap-4">
-                      {attendance[student.id] === 'Hadir' && (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`terlambat-${student.id}`}
-                            checked={terlambat[student.id] || false}
-                            onChange={(e) => 
-                              setTerlambat(prev => ({ ...prev, [student.id]: e.target.checked }))
-                            }
-                            className="rounded border-border text-orange-600 focus:ring-orange-500"
-                          />
-                          <Label htmlFor={`terlambat-${student.id}`} className="text-xs sm:text-sm text-orange-600">
-                            Terlambat
-                          </Label>
-                        </div>
-                      )}
-                      
-                      {(attendance[student.id] === 'Alpa' || attendance[student.id] === 'Sakit' || attendance[student.id] === 'Izin') && (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`ada-tugas-${student.id}`}
-                            checked={adaTugas[student.id] || false}
-                            onChange={(e) => 
-                              setAdaTugas(prev => ({ ...prev, [student.id]: e.target.checked }))
-                            }
-                            className="rounded border-border text-blue-600 focus:ring-ring"
-                          />
-                        <Label htmlFor={`ada-tugas-${student.id}`} className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
-                            Ada Tugas
-                          </Label>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {attendance[student.id] !== 'Hadir' && (
-                      <div className="mt-3">
-                        <Label htmlFor={`keterangan-${student.id}`} className="text-xs sm:text-sm font-medium text-foreground">
-                          Keterangan:
-                        </Label>
-                        <Textarea
-                          id={`keterangan-${student.id}`}
-                          placeholder="Masukkan keterangan jika diperlukan..."
-                          value={notes[student.id] || ''}
-                          onChange={(e) => 
-                            setNotes(prev => ({ ...prev, [student.id]: e.target.value }))
-                          }
-                          className="mt-1 text-xs sm:text-sm"
-                          rows={2}
-                        />
-                      </div>
-                    )}
+  const handleAttendanceChange = (studentId: number, value: string) => {
+    const newStatus = value as AttendanceStatus;
+    setAttendance(prev => ({ ...prev, [studentId]: newStatus }));
+    if (newStatus === 'Hadir') {
+      setNotes(prev => ({ ...prev, [studentId]: '' }));
+    }
+  };
 
-                    {schedule.is_multi_guru && student.other_teachers_attendance && student.other_teachers_attendance !== '' && (
-                      <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                        <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Catatan dari Guru Lain:</h4>
-                        <div className="space-y-1">
-                          {student.other_teachers_attendance.split('||').map((teacherData, idx) => {
-                            const [guruNama, status, keterangan, waktu] = teacherData.split(':');
-                            if (guruNama === 'Unknown' || guruNama === '') return null;
-                            
-                            return (
-                              <div key={idx} className="text-xs text-blue-700 dark:text-blue-400">
-                                <span className="font-medium">{guruNama}:</span> {status}
-                                {keterangan && keterangan !== '' && (
-                                  <span className="ml-2 text-muted-foreground">- {keterangan}</span>
-                                )}
-                                {waktu && waktu !== '' && (
-                                  <span className="ml-2 text-muted-foreground">({waktu})</span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+  const handleTerlambatChange = (studentId: number, checked: boolean) => {
+    setTerlambat(prev => ({ ...prev, [studentId]: checked }));
+  };
+
+  const handleAdaTugasChange = (studentId: number, checked: boolean) => {
+    setAdaTugas(prev => ({ ...prev, [studentId]: checked }));
+  };
+
+  const handleNotesChange = (studentId: number, value: string) => {
+    setNotes(prev => ({ ...prev, [studentId]: value }));
+  };
+
+  const renderStudentListContent = () => {
+    if (loading) {
+      return (
+        <div className="space-y-3 sm:space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={`skeleton-${i}`} className="animate-pulse bg-muted h-14 sm:h-16 rounded"></div>
+          ))}
+        </div>
+      );
+    }
+
+    if (students.length === 0) {
+      return (
+        <div className="text-center py-8 sm:py-12">
+          <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+          <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Tidak ada siswa dalam kelas ini</h3>
+          <p className="text-sm sm:text-base text-muted-foreground">Belum ada siswa yang terdaftar di kelas {schedule.nama_kelas}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3 sm:space-y-4">
+        {students.map((student, index) => (
+          <div key={student.id} className="border border-border rounded-lg p-3 sm:p-4 bg-card">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm sm:text-base truncate">{student.nama}</p>
+                {student.nis && (
+                  <p className="text-xs sm:text-sm text-muted-foreground">NIS: {student.nis}</p>
+                )}
+                {student.waktu_absen && (
+                  <p className="text-xs text-muted-foreground">
+                    Absen terakhir: {formatTime24(student.waktu_absen)}
+                  </p>
+                )}
+              </div>
+              <Badge variant="outline" className="text-xs self-start sm:self-center">#{index + 1}</Badge>
+            </div>
+            
+            <div className="space-y-3">
+              {student.waktu_absen && (
+                <div className="mb-2">
+                  <Badge variant="secondary" className="text-xs">
+                    Sudah diabsen sebelumnya
+                  </Badge>
+                </div>
+              )}
+              <RadioGroup
+                value={attendance[student.id]}
+                onValueChange={(value) => handleAttendanceChange(student.id, value)}
+              >
+                <div className="grid grid-cols-2 sm:flex sm:space-x-6 gap-2 sm:gap-0">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Hadir" id={`hadir-${student.id}`} />
+                    <Label htmlFor={`hadir-${student.id}`} className="text-xs sm:text-sm">Hadir</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Izin" id={`izin-${student.id}`} />
+                    <Label htmlFor={`izin-${student.id}`} className="text-xs sm:text-sm">Izin</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Sakit" id={`sakit-${student.id}`} />
+                    <Label htmlFor={`sakit-${student.id}`} className="text-xs sm:text-sm">Sakit</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Alpa" id={`alpa-${student.id}`} />
+                    <Label htmlFor={`alpa-${student.id}`} className="text-xs sm:text-sm">Alpa</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 col-span-2 sm:col-span-1">
+                    <RadioGroupItem value="Dispen" id={`dispen-${student.id}`} />
+                    <Label htmlFor={`dispen-${student.id}`} className="text-xs sm:text-sm">Dispen</Label>
                   </div>
                 </div>
-              ))}
+              </RadioGroup>
               
-              {students.length > 0 && (
-                <div className="pt-4 border-t space-y-3">
-                  <div className="bg-muted p-3 rounded-lg">
-                    <h4 className="font-medium text-sm mb-2">Preview Data Absensi:</h4>
-                    <div className="text-xs space-y-1">
-                      {students.map(student => (
-                        <div key={student.id} className="space-y-1">
-                            <div className="flex justify-between">
-                             <span>{student.nama}:</span>
-                             <div className="flex items-center gap-2">
-                               <span className={`font-medium ${getAttendanceColorClass(attendance[student.id])}`}>
-                                 {attendance[student.id]}
-                               </span>
-                               {terlambat[student.id] && (
-                                 <span className="px-2 py-1 text-xs bg-orange-500/15 text-orange-700 dark:text-orange-400 rounded-full">
-                                   Terlambat
-                                 </span>
-                               )}
-                               {adaTugas[student.id] && (
-                                 <span className="px-2 py-1 text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-full">
-                                   Ada Tugas
-                                 </span>
-                               )}
-                             </div>
-                           </div>
-                          {notes[student.id] && notes[student.id].trim() !== '' && (
-                            <div className="text-muted-foreground text-xs pl-2">
-                              <span className="font-medium">Keterangan:</span> {notes[student.id]}
-                            </div>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:gap-4">
+                {attendance[student.id] === 'Hadir' && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`terlambat-${student.id}`}
+                      checked={terlambat[student.id] || false}
+                      onChange={(e) => handleTerlambatChange(student.id, e.target.checked)}
+                      className="rounded border-border text-orange-600 focus:ring-orange-500"
+                    />
+                    <Label htmlFor={`terlambat-${student.id}`} className="text-xs sm:text-sm text-orange-600">
+                      Terlambat
+                    </Label>
+                  </div>
+                )}
+                
+                {(attendance[student.id] === 'Alpa' || attendance[student.id] === 'Sakit' || attendance[student.id] === 'Izin') && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`ada-tugas-${student.id}`}
+                      checked={adaTugas[student.id] || false}
+                      onChange={(e) => handleAdaTugasChange(student.id, e.target.checked)}
+                      className="rounded border-border text-blue-600 focus:ring-ring"
+                    />
+                  <Label htmlFor={`ada-tugas-${student.id}`} className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
+                      Ada Tugas
+                    </Label>
+                  </div>
+                )}
+              </div>
+              
+              {attendance[student.id] !== 'Hadir' && (
+                <div className="mt-3">
+                  <Label htmlFor={`keterangan-${student.id}`} className="text-xs sm:text-sm font-medium text-foreground">
+                    Keterangan:
+                  </Label>
+                  <Textarea
+                    id={`keterangan-${student.id}`}
+                    placeholder="Masukkan keterangan jika diperlukan..."
+                    value={notes[student.id] || ''}
+                    onChange={(e) => handleNotesChange(student.id, e.target.value)}
+                    className="mt-1 text-xs sm:text-sm"
+                    rows={2}
+                  />
+                </div>
+              )}
+
+              {schedule.is_multi_guru && student.other_teachers_attendance && student.other_teachers_attendance !== '' && (
+                <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Catatan dari Guru Lain:</h4>
+                  <div className="space-y-1">
+                    {student.other_teachers_attendance.split('||').map((teacherData) => {
+                      const [guruNama, status, keterangan, waktu] = teacherData.split(':');
+                      if (guruNama === 'Unknown' || guruNama === '') return null;
+                      
+                      return (
+                        <div key={`${student.id}-${guruNama}-${status}-${waktu}`} className="text-xs text-blue-700 dark:text-blue-400">
+                          <span className="font-medium">{guruNama}:</span> {status}
+                          {keterangan && keterangan !== '' && (
+                            <span className="ml-2 text-muted-foreground">- {keterangan}</span>
+                          )}
+                          {waktu && waktu !== '' && (
+                            <span className="ml-2 text-muted-foreground">({waktu})</span>
                           )}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
-                  
-                  <Button 
-                    onClick={handleSubmit} 
-                    disabled={submitting} 
-                    className="w-full text-sm sm:text-base"
-                  >
-                    {submitting ? 'Menyimpan...' : 'Simpan Absensi'}
-                  </Button>
                 </div>
               )}
             </div>
-          );
+          </div>
+        ))}
+        
+        {students.length > 0 && (
+          <div className="pt-4 border-t space-y-3">
+            <div className="bg-muted p-3 rounded-lg">
+              <h4 className="font-medium text-sm mb-2">Preview Data Absensi:</h4>
+              <div className="text-xs space-y-1">
+                {students.map(student => (
+                  <div key={student.id} className="space-y-1">
+                      <div className="flex justify-between">
+                       <span>{student.nama}:</span>
+                       <div className="flex items-center gap-2">
+                         <span className={`font-medium ${getAttendanceColorClass(attendance[student.id])}`}>
+                           {attendance[student.id]}
+                         </span>
+                         {terlambat[student.id] && (
+                           <span className="px-2 py-1 text-xs bg-orange-500/15 text-orange-700 dark:text-orange-400 rounded-full">
+                             Terlambat
+                           </span>
+                         )}
+                         {adaTugas[student.id] && (
+                           <span className="px-2 py-1 text-xs bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-full">
+                             Ada Tugas
+                           </span>
+                         )}
+                       </div>
+                     </div>
+                    {notes[student.id] && notes[student.id].trim() !== '' && (
+                      <div className="text-muted-foreground text-xs pl-2">
+                        <span className="font-medium">Keterangan:</span> {notes[student.id]}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <Button 
+              onClick={handleSubmit} 
+              disabled={submitting} 
+              className="w-full text-sm sm:text-base"
+            >
+              {submitting ? 'Menyimpan...' : 'Simpan Absensi'}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -551,7 +567,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
           <CardTitle className="text-base sm:text-lg">Daftar Siswa</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {studentListContent}
+          {renderStudentListContent()}
         </CardContent>
       </Card>
     </div>

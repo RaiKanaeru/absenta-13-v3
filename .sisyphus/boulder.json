@@ -3,7 +3,8 @@
   "started_at": "2026-02-19T11:51:16.049Z",
   "session_ids": [
     "ses_38abf5760ffewnKQ8P7uXEjLQm",
-    "ses_38a0daddcffe4lgeQ6a3bhvFcK"
+    "ses_38a0daddcffe4lgeQ6a3bhvFcK",
+    "ses_389a4ca01ffe42MwxyZ842fVRO"
   ],
   "plan_name": "sonarqube-cleanup",
   "agent": "atlas"

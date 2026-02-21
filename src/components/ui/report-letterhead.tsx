@@ -74,9 +74,9 @@ const CustomLetterhead: React.FC<{ letterhead: LetterheadConfig }> = ({ letterhe
     )}
     
     {/* Baris teks kop laporan */}
-    {letterhead.lines?.map((line, index) => (
+    {letterhead.lines?.map((line) => (
       <div 
-        key={index} 
+        key={`letterhead-${line.text}`}
         className={`text-sm ${line.fontWeight === 'bold' ? 'font-bold' : 'font-normal'}`}
         style={{ textAlign: letterhead.alignment }}
       >

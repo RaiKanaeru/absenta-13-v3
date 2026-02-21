@@ -2,6 +2,40 @@ import { useState, useEffect, useCallback } from 'react';
 import { JadwalService } from '../services/jadwalService';
 
 /**
+ * Extract a readable error message from an unknown error value
+ */
+const extractErrorMessage = (err: unknown, fallback: string): string => {
+  if (err instanceof Error) return err.message || fallback;
+  if (typeof err === 'string') return err;
+  if (typeof err === 'number' || typeof err === 'boolean') return String(err);
+  if (typeof err === 'object' && err !== null) {
+    return (err as { message?: string }).message || fallback;
+  }
+  return fallback;
+};
+
+/**
+ * Fetch jadwal data based on role
+ */
+const fetchJadwalByRole = async (role: string, siswaId?: number, tanggal?: string): Promise<unknown[]> => {
+  if (role === 'siswa' && siswaId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res: any = tanggal
+      ? await JadwalService.getJadwalRentangSiswa(siswaId, tanggal)
+      : await JadwalService.getJadwalHariIniSiswa(siswaId);
+    return res?.success && res?.data ? res.data : [];
+  }
+
+  if (role !== 'siswa') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adminGuruData = await JadwalService.getJadwal(role as any);
+    return Array.isArray(adminGuruData) ? adminGuruData : [];
+  }
+
+  return [];
+};
+
+/**
  * Custom hook untuk sinkronisasi jadwal dengan auto-refresh
  * @param role - Role pengguna ('admin', 'guru', 'siswa')
  * @param siswaId - ID siswa (opsional, hanya untuk role siswa)
@@ -12,7 +46,7 @@ export const useJadwalSync = (role: string, siswaId?: number, tanggal?: string) 
   const [jadwal, setJadwal] = useState<unknown[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   /**
    * Function untuk refresh jadwal
    */
@@ -21,32 +55,11 @@ export const useJadwalSync = (role: string, siswaId?: number, tanggal?: string) 
     setError(null);
     
     try {
-      let data;
-      
-      if (role === 'siswa' && siswaId) {
-        if (tanggal) {
-          // Untuk jadwal rentang siswa
-          data = await JadwalService.getJadwalRentangSiswa(siswaId, tanggal);
-        } else {
-          // Untuk jadwal hari ini siswa
-          data = await JadwalService.getJadwalHariIniSiswa(siswaId);
-        }
-        
-        // Handle format response siswa
-        if (data.success && data.data) {
-          setJadwal(data.data);
-        } else {
-          setJadwal([]);
-        }
-      } else {
-        // Untuk admin dan guru
-        data = await JadwalService.getJadwal(role);
-        setJadwal(Array.isArray(data) ? data : []);
-      }
-     } catch (err: unknown) {
-       const message = err instanceof Error ? err.message : (typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err));
-       setError(message || 'Gagal memuat jadwal');
-     } finally {
+      const newData = await fetchJadwalByRole(role, siswaId, tanggal);
+      setJadwal(newData);
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, 'Gagal memuat jadwal'));
+    } finally {
       setIsLoading(false);
     }
   }, [role, siswaId, tanggal]);

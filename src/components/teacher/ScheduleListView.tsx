@@ -50,6 +50,34 @@ const getActionLabel = (status: string | undefined): string => {
   return status === 'current' ? 'Ambil Absensi' : 'Lihat Detail';
 };
 
+const ScheduleContent = ({ schedules, onSelectSchedule, isLoading }: ScheduleListViewProps) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse bg-muted h-16 sm:h-20 rounded"></div>
+        ))}
+      </div>
+    );
+  }
+
+  if (schedules.length === 0) {
+    return (
+      <div className="text-center py-8 sm:py-12">
+<Calendar className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+        <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Tidak ada jadwal hari ini</h3>
+        <p className="text-sm sm:text-base text-muted-foreground">Selamat beristirahat!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {renderSchedules(schedules, onSelectSchedule)}
+    </div>
+  );
+};
+
 export const ScheduleListView = ({ schedules, onSelectSchedule, isLoading }: ScheduleListViewProps) => (
   <Card className="w-full">
     <CardHeader className="pb-3">
@@ -59,23 +87,7 @@ export const ScheduleListView = ({ schedules, onSelectSchedule, isLoading }: Sch
       </CardTitle>
     </CardHeader>
     <CardContent className="pt-0">
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse bg-muted h-16 sm:h-20 rounded"></div>
-          ))}
-        </div>
-      ) : schedules.length === 0 ? (
-        <div className="text-center py-8 sm:py-12">
-<Calendar className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
-          <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Tidak ada jadwal hari ini</h3>
-          <p className="text-sm sm:text-base text-muted-foreground">Selamat beristirahat!</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {renderSchedules(schedules, onSelectSchedule)}
-        </div>
-      )}
+      <ScheduleContent schedules={schedules} onSelectSchedule={onSelectSchedule} isLoading={isLoading} />
     </CardContent>
   </Card>
 );

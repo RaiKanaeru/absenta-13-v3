@@ -126,14 +126,6 @@ interface DaySlotEntry {
   slot: JamSlot;
 }
 
-interface ScheduleCellRenderParams {
-  kelas: ClassSchedule;
-  rowType: RowType;
-  rowIdx: number;
-  day: string;
-  slot: JamSlot;
-}
-
 const isTeacherItem = (item: Teacher | Subject): item is Teacher => 'nip' in item || 'nama' in item;
 
 const hasLegacyTeacherId = (item: Teacher | Subject): item is TeacherWithLegacyId => {
@@ -512,7 +504,14 @@ export function ScheduleGridTable({
       setPendingChanges([]);
       fetchMatrix();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = "Gagal menyimpan perubahan";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        message = (error as { message?: string }).message || "Terjadi kesalahan yang tidak diketahui";
+      } else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') {
+        message = String(error);
+      }
       toast({ 
         title: "Error", 
         description: message || "Gagal menyimpan perubahan", 

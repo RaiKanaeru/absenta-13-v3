@@ -7,6 +7,7 @@ const Table = React.forwardRef<
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
+    {/* NOSONAR - This is a wrapper component, semantic headers are provided via children */}
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
