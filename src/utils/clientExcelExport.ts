@@ -57,7 +57,7 @@ export async function exportToExcel(
       } else if (typeof val === 'object') {
         safeRow[key] = JSON.stringify(val);
       } else {
-        safeRow[key] = val safeRow[key] = String(val);safeRow[key] = String(val); typeof (val as any).toString === 'function' ? (val as any).toString() : String(val);
+        safeRow[key] = String(val);
       }
     }
     worksheet.addRow(safeRow);

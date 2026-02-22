@@ -119,16 +119,16 @@ const generateTimeSlots = (startTime: string, endTime: string, startJamKe: numbe
 
 const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id && !Number.isNaN(id) && id > 0);
 
-const buildJadwalPayload = (form: any, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
-    kelas_id: Number.parseInt(form.kelas_id),
-    mapel_id: form.jenis_aktivitas === 'pelajaran' ? Number.parseInt(form.mapel_id) : null,
+const buildJadwalPayload = (form: Record<string, string | number | boolean>, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
+    kelas_id: Number.parseInt(String(form.kelas_id)),
+    mapel_id: form.jenis_aktivitas === 'pelajaran' ? Number.parseInt(String(form.mapel_id)) : null,
     guru_id: form.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,
     guru_ids: form.jenis_aktivitas === 'pelajaran' ? validGuruIds : [],
-    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? Number.parseInt(form.ruang_id) : null,
+    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? Number.parseInt(String(form.ruang_id)) : null,
     hari: form.hari,
     jam_mulai: slot?.jam_mulai || form.jam_mulai,
     jam_selesai: slot?.jam_selesai || form.jam_selesai,
-    jam_ke: slot?.jam_ke || Number.parseInt(form.jam_ke),
+    jam_ke: slot?.jam_ke || Number.parseInt(String(form.jam_ke)),
     jenis_aktivitas: form.jenis_aktivitas,
     is_absenable: form.is_absenable,
     keterangan_khusus: form.keterangan_khusus || null

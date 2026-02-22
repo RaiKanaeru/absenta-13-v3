@@ -6,7 +6,7 @@
  */
 
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import { setPool } from '../config/db.js';
 
 // Mock DB Pool

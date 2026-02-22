@@ -92,6 +92,7 @@ export const FontSizeProvider: React.FC<{ children: ReactNode }> = ({ children }
     decreaseFontSize,
     resetFontSize,
     getFontSizeClass,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [internalFontSize, setFontSize, increaseFontSize, decreaseFontSize, resetFontSize, getFontSizeClass]);
 
   return (

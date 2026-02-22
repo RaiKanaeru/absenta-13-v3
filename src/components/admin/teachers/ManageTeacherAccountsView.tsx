@@ -52,7 +52,7 @@ const INITIAL_FORM_DATA = {
   status: "aktif" as AccountStatusType,
 };
 
-const handleFormSubmitError = (error: unknown, toastFn: any) => {
+const handleFormSubmitError = (error: unknown, toastFn: (options: { title?: string; description?: string; variant?: "default" | "destructive" }) => void) => {
   const errorDetails = typeof error === "object" && error !== null && "details" in error ? (error as { details?: unknown }).details : undefined;
   if (errorDetails) {
     let errorMessage = "Validation failed";
