@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Kelas, Student } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Edit, Eye, EyeOff, FileText, Plus, Search, Trash2, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Edit, Eye, EyeOff, FileText, Plus, Search, Trash2, Users, UserCircle, Lock, ShieldCheck, CreditCard, GraduationCap, Key, Badge as BadgeIcon } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
@@ -714,150 +714,202 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit Akun Siswa" : "Tambah Akun Siswa"}</SheetTitle>
             <SheetDescription>
               {editingId ? "Perbarui informasi akun login siswa" : "Tambahkan akun login siswa baru ke sistem"}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label htmlFor="nama" className="text-sm font-medium">
-                  Nama Lengkap
-                </Label>
-                <Input
-                  id="nama"
-                  value={formData.nama}
-                  onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                  placeholder="Diambil dari Data Siswa"
-                  className="mt-1.5 bg-muted/50"
-                  disabled
-                />
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
+
+            {/* Section 1: Data Siswa */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <UserCircle className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Data Akademik Siswa</h3>
               </div>
-              <div className="col-span-2">
-                <Label htmlFor="username" className="text-sm font-medium">
-                  Username <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  placeholder="Masukkan username login"
-                  className={`mt-1.5 ${formErrors.username ? "border-destructive" : ""}`}
-                />
-                {formErrors.username && <p className="text-xs text-destructive mt-1">{formErrors.username}</p>}
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password {!editingId && <span className="text-destructive">*</span>}
-                </Label>
-                <div className="relative mt-1.5">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder={editingId ? "Abaikan jika tetap" : "Password login"}
-                    className={`pr-10 ${formErrors.password ? "border-destructive" : ""}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {formErrors.password && <p className="text-xs text-destructive mt-1">{formErrors.password}</p>}
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor="nis" className="text-sm font-medium">
-                  NIS <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="nis"
-                  value={formData.nis}
-                  onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
-                  placeholder="NIS Siswa"
-                  className={`mt-1.5 ${editingId ? "bg-muted/50" : ""} ${formErrors.nis ? "border-destructive" : ""}`}
-                  disabled={!!editingId}
-                />
-                {formErrors.nis && <p className="text-xs text-destructive mt-1">{formErrors.nis}</p>}
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor="kelas_id" className="text-sm font-medium">
-                  Kelas
-                </Label>
-                <Select value={formData.kelas_id} onValueChange={(value) => setFormData({ ...formData, kelas_id: value })}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Pilih kelas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.filter((c) => c.id).map((cls) => (
-                      <SelectItem key={cls.id} value={String(cls.id)}>
-                        {cls.nama_kelas} {cls.tingkat ? `(${cls.tingkat})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <Label htmlFor="jabatan" className="text-sm font-medium">
-                  Jabatan
-                </Label>
-                <Select value={formData.jabatan} onValueChange={(value) => setFormData({ ...formData, jabatan: value })}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Pilih jabatan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Siswa">Siswa</SelectItem>
-                    <SelectItem value="Ketua Kelas">Ketua Kelas</SelectItem>
-                    <SelectItem value="Wakil Ketua">Wakil Ketua</SelectItem>
-                    <SelectItem value="Sekretaris Kelas">Sekretaris Kelas</SelectItem>
-                    <SelectItem value="Bendahara">Bendahara</SelectItem>
-                    <SelectItem value="Anggota">Anggota</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2">
-                <div className="flex items-center gap-2 mt-2">
-                  <input
-                    id="is-perwakilan"
-                    type="checkbox"
-                    checked={formData.is_perwakilan}
-                    onChange={(e) => setFormData({ ...formData, is_perwakilan: e.target.checked })}
-                    className="rounded border-border text-emerald-600 focus:ring-ring"
-                  />
-                  <Label htmlFor="is-perwakilan" className="text-sm font-medium">
-                    Akun perwakilan kelas
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="nama" className="text-sm font-medium">
+                    Nama Lengkap
                   </Label>
+                  <div className="relative mt-1.5">
+                    <UserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nama"
+                      value={formData.nama}
+                      onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                      placeholder="Diambil dari Data Siswa"
+                      className="pl-9 bg-muted/50"
+                      disabled
+                    />
+                  </div>
                 </div>
-                {formErrors.is_perwakilan && <p className="text-xs text-destructive mt-1">{formErrors.is_perwakilan}</p>}
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="status" className="text-sm font-medium">
-                  Status
-                </Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "aktif" | "nonaktif" })}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aktif">Aktif</SelectItem>
-                    <SelectItem value="nonaktif">Non-aktif</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="nis" className="text-sm font-medium">
+                    NIS <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nis"
+                      value={formData.nis}
+                      onChange={(e) => setFormData({ ...formData, nis: e.target.value })}
+                      placeholder="NIS Siswa"
+                      className={`pl-9 ${editingId ? "bg-muted/50" : ""} ${formErrors.nis ? "border-destructive" : ""}`}
+                      disabled={!!editingId}
+                    />
+                  </div>
+                  {formErrors.nis && <p className="text-xs text-destructive mt-1">{formErrors.nis}</p>}
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="kelas_id" className="text-sm font-medium">
+                    Kelas
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <GraduationCap className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.kelas_id} onValueChange={(value) => setFormData({ ...formData, kelas_id: value })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue placeholder="Pilih kelas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.filter((c) => c.id).map((cls) => (
+                          <SelectItem key={cls.id} value={String(cls.id)}>
+                            {cls.nama_kelas} {cls.tingkat ? `(${cls.tingkat})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="jabatan" className="text-sm font-medium">
+                    Jabatan (Struktur Kelas)
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <BadgeIcon className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.jabatan} onValueChange={(value) => setFormData({ ...formData, jabatan: value })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue placeholder="Pilih jabatan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Siswa">Siswa</SelectItem>
+                        <SelectItem value="Ketua Kelas">Ketua Kelas</SelectItem>
+                        <SelectItem value="Wakil Ketua">Wakil Ketua</SelectItem>
+                        <SelectItem value="Sekretaris Kelas">Sekretaris Kelas</SelectItem>
+                        <SelectItem value="Bendahara">Bendahara</SelectItem>
+                        <SelectItem value="Anggota">Anggota</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1 flex items-center justify-start mt-6 pl-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="is-perwakilan"
+                      type="checkbox"
+                      checked={formData.is_perwakilan}
+                      onChange={(e) => setFormData({ ...formData, is_perwakilan: e.target.checked })}
+                      className="rounded border-border text-emerald-600 focus:ring-ring w-4 h-4"
+                    />
+                    <Label htmlFor="is-perwakilan" className="text-sm font-medium cursor-pointer">
+                      Tandai sebagai PIC / Perwakilan
+                    </Label>
+                  </div>
+                  {formErrors.is_perwakilan && <p className="text-xs text-destructive mt-1 block">{formErrors.is_perwakilan}</p>}
+                </div>
               </div>
             </div>
-            <SheetFooter className="pt-4 mt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="text-sm">
-                Batal
-              </Button>
-              <Button type="submit" disabled={isSaving} className="text-sm">
-                {isSaving ? "Menyimpan..." : editingId ? "Perbarui" : "Simpan"}
-              </Button>
+
+            {/* Section 2: Kredensial Login */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Kredensial Login</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="username" className="text-sm font-medium">
+                    Username <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <UserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      placeholder="Masukkan username login"
+                      className={`pl-9 ${formErrors.username ? "border-destructive" : ""}`}
+                    />
+                    {formErrors.username && <p className="text-xs text-destructive mt-1 absolute -bottom-5 left-0">{formErrors.username}</p>}
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Password {editingId && <span className="text-muted-foreground text-[10px] ml-1 font-normal">(Opsional)</span>}
+                    {!editingId && <span className="text-destructive">*</span>}
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder={editingId ? "Abaikan jika tetap" : "Password login"}
+                      className={`pl-9 pr-10 ${formErrors.password ? "border-destructive" : ""}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                    {formErrors.password && <p className="text-xs text-destructive mt-1 absolute -bottom-5 left-0">{formErrors.password}</p>}
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="status" className="text-sm font-medium">
+                    Status Akun
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "aktif" | "nonaktif" })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aktif">Aktif</SelectItem>
+                        <SelectItem value="nonaktif">Non-aktif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <SheetFooter className="pt-6 mt-6 border-t">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Akun" : "Simpan Akun"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </SheetFooter>
           </form>
         </SheetContent>
