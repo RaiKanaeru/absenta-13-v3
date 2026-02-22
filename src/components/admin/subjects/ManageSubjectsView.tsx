@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Subject } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, BookOpen, CheckCircle2, Edit, FileText, Plus, Search, Trash2, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, BookOpen, CheckCircle2, Edit, FileText, Plus, Search, Trash2, XCircle, BookMarked, Tag, AlignLeft, ShieldCheck } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
@@ -257,8 +257,6 @@ export const ManageSubjectsView = ({
     { label: "Tidak Aktif", value: "tidak_aktif", count: stats.tidakAktif },
   ];
 
-  const editOrAddText = editingId ? "Perbarui" : "Tambah";
-  const saveButtonText = isSaving ? "Menyimpan..." : editOrAddText;
   const isEmptyState = !isLoading && filteredSubjects.length === 0;
 
   return (
@@ -285,7 +283,7 @@ export const ManageSubjectsView = ({
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={`stat-skeleton-${i}`}>
+            <Card key={crypto.randomUUID()}>
               <CardContent className="p-4">
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-7 w-12" />
@@ -367,7 +365,7 @@ export const ManageSubjectsView = ({
           {isLoading && (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={`row-skeleton-${i}`} className="flex items-center gap-4">
+                <div key={crypto.randomUUID()} className="flex items-center gap-4">
                   <Skeleton className="h-4 w-16" />
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-40 hidden sm:block" />
@@ -562,75 +560,117 @@ export const ManageSubjectsView = ({
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit Mata Pelajaran" : "Tambah Mata Pelajaran"}</SheetTitle>
             <SheetDescription>
               {editingId ? "Perbarui informasi mata pelajaran" : "Tambahkan mata pelajaran baru ke sistem"}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-            <div>
-              <Label htmlFor="kode_mapel" className="text-sm font-medium">
-                Kode Mata Pelajaran <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="kode_mapel"
-                value={formData.kode_mapel}
-                onChange={(e) => setFormData({ ...formData, kode_mapel: e.target.value.toUpperCase() })}
-                placeholder="Misal: MAT, FIS, BIO"
-                className="mt-1.5"
-                required
-                autoFocus
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">2-10 karakter alfanumerik</p>
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
+            
+            {/* Section 1: Detail Mata Pelajaran */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <BookMarked className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Detail Mata Pelajaran</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="kode_mapel" className="text-sm font-medium">
+                    Kode Mata Pelajaran <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="kode_mapel"
+                      value={formData.kode_mapel}
+                      onChange={(e) => setFormData({ ...formData, kode_mapel: e.target.value.toUpperCase() })}
+                      placeholder="Misal: MAT, FIS, BIO"
+                      className="pl-9"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">2-10 karakter alfanumerik</p>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="nama_mapel" className="text-sm font-medium">
+                    Nama Mata Pelajaran <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <BookMarked className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nama_mapel"
+                      value={formData.nama_mapel}
+                      onChange={(e) => setFormData({ ...formData, nama_mapel: e.target.value })}
+                      placeholder="Nama mapel"
+                      className="pl-9"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="deskripsi" className="text-sm font-medium">
+                    Deskripsi
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <AlignLeft className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <textarea
+                      id="deskripsi"
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                      value={formData.deskripsi}
+                      onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
+                      placeholder="Deskripsi singkat (opsional)"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="nama_mapel" className="text-sm font-medium">
-                Nama Mata Pelajaran <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="nama_mapel"
-                value={formData.nama_mapel}
-                onChange={(e) => setFormData({ ...formData, nama_mapel: e.target.value })}
-                placeholder="Nama lengkap mata pelajaran"
-                className="mt-1.5"
-                required
-              />
+
+            {/* Section 2: Status */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Status Mata Pelajaran</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="status" className="text-sm font-medium">
+                    Status
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "aktif" | "tidak_aktif" })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aktif">Aktif</SelectItem>
+                        <SelectItem value="tidak_aktif">Tidak Aktif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="deskripsi" className="text-sm font-medium">
-                Deskripsi
-              </Label>
-              <textarea
-                id="deskripsi"
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none mt-1.5"
-                value={formData.deskripsi}
-                onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
-                placeholder="Deskripsi singkat (opsional)"
-              />
-            </div>
-            <div>
-              <Label htmlFor="status" className="text-sm font-medium">
-                Status
-              </Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "aktif" | "tidak_aktif" })}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="aktif">Aktif</SelectItem>
-                  <SelectItem value="tidak_aktif">Tidak Aktif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <SheetFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="text-sm">
-                Batal
-              </Button>
-              <Button type="submit" disabled={isSaving} className="text-sm">
-                {saveButtonText}
-              </Button>
+
+            <SheetFooter className="pt-6 mt-6 border-t">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Data" : "Simpan Data"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </SheetFooter>
           </form>
         </SheetContent>

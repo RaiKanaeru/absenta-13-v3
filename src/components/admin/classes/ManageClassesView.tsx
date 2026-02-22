@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Kelas } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, Edit, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Edit, FileText, Home, Plus, Search, Trash2, School } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
@@ -194,8 +194,6 @@ export const ManageClassesView = ({
     return <ExcelImportView entityType="kelas" entityName="Kelas" onBack={() => { setShowImport(false); fetchClasses(); }} />;
   }
 
-  const editOrAddText = editingId ? "Perbarui" : "Tambah";
-  const saveButtonText = isSaving ? "Menyimpan..." : editOrAddText;
   const isEmptyState = !isLoading && filteredClasses.length === 0;
 
   return (
@@ -265,7 +263,7 @@ export const ManageClassesView = ({
           {isLoading && (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={`row-skeleton-${i}`} className="flex items-center gap-4">
+                <div key={crypto.randomUUID()} className="flex items-center gap-4">
                   <Skeleton className="h-4 w-12" />
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-20" />
@@ -425,36 +423,57 @@ export const ManageClassesView = ({
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit Kelas" : "Tambah Kelas"}</SheetTitle>
             <SheetDescription>
               {editingId ? "Perbarui informasi kelas" : "Tambahkan kelas baru ke sistem"}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-            <div>
-              <Label htmlFor="nama_kelas" className="text-sm font-medium">
-                Nama Kelas <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="nama_kelas"
-                value={formData.nama_kelas}
-                onChange={(e) => setFormData({ ...formData, nama_kelas: e.target.value })}
-                placeholder="Contoh: X IPA 1, XI IPS 2"
-                className="mt-1.5"
-                required
-                autoFocus
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">Format: [Tingkat] [Jurusan] [Nomor]</p>
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
+            
+            {/* Section 1: Detail Kelas */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <School className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Detail Kelas</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="nama_kelas" className="text-sm font-medium">
+                    Nama Kelas <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <School className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nama_kelas"
+                      value={formData.nama_kelas}
+                      onChange={(e) => setFormData({ ...formData, nama_kelas: e.target.value })}
+                      placeholder="Contoh: X IPA 1, XI IPS 2"
+                      className="pl-9"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Format: [Tingkat] [Jurusan] [Nomor]</p>
+                </div>
+              </div>
             </div>
-            <SheetFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="text-sm">
-                Batal
-              </Button>
-              <Button type="submit" disabled={isSaving} className="text-sm">
-                {saveButtonText}
-              </Button>
+
+            <SheetFooter className="pt-6 mt-6 border-t">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Data" : "Simpan Data"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </SheetFooter>
           </form>
         </SheetContent>

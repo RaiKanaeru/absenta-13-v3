@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import type { Subject, TeacherData } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Edit, FileText, GraduationCap, Plus, Search, Trash2, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Edit, FileText, GraduationCap, Plus, Search, Trash2, XCircle, UserCircle, Users, ShieldCheck, Mail, Phone, BookOpen, MapPin, Badge as BadgeIcon } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
@@ -38,6 +38,18 @@ interface TeachersDataResponse {
   data: TeacherData[];
   pagination: unknown;
 }
+
+const getGenderDisplay = (jk: string) => {
+  if (jk === "L") return "Laki-laki";
+  if (jk === "P") return "Perempuan";
+  return "-";
+};
+
+const getSubmitButtonText = (isSaving: boolean, isEditing: boolean) => {
+  if (isSaving) return "Menyimpan...";
+  if (isEditing) return "Perbarui";
+  return "Simpan";
+};
 
 export const ManageTeacherDataView = ({
   onLogout,
@@ -343,7 +355,7 @@ export const ManageTeacherDataView = ({
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={`stat-skeleton-${i}`}>
+            <Card key={crypto.randomUUID()}>
               <CardContent className="p-4">
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-7 w-12" />
@@ -425,7 +437,7 @@ export const ManageTeacherDataView = ({
           {isLoading && (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={`row-skeleton-${i}`} className="flex items-center gap-4">
+                <div key={crypto.randomUUID()} className="flex items-center gap-4">
                   <Skeleton className="h-4 w-20" />
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-24 hidden sm:block" />
@@ -504,7 +516,7 @@ export const ManageTeacherDataView = ({
                           )}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {teacher.jenis_kelamin === 'L' ? 'Laki-laki' : teacher.jenis_kelamin === 'P' ? 'Perempuan' : '-'}
+                          {getGenderDisplay(teacher.jenis_kelamin)}
                         </TableCell>
                         <TableCell>
                           <button
@@ -685,133 +697,188 @@ export const ManageTeacherDataView = ({
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit Data Guru" : "Tambah Data Guru"}</SheetTitle>
             <SheetDescription>
               {editingId ? "Perbarui informasi data guru" : "Tambahkan data guru baru ke sistem"}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Label htmlFor="nip" className="text-sm font-medium">
-                  NIP <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="nip"
-                  value={formData.nip}
-                  onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
-                  placeholder="Nomor Induk Pegawai"
-                  className="mt-1.5"
-                  required
-                  autoFocus
-                />
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
+            
+            {/* Section 1: Data Pegawai */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <UserCircle className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Data Pegawai</h3>
               </div>
-              <div className="col-span-2">
-                <Label htmlFor="nama" className="text-sm font-medium">
-                  Nama Lengkap <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="nama"
-                  value={formData.nama}
-                  onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
-                  placeholder="Nama lengkap guru"
-                  className="mt-1.5"
-                  required
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Email guru"
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="col-span-1">
-                <Label htmlFor="telepon" className="text-sm font-medium">
-                  Telepon
-                </Label>
-                <Input
-                  id="telepon"
-                  value={formData.telepon}
-                  onChange={(e) => setFormData({ ...formData, telepon: e.target.value })}
-                  placeholder="Nomor telepon"
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="col-span-1">
-                <Label htmlFor="jenis_kelamin" className="text-sm font-medium">
-                  Jenis Kelamin <span className="text-destructive">*</span>
-                </Label>
-                <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({ ...formData, jenis_kelamin: value as GenderOption })}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Pilih..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="L">Laki-laki</SelectItem>
-                    <SelectItem value="P">Perempuan</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="mata_pelajaran" className="text-sm font-medium">
-                  Mata Pelajaran
-                </Label>
-                <Select value={formData.mata_pelajaran} onValueChange={(value) => setFormData({ ...formData, mata_pelajaran: value })}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Pilih mata pelajaran..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.filter(s => s.status === 'aktif').map((subject) => (
-                      <SelectItem key={subject.id} value={subject.nama_mapel}>
-                        {subject.nama_mapel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="alamat" className="text-sm font-medium">
-                  Alamat
-                </Label>
-                <Textarea
-                  id="alamat"
-                  value={formData.alamat}
-                  onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
-                  placeholder="Alamat lengkap"
-                  rows={2}
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="status" className="text-sm font-medium">
-                  Status
-                </Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "aktif" | "nonaktif" })}>
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aktif">Aktif</SelectItem>
-                    <SelectItem value="nonaktif">Non-aktif</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="nip" className="text-sm font-medium">
+                    NIP / NUPTK <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <BadgeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nip"
+                      value={formData.nip}
+                      onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
+                      placeholder="Nomor Induk Pegawai"
+                      className="pl-9"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="nama" className="text-sm font-medium">
+                    Nama Lengkap <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <UserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nama"
+                      value={formData.nama}
+                      onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                      placeholder="Nama lengkap guru beserta gelar"
+                      className="pl-9"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="jenis_kelamin" className="text-sm font-medium">
+                    Jenis Kelamin <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({ ...formData, jenis_kelamin: value as GenderOption })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue placeholder="Pilih..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="L">Laki-laki</SelectItem>
+                        <SelectItem value="P">Perempuan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="status" className="text-sm font-medium">
+                    Status Guru
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as "aktif" | "nonaktif" })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aktif">Aktif</SelectItem>
+                        <SelectItem value="nonaktif">Non-aktif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
-            <SheetFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="text-sm">
-                Batal
-              </Button>
-              <Button type="submit" disabled={isSaving} className="text-sm">
-                {saveButtonText}
-              </Button>
+
+            {/* Section 2: Kontak & Akademik */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Kontak & Akademik</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="Email aktif"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="telepon" className="text-sm font-medium">
+                    No. Telepon / WhatsApp
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="telepon"
+                      value={formData.telepon}
+                      onChange={(e) => setFormData({ ...formData, telepon: e.target.value })}
+                      placeholder="Contoh: 081234567890"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="mata_pelajaran" className="text-sm font-medium">
+                    Mata Pelajaran Utama
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <BookOpen className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.mata_pelajaran} onValueChange={(value) => setFormData({ ...formData, mata_pelajaran: value })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue placeholder="Pilih mata pelajaran pengampu..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.filter(s => s.status === 'aktif').map((subject) => (
+                          <SelectItem key={subject.id} value={subject.nama_mapel}>
+                            {subject.nama_mapel}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="alamat" className="text-sm font-medium">
+                    Alamat Domisili
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Textarea
+                      id="alamat"
+                      value={formData.alamat}
+                      onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
+                      placeholder="Alamat lengkap tempat tinggal"
+                      rows={3}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <SheetFooter className="pt-6 mt-6 border-t">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Data" : "Simpan Data"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </SheetFooter>
           </form>
         </SheetContent>

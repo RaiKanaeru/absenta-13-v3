@@ -52,6 +52,24 @@ const INITIAL_FORM_DATA = {
   status: "aktif" as AccountStatusType,
 };
 
+const handleFormSubmitError = (error: unknown, toastFn: any) => {
+  const errorDetails = typeof error === "object" && error !== null && "details" in error ? (error as { details?: unknown }).details : undefined;
+  if (errorDetails) {
+    let errorMessage = "Validation failed";
+    if (Array.isArray(errorDetails)) {
+      errorMessage = errorDetails.join(", ");
+    } else if (typeof errorDetails === "object" && errorDetails !== null) {
+      errorMessage = JSON.stringify(errorDetails);
+    } else if (typeof errorDetails === "string" || typeof errorDetails === "number" || typeof errorDetails === "boolean") {
+      errorMessage = String(errorDetails);
+    }
+    toastFn({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
+  } else {
+    // We import getErrorMessage at the top
+    toastFn({ title: "Error", description: error instanceof Error ? error.message : "Gagal menyimpan data", variant: "destructive" });
+  }
+};
+
 export const ManageTeacherAccountsView = ({
   onLogout,
 }: {
@@ -490,10 +508,10 @@ export const ManageTeacherAccountsView = ({
       {/* Table / Data */}
       <Card>
         <CardContent className="p-0">
-          {isLoading && teachers.length === 0 ? (
+          {isLoading && teachers.length === 0 && (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={`row-skeleton-${i}`} className="flex items-center gap-4">
+                <div key={crypto.randomUUID()} className="flex items-center gap-4">
                   <Skeleton className="h-4 w-20" />
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-24 hidden sm:block" />
@@ -502,7 +520,8 @@ export const ManageTeacherAccountsView = ({
                 </div>
               ))}
             </div>
-          ) : !isLoading && teachers.length === 0 ? (
+          )}
+          {!isLoading && teachers.length === 0 && (
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
               <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
@@ -518,7 +537,8 @@ export const ManageTeacherAccountsView = ({
                 </Button>
               )}
             </div>
-          ) : (
+          )}
+          {!isLoading && teachers.length > 0 && (
             <>
               {/* Desktop Table - hidden on mobile */}
               <div className="hidden lg:block overflow-x-auto">

@@ -696,7 +696,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
   const [selectedSiswaId, setSelectedSiswaId] = useState<number | null>(null);
   
   // State untuk menyimpan data status kehadiran siswa (only setter used)
-  const [_siswaStatusData, setSiswaStatusData] = useState<{[key: string]: string}>({});
+  const [, setSiswaStatusData] = useState<{[key: string]: string}>({});
   
   const [loadingJadwal, setLoadingJadwal] = useState(false);
   
@@ -726,7 +726,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
   // Note: toggleRowExpansion removed - was unused (only defined, never called)
 
   // -- MISSING STATES ADDED BY QA ANALYST --
-  const [_siswaInfo, setSiswaInfo] = useState<{
+  const [, setSiswaInfo] = useState<{
     nis: string;
     kelas: string;
     nama: string;

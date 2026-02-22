@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { getWIBTime } from "@/lib/time-utils";
 import { JadwalService } from "@/services/jadwalService";
 import { getActivityTypeLabel } from '@/utils/statusMaps';
-import { apiCall } from '@/utils/apiClient';
+import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { Teacher, Subject, Kelas, Schedule, Room } from '@/types/dashboard';
 import {
   Users,
@@ -25,13 +25,17 @@ import {
   Download,
   LayoutGrid,
   Eye,
-  FileText,
+  
   Plus,
   CheckCircle2,
   XCircle,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Activity,
+  BookOpen,
+  Clock,
+  MapPin
 } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));
@@ -85,6 +89,51 @@ type SortField = "kelas" | "jenis" | "mapel" | "guru" | "ruang" | "hari" | "jam"
 type SortDirection = "asc" | "desc";
 type StatusFilter = "semua" | "bisa_diabsen" | "tidak_bisa_diabsen";
 
+const generateTimeSlots = (startTime: string, endTime: string, startJamKe: number, hours: number) => {
+  const slots = [];
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const currentTime = getWIBTime();
+    currentTime.setHours(startHour, startMinute, 0, 0);
+    
+    let duration = 40;
+    if (endTime && hours === 1) {
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const endTimeObj = getWIBTime();
+      endTimeObj.setHours(endHour, endMinute, 0, 0);
+      duration = (endTimeObj.getTime() - currentTime.getTime()) / (1000 * 60);
+    }
+
+    for (let i = 0; i < hours; i++) {
+    const jamMulai = currentTime.toTimeString().slice(0, 5);
+      currentTime.setMinutes(currentTime.getMinutes() + duration);
+    const jamSelesai = currentTime.toTimeString().slice(0, 5);
+      
+      slots.push({ jam_ke: startJamKe + i, jam_mulai: jamMulai, jam_selesai: jamSelesai });
+      
+      if (i < hours - 1) {
+        currentTime.setMinutes(currentTime.getMinutes() + 5);
+      }
+    }
+    return slots;
+  };
+
+const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id && !Number.isNaN(id) && id > 0);
+
+const buildJadwalPayload = (form: any, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
+    kelas_id: Number.parseInt(form.kelas_id),
+    mapel_id: form.jenis_aktivitas === 'pelajaran' ? Number.parseInt(form.mapel_id) : null,
+    guru_id: form.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,
+    guru_ids: form.jenis_aktivitas === 'pelajaran' ? validGuruIds : [],
+    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? Number.parseInt(form.ruang_id) : null,
+    hari: form.hari,
+    jam_mulai: slot?.jam_mulai || form.jam_mulai,
+    jam_selesai: slot?.jam_selesai || form.jam_selesai,
+    jam_ke: slot?.jam_ke || Number.parseInt(form.jam_ke),
+    jenis_aktivitas: form.jenis_aktivitas,
+    is_absenable: form.is_absenable,
+    keterangan_khusus: form.keterangan_khusus || null
+  });
+
 const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -134,17 +183,17 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
       try {
         setIsLoading(true);
         const [schedulesData, teachersData, subjectsData, classesData, roomsData] = await Promise.all([
-          apiCall('/api/admin/jadwal', { onLogout }).catch(() => []),
-          apiCall('/api/admin/guru', { onLogout }).catch(() => []),
-          apiCall('/api/admin/mapel', { onLogout }).catch(() => []),
-          apiCall('/api/admin/classes', { onLogout }).catch(() => []),
-          apiCall('/api/admin/ruang', { onLogout }).catch(() => [])
+          apiCall('/api/admin/jadwal', { onLogout }).catch((e) => { console.error(e); return []; }),
+          apiCall('/api/admin/guru', { onLogout }).catch((e) => { console.error(e); return []; }),
+          apiCall('/api/admin/mapel', { onLogout }).catch((e) => { console.error(e); return []; }),
+          apiCall('/api/admin/classes', { onLogout }).catch((e) => { console.error(e); return []; }),
+          apiCall('/api/admin/ruang', { onLogout }).catch((e) => { console.error(e); return []; })
         ]);
         
-        setSchedules(Array.isArray(schedulesData) ? schedulesData : []);
+        setSchedules(Array.isArray(schedulesData) ? (schedulesData as unknown as Schedule[]) : []);
         let normalizedTeachers: Teacher[] = [];
-        if (Array.isArray((teachersData as any)?.data)) {
-          normalizedTeachers = (teachersData as any).data;
+        if (teachersData && typeof teachersData === 'object' && 'data' in teachersData && Array.isArray((teachersData as Record<string, unknown>).data)) {
+          normalizedTeachers = (teachersData as Record<string, unknown>).data as Teacher[];
         } else if (Array.isArray(teachersData)) {
           normalizedTeachers = teachersData as Teacher[];
         }
@@ -164,13 +213,13 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
   const refreshSchedules = async () => {
     try {
       const data = await JadwalService.getJadwal('admin');
-      setSchedules(Array.isArray(data) ? data : []);
+      setSchedules(Array.isArray(data) ? (data as unknown as Schedule[]) : []);
     } catch (error) {
       try {
         const data = await apiCall('/api/admin/jadwal', { onLogout });
-        setSchedules(Array.isArray(data) ? data : []);
+        setSchedules(Array.isArray(data) ? (data as unknown as Schedule[]) : []);
       } catch (fallbackError) {
-        // ignore
+        console.error(fallbackError);
       }
     }
   };
@@ -247,6 +296,10 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
     return sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline-block" /> : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
   };
 
+  const handleRemoveGuru = (idToRemove: number) => {
+    setFormData(p => ({...p, guru_ids: p.guru_ids.filter(x => x !== idToRemove)}));
+  };
+
   const openAddSheet = () => {
     setFormData({
       kelas_id: '', mapel_id: '', guru_id: '', guru_ids: [], ruang_id: 'none', hari: '', jam_mulai: '', jam_selesai: '', jam_ke: '', jenis_aktivitas: 'pelajaran', is_absenable: true, keterangan_khusus: ''
@@ -282,50 +335,8 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
     setSheetOpen(true);
   };
 
-  const generateTimeSlots = (startTime: string, endTime: string, startJamKe: number, hours: number) => {
-    const slots = [];
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const currentTime = getWIBTime();
-    currentTime.setHours(startHour, startMinute, 0, 0);
-    
-    let duration = 40;
-    if (endTime && hours === 1) {
-      const [endHour, endMinute] = endTime.split(':').map(Number);
-      const endTimeObj = getWIBTime();
-      endTimeObj.setHours(endHour, endMinute, 0, 0);
-      duration = (endTimeObj.getTime() - currentTime.getTime()) / (1000 * 60);
-    }
 
-    for (let i = 0; i < hours; i++) {
-      const jamMulai = currentTime.toTimeString().slice(0, 5);
-      currentTime.setMinutes(currentTime.getMinutes() + duration);
-      const jamSelesai = currentTime.toTimeString().slice(0, 5);
-      
-      slots.push({ jam_ke: startJamKe + i, jam_mulai: jamMulai, jam_selesai: jamSelesai });
-      
-      if (i < hours - 1) {
-        currentTime.setMinutes(currentTime.getMinutes() + 5);
-      }
-    }
-    return slots;
-  };
 
-  const getValidGuruIds = (ids: number[]): number[] => ids.filter(id => id && !Number.isNaN(id) && id > 0);
-
-  const buildJadwalPayload = (form: typeof formData, validGuruIds: number[], slot?: { jam_mulai: string; jam_selesai: string; jam_ke: number }) => ({
-    kelas_id: Number.parseInt(form.kelas_id),
-    mapel_id: form.jenis_aktivitas === 'pelajaran' ? Number.parseInt(form.mapel_id) : null,
-    guru_id: form.jenis_aktivitas === 'pelajaran' && validGuruIds.length > 0 ? validGuruIds[0] : null,
-    guru_ids: form.jenis_aktivitas === 'pelajaran' ? validGuruIds : [],
-    ruang_id: form.ruang_id && form.ruang_id !== 'none' ? Number.parseInt(form.ruang_id) : null,
-    hari: form.hari,
-    jam_mulai: slot?.jam_mulai || form.jam_mulai,
-    jam_selesai: slot?.jam_selesai || form.jam_selesai,
-    jam_ke: slot?.jam_ke || Number.parseInt(form.jam_ke),
-    jenis_aktivitas: form.jenis_aktivitas,
-    is_absenable: form.is_absenable,
-    keterangan_khusus: form.keterangan_khusus || null
-  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -450,7 +461,7 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={`stat-skeleton-${i}`}>
+            <Card key={crypto.randomUUID()}>
               <CardContent className="p-4">
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-7 w-12" />
@@ -552,10 +563,10 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          {isLoading && schedules.length === 0 ? (
+          {isLoading && schedules.length === 0 && (
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={`row-skeleton-${i}`} className="flex items-center gap-4">
+                <div key={crypto.randomUUID()} className="flex items-center gap-4">
                   <Skeleton className="h-4 w-16" />
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-24 hidden sm:block" />
@@ -564,13 +575,15 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
                 </div>
               ))}
             </div>
-          ) : !isLoading && filteredSchedules.length === 0 ? (
+          )}
+          {!isLoading && filteredSchedules.length === 0 && (
             <div className="text-center py-12">
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
               <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
               <p className="text-sm text-muted-foreground">Tidak ada jadwal yang sesuai</p>
             </div>
-          ) : (
+          )}
+          {!isLoading && filteredSchedules.length > 0 && (
             <>
               <div className="hidden lg:block overflow-x-auto">
                 <Table>
@@ -744,159 +757,208 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto w-[90vw]">
+        <SheetContent className="sm:max-w-xl overflow-y-auto w-[90vw]">
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit Jadwal" : "Tambah Jadwal"}</SheetTitle>
             <SheetDescription>
               {editingId ? "Perbarui informasi jadwal pelajaran" : "Tambahkan jadwal pelajaran baru"}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-            <div>
-              <Label className="text-sm font-medium">Jenis Aktivitas</Label>
-              <Select 
-                value={formData.jenis_aktivitas} 
-                onValueChange={(value) => {
-                  const newJenis = value as any;
-                  setFormData({
-                    ...formData, jenis_aktivitas: newJenis, is_absenable: newJenis === 'pelajaran',
-                    mapel_id: newJenis === 'pelajaran' ? formData.mapel_id : '',
-                    guru_ids: newJenis === 'pelajaran' ? formData.guru_ids : []
-                  });
-                }}
-              >
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih Jenis" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pelajaran">Pelajaran</SelectItem>
-                  <SelectItem value="upacara">Upacara</SelectItem>
-                  <SelectItem value="istirahat">Istirahat</SelectItem>
-                  <SelectItem value="kegiatan_khusus">Kegiatan Khusus</SelectItem>
-                  <SelectItem value="libur">Libur</SelectItem>
-                  <SelectItem value="ujian">Ujian</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
             
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-1">
-                <Label className="text-sm font-medium">Kelas</Label>
-                <Select value={formData.kelas_id} onValueChange={(v) => setFormData({...formData, kelas_id: v})}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
-                  <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nama_kelas}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            {/* Section 1: Informasi Aktivitas */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Informasi Aktivitas</h3>
               </div>
-              <div className="col-span-1">
-                <Label className="text-sm font-medium">Ruang (Opsional)</Label>
-                <Select value={formData.ruang_id} onValueChange={(v) => setFormData({...formData, ruang_id: v})}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Tidak Ada</SelectItem>
-                    {rooms.map(r => <SelectItem key={r.id} value={r.id.toString()}>{r.kode_ruang}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {formData.jenis_aktivitas === 'pelajaran' ? (
-              <>
-                <div>
-                  <Label className="text-sm font-medium">Mata Pelajaran</Label>
-                  <Select value={formData.mapel_id} onValueChange={(v) => setFormData({...formData, mapel_id: v})}>
-                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Jenis Aktivitas <span className="text-destructive">*</span></Label>
+                  <Select 
+                    value={formData.jenis_aktivitas} 
+                    onValueChange={(value) => {
+                      const newJenis = value;
+                      setFormData({
+                        ...formData, jenis_aktivitas: newJenis, is_absenable: newJenis === 'pelajaran',
+                        mapel_id: newJenis === 'pelajaran' ? formData.mapel_id : '',
+                        guru_ids: newJenis === 'pelajaran' ? formData.guru_ids : []
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih Jenis" /></SelectTrigger>
                     <SelectContent>
-                      {subjects.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.nama_mapel}</SelectItem>)}
+                      <SelectItem value="pelajaran">Pelajaran</SelectItem>
+                      <SelectItem value="upacara">Upacara</SelectItem>
+                      <SelectItem value="istirahat">Istirahat</SelectItem>
+                      <SelectItem value="kegiatan_khusus">Kegiatan Khusus</SelectItem>
+                      <SelectItem value="libur">Libur</SelectItem>
+                      <SelectItem value="ujian">Ujian</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Guru Pengajar</Label>
-                  <Select value="" onValueChange={(v) => {
-                    if (v && !formData.guru_ids.includes(Number(v))) {
-                      setFormData(prev => ({...prev, guru_ids: [...prev.guru_ids, Number(v)]}));
-                    }
-                  }}>
-                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Tambah Guru..." /></SelectTrigger>
+                
+                <div className="col-span-1">
+                  <Label className="text-sm font-medium">Kelas <span className="text-destructive">*</span></Label>
+                  <Select value={formData.kelas_id} onValueChange={(v) => setFormData({...formData, kelas_id: v})}>
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
                     <SelectContent>
-                      {teachers.filter(t => t.id && !formData.guru_ids.includes(t.id)).map(t => (
-                        <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>
-                      ))}
+                      {classes.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nama_kelas}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {formData.guru_ids.map(id => {
-                      const t = teachers.find(x => x.id === id);
-                      return t ? (
-                        <Badge key={id} variant="secondary" className="text-xs">
-                          {t.nama} <button type="button" className="ml-1 text-destructive" onClick={() => setFormData(p => ({...p, guru_ids: p.guru_ids.filter(x => x !== id)}))}>×</button>
-                        </Badge>
-                      ) : null;
-                    })}
+                </div>
+                
+                <div className="col-span-1">
+                  <Label className="text-sm font-medium">Ruang <span className="text-muted-foreground font-normal">(Opsional)</span></Label>
+                  <Select value={formData.ruang_id} onValueChange={(v) => setFormData({...formData, ruang_id: v})}>
+                    <SelectTrigger className="mt-1.5 pl-8 relative">
+                      <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                      <SelectValue placeholder="Pilih" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Tidak Ada</SelectItem>
+                      {rooms.map(r => <SelectItem key={r.id} value={r.id.toString()}>{r.kode_ruang}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Detail Aktivitas */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Detail Aktivitas</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {formData.jenis_aktivitas === 'pelajaran' ? (
+                  <>
+                    <div>
+                      <Label className="text-sm font-medium">Mata Pelajaran <span className="text-destructive">*</span></Label>
+                      <Select value={formData.mapel_id} onValueChange={(v) => setFormData({...formData, mapel_id: v})}>
+                        <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+                        <SelectContent>
+                          {subjects.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.nama_mapel}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Guru Pengajar <span className="text-destructive">*</span></Label>
+                      <Select value="" onValueChange={(v) => {
+                        if (v && !formData.guru_ids.includes(Number(v))) {
+                          setFormData(prev => ({...prev, guru_ids: [...prev.guru_ids, Number(v)]}));
+                        }
+                      }}>
+                        <SelectTrigger className="mt-1.5"><SelectValue placeholder="Tambah Guru..." /></SelectTrigger>
+                        <SelectContent>
+                          {teachers.filter(t => t.id && !formData.guru_ids.includes(t.id)).map(t => (
+                            <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {formData.guru_ids.map(id => {
+                          const t = teachers.find(x => x.id === id);
+                          return t ? (
+                            <Badge key={id} variant="secondary" className="text-xs">
+                              {t.nama} <button type="button" className="ml-1 text-destructive hover:font-bold" onClick={() => setFormData(prev => ({...prev, guru_ids: prev.guru_ids.filter(gid => gid !== id)}))}>×</button>
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <Label className="text-sm font-medium">Keterangan Khusus</Label>
+                    <Input value={formData.keterangan_khusus} onChange={e => setFormData({...formData, keterangan_khusus: e.target.value})} placeholder="Contoh: Upacara Bendera" className="mt-1.5" />
                   </div>
-                </div>
-              </>
-            ) : (
-              <div>
-                <Label className="text-sm font-medium">Keterangan Khusus</Label>
-                <Input value={formData.keterangan_khusus} onChange={e => setFormData({...formData, keterangan_khusus: e.target.value})} placeholder="Contoh: Upacara Bendera" className="mt-1.5" />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 sm:col-span-1">
-                <Label className="text-sm font-medium">Hari</Label>
-                <Select value={formData.hari} onValueChange={(v) => setFormData({...formData, hari: v})}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih" /></SelectTrigger>
-                  <SelectContent>
-                    {daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2 sm:col-span-1">
-                <Label className="text-sm font-medium">Jam ke-</Label>
-                <Input type="number" min="1" value={formData.jam_ke} onChange={e => setFormData({...formData, jam_ke: e.target.value})} className="mt-1.5" />
-              </div>
-              <div className="col-span-1">
-                <Label className="text-sm font-medium">Jam Mulai</Label>
-                <TimeInput value={formData.jam_mulai} onChange={v => setFormData({...formData, jam_mulai: v})} className="mt-1.5" />
-              </div>
-              <div className="col-span-1">
-                <Label className="text-sm font-medium">Jam Selesai</Label>
-                <TimeInput value={formData.jam_selesai} onChange={v => setFormData({...formData, jam_selesai: v})} className="mt-1.5" disabled={!editingId && consecutiveHours > 1} />
+                )}
               </div>
             </div>
 
-            {!editingId && (
-              <div>
-                <Label className="text-sm font-medium">Berurutan</Label>
-                <Select value={consecutiveHours.toString()} onValueChange={(v) => setConsecutiveHours(Number(v))}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1,2,3,4,5,6].map(n => <SelectItem key={n} value={n.toString()}>{n} Jam</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            {/* Section 3: Waktu Pelaksanaan */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Waktu Pelaksanaan</h3>
               </div>
-            )}
+              
+              <div className="grid grid-cols-2 gap-4 text-left">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label className="text-sm font-medium">Hari <span className="text-destructive">*</span></Label>
+                  <Select value={formData.hari} onValueChange={(v) => setFormData({...formData, hari: v})}>
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Pilih Hari" /></SelectTrigger>
+                    <SelectContent>
+                      {daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="col-span-2 sm:col-span-1">
+                  <Label className="text-sm font-medium">Jam ke- <span className="text-destructive">*</span></Label>
+                  <Input type="number" min="1" value={formData.jam_ke} onChange={e => setFormData({...formData, jam_ke: e.target.value})} className="mt-1.5" />
+                </div>
+                
+                <div className="col-span-1 relative">
+                  <Label className="text-sm font-medium">Mulai <span className="text-destructive">*</span></Label>
+                  <TimeInput value={formData.jam_mulai} onChange={v => setFormData({...formData, jam_mulai: v})} className="mt-1.5" />
+                </div>
+                
+                <div className="col-span-1 relative">
+                  <Label className="text-sm font-medium">Selesai <span className="text-destructive">*</span></Label>
+                  <TimeInput value={formData.jam_selesai} onChange={v => setFormData({...formData, jam_selesai: v})} className="mt-1.5" disabled={!editingId && consecutiveHours > 1} />
+                </div>
+              </div>
 
-            <div>
-              <div className="flex items-center gap-2 mt-2">
+              {!editingId && (
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <Label className="text-sm font-medium">Pelajaran Berurutan</Label>
+                  <Select value={consecutiveHours.toString()} onValueChange={(v) => setConsecutiveHours(Number(v))}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[1,2,3,4,5,6].map(n => <SelectItem key={n} value={n.toString()}>{n} Jam Pelajaran Sengaligus</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1 text-left">Otomatis buat jadwal dengan selang 40 menit per jam</p>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-3">
                 <input
                   id="is_absenable"
                   type="checkbox"
                   checked={formData.is_absenable}
                   onChange={(e) => setFormData({ ...formData, is_absenable: e.target.checked })}
-                  className="rounded border-border text-emerald-600 focus:ring-ring"
+                  className="rounded border-border text-emerald-600 focus:ring-ring w-4 h-4 mt-0.5"
                 />
-                <Label htmlFor="is_absenable" className="text-sm font-medium">
-                  Bisa Diabsen (Buka Form Absensi)
-                </Label>
+                <div>
+                  <Label htmlFor="is_absenable" className="text-sm font-medium cursor-pointer">
+                    Bisa Diabsen
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Guru dapat membuka form absensi pada jadwal ini</p>
+                </div>
               </div>
             </div>
 
-            <SheetFooter className="pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Batal</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? "Menyimpan..." : (editingId ? "Perbarui" : "Simpan")}</Button>
+            <SheetFooter className="pt-6 mt-6 border-t">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Data" : "Simpan Data"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </SheetFooter>
           </form>
         </SheetContent>
