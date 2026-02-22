@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import type { Room } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Edit, FileText, Home, MapPin, Plus, Search, Trash2, Users, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Edit, FileText, Home, MapPin, Plus, Search, Trash2, Users, XCircle, Info, Settings } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
 
@@ -284,8 +284,6 @@ export const ManageRoomsView = ({
     { label: "Tidak Aktif", value: "tidak_aktif", count: stats.tidakAktif },
   ];
 
-  const editOrAddText = editingId ? "Perbarui" : "Tambah";
-  const saveButtonText = isSaving ? "Menyimpan..." : editOrAddText;
   const isEmptyState = !isLoading && filteredRooms.length === 0;
 
   return (
@@ -632,88 +630,133 @@ export const ManageRoomsView = ({
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetContent className="sm:max-w-xl overflow-y-auto w-[90vw]">
           <SheetHeader>
             <SheetTitle>{editingId ? "Edit Ruang Kelas" : "Tambah Ruang Kelas"}</SheetTitle>
             <SheetDescription>
               {editingId ? "Perbarui informasi ruang kelas" : "Tambahkan ruang kelas baru ke sistem"}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-            <div>
-              <Label htmlFor="kode_ruang" className="text-sm font-medium">
-                Kode Ruang <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="kode_ruang"
-                value={formData.kode_ruang}
-                onChange={(e) => setFormData({ ...formData, kode_ruang: e.target.value.toUpperCase() })}
-                placeholder="R-01"
-                className="mt-1.5"
-                required
-                autoFocus
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">2-20 karakter alfanumerik</p>
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
+            
+            {/* Section 1: Detail Ruang */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Detail Ruang</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="kode_ruang" className="text-sm font-medium">
+                    Kode Ruang <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="kode_ruang"
+                      value={formData.kode_ruang}
+                      onChange={(e) => setFormData({ ...formData, kode_ruang: e.target.value.toUpperCase() })}
+                      placeholder="Contoh: R-01"
+                      className="pl-9"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">2-20 karakter alfanumerik</p>
+                </div>
+                
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="nama_ruang" className="text-sm font-medium">
+                    Nama Ruang <span className="text-muted-foreground font-normal">(Opsional)</span>
+                  </Label>
+                  <Input
+                    id="nama_ruang"
+                    value={formData.nama_ruang}
+                    onChange={(e) => setFormData({ ...formData, nama_ruang: e.target.value })}
+                    placeholder="Lab Komputer"
+                    className="mt-1.5"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <Label htmlFor="lokasi" className="text-sm font-medium">
+                    Lokasi <span className="text-muted-foreground font-normal">(Opsional)</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="lokasi"
+                      value={formData.lokasi}
+                      onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
+                      placeholder="Gedung A, Lantai 3"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="nama_ruang" className="text-sm font-medium">
-                Nama Ruang
-              </Label>
-              <Input
-                id="nama_ruang"
-                value={formData.nama_ruang}
-                onChange={(e) => setFormData({ ...formData, nama_ruang: e.target.value })}
-                placeholder="Laboratorium Komputer"
-                className="mt-1.5"
-              />
+
+            {/* Section 2: Pengaturan Ruang */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Settings className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Pengaturan Ruang</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-left">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="kapasitas" className="text-sm font-medium">
+                    Kapasitas <span className="text-muted-foreground font-normal">(Siswa)</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="kapasitas"
+                      type="number"
+                      value={formData.kapasitas}
+                      onChange={(e) => setFormData({ ...formData, kapasitas: e.target.value })}
+                      placeholder="30"
+                      min="1"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="status" className="text-sm font-medium">Status <span className="text-destructive">*</span></Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger className="mt-1.5 pl-8 relative">
+                      {formData.status === 'aktif' ? (
+                        <CheckCircle2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500 z-10" />
+                      ) : (
+                        <XCircle className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                      )}
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aktif">Aktif</SelectItem>
+                      <SelectItem value="tidak_aktif">Tidak Aktif</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="lokasi" className="text-sm font-medium">
-                Lokasi
-              </Label>
-              <Input
-                id="lokasi"
-                value={formData.lokasi}
-                onChange={(e) => setFormData({ ...formData, lokasi: e.target.value })}
-                placeholder="Gedung A, Lantai 3"
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="kapasitas" className="text-sm font-medium">
-                Kapasitas
-              </Label>
-              <Input
-                id="kapasitas"
-                type="number"
-                value={formData.kapasitas}
-                onChange={(e) => setFormData({ ...formData, kapasitas: e.target.value })}
-                placeholder="30"
-                min="1"
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="status" className="text-sm font-medium">
-                Status
-              </Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="aktif">Aktif</SelectItem>
-                  <SelectItem value="tidak_aktif">Tidak Aktif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <SheetFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="text-sm">
-                Batal
-              </Button>
-              <Button type="submit" disabled={isSaving} className="text-sm">
-                {saveButtonText}
-              </Button>
+
+            <SheetFooter className="pt-6 mt-6 border-t">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Data" : "Simpan Data"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </SheetFooter>
           </form>
         </SheetContent>
