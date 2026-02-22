@@ -272,13 +272,19 @@ export function sendSuccessResponse(res, data = null, message = 'Operasi berhasi
 /**
  * Paginated response helper
  */
-export function sendPaginatedResponse(res, data, pagination, message = 'Data berhasil diambil') {
-    return res.status(200).json({
+export function sendPaginatedResponse(res, data, pagination, message = 'Data berhasil diambil', extra = null) {
+    const response = {
         success: true,
         message,
         data,
         pagination
-    });
+    };
+    
+    if (extra && typeof extra === 'object') {
+        Object.assign(response, extra);
+    }
+    
+    return res.status(200).json(response);
 }
 
 /**

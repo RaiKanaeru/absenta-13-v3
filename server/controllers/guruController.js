@@ -4,7 +4,7 @@
  */
 
 import bcrypt from 'bcrypt';
-import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse, sendConflictError } from '../utils/errorHandler.js';
+import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse, sendConflictError, sendPaginatedResponse } from '../utils/errorHandler.js';
 import dotenv from 'dotenv';
 import { getMySQLDateTimeWIB, getWIBTime } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -234,13 +234,34 @@ export const getGuru = async (req, res) => {
         const [rows] = await db.query(query, queryParams);
         const [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
+        // Aggregate statistics for the current query condition
+        let statsQuery = 'SELECT status, COUNT(*) as count FROM guru g';
+        let statsParams = [];
+        if (search) {
+            statsQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
+            statsParams = [`%${search}%`, `%${search}%`, `%${search}%`];
+        }
+        statsQuery += ' GROUP BY status';
+        const [statsResult] = await db.query(statsQuery, statsParams);
+        
+        let aktifCount = 0;
+        let nonaktifCount = 0;
+        statsResult.forEach(row => {
+            if (row.status === 'aktif') aktifCount = row.count;
+            if (row.status === 'nonaktif') nonaktifCount = row.count;
+        });
+
         log.success('GetGuru', { count: rows.length, total: countResult[0].total });
-        return sendSuccessResponse(res, rows, 'Data guru berhasil dimuat', 200, {
-            pagination: {
-                current_page: Number.parseInt(page),
-                per_page: Number.parseInt(limit),
+        return sendPaginatedResponse(res, rows, {
+            current_page: Number.parseInt(page),
+            per_page: Number.parseInt(limit),
+            total: countResult[0].total,
+            total_pages: Math.ceil(countResult[0].total / limit)
+        }, 'Data guru berhasil dimuat', {
+            stats: {
                 total: countResult[0].total,
-                total_pages: Math.ceil(countResult[0].total / limit)
+                aktif: aktifCount,
+                nonaktif: nonaktifCount
             }
         });
     } catch (error) {

@@ -28,6 +28,11 @@ interface PaginationMeta {
 interface PaginatedResponse<T> {
   data: T[];
   pagination: PaginationMeta;
+  stats?: {
+    total: number;
+    aktif: number;
+    nonaktif: number;
+  };
 }
 
 type SortField = "nip" | "nama" | "username" | "email" | "status";
@@ -68,6 +73,8 @@ export const ManageTeacherAccountsView = ({
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [activeItems, setActiveItems] = useState(0);
+  const [inactiveItems, setInactiveItems] = useState(0);
 
   const [showImport, setShowImport] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -119,9 +126,13 @@ export const ManageTeacherAccountsView = ({
       if (Array.isArray(response)) {
         setTeachers(response);
         setTotalItems(response.length);
+        setActiveItems(response.filter(t => t.status === 'aktif').length);
+        setInactiveItems(response.filter(t => t.status === 'nonaktif').length);
       } else {
         setTeachers(response.data || []);
         setTotalItems(response.pagination?.total || 0);
+        setActiveItems(response.stats?.aktif || 0);
+        setInactiveItems(response.stats?.nonaktif || 0);
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -367,13 +378,7 @@ export const ManageTeacherAccountsView = ({
 
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   
-  // Stats (computed safely from current page + server info)
-  const stats = {
-    total: totalItems,
-    // Note: To get accurate aktif/nonaktif counts with server-side pagination, 
-    // the backend must provide them. Since it might not, we just show total 
-    // or calculate an approximation. We will rely on server total.
-  };
+  // Stats are now fetched accurately from the backend extra pagination param
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -398,12 +403,14 @@ export const ManageTeacherAccountsView = ({
       {/* Stats Cards */}
       {isLoading && totalItems === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card>
-            <CardContent className="p-4">
-              <Skeleton className="h-4 w-24 mb-2" />
-              <Skeleton className="h-7 w-12" />
-            </CardContent>
-          </Card>
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-7 w-12" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -413,7 +420,25 @@ export const ManageTeacherAccountsView = ({
                 <Users className="h-4 w-4" />
                 <span className="text-xs font-medium">Total Akun</span>
               </div>
-              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-2xl font-bold">{totalItems}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-1">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-xs font-medium">Guru Aktif</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{activeItems}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <XCircle className="h-4 w-4" />
+                <span className="text-xs font-medium">Guru Non-aktif</span>
+              </div>
+              <p className="text-2xl font-bold">{inactiveItems}</p>
             </CardContent>
           </Card>
         </div>
