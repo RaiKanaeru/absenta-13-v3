@@ -12,6 +12,7 @@ import ExcelJS from 'exceljs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '../utils/logger.js';
+import { TAHUN_PELAJARAN, HARI_EFEKTIF } from '../config/exportConfig.js';
 
 const logger = createLogger('TemplateExport');
 
@@ -157,7 +158,7 @@ export async function listTemplates() {
 // ================================================
 
 export const REKAP_GURU_MAPPING = {
-    templateFile: 'REKAP KETIDAKHADIRAN GURU 2025-2026.xlsx',
+    templateFile: `REKAP KETIDAKHADIRAN GURU ${TAHUN_PELAJARAN}.xlsx`,
     startRow: 8,
     columns: {
         A: 'no',
@@ -166,11 +167,11 @@ export const REKAP_GURU_MAPPING = {
         I: 'jan', J: 'feb', K: 'mar', L: 'apr', M: 'mei', N: 'jun'
     },
     formulaColumns: ['O', 'P', 'Q'], // JUMLAH, % TIDAK HADIR, % HADIR
-    totalHariEfektif: 237
+    totalHariEfektif: HARI_EFEKTIF.TAHUNAN
 };
 
 export const REKAP_KELAS_GASAL_MAPPING = {
-    templateFile: (tingkat) => `REKAP KETIDAKHADIRAN KELAS ${tingkat} 2025-2026.xlsx`,
+    templateFile: (tingkat) => `REKAP KETIDAKHADIRAN KELAS ${tingkat} ${TAHUN_PELAJARAN}.xlsx`,
     startRow: 11,
     columns: {
         A: 'no',
@@ -191,7 +192,7 @@ export const REKAP_KELAS_GASAL_MAPPING = {
         Y: 'des_s', Z: 'des_i', AA: 'des_a'
     },
     formulaColumns: ['H', 'L', 'P', 'T', 'X', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH'],
-    totalHariEfektif: 95,
+    totalHariEfektif: HARI_EFEKTIF.GASAL,
     // Header cells to fill
     headerCells: {
         namaKelas: 'C5',

@@ -10,7 +10,7 @@ export default {
     { key: 'mata_pelajaran', label: 'Mata Pelajaran', width: 20, align: 'left' },
     { key: 'ruang', label: 'Ruang', width: 10, align: 'center' },
     { key: 'status', label: 'Status', width: 12, align: 'center' },
-    { key: 'waktu_absen', label: 'Waktu Absen', width: 18, align: 'center' },
+    { key: 'waktu_absen', label: 'Waktu Absen', width: 18, align: 'center', format: 'date' },
     { key: 'keterangan', label: 'Keterangan', width: 25, align: 'left' }
   ]
 };
