@@ -1407,7 +1407,7 @@ const createCustomSchedule = async (req, res) => {
         }
 
         // Validate date is not in the past
-        const scheduleDate = new Date(`${date}T${time}`);
+        const scheduleDate = new Date(`${date}T${time}:00+07:00`);
         const now = new Date();
         if (scheduleDate <= now) {
             return sendValidationError(res, 'Tanggal jadwal harus di masa depan');
@@ -1427,6 +1427,11 @@ const createCustomSchedule = async (req, res) => {
         schedules.push(newSchedule);
 
         await writeCustomSchedules(schedules);
+
+        // Reload timers in backup system
+        if (globalThis.backupSystem) {
+            await globalThis.backupSystem.loadCustomSchedules();
+        }
 
         res.json({
             success: true,
@@ -1469,6 +1474,11 @@ const updateCustomSchedule = async (req, res) => {
 
         await writeCustomSchedules(schedules);
 
+        // Reload timers in backup system
+        if (globalThis.backupSystem) {
+            await globalThis.backupSystem.loadCustomSchedules();
+        }
+
         res.json({
             success: true,
             message: 'Custom schedule updated successfully',
@@ -1500,6 +1510,11 @@ const deleteCustomSchedule = async (req, res) => {
         }
 
         await writeCustomSchedules(filteredSchedules);
+
+        // Reload timers in backup system
+        if (globalThis.backupSystem) {
+            await globalThis.backupSystem.loadCustomSchedules();
+        }
 
         res.json({
             success: true,

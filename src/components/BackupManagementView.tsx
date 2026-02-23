@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
-import { getCurrentYearWIB } from '../lib/time-utils';
+import { getCurrentYearWIB, formatDateOnly } from '../lib/time-utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -343,7 +343,7 @@ const BackupManagementView: React.FC = () => {
                             <div className="flex items-center text-sm text-muted-foreground gap-4">
                                 <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
-                                    {formatDate(schedule.date)}
+                                    {formatDateOnly(schedule.date)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
@@ -427,7 +427,7 @@ const BackupManagementView: React.FC = () => {
                             <div className="text-xs lg:text-sm text-orange-600 flex items-center">
                                 <Clock className="w-3 h-3 lg:w-4 lg:h-4 mr-1 flex-shrink-0" />
                                 <span className="truncate">
-                                    Jadwal berikutnya: {nextSchedule ? formatDate(`${nextSchedule.date}T${nextSchedule.time}`) : ''}
+                                    Jadwal berikutnya: {nextSchedule ? `${formatDateOnly(nextSchedule.date)} pukul ${nextSchedule.time}` : ''}
                                 </span>
                             </div>
                         )}

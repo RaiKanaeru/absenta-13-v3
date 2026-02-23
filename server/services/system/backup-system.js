@@ -211,7 +211,7 @@ class BackupSystem {
             } catch (error) {
                 logger.error('Automated backup failed', error);
             }
-        });
+        }, { timezone: 'Asia/Jakarta' });
         
         // Daily archive cleanup (at 3 AM) — store reference for rescheduling
         this._dailyCleanupTask = cron.schedule('0 3 * * *', async () => {
@@ -222,7 +222,7 @@ class BackupSystem {
             } catch (error) {
                 logger.error('Archive cleanup failed', error);
             }
-        });
+        }, { timezone: 'Asia/Jakarta' });
         
         logger.info('Automated backup schedule configured', { schedule: this.backupConfig.autoBackupSchedule });
     }
@@ -253,7 +253,7 @@ class BackupSystem {
             } catch (error) {
                 logger.error('Automated backup failed', error);
             }
-        });
+        }, { timezone: 'Asia/Jakarta' });
 
         logger.info('Automated backup rescheduled successfully', { schedule: cronExpr });
     }
@@ -282,17 +282,19 @@ class BackupSystem {
             const now = Date.now();
             let scheduled = 0;
 
-            // Store active timers so they can be cleared if needed
-            if (!this._customScheduleTimers) {
-                this._customScheduleTimers = [];
+            // Clear any existing timers to prevent duplicates/leaks
+            if (this._customScheduleTimers && this._customScheduleTimers.length > 0) {
+                for (const timer of this._customScheduleTimers) { clearTimeout(timer); }
+                logger.debug('Cleared existing custom schedule timers');
             }
+            this._customScheduleTimers = [];
 
             for (const schedule of schedules) {
                 if (!schedule.enabled || !schedule.date || !schedule.time) {
                     continue;
                 }
 
-                const scheduledTime = new Date(`${schedule.date}T${schedule.time}`).getTime();
+                const scheduledTime = new Date(`${schedule.date}T${schedule.time}:00+07:00`).getTime();
                 if (Number.isNaN(scheduledTime) || scheduledTime <= now) {
                     continue; // Skip past or invalid dates
                 }
@@ -303,6 +305,23 @@ class BackupSystem {
                     try {
                         await this.createScheduledBackup(schedule);
                         logger.info('Custom scheduled backup completed', { scheduleId: schedule.id });
+                        // Update lastRun in JSON so UI reflects execution status
+                        try {
+                            const schedulesPath = path.join(process.cwd(), 'custom-schedules.json');
+                            const raw = await fs.readFile(schedulesPath, 'utf-8');
+                            const allSchedules = JSON.parse(raw);
+                            const idx = allSchedules.findIndex(s => s.id === schedule.id);
+                            if (idx !== -1) {
+                                allSchedules[idx].lastRun = new Date().toISOString();
+                                allSchedules[idx].enabled = false;
+                                await fs.writeFile(schedulesPath, JSON.stringify(allSchedules, null, 2));
+                                logger.info('Updated lastRun for schedule', { scheduleId: schedule.id });
+                            }
+                        } catch (updateError) {
+                            logger.warn('Could not update lastRun for schedule', { scheduleId: schedule.id, error: updateError.message });
+                        }
+                        // Reload schedules (for any remaining future ones)
+                        await this.loadCustomSchedules();
                     } catch (error) {
                         logger.error('Custom scheduled backup failed', { scheduleId: schedule.id, error: error.message });
                     }
@@ -406,6 +425,12 @@ class BackupSystem {
             
             const infoPath = path.join(backupDir, 'backup_info.json');
             await fs.writeFile(infoPath, JSON.stringify(backupInfo, null, 2));
+
+            // Compress backup if enabled
+            if (this.backupConfig.compressionEnabled) {
+                logger.debug('Compressing scheduled backup');
+                await this.compressBackup(backupDir, backupId);
+            }
             
             logger.info('Scheduled backup created', { backupId });
             return backupInfo;
@@ -1713,7 +1738,7 @@ class BackupSystem {
                 
                 for (const fileInfo of filesToDelete) {
                     const filePath = path.join(this.backupDir, fileInfo.file);
-                    await fs.unlink(filePath);
+                    await fs.rm(filePath, { recursive: true, force: true });
                     logger.debug('Deleted old backup', { file: fileInfo.file });
                 }
             }
@@ -2021,6 +2046,10 @@ class BackupSystem {
         logger.info('Deleting backup', { backupId });
         
         try {
+            let deleted = false;
+            const deletedFiles = [];
+            let method = null;
+
             // First, check if it's a folder-based backup
             const folderPath = path.join(this.backupDir, backupId);
             const folderStats = await fs.stat(folderPath).catch(() => null);
@@ -2031,13 +2060,10 @@ class BackupSystem {
                 // Delete the entire folder and its contents
                 await fs.rm(folderPath, { recursive: true, force: true });
                 logger.info('Successfully deleted backup folder', { backupId });
-                
-                return { 
-                    success: true, 
-                    message: 'Backup folder deleted successfully',
-                    deletedFiles: [backupId],
-                    method: 'folder'
-                };
+
+                deleted = true;
+                deletedFiles.push(backupId);
+                method = 'folder';
             }
             
             // If not a folder, try different possible file formats
@@ -2048,9 +2074,6 @@ class BackupSystem {
                 `${backupId}.tar.gz`
             ];
             
-            let deleted = false;
-            let deletedFiles = [];
-            
             for (const filename of possibleFiles) {
                 const filePath = path.join(this.backupDir, filename);
                 try {
@@ -2058,6 +2081,9 @@ class BackupSystem {
                     await fs.unlink(filePath);
                     deleted = true;
                     deletedFiles.push(filename);
+                    if (!method) {
+                        method = 'file';
+                    }
                     logger.debug('Deleted backup file', { filename });
                 } catch (fileError) {
                     // File doesn't exist, continue to next format
@@ -2071,7 +2097,7 @@ class BackupSystem {
                     success: true, 
                     message: 'Backup deleted successfully',
                     deletedFiles: deletedFiles,
-                    method: 'file'
+                    method: method || 'file'
                 };
             } else {
                 throw new Error(`No backup files found for ID: ${backupId}`);
