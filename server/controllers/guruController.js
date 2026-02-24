@@ -208,9 +208,14 @@ export const getGuru = async (req, res) => {
     log.requestStart('GetGuru', { page, limit, search: search ? '***' : '' });
 
     try {
-        const offset = (page - 1) * limit;
+        const cacheSystem = globalThis.cacheSystem;
+        const cacheKey = `list:${page}:${limit}:${search}`;
+        let rows, countResult, statsResult;
 
-        let query = `
+        if (cacheSystem?.isConnected) {
+            const cached = await cacheSystem.getOrSet(cacheKey, async () => {
+                const offset = (page - 1) * limit;
+                let q = `
             SELECT g.id, g.nip, g.nama, g.username, g.email, g.no_telp, g.jenis_kelamin, g.alamat,
                    g.mapel_id, COALESCE(m.nama_mapel, g.mata_pelajaran) AS nama_mapel,
                    g.status, u.id AS user_id, u.username AS user_username, u.email AS user_email, u.status AS user_status
@@ -218,31 +223,64 @@ export const getGuru = async (req, res) => {
             LEFT JOIN mapel m ON g.mapel_id = m.id_mapel
             LEFT JOIN users u ON g.user_id = u.id
         `;
-        let countQuery = 'SELECT COUNT(*) as total FROM guru g';
-        let params = [];
+                let cq = 'SELECT COUNT(*) as total FROM guru g';
+                let sq = 'SELECT status, COUNT(*) as count FROM guru g';
+                let p = [];
+                if (search) {
+                    q += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ? OR COALESCE(m.nama_mapel, g.mata_pelajaran) LIKE ?)';
+                    cq += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
+                    sq += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
+                    p = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
+                }
+                q += ` ORDER BY g.created_at DESC LIMIT ? OFFSET ?`;
+                sq += ' GROUP BY status';
+                const qp = [...p, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
+                const sp = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+                const [r] = await db.query(q, qp);
+                const [cr] = await db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+                const [sr] = await db.query(sq, sp);
+                return { rows: r, countResult: cr, statsResult: sr };
+            }, 'teachers');
+            rows = cached.rows;
+            countResult = cached.countResult;
+            statsResult = cached.statsResult;
+        } else {
+            const offset = (page - 1) * limit;
 
-        if (search) {
-            query += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ? OR COALESCE(m.nama_mapel, g.mata_pelajaran) LIKE ?)';
-            countQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
-            params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
+            let query = `
+            SELECT g.id, g.nip, g.nama, g.username, g.email, g.no_telp, g.jenis_kelamin, g.alamat,
+                   g.mapel_id, COALESCE(m.nama_mapel, g.mata_pelajaran) AS nama_mapel,
+                   g.status, u.id AS user_id, u.username AS user_username, u.email AS user_email, u.status AS user_status
+            FROM guru g
+            LEFT JOIN mapel m ON g.mapel_id = m.id_mapel
+            LEFT JOIN users u ON g.user_id = u.id
+        `;
+            let countQuery = 'SELECT COUNT(*) as total FROM guru g';
+            let params = [];
+
+            if (search) {
+                query += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ? OR COALESCE(m.nama_mapel, g.mata_pelajaran) LIKE ?)';
+                countQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
+                params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
+            }
+
+            // Use parameterized query for LIMIT/OFFSET to prevent SQL injection
+            query += ` ORDER BY g.created_at DESC LIMIT ? OFFSET ?`;
+            const queryParams = [...params, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
+
+            [rows] = await db.query(query, queryParams);
+            [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+
+            // Aggregate statistics for the current query condition
+            let statsQuery = 'SELECT status, COUNT(*) as count FROM guru g';
+            let statsParams = [];
+            if (search) {
+                statsQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
+                statsParams = [`%${search}%`, `%${search}%`, `%${search}%`];
+            }
+            statsQuery += ' GROUP BY status';
+            [statsResult] = await db.query(statsQuery, statsParams);
         }
-
-        // Use parameterized query for LIMIT/OFFSET to prevent SQL injection
-        query += ` ORDER BY g.created_at DESC LIMIT ? OFFSET ?`;
-        const queryParams = [...params, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
-
-        const [rows] = await db.query(query, queryParams);
-        const [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
-
-        // Aggregate statistics for the current query condition
-        let statsQuery = 'SELECT status, COUNT(*) as count FROM guru g';
-        let statsParams = [];
-        if (search) {
-            statsQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
-            statsParams = [`%${search}%`, `%${search}%`, `%${search}%`];
-        }
-        statsQuery += ' GROUP BY status';
-        const [statsResult] = await db.query(statsQuery, statsParams);
         
         let aktifCount = 0;
         let nonaktifCount = 0;
@@ -325,6 +363,9 @@ export const createGuru = async (req, res) => {
 
             await connection.commit();
             log.success('CreateGuru', { nama, nip, userId });
+            if (globalThis.cacheSystem?.isConnected) {
+                await globalThis.cacheSystem.deletePattern('*', 'teachers');
+            }
             return sendSuccessResponse(res, { id: userId }, 'Guru berhasil ditambahkan', 201);
 
         } catch (error) {
@@ -459,6 +500,10 @@ export const updateGuru = async (req, res) => {
 
             await connection.commit();
             log.success('UpdateGuru', { id, nama: nama || guru.nama });
+            if (globalThis.cacheSystem?.isConnected) {
+                await globalThis.cacheSystem.deletePattern('*', 'teachers');
+                await globalThis.cacheSystem.deletePattern('*', 'schedules');
+            }
             return sendSuccessResponse(res, null, 'Guru berhasil diperbarui');
 
         } catch (error) {
@@ -517,6 +562,10 @@ export const deleteGuru = async (req, res) => {
 
             await connection.commit();
             log.success('DeleteGuru', { id, nama: guru.nama, nip: guru.nip });
+            if (globalThis.cacheSystem?.isConnected) {
+                await globalThis.cacheSystem.deletePattern('*', 'teachers');
+                await globalThis.cacheSystem.deletePattern('*', 'schedules');
+            }
             return sendSuccessResponse(res, null, 'Guru berhasil dihapus');
 
         } catch (error) {

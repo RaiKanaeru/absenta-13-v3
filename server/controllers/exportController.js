@@ -755,7 +755,19 @@ const buildLaporanExportRows = (siswaData, finalDates, attendanceMap) => siswaDa
 export const exportAbsensi = async (req, res) => {
     try {
         const { date_start, date_end } = req.query;
-        const rows = await ExportService.getAbsensiGuru(date_start, date_end);
+        const cacheKey = `export:absensi:${date_start || 'all'}:${date_end || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        if (cacheSystem?.isConnected) {
+            rows = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getAbsensiGuru(date_start, date_end),
+                'attendance',
+                300
+            );
+        } else {
+            rows = await ExportService.getAbsensiGuru(date_start, date_end);
+        }
 
         // Import required modules
         const { buildExcel } = await import('../services/export/excelBuilder.js');
@@ -844,7 +856,19 @@ export const exportStudentSummary = async (req, res) => {
         if (!startDate || !endDate) {
             return sendValidationError(res, ERROR_DATE_REQUIRED);
         }
-        const students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
+        const cacheKey = `export:student-summary:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let students;
+        if (cacheSystem?.isConnected) {
+            students = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getStudentSummary(startDate, endDate, kelas_id),
+                'attendance',
+                300
+            );
+        } else {
+            students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
+        }
 
         // Import required modules
         const { buildExcel } = await import('../services/export/excelBuilder.js');
@@ -1060,7 +1084,20 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const { startDate, endDate } = period;
 
         const { query, params } = buildRekapKetidakhadiranQuery(tipe, startDate, endDate, kelas_id);
-        const [rows] = await db.execute(query, params);
+        const cacheKey = `export:rekap-ketidakhadiran:${tipe}:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        if (cacheSystem?.isConnected) {
+            rows = await cacheSystem.getOrSet(
+                cacheKey,
+                async () => { const [result] = await db.execute(query, params); return result; },
+                'attendance',
+                300
+            );
+        } else {
+            const [result] = await db.execute(query, params);
+            rows = result;
+        }
 
         // Use buildExcel helper with letterhead
         const { buildExcel } = await import('../services/export/excelBuilder.js');
@@ -1139,7 +1176,14 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${new Date(year, endMonth, 0).getDate()}`;
 
         // Get students with attendance summary
-        const [rows] = await db.execute(`
+        const cacheKeySmkn13 = `export:ringkasan-siswa-smkn13:${kelas_id}:${semester || 'all'}:${tahun_ajaran || 'all'}:${startDate}:${endDate}`;
+        const cacheSystemSmkn13 = globalThis.cacheSystem;
+        let rows;
+        if (cacheSystemSmkn13?.isConnected) {
+            rows = await cacheSystemSmkn13.getOrSet(
+                cacheKeySmkn13,
+                async () => {
+                    const [result] = await db.execute(`
             SELECT 
                 s.nis,
                 s.nama,
@@ -1156,7 +1200,31 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
             GROUP BY s.id_siswa, s.nis, s.nama
             ORDER BY s.nama
         `, [startDate, endDate, kelas_id]);
-
+                    return result;
+                },
+                'attendance',
+                300
+            );
+        } else {
+            const [result] = await db.execute(`
+            SELECT 
+                s.nis,
+                s.nama,
+                COUNT(CASE WHEN a.status = 'Hadir' THEN 1 END) as hadir,
+                COUNT(CASE WHEN a.status = 'Sakit' THEN 1 END) as sakit,
+                COUNT(CASE WHEN a.status = 'Izin' THEN 1 END) as izin,
+                COUNT(CASE WHEN a.status = 'Alpa' THEN 1 END) as alpha,
+                COUNT(CASE WHEN a.status = 'Dispen' THEN 1 END) as dispen,
+                COUNT(a.id) as total_hari
+            FROM siswa s
+            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                AND a.tanggal BETWEEN ? AND ?
+            WHERE s.kelas_id = ?
+            GROUP BY s.id_siswa, s.nis, s.nama
+            ORDER BY s.nama
+        `, [startDate, endDate, kelas_id]);
+            rows = result;
+        }
         // Import helpers and load letterhead
         const { buildExcel } = await import('../services/export/excelBuilder.js');
         const { calculateSafePercentage } = await import('../utils/exportHelpers.js');
@@ -1223,7 +1291,19 @@ export const exportTeacherSummary = async (req, res) => {
         if (!startDate || !endDate) {
             return sendValidationError(res, ERROR_DATE_REQUIRED);
         }
-        const teachers = await ExportService.getTeacherSummary(startDate, endDate);
+        const cacheKey = `export:teacher-summary:${startDate}:${endDate}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let teachers;
+        if (cacheSystem?.isConnected) {
+            teachers = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getTeacherSummary(startDate, endDate),
+                'attendance',
+                300
+            );
+        } else {
+            teachers = await ExportService.getTeacherSummary(startDate, endDate);
+        }
 
         // Import required modules
         const { buildExcel } = await import('../services/export/excelBuilder.js');
@@ -1399,7 +1479,20 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             ORDER BY g.nama
         `;
 
-        const [rows] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
+        const cacheKey = `export:rekap-ketidakhadiran-guru:${tahunAjaran}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        if (cacheSystem?.isConnected) {
+            rows = await cacheSystem.getOrSet(
+                cacheKey,
+                async () => { const [result] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]); return result; },
+                'attendance',
+                300
+            );
+        } else {
+            const [result] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
+            rows = result;
+        }
         const mapping = templateExportService.REKAP_GURU_MAPPING;
         const templateAvailable = await templateExportService.templateExists(mapping.templateFile);
 
@@ -1586,7 +1679,19 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         const monthNames = MONTH_NAMES;
 
         // Get attendance data with S/I/A breakdown per month
-        const presensiData = await ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester);
+        const cacheKey = `export:rekap-ketidakhadiran-siswa:${tahun}:${kelas_id || 'all'}:${semester}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let presensiData;
+        if (cacheSystem?.isConnected) {
+            presensiData = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester),
+                'attendance',
+                300
+            );
+        } else {
+            presensiData = await ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester);
+        }
 
         // Get total hari efektif from kalender_akademik (dynamic, not hardcoded)
         const tahunPelajaran = buildTahunPelajaran(tahun);
@@ -1898,7 +2003,19 @@ export const exportPresensiSiswa = async (req, res) => {
         );
 
         // Get presensi data for the month
-        const presensiRows = await ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id);
+        const cacheKey = `export:presensi-siswa:${tahun}:${bulan}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let presensiRows;
+        if (cacheSystem?.isConnected) {
+            presensiRows = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id),
+                'attendance',
+                300
+            );
+        } else {
+            presensiRows = await ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id);
+        }
 
         // Prepare export data
         const daysInMonth = new Date(Number.parseInt(tahun), Number.parseInt(bulan), 0).getDate();
@@ -1950,7 +2067,19 @@ export const exportPresensiSiswa = async (req, res) => {
  */
 export const exportAdminAttendance = async (req, res) => {
     try {
-        const rows = await ExportService.getAdminAttendance();
+        const cacheKey = 'export:admin-attendance';
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        if (cacheSystem?.isConnected) {
+            rows = await cacheSystem.getOrSet(
+                cacheKey,
+                () => ExportService.getAdminAttendance(),
+                'attendance',
+                300
+            );
+        } else {
+            rows = await ExportService.getAdminAttendance();
+        }
 
         const { buildExcel } = await import('../services/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });

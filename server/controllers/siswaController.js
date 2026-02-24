@@ -242,31 +242,58 @@ async function validateSiswaPayload(body, { isUpdate = false, excludeStudentId =
 export const getSiswa = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { page = 1, limit = 10, search = '' } = req.query;
-    const offset = (page - 1) * limit;
-    
+
     log.requestStart('GetAll', { page, limit, search: search || null });
 
     try {
-        let query = `
+        const cacheSystem = globalThis.cacheSystem;
+        const cacheKey = `list:${page}:${limit}:${search}`;
+        let rows, countResult;
+
+        if (cacheSystem?.isConnected) {
+            const cached = await cacheSystem.getOrSet(cacheKey, async () => {
+                const offset = (page - 1) * limit;
+                let q = `
             SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
             JOIN users u ON s.user_id = u.id
         `;
-        let countQuery = 'SELECT COUNT(*) as total FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas JOIN users u ON s.user_id = u.id';
-        let params = [];
-
-        if (search) {
-            query += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
-            countQuery += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
-            params = [`%${search}%`, `%${search}%`, `%${search}%`];
+                let cq = 'SELECT COUNT(*) as total FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas JOIN users u ON s.user_id = u.id';
+                let p = [];
+                if (search) {
+                    q += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+                    cq += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+                    p = [`%${search}%`, `%${search}%`, `%${search}%`];
+                }
+                q += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
+                p.push(Number(limit), Number(offset));
+                const [r] = await db.query(q, p);
+                const [cr] = await db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+                return { rows: r, countResult: cr };
+            }, 'students');
+            rows = cached.rows;
+            countResult = cached.countResult;
+        } else {
+            const offset = (page - 1) * limit;
+            let query = `
+            SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
+            FROM siswa s
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            JOIN users u ON s.user_id = u.id
+        `;
+            let countQuery = 'SELECT COUNT(*) as total FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas JOIN users u ON s.user_id = u.id';
+            let params = [];
+            if (search) {
+                query += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+                countQuery += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+                params = [`%${search}%`, `%${search}%`, `%${search}%`];
+            }
+            query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
+            params.push(Number(limit), Number(offset));
+            [rows] = await db.query(query, params);
+            [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
         }
-
-        query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
-        params.push(Number(limit), Number(offset));
-
-        const [rows] = await db.query(query, params);
-        const [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
 
         log.success('GetAll', { count: rows.length, total: countResult[0].total, page });
 
@@ -348,6 +375,10 @@ export const createSiswa = async (req, res) => {
 
             await connection.commit();
             log.success('Create', { userId, nis: trimmedNis, nama: siswa.nama });
+            if (globalThis.cacheSystem?.isConnected) {
+                await globalThis.cacheSystem.deletePattern('*', 'students');
+                await globalThis.cacheSystem.deletePattern('*', 'analytics');
+            }
             return sendSuccessResponse(res, { id: userId }, 'Akun siswa berhasil ditambahkan', 201);
 
         } catch (txError) {
@@ -603,6 +634,10 @@ export const updateSiswa = async (req, res) => {
 
             await connection.commit();
             log.success('Update', { nis: paramNis, nama: nama || siswa.nama });
+            if (globalThis.cacheSystem?.isConnected) {
+                await globalThis.cacheSystem.deletePattern('*', 'students');
+                await globalThis.cacheSystem.deletePattern('*', 'analytics');
+            }
             return sendSuccessResponse(res, null, 'Data siswa berhasil diperbarui');
 
         } catch (error) {
@@ -658,6 +693,10 @@ export const deleteSiswa = async (req, res) => {
 
             await connection.commit();
             log.success('Delete', { nis: paramNis, nama: siswa.nama });
+            if (globalThis.cacheSystem?.isConnected) {
+                await globalThis.cacheSystem.deletePattern('*', 'students');
+                await globalThis.cacheSystem.deletePattern('*', 'analytics');
+            }
             return sendSuccessResponse(res, null, 'Siswa berhasil dihapus');
 
         } catch (error) {

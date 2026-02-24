@@ -29,7 +29,17 @@ export const getActiveKelas = async (req, res) => {
             ORDER BY tingkat, nama_kelas
         `;
 
-        const [rows] = await db.execute(query);
+        const cacheSystem = globalThis.cacheSystem;
+        const cacheKey = 'active';
+        let rows;
+        if (cacheSystem?.isConnected) {
+            rows = await cacheSystem.getOrSet(cacheKey, async () => {
+                const [result] = await db.execute(query);
+                return result;
+            }, 'classes', 14400);
+        } else {
+            [rows] = await db.execute(query);
+        }
         log.success('GetActive', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -57,7 +67,17 @@ export const getKelas = async (req, res) => {
             ORDER BY tingkat, nama_kelas
         `;
 
-        const [rows] = await db.execute(query);
+        const cacheSystem = globalThis.cacheSystem;
+        const cacheKey = 'all';
+        let rows;
+        if (cacheSystem?.isConnected) {
+            rows = await cacheSystem.getOrSet(cacheKey, async () => {
+                const [result] = await db.execute(query);
+                return result;
+            }, 'classes', 14400);
+        } else {
+            [rows] = await db.execute(query);
+        }
         log.success('GetAll', { count: rows.length });
         res.json(rows);
     } catch (error) {
@@ -95,6 +115,9 @@ export const createKelas = async (req, res) => {
 
         const [result] = await db.execute(insertQuery, [nama_kelas, tingkat]);
         log.success('Create', { id: result.insertId, nama_kelas, tingkat });
+        if (globalThis.cacheSystem?.isConnected) {
+            await globalThis.cacheSystem.deletePattern('*', 'classes');
+        }
         return sendSuccessResponse(res, { id: result.insertId }, 'Kelas berhasil ditambahkan', 201);
     } catch (error) {
         log.dbError('insert', error, { nama_kelas });
@@ -142,6 +165,9 @@ export const updateKelas = async (req, res) => {
         }
 
         log.success('Update', { id, nama_kelas, tingkat });
+        if (globalThis.cacheSystem?.isConnected) {
+            await globalThis.cacheSystem.deletePattern('*', 'classes');
+        }
         return sendSuccessResponse(res, null, 'Kelas berhasil diupdate');
     } catch (error) {
         log.dbError('update', error, { id, nama_kelas });
@@ -202,6 +228,9 @@ export const deleteKelas = async (req, res) => {
         }
 
         log.success('Delete', { id, affectedRows: result.affectedRows });
+        if (globalThis.cacheSystem?.isConnected) {
+            await globalThis.cacheSystem.deletePattern('*', 'classes');
+        }
         return sendSuccessResponse(res, null, 'Kelas berhasil dihapus');
     } catch (error) {
         log.dbError('delete', error, { id });

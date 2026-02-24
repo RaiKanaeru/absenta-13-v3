@@ -153,6 +153,50 @@ function prepareHeaders(options: ApiCallOptions): Headers {
 }
 
 // ================================================
+// TOKEN REFRESH MECHANISM
+// ================================================
+
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function onRefreshed(token: string): void {
+    refreshSubscribers.forEach(callback => callback(token));
+    refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(callback: (token: string) => void): void {
+    refreshSubscribers.push(callback);
+}
+
+/**
+ * Attempt to refresh the access token using the refresh token cookie.
+ * Returns the new access token on success, or null on failure.
+ */
+async function refreshAccessToken(): Promise<string | null> {
+    try {
+        const response = await fetch(getApiUrl('/api/refresh'), {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json() as Record<string, unknown>;
+        if (data.success && typeof data.token === 'string') {
+            // Store the new access token
+            const { setAuthToken } = await import('./authUtils');
+            setAuthToken(data.token);
+            return data.token;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+// ================================================
 // MAIN API CALL FUNCTION
 // ================================================
 
@@ -179,8 +223,75 @@ export const apiCall = async <T = unknown>(endpoint: string, options: ApiCallOpt
             const responseData = await parseResponseData(response);
             const apiError = createApiErrorFromResponse(response, responseData);
 
-            if (response.status === 401 && onLogout) {
-                setTimeout(() => onLogout(), 1500);
+            // Handle 401 - check if token refresh is possible
+            if (response.status === 401) {
+                // Only attempt refresh for token expired errors (code 3004)
+                if (apiError.code === 3004) {
+                    if (!isRefreshing) {
+                        isRefreshing = true;
+                        const newToken = await refreshAccessToken();
+                        isRefreshing = false;
+
+                        if (newToken) {
+                            onRefreshed(newToken);
+                            // Retry the original request with new token
+                            const retryHeaders = new Headers(options.headers || {});
+                            if (!(options.body instanceof FormData)) {
+                                retryHeaders.set('Content-Type', 'application/json');
+                            }
+                            retryHeaders.set('Authorization', `Bearer ${newToken}`);
+
+                            const retryResponse = await fetch(getApiUrl(endpoint), {
+                                credentials: 'include',
+                                ...fetchOptions,
+                                headers: retryHeaders,
+                            });
+
+                            if (retryResponse.ok) {
+                                return await parseResponseData(retryResponse, options.responseType) as T;
+                            }
+                            // Retry also failed — fall through to logout
+                        }
+
+                        // Refresh failed or retry failed — force logout
+                        if (onLogout) {
+                            setTimeout(() => onLogout(), 100);
+                        }
+                        throw apiError;
+                    } else {
+                        // Another request is already refreshing — wait for it
+                        return new Promise<T>((resolve, reject) => {
+                            addRefreshSubscriber(async (newToken: string) => {
+                                try {
+                                    const retryHeaders = new Headers(options.headers || {});
+                                    if (!(options.body instanceof FormData)) {
+                                        retryHeaders.set('Content-Type', 'application/json');
+                                    }
+                                    retryHeaders.set('Authorization', `Bearer ${newToken}`);
+
+                                    const retryResponse = await fetch(getApiUrl(endpoint), {
+                                        credentials: 'include',
+                                        ...fetchOptions,
+                                        headers: retryHeaders,
+                                    });
+
+                                    if (retryResponse.ok) {
+                                        resolve(await parseResponseData(retryResponse, options.responseType) as T);
+                                    } else {
+                                        reject(apiError);
+                                    }
+                                } catch (retryError) {
+                                    reject(retryError);
+                                }
+                            });
+                        });
+                    }
+                }
+
+                // Non-expired auth error (3001, etc.) — force logout, no retry
+                if (onLogout) {
+                    setTimeout(() => onLogout(), 100);
+                }
             }
 
             throw apiError;

@@ -256,9 +256,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = useCallback(async () => {
     try {
+      const token = getCleanToken();
       await fetch(getApiUrl("/api/logout"), {
         method: "POST",
         credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       clearAuthToken();

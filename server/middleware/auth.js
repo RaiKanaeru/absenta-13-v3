@@ -4,9 +4,9 @@ import { AppError, ERROR_CODES, sendErrorResponse } from '../utils/errorHandler.
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  throw new Error('CRITICAL: JWT_SECRET environment variable is required for security');
+  throw new Error('CRITICAL: JWT_ACCESS_SECRET or JWT_SECRET environment variable is required for security');
 }
 
 // Middleware to authenticate JWT token
