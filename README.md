@@ -46,9 +46,8 @@
 ### Prerequisites
 - **Node.js** (v18 atau lebih baru)
 - **npm** atau **yarn**
-- **MySQL** (v8.0 atau lebih baru)
-- **Redis** (v6.0 atau lebih baru)
-- **XAMPP** (untuk development)
+- **MySQL** (v8.0 atau lebih baru) — standalone atau via Docker
+- **Redis** (v6.0 atau lebih baru) — standalone atau via Docker
 
 ### Installation
 
@@ -75,21 +74,31 @@ npm install
 # Linux/Mac: sudo systemctl start redis
 ```
 
-5. **Jalankan Backend Server (OPTIMIZED)**
+5. **Jalankan Backend + Frontend sekaligus**
 ```bash
-node server/index.js
+npm run dev:full
 ```
 
-6. **Jalankan Frontend**
-```bash
-npm run dev
-```
+> Perintah ini menjalankan backend (port 3001) dan frontend (port 5173) secara bersamaan.
+> Alternatif: jalankan terpisah dengan `node server/index.js` (backend) dan `npm run dev` (frontend).
 
-7. **Buka aplikasi di browser**
+6. **Buka aplikasi di browser**
 ```
 Frontend: http://localhost:5173
 Backend API: http://localhost:3001
 ```
+
+## 🛠️ Development Commands
+
+| Task | Command | Deskripsi |
+|------|---------|-----------|
+| Start Dev | `npm run dev:full` | Jalankan Backend (3001) + Frontend (5173) sekaligus |
+| Backend Only | `npm run start:modern` | Jalankan server Node.js saja |
+| Frontend Only | `npm run dev` | Jalankan Vite dev server saja |
+| Build | `npm run build` | Build frontend untuk production |
+| Lint | `npm run lint` | Jalankan ESLint |
+| Test | `npm test` | Jalankan semua test |
+
 
 ## 🔐 Environment Variables
 
@@ -151,8 +160,22 @@ HCAPTCHA_SECRET=your-hcaptcha-secret-key
 
 ## 🧪 Testing
 
+Project ini memiliki **193 test** yang mencakup unit test dan integrasi, dijalankan dengan dua framework:
+
+| Layer | Framework | Lokasi |
+|-------|-----------|--------|
+| Frontend | **Vitest** + jsdom | `src/**/__tests__/` |
+| Backend | **Node.js native test runner** | `server/__tests__/` |
+
 ```bash
+# Jalankan semua test
 npm test
+
+# Frontend saja
+npx vitest run
+
+# Backend saja
+node --test server/__tests__/**/*.test.js
 ```
 
 ## 🏗️ Struktur Project
@@ -291,22 +314,48 @@ absenta-13-v3/
 
 ## 🚀 Deployment Guide
 
-### Development Environment
+### Docker (Direkomendasikan untuk Production)
+
+Project ini menggunakan Docker sebagai infrastruktur production utama.
+
 ```bash
-# 1. Start Redis
-redis-server
+# Build semua container
+docker-compose build
 
-# 2. Start MySQL
-# Import absenta13.sql
+# Jalankan semua service
+docker-compose up -d
 
-# 3. Start Backend
-node server/index.js
+# Lihat log backend
+docker-compose logs -f app
 
-# 4. Start Frontend
-npm run dev
+# Restart backend
+docker-compose restart app
 ```
 
-### Production Environment
+**Arsitektur container:**
+
+```
+absenta13-nginx   (port 28080) --> Frontend + Proxy
+absenta13-app     (port 28081) --> Node.js Backend
+absenta13-mysql   (internal)   --> MySQL Database
+absenta13-redis   (internal)   --> Redis Cache
+```
+
+### Development (Lokal tanpa Docker)
+
+```bash
+# 1. Pastikan MySQL dan Redis sudah berjalan
+
+# 2. Jalankan backend + frontend sekaligus
+npm run dev:full
+
+# Atau pisah:
+node server/index.js  # backend saja
+npm run dev           # frontend saja
+```
+
+### Alternatif: Manual Deployment dengan PM2
+
 ```bash
 # 1. Install PM2
 npm install -g pm2
@@ -314,7 +363,7 @@ npm install -g pm2
 # 2. Start Redis
 redis-server --daemonize yes
 
-# 3. Start Backend with PM2
+# 3. Start Backend dengan PM2
 pm2 start server/index.js --name "absenta-backend"
 
 # 4. Build Frontend
@@ -345,6 +394,22 @@ pm2 serve dist 3000 --name "absenta-frontend"
 - **IP Blocking**: Suspicious activity blocking
 
 ## 🛠️ Troubleshooting
+
+### Docker Issues
+
+```bash
+# Cek status semua container
+docker-compose ps
+
+# Lihat log backend (live)
+docker-compose logs -f app
+
+# Restart backend
+docker-compose restart app
+
+# Rebuild dan restart jika ada perubahan kode
+docker-compose up -d --build app
+```
 
 ### Common Issues
 
