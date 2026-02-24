@@ -7,13 +7,14 @@ import path from 'node:path';
 import db from '../config/db.js';
 import { sendErrorResponse, sendDatabaseError, sendValidationError, sendNotFoundError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { promises as fs } from 'node:fs';
-import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { getLetterhead, getAllLetterheads, setLetterheadGlobal, setLetterheadForReport, deleteLetterhead, validateLetterhead, REPORT_KEYS } from '../utils/letterheadService.js';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('Letterhead');
 
 const UPLOAD_URL_PREFIX = '/uploads/letterheads/';
 const UPLOAD_FS_PATH = path.join('public', 'uploads', 'letterheads');
+const UPLOAD_FS_ABSOLUTE_PATH = path.resolve(UPLOAD_FS_PATH);
 const DEFAULT_LOGO_LEFT = '/logo-kiri.png';
 const DEFAULT_LOGO_RIGHT = '/logo-kanan.png';
 const DEFAULT_LETTERHEAD_LINES = [
@@ -258,17 +259,21 @@ export const deleteFile = async (req, res) => {
             return sendValidationError(res, 'URL file tidak valid', { field: 'fileUrl' });
         }
 
-        // Sanitize: Extract only the filename to prevent path traversal attacks
-        const filename = path.basename(fileUrl);
+        const requestedPath = fileUrl.slice(UPLOAD_URL_PREFIX.length);
+        const filename = path.basename(requestedPath);
         
-        // Validate filename doesn't contain dangerous patterns
-        if (!filename || filename.includes('..') || filename.startsWith('.')) {
+        if (!filename || filename !== requestedPath || filename.includes('..') || filename.startsWith('.')) {
             log.validationFail('fileUrl', fileUrl, 'Invalid filename');
             return sendValidationError(res, 'Nama file tidak valid', { field: 'fileUrl' });
         }
         
-        // Construct safe path using sanitized filename
-        const filePath = path.join(UPLOAD_FS_PATH, filename);
+        const filePath = path.resolve(UPLOAD_FS_ABSOLUTE_PATH, filename);
+        const allowedBoundary = `${UPLOAD_FS_ABSOLUTE_PATH}${path.sep}`;
+
+        if (!(filePath === UPLOAD_FS_ABSOLUTE_PATH || filePath.startsWith(allowedBoundary))) {
+            log.validationFail('fileUrl', fileUrl, 'Path traversal detected');
+            return sendValidationError(res, 'Path file tidak valid', { field: 'fileUrl' });
+        }
 
         try {
             await fs.unlink(filePath);

@@ -7,6 +7,7 @@ import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import db from '../config/db.js';
 
 const SALT_ROUNDS = Number.parseInt(process.env.SALT_ROUNDS) || 10;
+const DEFAULT_STUDENT_PASSWORD = process.env.DEFAULT_STUDENT_PASSWORD || 'password123';
 
 // Custom Error Classes for Service Layer
 export class ServiceError extends Error {
@@ -112,7 +113,7 @@ export const createStudent = async (data) => {
         const username = `siswa_${nis}`;
         const email = `${nis}@student.absenta.com`;
         const createdAtWIB = getMySQLDateTimeWIB();
-        const dummyPassword = await bcrypt.hash('Siswa123!', SALT_ROUNDS);
+        const dummyPassword = await bcrypt.hash(DEFAULT_STUDENT_PASSWORD, SALT_ROUNDS);
 
         const [userResult] = await connection.execute(
             'INSERT INTO users (username, password, email, role, nama, status, created_at) VALUES (?, ?, ?, "siswa", ?, "ditangguhkan", ?)',

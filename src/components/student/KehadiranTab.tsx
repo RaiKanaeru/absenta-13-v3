@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { GuruAttendanceCard } from './GuruAttendanceCard';
 import { GuruInSchedule } from '@/types/dashboard';
-import type { JadwalHariIni, KehadiranData } from './types';
+import type { JadwalHariIni, KehadiranData } from '@/types/student';
 
 // =============================================================================
 // PROPS

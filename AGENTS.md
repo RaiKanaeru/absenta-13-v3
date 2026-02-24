@@ -103,13 +103,11 @@ For local development without Docker:
 - **Act Mode:** Execute the approved plan. Run tests after significant changes.
 
 ## 7. Directory Structure & Documentation
-- `src/` - Frontend source.
-- `server/` - Backend source.
+- `src/` - Frontend source (components, pages, contexts, hooks).
+- `server/` - Backend source (routes, controllers, services, middleware, utils, config).
+- `server/services/export/` - Excel/PDF export builders and schemas.
+- `database/` - SQL schema, migrations, seeds, reference data.
 - `docs/` - Documentation.
-  - `SYSTEM-ARCHITECTURE.md` - **[WAJIB BACA]** Detail arsitektur v3, keamanan, dan standar sistem.
-  - `OPENCODE-GUIDE.md` - Panduan integrasi AI agent.
-  - `CORS-TROUBLESHOOTING.md` - Troubleshooting CORS.
-- `scripts/` - Utility scripts.
 
 ## 8. Troubleshooting Guides
 

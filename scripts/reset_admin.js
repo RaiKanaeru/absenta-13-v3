@@ -15,20 +15,20 @@ const config = {
 let conn;
 try {
     conn = await mysql.createConnection(config);
-    const pass = 'admin123';
+    const pass = process.env.DEFAULT_ADMIN_PASSWORD || 'password123';
     const hash = await bcrypt.hash(pass, 10);
     
     // Check if admin exists
     const [rows] = await conn.execute('SELECT * FROM users WHERE username = "admin"');
     if (rows.length > 0) {
         await conn.execute('UPDATE users SET password = ? WHERE username = "admin"', [hash]);
-        console.log('Updated admin password to', pass);
+        console.log('Updated admin password for admin user');
     } else {
         await conn.execute(
             'INSERT INTO users (username, password, role, nama, email, status) VALUES (?, ?, ?, ?, ?, ?)',
             ['admin', hash, 'admin', 'Admin', 'admin@example.com', 'aktif']
         );
-        console.log('Created admin user with password', pass);
+        console.log('Created admin user with configured default password');
     }
     await conn.end();
 } catch (error) {

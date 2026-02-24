@@ -15,7 +15,7 @@ import { formatDateWIB, formatTime24 } from "@/lib/time-utils";
 import { getErrorMessage } from "@/lib/utils";
 import { MessageCircle, Filter, Eye, CheckCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getTeacherAttendanceBadgeClass as getAttendanceBadgeClass, getTeacherBandingStatusClass as getBandingStatusClass } from "@/utils/statusMaps";
-import { TeacherUserData, BandingAbsenTeacher } from "./types";
+import { TeacherUserData, BandingAbsenTeacher } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 
 interface BandingAbsenViewProps {

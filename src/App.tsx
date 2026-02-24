@@ -19,13 +19,13 @@ const RootRedirect = lazy(() => import("@/pages/RootRedirect"));
 
 // Lazy load dashboards
 const AdminDashboard = lazy(() =>
-  import("@/components/AdminDashboard").then((m) => ({ default: m.AdminDashboard }))
+  import("@/components/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard }))
 );
 const TeacherDashboard = lazy(() =>
-  import("@/components/TeacherDashboard").then((m) => ({ default: m.TeacherDashboard }))
+  import("@/components/teacher/TeacherDashboard").then((m) => ({ default: m.TeacherDashboard }))
 );
 const StudentDashboard = lazy(() =>
-  import("@/components/StudentDashboard").then((m) => ({ default: m.StudentDashboard }))
+  import("@/components/student/StudentDashboard").then((m) => ({ default: m.StudentDashboard }))
 );
 
 const queryClient = new QueryClient();

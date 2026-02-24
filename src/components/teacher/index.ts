@@ -3,7 +3,7 @@
  */
 
 // Types
-export * from './types';
+export * from '@/types/teacher';
 
 // Utilities
 export { apiCall } from './apiUtils';

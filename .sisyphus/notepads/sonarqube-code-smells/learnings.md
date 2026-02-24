@@ -1,0 +1,2 @@
+- 2026-02-19: Flattening `days -> jamSlots` into a memoized `daySlotEntries` list removes one nesting layer while preserving table order and rendering behavior.
+- 2026-02-19: Moving schedule cell rendering into a dedicated callback (`renderScheduleCell`) keeps DnD wiring intact as long as `cellId` format and `DroppableCell` boundaries are unchanged.

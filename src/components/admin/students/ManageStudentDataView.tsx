@@ -16,7 +16,7 @@ import type { Kelas, StudentData } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Edit, FileText, Plus, Search, Trash2, Users, XCircle, UserCircle, CreditCard, GraduationCap, Phone, MapPin, ShieldCheck } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 type SortField = "nis" | "nama" | "nama_kelas" | "jenis_kelamin" | "status";
 type SortDirection = "asc" | "desc";

@@ -1,0 +1,2 @@
+- 2026-02-19: Kept all drag-and-drop context boundaries unchanged (`DndContext`, `DroppableCell`, `DraggableItem`) and only refactored render orchestration.
+- 2026-02-19: Chose component-level extracted callbacks (`renderScheduleCell`, `renderClassRow`, `renderClassSection`) instead of splitting into new components to avoid prop churn and visual drift.

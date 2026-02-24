@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatDateWIB, formatDateOnly, formatTime24, toWIBTime } from "@/lib/time-utils";
 import { getErrorMessage } from "@/lib/utils";
 import { History, ChevronLeft, ChevronRight } from "lucide-react";
-import { TeacherUserData, HistoryData, FlatHistoryRow, AttendanceStatus } from "./types";
+import { TeacherUserData, HistoryData, FlatHistoryRow, AttendanceStatus } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 
 // Helper functions to extract nested ternaries

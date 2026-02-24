@@ -1,0 +1,1 @@
+- 2026-02-19: No unresolved issues from the `ScheduleGridTable.tsx` nesting-depth refactor.

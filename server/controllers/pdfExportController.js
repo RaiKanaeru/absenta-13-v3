@@ -8,9 +8,9 @@ import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
 import db from '../config/db.js';
 import { sendValidationError } from '../utils/errorHandler.js';
-import { buildPdf } from '../../backend/export/pdfBuilder.js';
-import { streamPdfResponse, generatePdfFilename, wrapPdfExport } from '../../backend/export/pdfHelpers.js';
-import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { buildPdf } from '../services/export/pdfBuilder.js';
+import { streamPdfResponse, generatePdfFilename, wrapPdfExport } from '../services/export/pdfHelpers.js';
+import { getLetterhead, REPORT_KEYS } from '../utils/letterheadService.js';
 import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 import {
     getSemesterEffectiveDays,
@@ -34,7 +34,7 @@ export const exportStudentSummaryPdf = wrapPdfExport(async (req, res) => {
     const { startDate, endDate, kelas_id } = req.query;
     const students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
 
-    const studentSummarySchema = await import('../../backend/export/schemas/student-summary.js');
+    const studentSummarySchema = await import('../services/export/schemas/student-summary.js');
     const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
     const reportData = students.map((row, index) => ({
@@ -80,7 +80,7 @@ export const exportTeacherSummaryPdf = wrapPdfExport(async (req, res) => {
     const { startDate, endDate } = req.query;
     const teachers = await ExportService.getTeacherSummary(startDate, endDate);
 
-    const teacherSummarySchema = await import('../../backend/export/schemas/teacher-summary.js');
+    const teacherSummarySchema = await import('../services/export/schemas/teacher-summary.js');
     const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
 
     const reportData = teachers.map((row, index) => ({
@@ -124,7 +124,7 @@ export const exportBandingAbsenPdf = wrapPdfExport(async (req, res) => {
     const { startDate, endDate, kelas_id, status } = req.query;
     const bandingData = await ExportService.getBandingAbsen(startDate, endDate, kelas_id, status);
 
-    const bandingAbsenSchema = await import('../../backend/export/schemas/banding-absen.js');
+    const bandingAbsenSchema = await import('../services/export/schemas/banding-absen.js');
     const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
 
     const reportData = bandingData.map((row, index) => ({
@@ -231,7 +231,7 @@ export const exportRekapKetidakhadiranSiswaPdf = wrapPdfExport(async (req, res) 
         };
     });
 
-    const rekapSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-siswa.js');
+    const rekapSchema = await import('../services/export/schemas/rekap-ketidakhadiran-siswa.js');
     const semesterLabel = semester === 'gasal' ? 'Gasal' : 'Genap';
 
     const buffer = await buildPdf({
@@ -406,7 +406,7 @@ export const exportPresensiSiswaPdf = wrapPdfExport(async (req, res) => {
     // Calculate days in month
     const daysInMonth = new Date(Number.parseInt(tahun), Number.parseInt(bulan), 0).getDate();
 
-    const { generatePresensiColumns } = await import('../../backend/export/schemas/presensi-siswa-detail.js');
+    const { generatePresensiColumns } = await import('../services/export/schemas/presensi-siswa-detail.js');
     const columns = generatePresensiColumns(daysInMonth);
 
     const exportData = studentsRows.map((student, index) => {

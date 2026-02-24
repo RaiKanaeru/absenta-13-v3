@@ -15,7 +15,7 @@ import type { Kelas, Student } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Edit, Eye, EyeOff, FileText, Plus, Search, Trash2, Users, UserCircle, Lock, ShieldCheck, CreditCard, GraduationCap, Key, Badge as BadgeIcon } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 interface PaginationMeta {
   current_page: number;

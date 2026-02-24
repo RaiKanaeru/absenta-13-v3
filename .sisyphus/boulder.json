@@ -4,7 +4,8 @@
   "session_ids": [
     "ses_38abf5760ffewnKQ8P7uXEjLQm",
     "ses_38a0daddcffe4lgeQ6a3bhvFcK",
-    "ses_389a4ca01ffe42MwxyZ842fVRO"
+    "ses_389a4ca01ffe42MwxyZ842fVRO",
+    "ses_37c895ac3ffeCkq4pq2ArWg1Z2"
   ],
   "plan_name": "sonarqube-cleanup",
   "agent": "atlas"

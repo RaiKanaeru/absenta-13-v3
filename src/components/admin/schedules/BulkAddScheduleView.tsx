@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { TimeInput } from "@/components/ui/time-input";
+import { TimeInput } from "@/components/shared/time-input";
 import { apiCall } from '@/utils/apiClient';
 import { Teacher, Subject, Kelas, Room } from '@/types/dashboard';
 import { getErrorMessage } from '@/lib/utils';

@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { formatTime24, formatDateOnly, getCurrentDateWIB, formatDateWIB, getWIBTime } from "@/lib/time-utils";
 import { ArrowLeft, Users, Calendar, Edit, XCircle } from "lucide-react";
-import { Schedule, Student, AttendanceStatus, TeacherUserData } from "./types";
+import { Schedule, Student, AttendanceStatus, TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 import { getErrorMessage } from "@/utils/apiClient";
 

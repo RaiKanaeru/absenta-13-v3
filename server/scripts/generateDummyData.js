@@ -34,7 +34,8 @@ const config = {
 };
 
 const saltRounds = 10;
-const GLOBAL_PASSWORD = process.env.DUMMY_DATA_PASSWORD || 'password123';
+const DEFAULT_TEACHER_PASSWORD = process.env.DEFAULT_TEACHER_PASSWORD || 'password123';
+const DEFAULT_STUDENT_PASSWORD = process.env.DEFAULT_STUDENT_PASSWORD || 'password123';
 
 // ============================================
 // DATA CONSTANTS
@@ -254,7 +255,7 @@ async function createTeacher(connection, passwordHash, mapelIds) {
 async function generateTeachers(connection, mapelIds, count = 15) {
     console.log('Generating Teachers (guru)...');
     const teacherIds = [];
-    const passwordHash = await bcrypt.hash(GLOBAL_PASSWORD, saltRounds);
+    const passwordHash = await bcrypt.hash(DEFAULT_TEACHER_PASSWORD, saltRounds);
 
     for (let i = 0; i < count; i++) {
         const teacherId = await createTeacher(connection, passwordHash, mapelIds);
@@ -262,7 +263,7 @@ async function generateTeachers(connection, mapelIds, count = 15) {
     }
 
     console.log(`   Ensured ${count} teachers exist.`);
-    return { teacherIds, passwordHash };
+    return { teacherIds };
 }
 
 /**
@@ -487,10 +488,11 @@ try {
     const classIds = await generateClasses(connection);
 
     // Step 3: Generate Teachers
-    const { teacherIds, passwordHash } = await generateTeachers(connection, mapelIds);
+    const { teacherIds } = await generateTeachers(connection, mapelIds);
 
     // Step 4: Generate Students
-    await generateStudents(connection, classIds, passwordHash);
+    const studentPasswordHash = await bcrypt.hash(DEFAULT_STUDENT_PASSWORD, saltRounds);
+    await generateStudents(connection, classIds, studentPasswordHash);
 
     // Step 5: Generate Schedules
     await generateSchedules(connection, classIds, mapelIds, teacherIds);

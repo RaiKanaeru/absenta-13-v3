@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { MessageCircle } from 'lucide-react';
 import { getCurrentDateWIB } from '@/lib/time-utils';
 import { BandingList } from './StudentDashboardComponents';
-import type { BandingAbsen, FormBanding, StatusType, JadwalHariIni } from './types';
+import type { BandingAbsen, FormBanding, StatusType, JadwalHariIni } from '@/types/student';
 
 // =============================================================================
 // PROPS

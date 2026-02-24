@@ -65,7 +65,7 @@ Preflight (OPTIONS request) diperlukan jika:
         v
 [Node.js Backend @ port 3001]
         |
-        +-- Manual CORS Middleware (server_modern.js:155-203)
+        +-- Manual CORS Middleware (server/index.js)
         |
         +-- Route Handlers
         |
@@ -77,7 +77,7 @@ Preflight (OPTIONS request) diperlukan jika:
 
 | Komponen | File | Fungsi |
 |----------|------|--------|
-| **Node.js CORS Middleware** | `server_modern.js:155-203` | Handler UTAMA CORS |
+| **Node.js CORS Middleware** | `server/index.js` | Handler UTAMA CORS |
 | **Nginx** | `docker/nginx/default.conf` | Proxy & backup CORS |
 | **Allowed Origins Config** | `.env` → `ALLOWED_ORIGINS` | Daftar origin yang diizinkan |
 
@@ -328,7 +328,7 @@ location /api/ {
 
 **Opsi B: CORS di Nginx saja**
 
-Jika memilih opsi ini, HAPUS CORS middleware di `server_modern.js` dan gunakan:
+Jika memilih opsi ini, HAPUS CORS middleware di `server/index.js` dan gunakan:
 
 ```nginx
 location /api/ {
@@ -353,7 +353,7 @@ location /api/ {
 
 ### 5.3 Node.js CORS Middleware
 
-Lokasi: `server_modern.js` lines 155-203
+Lokasi: `server/index.js`
 
 ```javascript
 // CORS Middleware - Menangani semua CORS logic
@@ -513,7 +513,7 @@ ERROR CORS MUNCUL
 [2] Apakah ada Access-Control-Allow-Origin header?
     curl -v -H "Origin: https://absenta13.my.id" ...
        |
-       +-- TIDAK --> Cek CORS middleware (server_modern.js)
+       +-- TIDAK --> Cek CORS middleware (server/index.js)
        |             Cek nginx config (jika pakai nginx)
        |
        +-- YA

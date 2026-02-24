@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import ExcelPreview from '../ExcelPreview';
+import ExcelPreview from '../admin/ExcelPreview';
 
 // Mock useLetterhead
 vi.mock('../../hooks/useLetterhead', () => ({

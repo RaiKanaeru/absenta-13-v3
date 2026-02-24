@@ -444,63 +444,53 @@ async function fetchSiswaByNis(connection, nis) {
  * Helper: Build siswa update fields
  */
 function buildSiswaUpdateFields(data) {
-    const fields = [];
-    const values = [];
-    const fieldMap = {
-        nis: data.nis,
-        nama: data.nama,
-        kelas_id: data.kelas_id,
-        jabatan: data.jabatan,
-        telepon_orangtua: data.telepon_orangtua,
-        nomor_telepon_siswa: data.nomor_telepon_siswa,
-        jenis_kelamin: data.jenis_kelamin,
-        alamat: data.alamat,
-        status: data.status
+    const fields = {
+        nis: { flag: data.nis !== undefined ? 1 : 0, value: data.nis ?? null },
+        nama: { flag: data.nama !== undefined ? 1 : 0, value: data.nama ?? null },
+        kelas_id: { flag: data.kelas_id !== undefined ? 1 : 0, value: data.kelas_id ?? null },
+        jabatan: { flag: data.jabatan !== undefined ? 1 : 0, value: data.jabatan ?? null },
+        telepon_orangtua: { flag: data.telepon_orangtua !== undefined ? 1 : 0, value: data.telepon_orangtua ?? null },
+        nomor_telepon_siswa: { flag: data.nomor_telepon_siswa !== undefined ? 1 : 0, value: data.nomor_telepon_siswa ?? null },
+        jenis_kelamin: { flag: data.jenis_kelamin !== undefined ? 1 : 0, value: data.jenis_kelamin ?? null },
+        alamat: { flag: data.alamat !== undefined ? 1 : 0, value: data.alamat ?? null },
+        status: { flag: data.status !== undefined ? 1 : 0, value: data.status ?? null }
     };
 
-    for (const [key, value] of Object.entries(fieldMap)) {
-        if (value !== undefined) {
-            fields.push(`${key} = ?`);
-            values.push(value);
-        }
-    }
+    const hasChanges = Object.values(fields).some((field) => field.flag === 1);
 
-    return { fields, values };
+    return { hasChanges, fields };
 }
 
 /**
  * Helper: Build user update fields
  */
 async function buildSiswaUserUpdateFields(data, saltRounds) {
-    const fields = [];
-    const values = [];
-    let normalizedIsPerwakilan;
+    let hashedPassword = null;
+    let passwordFlag = 0;
+    let normalizedIsPerwakilan = null;
+
+    if (data.password !== undefined && data.password !== '') {
+        hashedPassword = await bcrypt.hash(data.password, saltRounds);
+        passwordFlag = 1;
+    }
+
     if (data.is_perwakilan !== undefined) {
         const isPerwakilan = Boolean(data.is_perwakilan);
         normalizedIsPerwakilan = isPerwakilan ? 1 : 0;
     }
-    const fieldMap = {
-        nama: data.nama,
-        username: data.username,
-        email: data.email,
-        status: data.status,
-        is_perwakilan: normalizedIsPerwakilan
+
+    const fields = {
+        nama: { flag: data.nama !== undefined ? 1 : 0, value: data.nama ?? null },
+        username: { flag: data.username !== undefined ? 1 : 0, value: data.username ?? null },
+        email: { flag: data.email !== undefined ? 1 : 0, value: data.email ?? null },
+        status: { flag: data.status !== undefined ? 1 : 0, value: data.status ?? null },
+        is_perwakilan: { flag: data.is_perwakilan !== undefined ? 1 : 0, value: normalizedIsPerwakilan },
+        password: { flag: passwordFlag, value: hashedPassword }
     };
 
-    for (const [key, value] of Object.entries(fieldMap)) {
-        if (value !== undefined) {
-            fields.push(`${key} = ?`);
-            values.push(value);
-        }
-    }
+    const hasChanges = Object.values(fields).some((field) => field.flag === 1);
 
-    if (data.password !== undefined && data.password !== '') {
-        const hashedPassword = await bcrypt.hash(data.password, saltRounds);
-        fields.push('password = ?');
-        values.push(hashedPassword);
-    }
-
-    return { fields, values };
+    return { hasChanges, fields };
 }
 
 /**
@@ -508,22 +498,62 @@ async function buildSiswaUserUpdateFields(data, saltRounds) {
  */
 async function applySiswaUpdates(connection, siswa, payload) {
     const siswaUpdate = buildSiswaUpdateFields(payload);
-    if (siswaUpdate.fields.length > 0) {
-        siswaUpdate.values.push(siswa.id);
-        await connection.execute(
-            `UPDATE siswa SET ${siswaUpdate.fields.join(', ')} WHERE id = ?`,
-            siswaUpdate.values
-        );
+    if (siswaUpdate.hasChanges) {
+        const siswaUpdateQuery =
+            'UPDATE siswa SET ' +
+            'nis = CASE WHEN ? = 1 THEN ? ELSE nis END, ' +
+            'nama = CASE WHEN ? = 1 THEN ? ELSE nama END, ' +
+            'kelas_id = CASE WHEN ? = 1 THEN ? ELSE kelas_id END, ' +
+            'jabatan = CASE WHEN ? = 1 THEN ? ELSE jabatan END, ' +
+            'telepon_orangtua = CASE WHEN ? = 1 THEN ? ELSE telepon_orangtua END, ' +
+            'nomor_telepon_siswa = CASE WHEN ? = 1 THEN ? ELSE nomor_telepon_siswa END, ' +
+            'jenis_kelamin = CASE WHEN ? = 1 THEN ? ELSE jenis_kelamin END, ' +
+            'alamat = CASE WHEN ? = 1 THEN ? ELSE alamat END, ' +
+            'status = CASE WHEN ? = 1 THEN ? ELSE status END, ' +
+            'updated_at = ? ' +
+            'WHERE id = ?';
+
+        const siswaParams = [
+            siswaUpdate.fields.nis.flag, siswaUpdate.fields.nis.value,
+            siswaUpdate.fields.nama.flag, siswaUpdate.fields.nama.value,
+            siswaUpdate.fields.kelas_id.flag, siswaUpdate.fields.kelas_id.value,
+            siswaUpdate.fields.jabatan.flag, siswaUpdate.fields.jabatan.value,
+            siswaUpdate.fields.telepon_orangtua.flag, siswaUpdate.fields.telepon_orangtua.value,
+            siswaUpdate.fields.nomor_telepon_siswa.flag, siswaUpdate.fields.nomor_telepon_siswa.value,
+            siswaUpdate.fields.jenis_kelamin.flag, siswaUpdate.fields.jenis_kelamin.value,
+            siswaUpdate.fields.alamat.flag, siswaUpdate.fields.alamat.value,
+            siswaUpdate.fields.status.flag, siswaUpdate.fields.status.value,
+            getMySQLDateTimeWIB(), siswa.id
+        ];
+
+        await connection.execute(siswaUpdateQuery, siswaParams);
     }
 
     if (siswa.user_id) {
         const userUpdate = await buildSiswaUserUpdateFields(payload, saltRounds);
-        if (userUpdate.fields.length > 0) {
-            userUpdate.values.push(siswa.user_id);
-            await connection.execute(
-                `UPDATE users SET ${userUpdate.fields.join(', ')} WHERE id = ?`,
-                userUpdate.values
-            );
+        if (userUpdate.hasChanges) {
+            const userUpdateQuery =
+                'UPDATE users SET ' +
+                'nama = CASE WHEN ? = 1 THEN ? ELSE nama END, ' +
+                'username = CASE WHEN ? = 1 THEN ? ELSE username END, ' +
+                'email = CASE WHEN ? = 1 THEN ? ELSE email END, ' +
+                'status = CASE WHEN ? = 1 THEN ? ELSE status END, ' +
+                'is_perwakilan = CASE WHEN ? = 1 THEN ? ELSE is_perwakilan END, ' +
+                'password = CASE WHEN ? = 1 THEN ? ELSE password END, ' +
+                'updated_at = ? ' +
+                'WHERE id = ?';
+
+            const userParams = [
+                userUpdate.fields.nama.flag, userUpdate.fields.nama.value,
+                userUpdate.fields.username.flag, userUpdate.fields.username.value,
+                userUpdate.fields.email.flag, userUpdate.fields.email.value,
+                userUpdate.fields.status.flag, userUpdate.fields.status.value,
+                userUpdate.fields.is_perwakilan.flag, userUpdate.fields.is_perwakilan.value,
+                userUpdate.fields.password.flag, userUpdate.fields.password.value,
+                getMySQLDateTimeWIB(), siswa.user_id
+            ];
+
+            await connection.execute(userUpdateQuery, userParams);
         }
 
         if (payload.username !== undefined) {

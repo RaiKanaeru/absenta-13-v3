@@ -64,3 +64,30 @@ public/uploads/*
 # Patches
 *.patch
 *.diff
+
+# Fix/utility scripts (one-off)
+fix_*.js
+fix_*.cjs
+
+# Temp data files
+*.xlsx
+nul
+custom-schedules.json
+backup-settings.json
+.wakatime-heartbeat.txt
+
+# Backup/old config files
+opencode.json.*
+
+# Debug artifacts
+git_status_*.txt
+debug_logs/
+
+# Python cache (not a Python project)
+.ruff_cache/
+
+# Storybook (removed)
+.storybook/
+
+# Seeders SQL (allow tracking)
+!database/seeders/*.sql

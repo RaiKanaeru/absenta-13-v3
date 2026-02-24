@@ -18,7 +18,7 @@ import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { formatDateWIB, getMonthRangeWIB } from "@/lib/time-utils";
 import { MessageCircle, Search } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
-import { TeacherUserData } from "./types";
+import { TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 import { getTeacherAttendanceBadgeClass as getAttendanceBadgeClass } from "@/utils/statusMaps";
 

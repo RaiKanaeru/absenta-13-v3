@@ -3,8 +3,8 @@
  * Ensures consistency across all report exports
  */
 
-import { getLetterhead } from '../../backend/utils/letterheadService.js';
-import { buildExcel } from '../../backend/export/excelBuilder.js';
+import { getLetterhead } from './letterheadService.js';
+import { buildExcel } from '../services/export/excelBuilder.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('ExportHelpers');

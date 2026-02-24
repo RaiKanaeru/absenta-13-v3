@@ -816,25 +816,78 @@ const deleteBackupBatch = async (req, res) => {
  * @returns {Promise<{filePath: string|null, filename: string|null}>}
  */
 const resolveBackupFilePath = async (backupDir, backupId) => {
-    // Validate ID first
-    if (!validateBackupId(backupId)) return { filePath: null, filename: null };
+    // Normalize and validate ID first
+    if (!backupId || typeof backupId !== 'string') {
+        return { filePath: null, filename: null };
+    }
+
+    const safeBackupId = path.basename(backupId);
+    if (safeBackupId !== backupId || !validateBackupId(safeBackupId)) {
+        logger.warn('Blocked invalid backup ID for path resolution', { backupId });
+        return { filePath: null, filename: null };
+    }
+
+    const resolvedBackupDir = path.resolve(backupDir);
+    const backupDirBoundary = resolvedBackupDir.endsWith(path.sep)
+        ? resolvedBackupDir
+        : `${resolvedBackupDir}${path.sep}`;
+
+    const isWithinBackupDir = (targetPath) => {
+        const resolvedTargetPath = path.resolve(targetPath);
+        return (
+            resolvedTargetPath === resolvedBackupDir ||
+            resolvedTargetPath.startsWith(backupDirBoundary)
+        );
+    };
 
     // 1. Check directory
-    const backupSubDir = path.join(backupDir, backupId);
+    const backupSubDir = path.resolve(resolvedBackupDir, safeBackupId);
+    if (!isWithinBackupDir(backupSubDir)) {
+        logger.warn('Blocked backup path traversal attempt', { backupId: safeBackupId, backupSubDir });
+        return { filePath: null, filename: null };
+    }
+
     try {
         const stats = await fs.stat(backupSubDir);
         if (stats.isDirectory()) {
             const files = await fs.readdir(backupSubDir);
             
             // Priority: compressed > sql > other
-            const compressed = files.find(f => /\.(zip|tar\.gz|gz)$/i.test(f));
-            if (compressed) return { filePath: path.join(backupSubDir, compressed), filename: compressed };
+            const compressed = files.find(f => {
+                const safeName = path.basename(f);
+                return safeName === f && /\.(zip|tar\.gz|gz)$/i.test(safeName);
+            });
+            if (compressed) {
+                const safeCompressed = path.basename(compressed);
+                const compressedPath = path.resolve(backupSubDir, safeCompressed);
+                if (isWithinBackupDir(compressedPath)) {
+                    return { filePath: compressedPath, filename: safeCompressed };
+                }
+            }
             
-            const sql = files.find(f => /\.sql$/i.test(f));
-            if (sql) return { filePath: path.join(backupSubDir, sql), filename: sql };
+            const sql = files.find(f => {
+                const safeName = path.basename(f);
+                return safeName === f && /\.sql$/i.test(safeName);
+            });
+            if (sql) {
+                const safeSql = path.basename(sql);
+                const sqlPath = path.resolve(backupSubDir, safeSql);
+                if (isWithinBackupDir(sqlPath)) {
+                    return { filePath: sqlPath, filename: safeSql };
+                }
+            }
             
-            const other = files.find(f => !/\.(json|txt|log)$/i.test(f));
-            if (other) return { filePath: path.join(backupSubDir, other), filename: other };
+            const other = files.find(f => {
+                const safeName = path.basename(f);
+                return safeName === f && !/\.(json|txt|log)$/i.test(safeName);
+            });
+            if (other) {
+                const safeOther = path.basename(other);
+                const otherPath = path.resolve(backupSubDir, safeOther);
+                if (isWithinBackupDir(otherPath)) {
+                    return { filePath: otherPath, filename: safeOther };
+                }
+            }
         }
     } catch (dirError) {
         // Directory not found or inaccessible - expected, continue to file check
@@ -842,11 +895,27 @@ const resolveBackupFilePath = async (backupDir, backupId) => {
     }
 
     // 2. Check direct files
-    const candidates = [`${backupId}.zip`, backupId, `${backupId}.sql`, `${backupId}.tar.gz`];
+    const candidates = [
+        `${safeBackupId}.zip`,
+        safeBackupId,
+        `${safeBackupId}.sql`,
+        `${safeBackupId}.tar.gz`
+    ];
     for (const c of candidates) {
-        const p = path.join(backupDir, c);
+        const safeCandidate = path.basename(c);
+        if (safeCandidate !== c) {
+            logger.warn('Blocked unsafe backup file candidate', { backupId: safeBackupId, candidate: c });
+            continue;
+        }
+
+        const p = path.resolve(resolvedBackupDir, safeCandidate);
+        if (!isWithinBackupDir(p)) {
+            logger.warn('Blocked backup file candidate outside backup directory', { backupId: safeBackupId, candidate: safeCandidate, path: p });
+            continue;
+        }
+
         try {
-            if ((await fs.stat(p)).isFile()) return { filePath: p, filename: c };
+            if ((await fs.stat(p)).isFile()) return { filePath: p, filename: safeCandidate };
         } catch (statError) {
              logger.debug('File candidate check failed', { path: p, error: statError.message });
         }
@@ -862,22 +931,20 @@ const resolveBackupFilePath = async (backupDir, backupId) => {
 const downloadBackup = async (req, res) => {
     try {
         const { backupId } = req.params;
-        const backupDir = path.join(process.cwd(), 'backups');
+        const backupDir = BACKUP_DIR;
 
-        // Sanitize backupId to prevent path traversal attacks
-        const sanitizedBackupId = path.basename(backupId);
-        if (sanitizedBackupId !== backupId || !backupId || backupId.includes('..')) {
+        if (!validateBackupId(backupId)) {
             logger.warn('Invalid backup ID detected', { backupId });
             return sendValidationError(res, 'Backup ID mengandung karakter tidak valid');
         }
 
-        logger.info('Downloading backup', { backupId: sanitizedBackupId });
+        logger.info('Downloading backup', { backupId });
 
-        const { filePath, filename } = await resolveBackupFilePath(backupDir, sanitizedBackupId);
+        const { filePath, filename } = await resolveBackupFilePath(backupDir, backupId);
 
         if (!filePath) {
-            logger.error('No backup file found', { backupId: sanitizedBackupId });
-            return sendNotFoundError(res, `File backup tidak ditemukan: ${sanitizedBackupId}`);
+            logger.error('No backup file found', { backupId });
+            return sendNotFoundError(res, `File backup tidak ditemukan: ${backupId}`);
         }
 
         // Set proper headers for file download

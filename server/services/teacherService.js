@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import db from '../config/db.js';
 
 const SALT_ROUNDS = Number.parseInt(process.env.SALT_ROUNDS) || 10;
+const DEFAULT_TEACHER_PASSWORD = process.env.DEFAULT_TEACHER_PASSWORD || 'password123';
 
 // Custom Error Classes for Service Layer
 export class ServiceError extends Error {
@@ -92,7 +93,7 @@ export const createTeacher = async (data) => {
         try {
             // Create dummy user
             const dummyUsername = `guru_${nip}_${Date.now()}`;
-            const dummyPassword = await bcrypt.hash('dummy123', SALT_ROUNDS);
+            const dummyPassword = await bcrypt.hash(DEFAULT_TEACHER_PASSWORD, SALT_ROUNDS);
 
             const [userResult] = await connection.execute(
                 'INSERT INTO users (username, password, role, nama, status) VALUES (?, ?, ?, ?, ?)',

@@ -15,7 +15,7 @@ import type { Room } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Edit, FileText, Home, MapPin, Plus, Search, Trash2, Users, XCircle, Info, Settings } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 type SortField = "kode_ruang" | "nama_ruang" | "lokasi" | "kapasitas" | "status";
 type SortDirection = "asc" | "desc";

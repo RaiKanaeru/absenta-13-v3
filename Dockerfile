@@ -51,13 +51,8 @@ RUN npm prune --omit=dev && npm cache clean --force
 # Copy built frontend
 COPY --from=builder /app/dist ./dist
 
-# Copy server entry point
-COPY server_modern.js ./
+# Copy ecosystem config
 COPY ecosystem.config.cjs ./
-
-# Copy backend folder
-COPY backend ./backend
-
 # Copy server folder (includes routes, controllers, middleware, utils, services/system)
 COPY server ./server
 

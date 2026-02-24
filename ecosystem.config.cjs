@@ -1,7 +1,7 @@
 module.exports = {
     apps: [{
         name: 'absenta-backend',
-        script: './server_modern.js',
+        script: './server/index.js',
         instances: 1,
         exec_mode: 'cluster',
         env: {

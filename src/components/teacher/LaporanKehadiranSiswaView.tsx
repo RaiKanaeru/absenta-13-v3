@@ -13,9 +13,9 @@ import { toast } from "@/hooks/use-toast";
 import { formatDateOnly, formatDateWIB, getWIBTime, getMonthRangeWIB } from "@/lib/time-utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, AlertCircle, Filter, Search, FileText } from "lucide-react";
-import ExcelPreview from '../ExcelPreview';
+import ExcelPreview from '@/components/admin/ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
-import { TeacherUserData } from "./types";
+import { TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 import { downloadPdf, downloadExcelFromApi } from '@/utils/exportUtils';
 

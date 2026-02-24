@@ -14,7 +14,7 @@ import type { Kelas } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, Edit, FileText, Home, Plus, Search, Trash2, School } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 type SortField = "nama_kelas" | "tingkat";
 type SortDirection = "asc" | "desc";

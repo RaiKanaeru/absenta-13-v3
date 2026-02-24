@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { EditProfile } from '../EditProfile';
+import { EditProfile } from '../shared/EditProfile';
 
 // Mock apiCall
 vi.mock('@/utils/apiClient', () => ({

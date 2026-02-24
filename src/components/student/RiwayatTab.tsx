@@ -7,7 +7,7 @@ import { Calendar, Users, Eye, X, CheckCircle2 } from 'lucide-react';
 import { formatDateOnly } from '@/lib/time-utils';
 import { getAttendanceBadgeClass as getAttendanceStatusBadgeClass } from '@/utils/statusMaps';
 import { Pagination, StudentStatusBadge } from './StudentDashboardComponents';
-import type { RiwayatData, RiwayatJadwal } from './types';
+import type { RiwayatData, RiwayatJadwal } from '@/types/student';
 
 // =============================================================================
 // PROPS

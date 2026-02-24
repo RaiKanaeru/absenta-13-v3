@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TimeInput } from "@/components/ui/time-input";
+import { TimeInput } from "@/components/shared/time-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,7 @@ import {
   MapPin
 } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import('../../ExcelImportView'));
+const ExcelImportView = React.lazy(() => import('@/components/admin/ExcelImportView'));
 const PreviewJadwalView = React.lazy(() => import('./PreviewJadwalView').then(module => ({ default: module.PreviewJadwalView })));
 const ScheduleGridTable = React.lazy(() => import('./ScheduleGridTable').then(module => ({ default: module.ScheduleGridTable })));
 

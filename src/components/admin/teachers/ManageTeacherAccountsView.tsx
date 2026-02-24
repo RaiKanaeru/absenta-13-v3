@@ -12,11 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import type { Subject, Teacher } from "@/types/dashboard";
-import type { AccountStatusType, GenderType } from "../types/adminTypes";
+import type { AccountStatusType, GenderType } from "@/types/admin";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Edit, Eye, EyeOff, FileText, Plus, Search, Trash2, Users, XCircle, UserCircle, Mail, Phone, BookOpen, Lock, ShieldCheck, Building, Key } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 interface PaginationMeta {
   current_page: number;

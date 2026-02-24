@@ -14,16 +14,13 @@
     "build:production": "NODE_ENV=production vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server_modern.js",
-    "start:modern": "node server_modern.js",
-    "server": "node server_modern.js",
-    "setup-db": "node setup-database-modern.js",
+    "start": "node server/index.js",
+    "start:modern": "node server/index.js",
+    "server": "node server/index.js",
     "test:config": "node scripts/test-config.js",
     "test:server": "node --test server/**/__tests__/**/*.test.js",
     "test:cors": "bash scripts/test-cors.sh",
     "generate:secrets": "node scripts/generate-secrets.js",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
     "docs:reference": "npx typedoc",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
@@ -111,13 +108,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@storybook/addon-essentials": "^8.6.0",
-    "@storybook/addon-interactions": "^8.6.0",
-    "@storybook/addon-links": "^8.6.0",
-    "@storybook/blocks": "^8.6.0",
-    "@storybook/react": "^8.6.0",
-    "@storybook/react-vite": "^8.6.0",
-    "@storybook/test": "^8.6.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
@@ -135,7 +125,6 @@
     "jsdom": "^25.0.1",
     "postcss": "^8.5.6",
     "rimraf": "^6.0.1",
-    "storybook": "^8.6.0",
     "tailwindcss": "^3.4.17",
     "typedoc": "^0.28.16",
     "typedoc-plugin-markdown": "^4.9.0",
@@ -147,5 +136,13 @@
   "main": "eslint.config.js",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "overrides": {
+    "readdir-glob": "^2.0.0",
+    "archiver": "^7.0.1",
+    "exceljs": {
+      "unzipper": "^0.12.3",
+      "archiver": "^7.0.1"
+    }
+  }
 }

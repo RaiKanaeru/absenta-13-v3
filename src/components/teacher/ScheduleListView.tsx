@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar } from "lucide-react";
-import { Schedule, STATUS_COLORS } from "./types";
+import { Schedule, STATUS_COLORS } from "@/types/teacher";
 
 // Activity type mapping to display labels
 const ACTIVITY_TYPE_MAP: Record<string, string> = {

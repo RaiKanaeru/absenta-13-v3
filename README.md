@@ -77,7 +77,7 @@ npm install
 
 5. **Jalankan Backend Server (OPTIMIZED)**
 ```bash
-node server_modern.js
+node server/index.js
 ```
 
 6. **Jalankan Frontend**
@@ -159,21 +159,44 @@ npm test
 
 ```
 absenta-13-v3/
-├── src/                # Frontend React (components, pages, contexts, hooks)
-├── public/             # Static assets untuk Vite
-├── server/             # Backend Express (routes, controllers, services, middleware)
-├── backend/            # Utilitas pendukung backend (config, export, scripts, utils)
-├── migrations/         # Migrasi/seed database
-├── docs/               # Dokumentasi tambahan
-│   ├── SYSTEM-ARCHITECTURE.md # [BARU] Arsitektur teknis mendalam v3
-│   ├── OPENCODE-GUIDE.md      # Panduan penggunaan AI Agent
+├── src/                    # Frontend React (components, pages, contexts, hooks)
+│   ├── components/
+│   │   ├── admin/          # Admin dashboard, views, reports, settings
+│   │   ├── teacher/        # Teacher dashboard and views
+│   │   ├── student/        # Student dashboard and views
+│   │   ├── shared/         # Shared components (EditProfile, NotificationBell, etc.)
+│   │   ├── ui/             # Shadcn UI components (DO NOT modify)
+│   │   └── pages/          # Error pages (NotFound, Unauthorized, ServerError)
+│   ├── types/              # TypeScript type definitions
+│   ├── hooks/              # Custom React hooks
+│   ├── contexts/           # React contexts (Auth, FontSize, Theme)
+│   └── utils/              # Utility functions
+├── public/                 # Static assets untuk Vite
+├── server/                 # Backend Express
+│   ├── routes/             # Route definitions
+│   ├── controllers/        # Request handlers
+│   ├── services/           # Business logic
+│   │   └── export/         # Excel/PDF export builders + schemas
+│   ├── middleware/          # Express middleware
+│   ├── utils/              # Backend utilities
+│   ├── config/             # Database, export, template configs
+│   ├── scripts/            # Backend utility scripts
+│   └── index.js            # Server entry point
+├── database/               # Database files
+│   ├── absenta13.sql       # Main schema dump
+│   ├── migrations/         # SQL migrations (001-008)
+│   ├── seeders/            # Seed data scripts
+│   └── reference-data/     # CSV reference data files
+├── docs/                   # Dokumentasi tambahan
+│   ├── SYSTEM-ARCHITECTURE.md
+│   ├── OPENCODE-GUIDE.md
 │   └── CORS-TROUBLESHOOTING.md
-├── scripts/            # Script deployment/otomasi
-├── redis/              # Konfigurasi dan resource Redis
-├── server_modern.js    # Entry server legacy/standalone
-├── absenta13.sql       # Dump skema database
-├── package.json        # Konfigurasi project dan dependency
-└── docker-compose.yml  # Orkestrasi container
+├── scripts/                # Script deployment/otomasi
+├── docker/                 # Docker configurations (nginx, etc.)
+├── redis/                  # Konfigurasi dan resource Redis
+├── package.json            # Konfigurasi project dan dependency
+├── docker-compose.yml      # Orkestrasi container
+└── ecosystem.config.cjs    # PM2 configuration
 ```
 
 📌 **Catatan**: Direktori runtime seperti `logs/` atau `exports/` dapat dibuat secara otomatis ketika server berjalan (mis. untuk menyimpan log atau hasil unduhan). Jika belum menjalankan aplikasi, folder ini mungkin belum muncul setelah clone.
@@ -277,7 +300,7 @@ redis-server
 # Import absenta13.sql
 
 # 3. Start Backend
-node server_modern.js
+node server/index.js
 
 # 4. Start Frontend
 npm run dev
@@ -292,7 +315,7 @@ npm install -g pm2
 redis-server --daemonize yes
 
 # 3. Start Backend with PM2
-pm2 start server_modern.js --name "absenta-backend"
+pm2 start server/index.js --name "absenta-backend"
 
 # 4. Build Frontend
 npm run build
@@ -358,7 +381,7 @@ curl http://localhost:3001/api/admin/system-metrics
 # Monitor logs for slow queries
 
 # Restart database optimization
-# Restart server_modern.js
+# Restart server (node server/index.js)
 ```
 
 ## 📋 Production Checklist

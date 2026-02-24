@@ -1,0 +1,5 @@
+
+- Always check for interface name collisions when importing UI components (e.g., `Alert` from UI vs `Alert` interface).
+- `useEffect` dependencies should be exhaustive; use `useCallback` for functions defined inside components.
+- Nested ternaries in JSX are hard to read; extracting logic to variables improves readability and maintainability.
+- Stable keys in lists are crucial for React performance and correctness, especially when list order might change.

@@ -15,9 +15,9 @@ import { ExportButton } from "@/components/shared/ExportButton";
 import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { formatDateOnly, getMonthRangeWIB } from "@/lib/time-utils";
 import { ArrowLeft, Filter, FileText, Search } from "lucide-react";
-import { TeacherUserData } from "./types";
+import { TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
-import ExcelPreview from '../ExcelPreview';
+import ExcelPreview from '@/components/admin/ExcelPreview';
 import { VIEW_TO_REPORT_KEY } from '../../utils/reportKeys';
 
 interface TeacherReportsViewProps {

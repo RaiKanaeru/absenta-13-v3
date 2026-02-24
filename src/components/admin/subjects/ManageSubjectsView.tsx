@@ -15,7 +15,7 @@ import type { Subject } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, BookOpen, CheckCircle2, Edit, FileText, Plus, Search, Trash2, XCircle, BookMarked, Tag, AlignLeft, ShieldCheck } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 type SortField = "kode_mapel" | "nama_mapel" | "deskripsi" | "status";
 type SortDirection = "asc" | "desc";

@@ -1,0 +1,10 @@
+=== Pre-Work Baseline ===
+Timestamp: 2026-02-19T17:57:51+07:00
+
+TypeScript Check (npx tsc --noEmit):
+
+Lint Check (npm run lint):
+
+> absenta-13@1.0.0 lint
+> eslint .
+

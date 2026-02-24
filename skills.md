@@ -15,7 +15,7 @@ Steps:
 2. Start Redis:
    - Windows repo binary: `redis\redis-server.exe` (if present), or use your system service.
 3. Terminal A: `npm run dev`
-4. Terminal B: `node server_modern.js`
+4. Terminal B: `node server/index.js`
 Done when:
 - Frontend on http://localhost:5173 and backend on http://localhost:3001 respond.
 

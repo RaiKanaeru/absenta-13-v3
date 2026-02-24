@@ -18,7 +18,7 @@ import { downloadExcelFromApi } from "@/utils/exportUtils";
 import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { FileText, Search, ArrowLeft, FileSpreadsheet, Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
-import { TeacherUserData } from "./types";
+import { TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 
 const PAGE_SIZE = 50;

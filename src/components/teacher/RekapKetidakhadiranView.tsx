@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { getMonthRangeWIB } from "@/lib/time-utils";
 import { ClipboardList, Search, ArrowLeft, Loader2, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TeacherUserData } from "./types";
+import { TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
 import { downloadExcelFromApi } from '@/utils/exportUtils';
 

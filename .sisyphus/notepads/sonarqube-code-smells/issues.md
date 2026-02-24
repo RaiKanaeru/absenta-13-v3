@@ -1,0 +1,2 @@
+- 2026-02-19: Refactor introduced hook-dependency lint errors because `handleCellClick` and `handleRowContextMenu` were non-memoized and used inside `useCallback` dependencies.
+- 2026-02-19: Fixed by wrapping both handlers with `useCallback` and stable dependency arrays.

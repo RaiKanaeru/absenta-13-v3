@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Calendar, RefreshCw, Clock, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateWIB, formatTime24 } from '@/lib/time-utils';
 import { getBandingStatusInteractiveClass as getBandingStatusClass, getBandingStatusLabel } from '@/utils/statusMaps';
-import type { BandingAbsen } from './types';
+import type { BandingAbsen } from '@/types/student';
 
 // Re-export so existing consumers don't break
-export type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan } from './types';
+export type { BandingAbsen, BandingStatusAsli, BandingStatusDiajukan } from '@/types/student';
 
 // Types extracted/adapted from parent
 export interface EmptyScheduleViewProps {

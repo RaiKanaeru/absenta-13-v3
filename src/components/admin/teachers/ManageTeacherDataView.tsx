@@ -16,7 +16,7 @@ import type { Subject, TeacherData } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Edit, FileText, GraduationCap, Plus, Search, Trash2, XCircle, UserCircle, Users, ShieldCheck, Mail, Phone, BookOpen, MapPin, Badge as BadgeIcon } from "lucide-react";
 
-const ExcelImportView = React.lazy(() => import("@/components/ExcelImportView"));
+const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
 type SortField = "nip" | "nama" | "email" | "mata_pelajaran" | "jenis_kelamin" | "status";
 type SortDirection = "asc" | "desc";

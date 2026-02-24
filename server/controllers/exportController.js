@@ -5,6 +5,8 @@
  */
 
 import ExcelJS from 'exceljs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendNotFoundError, sendPermissionError, sendServiceUnavailableError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
@@ -33,7 +35,7 @@ import {
 import { ABSENT_STATUSES } from '../config/attendanceConstants.js';
 
 
-import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { getLetterhead, REPORT_KEYS } from '../utils/letterheadService.js';
 import { addLetterheadToWorksheet, addReportTitle } from '../utils/excelLetterhead.js';
 import { formatWIBDate, formatTime } from '../utils/timeUtils.js';
 import { excelStyles, applyStyle, borders } from '../utils/excelStyles.js';
@@ -756,9 +758,9 @@ export const exportAbsensi = async (req, res) => {
         const rows = await ExportService.getAbsensiGuru(date_start, date_end);
 
         // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const absensiGuruSchema = await import('../../backend/export/schemas/absensi-guru.js');
+        const absensiGuruSchema = await import('../services/export/schemas/absensi-guru.js');
 
         // Load letterhead configuration
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.ABSENSI_GURU });
@@ -845,9 +847,9 @@ export const exportStudentSummary = async (req, res) => {
         const students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
 
         // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const studentSummarySchema = await import('../../backend/export/schemas/student-summary.js');
+        const studentSummarySchema = await import('../services/export/schemas/student-summary.js');
 
         // Load letterhead configuration
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
@@ -910,7 +912,7 @@ export const exportRiwayatBandingAbsen = async (req, res) => {
 
         const rows = await ExportService.getRiwayatBandingAbsen(startDate, endDate, guruId, kelas_id, status);
 
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
 
         const columns = [
@@ -978,7 +980,7 @@ export const exportPresensiSiswaSmkn13 = async (req, res) => {
             kelas_id
         );
 
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
 
         const columns = [
@@ -1061,7 +1063,7 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const [rows] = await db.execute(query, params);
 
         // Use buildExcel helper with letterhead
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         const reportKey = tipe === 'guru' ? REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU : REPORT_KEYS.REKAP_KETIDAKHADIRAN_SISWA;
         const letterhead = await getLetterhead({ reportKey });
 
@@ -1156,7 +1158,7 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         `, [startDate, endDate, kelas_id]);
 
         // Import helpers and load letterhead
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         const { calculateSafePercentage } = await import('../utils/exportHelpers.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
@@ -1224,9 +1226,9 @@ export const exportTeacherSummary = async (req, res) => {
         const teachers = await ExportService.getTeacherSummary(startDate, endDate);
 
         // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const teacherSummarySchema = await import('../../backend/export/schemas/teacher-summary.js');
+        const teacherSummarySchema = await import('../services/export/schemas/teacher-summary.js');
 
         // Load letterhead configuration
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.LAPORAN_GURU });
@@ -1276,9 +1278,9 @@ export const exportBandingAbsen = async (req, res) => {
         const bandingData = await ExportService.getBandingAbsen(startDate, endDate, kelas_id, status);
 
         // Import required modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const bandingAbsenSchema = await import('../../backend/export/schemas/banding-absen.js');
+        const bandingAbsenSchema = await import('../services/export/schemas/banding-absen.js');
 
         // Load letterhead configuration
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.BANDING_ABSEN });
@@ -1474,8 +1476,8 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
             };
         });
 
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
-        const rekapGuruSchema = await import('../../backend/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
+        const rekapGuruSchema = await import('../services/export/schemas/rekap-ketidakhadiran-guru-bulanan.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_GURU });
 
         const reportData = dataWithPercentage.map((row, index) => ({
@@ -1916,9 +1918,9 @@ export const exportPresensiSiswa = async (req, res) => {
         });
 
         // Import modules
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         // getLetterhead and REPORT_KEYS already imported at top of file (line 11)
-        const { generatePresensiColumns } = await import('../../backend/export/schemas/presensi-siswa-detail.js');
+        const { generatePresensiColumns } = await import('../services/export/schemas/presensi-siswa-detail.js');
 
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
         const columns = generatePresensiColumns(daysInMonth);
@@ -1950,7 +1952,7 @@ export const exportAdminAttendance = async (req, res) => {
     try {
         const rows = await ExportService.getAdminAttendance();
 
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
         const workbook = await buildExcel({
@@ -2620,20 +2622,21 @@ export const getDownloadStatus = async (req, res) => {
  */
 export const downloadFile = async (req, res) => {
     try {
-        const { filename } = req.params;
+        const { filename: requestedFilename } = req.params;
         const userId = req.user.id;
 
         if (!globalThis.downloadQueue) {
             return sendServiceUnavailableError(res, 'Download queue tidak tersedia');
         }
 
-        if (!isSafeFilename(filename)) {
+        if (!isSafeFilename(requestedFilename)) {
             return sendValidationError(res, 'Nama file tidak valid');
         }
-        
-        // Use path and fs imports (will need to be added to top of file)
-        const path = await import('node:path');
-        const fs = await import('node:fs/promises');
+
+        const filename = path.basename(requestedFilename);
+        if (filename !== requestedFilename || !isSafeFilename(filename)) {
+            return sendValidationError(res, 'Nama file tidak valid');
+        }
 
         // Verify user has access to this file
         const hasAccess = await globalThis.downloadQueue.verifyFileAccess(filename, userId);
@@ -2641,18 +2644,18 @@ export const downloadFile = async (req, res) => {
             return sendPermissionError(res, 'Akses ditolak');
         }
 
-        const baseDir = await fs.default.realpath(globalThis.downloadQueue.downloadDir);
-        const filePath = path.default.resolve(baseDir, filename);
-        const relativePath = path.default.relative(baseDir, filePath);
+        const baseDir = path.resolve(await fs.realpath(globalThis.downloadQueue.downloadDir));
+        const baseDirWithSep = baseDir.endsWith(path.sep) ? baseDir : `${baseDir}${path.sep}`;
+        const filePath = path.resolve(baseDir, filename);
 
-        if (relativePath.startsWith('..') || path.default.isAbsolute(relativePath)) {
+        if (!filePath.startsWith(baseDirWithSep)) {
             return sendValidationError(res, 'Nama file tidak valid');
         }
 
         // Check if file exists and prevent symlink access
         let fileStats;
         try {
-            fileStats = await fs.default.lstat(filePath);
+            fileStats = await fs.lstat(filePath);
         } catch (error) {
              logger.debug('File not found check', { filePath, error: error.message });
             return sendErrorResponse(res, new AppError(ERROR_CODES.FILE_NOT_FOUND, 'File tidak ditemukan'));
@@ -2662,9 +2665,8 @@ export const downloadFile = async (req, res) => {
             return sendValidationError(res, 'Nama file tidak valid');
         }
 
-        const realFilePath = await fs.default.realpath(filePath);
-        const relativeRealPath = path.default.relative(baseDir, realFilePath);
-        if (relativeRealPath.startsWith('..') || path.default.isAbsolute(relativeRealPath)) {
+        const realFilePath = await fs.realpath(filePath);
+        if (!realFilePath.startsWith(baseDirWithSep)) {
             return sendValidationError(res, 'Nama file tidak valid');
         }
 
@@ -2706,7 +2708,7 @@ export const exportLaporanKehadiranSiswa = async (req, res) => {
         const detailKehadiran = await getLaporanDetailKehadiran(isAdmin, guruId, kelas_id, startDate, endDate);
         const attendanceMap = buildAttendanceMap(detailKehadiran);
 
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
         const letterhead = await getLetterhead();
 
         const subtitle = buildLaporanSubtitle(isAdmin, kelasInfo, mapelInfo);
@@ -2786,7 +2788,7 @@ export const exportRekapJadwalGuru = async (req, res) => {
             }
         });
 
-        const { buildExcel } = await import('../../backend/export/excelBuilder.js');
+        const { buildExcel } = await import('../services/export/excelBuilder.js');
 
         const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
         const dayKeyByLabel = {

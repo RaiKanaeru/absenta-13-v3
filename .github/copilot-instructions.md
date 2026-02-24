@@ -13,7 +13,7 @@ Frontend (React+Vite:5173) ←→ Backend (Express:3001) ←→ MySQL:3306
 
 - **Frontend**: `src/` - React 18, TypeScript, TailwindCSS, shadcn/ui components
 - **Backend**: `server/` - Express routes/controllers/services/middleware
-- **Entry point**: `server_modern.js` - loads all routes, initializes systems (cache, queue, security)
+- **Entry point**: `server/index.js` - loads all routes, initializes systems (cache, queue, security)
 
 ## Critical Conventions
 
@@ -66,7 +66,7 @@ npm run start:pm2:prod    # Start with PM2
 ## Database
 - MySQL 8.0 with connection pooling
 - Schema in `database/absenta13.sql`
-- Migrations: `migrations/` and `database/migrations/`
+- Migrations: `database/migrations/`
 - Use parameterized queries (SQL injection protection built-in)
 
 ## Caching Strategy

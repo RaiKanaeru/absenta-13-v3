@@ -5,7 +5,7 @@
 
 import { getMySQLDateWIB, getWIBTime, HARI_INDONESIA } from '../utils/timeUtils.js';
 import { sendErrorResponse, sendDatabaseError, sendDeprecatedError, sendValidationError } from '../utils/errorHandler.js';
-import { getLetterhead, REPORT_KEYS } from '../../backend/utils/letterheadService.js';
+import { getLetterhead, REPORT_KEYS } from '../utils/letterheadService.js';
 import { REPORT_STATUS, REPORT_MESSAGES, CSV_HEADERS, HARI_EFEKTIF_MAP } from '../config/reportConfig.js';
 import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
@@ -807,8 +807,8 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
         };
 
         // Use Streaming Builder
-        const { streamExcel } = await import('../../backend/export/excelStreamingBuilder.js');
-        const studentSchemaModule = await import('../../backend/export/schemas/student-summary.js');
+        const { streamExcel } = await import('../services/export/excelStreamingBuilder.js');
+        const studentSchemaModule = await import('../services/export/schemas/student-summary.js');
         const studentSchema = studentSchemaModule.default;
         const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.KEHADIRAN_SISWA });
 
