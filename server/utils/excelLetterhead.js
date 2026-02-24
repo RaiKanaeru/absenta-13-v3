@@ -7,7 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { createLogger } from './logger.js';
-import { getLetterhead } from '../../backend/utils/letterheadService.js';
+import { getLetterhead } from './letterheadService.js';
 
 const logger = createLogger('ExcelLetterhead');
 const LOGO_TARGET_HEIGHT_PX = 88;
