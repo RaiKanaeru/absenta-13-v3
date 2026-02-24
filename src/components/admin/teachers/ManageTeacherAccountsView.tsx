@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,12 +10,39 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import type { Subject, Teacher } from "@/types/dashboard";
 import type { AccountStatusType, GenderType } from "@/types/admin";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Edit, Eye, EyeOff, FileText, Plus, Search, Trash2, Users, XCircle, UserCircle, Mail, Phone, BookOpen, Lock, ShieldCheck, Building, Key } from "lucide-react";
+import {
+  BookOpen,
+  Building,
+  CheckCircle2,
+  Edit,
+  Eye,
+  EyeOff,
+  FileText,
+  Key,
+  Lock,
+  Mail,
+  MoreHorizontal,
+  Phone,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  UserCircle,
+  Users,
+  XCircle,
+} from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
@@ -52,24 +80,6 @@ const INITIAL_FORM_DATA = {
   status: "aktif" as AccountStatusType,
 };
 
-const handleFormSubmitError = (error: unknown, toastFn: (options: { title?: string; description?: string; variant?: "default" | "destructive" }) => void) => {
-  const errorDetails = typeof error === "object" && error !== null && "details" in error ? (error as { details?: unknown }).details : undefined;
-  if (errorDetails) {
-    let errorMessage = "Validation failed";
-    if (Array.isArray(errorDetails)) {
-      errorMessage = errorDetails.join(", ");
-    } else if (typeof errorDetails === "object" && errorDetails !== null) {
-      errorMessage = JSON.stringify(errorDetails);
-    } else if (typeof errorDetails === "string" || typeof errorDetails === "number" || typeof errorDetails === "boolean") {
-      errorMessage = String(errorDetails);
-    }
-    toastFn({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
-  } else {
-    // We import getErrorMessage at the top
-    toastFn({ title: "Error", description: error instanceof Error ? error.message : "Gagal menyimpan data", variant: "destructive" });
-  }
-};
-
 export const ManageTeacherAccountsView = ({
   onLogout,
 }: {
@@ -82,6 +92,10 @@ export const ManageTeacherAccountsView = ({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Delete confirmation dialog state
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; nama: string } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   // Search & Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -91,6 +105,7 @@ export const ManageTeacherAccountsView = ({
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [activeItems, setActiveItems] = useState(0);
   const [inactiveItems, setInactiveItems] = useState(0);
 
@@ -131,8 +146,7 @@ export const ManageTeacherAccountsView = ({
       if (statusFilter !== "semua") {
         queryParams.append("status", statusFilter);
       }
-      
-      // We pass sort parameters but backend might ignore if not implemented
+
       queryParams.append("sort_by", sortField);
       queryParams.append("sort_dir", sortDirection);
 
@@ -144,11 +158,13 @@ export const ManageTeacherAccountsView = ({
       if (Array.isArray(response)) {
         setTeachers(response);
         setTotalItems(response.length);
+        setTotalPages(1);
         setActiveItems(response.filter(t => t.status === 'aktif').length);
         setInactiveItems(response.filter(t => t.status === 'nonaktif').length);
       } else {
         setTeachers(response.data || []);
         setTotalItems(response.pagination?.total || 0);
+        setTotalPages(response.pagination?.total_pages || 1);
         setActiveItems(response.stats?.aktif || 0);
         setInactiveItems(response.stats?.nonaktif || 0);
       }
@@ -187,58 +203,7 @@ export const ManageTeacherAccountsView = ({
     fetchSubjects();
   }, [fetchSubjects]);
 
-  // Client-side sorting as fallback since backend might not support it
-  const sortedTeachers = useMemo(() => {
-    return [...teachers].sort((a, b) => {
-      let valA: string | number = "";
-      let valB: string | number = "";
-
-      switch (sortField) {
-        case "nip":
-          valA = (a.nip || "").toLowerCase();
-          valB = (b.nip || "").toLowerCase();
-          break;
-        case "nama":
-          valA = (a.nama || "").toLowerCase();
-          valB = (b.nama || "").toLowerCase();
-          break;
-        case "username":
-          valA = (a.username || a.user_username || "").toLowerCase();
-          valB = (b.username || b.user_username || "").toLowerCase();
-          break;
-        case "email":
-          valA = (a.email || a.user_email || "").toLowerCase();
-          valB = (b.email || b.user_email || "").toLowerCase();
-          break;
-        case "status":
-          valA = a.status || "";
-          valB = b.status || "";
-          break;
-      }
-
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [teachers, sortField, sortDirection]);
-
   // --- Handlers ---
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40 inline-block" />;
-    return sortDirection === "asc"
-      ? <ArrowUp className="h-3 w-3 ml-1 inline-block" />
-      : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
-  };
-
   const openAddSheet = () => {
     setFormData(INITIAL_FORM_DATA);
     setEditingId(null);
@@ -390,13 +355,257 @@ export const ManageTeacherAccountsView = ({
     }
   };
 
+  const openDeleteDialog = (teacher: Teacher) => {
+    setDeleteTarget({ id: teacher.id, nama: teacher.nama });
+    setDeleteDialogOpen(true);
+  };
+
+  // --- DataTable column definitions ---
+  const columns = useMemo<ColumnDef<Teacher>[]>(() => [
+    {
+      id: "no",
+      header: () => <div className="text-xs font-medium">#</div>,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-xs">
+          {(currentPage - 1) * pageSize + row.index + 1}
+        </span>
+      ),
+      enableSorting: false,
+    },
+    {
+      accessorKey: "nip",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="NIP" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-mono text-xs max-w-[120px] truncate block" title={row.original.nip}>
+          {row.original.nip || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "nama",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Nama" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium text-xs max-w-[180px] truncate block" title={row.original.nama}>
+          {row.original.nama || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "username",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Username" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-xs">
+          {row.original.username || row.original.user_username || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Email" />
+      ),
+      cell: ({ row }) => {
+        const email = row.original.email || row.original.user_email;
+        return (
+          <span className="text-xs max-w-[150px] truncate block" title={email}>
+            {email || "-"}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => {
+        const teacher = row.original;
+        return (
+          <button
+            type="button"
+            onClick={() => handleToggleStatus(teacher)}
+            className="cursor-pointer"
+            title={`Klik untuk ${teacher.status === "aktif" ? "nonaktifkan" : "aktifkan"}`}
+          >
+            <Badge
+              variant={teacher.status === "aktif" ? "default" : "secondary"}
+              className={`text-xs transition-opacity hover:opacity-80 ${teacher.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
+            >
+              {teacher.status === "aktif" ? "Aktif" : "Non-aktif"}
+            </Badge>
+          </button>
+        );
+      },
+    },
+    {
+      id: "aksi",
+      header: () => <div className="text-xs font-medium text-right">Aksi</div>,
+      cell: ({ row }) => {
+        const teacher = row.original;
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                  <span className="sr-only">Buka menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36">
+                <DropdownMenuItem
+                  onClick={() => openEditSheet(teacher)}
+                  className="text-xs gap-2"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => openDeleteDialog(teacher)}
+                  className="text-xs gap-2 text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Hapus
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+      enableSorting: false,
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [currentPage, pageSize, sortField, sortDirection]);
+
+  // Map state to DataTable props
+  const tablePagination: PaginationState = {
+    pageIndex: currentPage - 1,
+    pageSize,
+  };
+
+  const tableSorting: SortingState = sortField
+    ? [{ id: sortField, desc: sortDirection === "desc" }]
+    : [];
+
+  const handlePaginationChange = (updater: PaginationState | ((prev: PaginationState) => PaginationState)) => {
+    const next = typeof updater === "function" ? updater(tablePagination) : updater;
+    setCurrentPage(next.pageIndex + 1);
+    setPageSize(next.pageSize);
+  };
+
+  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+    const next = typeof updater === "function" ? updater(tableSorting) : updater;
+    if (next.length > 0) {
+      setSortField(next[0].id as SortField);
+      setSortDirection(next[0].desc ? "desc" : "asc");
+    } else {
+      setSortField("nama");
+      setSortDirection("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  // Mobile row renderer
+  const renderMobileRow = (teacher: Teacher) => (
+    <div key={teacher.id} className="p-4">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-sm truncate">{teacher.nama || "-"}</h3>
+            <button
+              type="button"
+              onClick={() => handleToggleStatus(teacher)}
+              className="cursor-pointer shrink-0"
+            >
+              <Badge
+                variant={teacher.status === "aktif" ? "default" : "secondary"}
+                className={`text-[10px] py-0 transition-opacity hover:opacity-80 ${teacher.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
+              >
+                {teacher.status === "aktif" ? "Aktif" : "Non-aktif"}
+              </Badge>
+            </button>
+          </div>
+          <p className="text-xs font-mono text-muted-foreground mt-0.5">{teacher.nip || "-"}</p>
+        </div>
+        <div className="ml-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem
+                onClick={() => openEditSheet(teacher)}
+                className="text-xs gap-2"
+              >
+                <Edit className="h-3.5 w-3.5" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => openDeleteDialog(teacher)}
+                className="text-xs gap-2 text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Hapus
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+        <div>
+          <span className="text-muted-foreground">Username:</span>
+          <p className="truncate">@{teacher.username || teacher.user_username || "-"}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Email:</span>
+          <p className="truncate">{teacher.email || teacher.user_email || "-"}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Toolbar: status filter buttons
+  const toolbarContent = (
+    <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+      <Button
+        variant={statusFilter === "semua" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setStatusFilter("semua")}
+        className="text-xs h-9 px-3 whitespace-nowrap"
+      >
+        Semua
+      </Button>
+      <Button
+        variant={statusFilter === "aktif" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setStatusFilter("aktif")}
+        className="text-xs h-9 px-3 whitespace-nowrap"
+      >
+        Aktif
+      </Button>
+      <Button
+        variant={statusFilter === "nonaktif" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setStatusFilter("nonaktif")}
+        className="text-xs h-9 px-3 whitespace-nowrap"
+      >
+        Non-aktif
+      </Button>
+    </div>
+  );
+
   if (showImport) {
     return <ExcelImportView entityType="teacher-account" entityName="Akun Guru" onBack={() => { setShowImport(false); fetchTeachers(); }} />;
   }
-
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  
-  // Stats are now fetched accurately from the backend extra pagination param
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -462,310 +671,67 @@ export const ManageTeacherAccountsView = ({
         </div>
       )}
 
-      {/* Search + Filter */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Cari nama, username, atau NIP..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-              <Button
-                variant={statusFilter === "semua" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("semua")}
-                className="text-xs h-9 px-3 whitespace-nowrap"
-              >
-                Semua
-              </Button>
-              <Button
-                variant={statusFilter === "aktif" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("aktif")}
-                className="text-xs h-9 px-3 whitespace-nowrap"
-              >
-                Aktif
-              </Button>
-              <Button
-                variant={statusFilter === "nonaktif" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("nonaktif")}
-                className="text-xs h-9 px-3 whitespace-nowrap"
-              >
-                Non-aktif
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={teachers}
+        isLoading={isLoading}
+        manualPagination={true}
+        manualSorting={true}
+        pageCount={totalPages}
+        pagination={tablePagination}
+        onPaginationChange={handlePaginationChange}
+        sorting={tableSorting}
+        onSortingChange={handleSortingChange}
+        totalItems={totalItems}
+        globalFilter={searchTerm}
+        onGlobalFilterChange={setSearchTerm}
+        searchPlaceholder="Cari nama, username, atau NIP..."
+        toolbarContent={toolbarContent}
+        renderMobileRow={renderMobileRow}
+        emptyIcon={<Users className="w-12 h-12 text-muted-foreground/40" />}
+        emptyTitle="Belum Ada Data"
+        emptyDescription={
+          searchTerm || statusFilter !== "semua"
+            ? "Tidak ada guru yang cocok dengan filter"
+            : "Belum ada akun guru yang ditambahkan"
+        }
+        emptyAction={
+          !searchTerm && statusFilter === "semua" ? (
+            <Button onClick={openAddSheet} size="sm" className="text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Tambah Akun Pertama
+            </Button>
+          ) : undefined
+        }
+        pageSizeOptions={[15, 25, 50, 100]}
+      />
 
-      {/* Table / Data */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading && teachers.length === 0 && (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={crypto.randomUUID()} className="flex items-center gap-4">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24 hidden sm:block" />
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                  <Skeleton className="h-7 w-16 ml-auto" />
-                </div>
-              ))}
-            </div>
-          )}
-          {!isLoading && teachers.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-              <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
-              <p className="text-sm text-muted-foreground">
-                {searchTerm || statusFilter !== "semua"
-                  ? "Tidak ada guru yang cocok dengan filter"
-                  : "Belum ada akun guru yang ditambahkan"}
-              </p>
-              {!searchTerm && statusFilter === "semua" && (
-                <Button onClick={openAddSheet} size="sm" className="mt-4 text-xs">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Tambah Akun Pertama
-                </Button>
-              )}
-            </div>
-          )}
-          {!isLoading && teachers.length > 0 && (
-            <>
-              {/* Desktop Table - hidden on mobile */}
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12 text-xs">#</TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("nip")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          NIP {getSortIcon("nip")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("nama")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Nama {getSortIcon("nama")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("username")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Username {getSortIcon("username")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("email")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Email {getSortIcon("email")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("status")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Status {getSortIcon("status")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-right text-xs">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedTeachers.map((teacher, index) => (
-                      <TableRow key={teacher.id}>
-                        <TableCell className="text-muted-foreground text-xs">{(currentPage - 1) * pageSize + index + 1}</TableCell>
-                        <TableCell className="font-mono text-xs max-w-[120px] truncate" title={teacher.nip}>{teacher.nip || "-"}</TableCell>
-                        <TableCell className="font-medium text-xs max-w-[180px] truncate" title={teacher.nama}>{teacher.nama || "-"}</TableCell>
-                        <TableCell className="text-xs">{teacher.username || teacher.user_username || "-"}</TableCell>
-                        <TableCell className="text-xs max-w-[150px] truncate" title={teacher.email || teacher.user_email}>
-                          {teacher.email || teacher.user_email || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(teacher)}
-                            className="cursor-pointer"
-                            title={`Klik untuk ${teacher.status === "aktif" ? "nonaktifkan" : "aktifkan"}`}
-                          >
-                            <Badge
-                              variant={teacher.status === "aktif" ? "default" : "secondary"}
-                              className={`text-xs transition-opacity hover:opacity-80 ${teacher.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
-                            >
-                              {teacher.status === "aktif" ? "Aktif" : "Non-aktif"}
-                            </Badge>
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditSheet(teacher)}
-                              className="h-7 w-7 p-0"
-                              title="Edit akun guru"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Hapus akun guru">
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Apakah Anda yakin ingin menghapus akun guru <strong>{teacher.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(teacher.id, teacher.nama)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Hapus
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile & Tablet Card View */}
-              <div className="lg:hidden divide-y">
-                {sortedTeachers.map((teacher) => (
-                  <div key={teacher.id} className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-sm truncate">{teacher.nama || "-"}</h3>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(teacher)}
-                            className="cursor-pointer shrink-0"
-                          >
-                            <Badge
-                              variant={teacher.status === "aktif" ? "default" : "secondary"}
-                              className={`text-[10px] py-0 transition-opacity hover:opacity-80 ${teacher.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
-                            >
-                              {teacher.status === "aktif" ? "Aktif" : "Non-aktif"}
-                            </Badge>
-                          </button>
-                        </div>
-                        <p className="text-xs font-mono text-muted-foreground mt-0.5">{teacher.nip || "-"}</p>
-                      </div>
-                      <div className="flex items-center gap-1 ml-2 shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditSheet(teacher)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus akun guru <strong>{teacher.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(teacher.id, teacher.nama)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                      <div>
-                        <span className="text-muted-foreground">Username:</span>
-                        <p className="truncate">@{teacher.username || teacher.user_username || "-"}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Email:</span>
-                        <p className="truncate">{teacher.email || teacher.user_email || "-"}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination Footer */}
-              <div className="p-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/20">
-                <div className="text-xs text-muted-foreground">
-                  Menampilkan {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-                  {Math.min(currentPage * pageSize, totalItems)} dari {totalItems} akun guru
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 mr-2">
-                    <span className="text-xs text-muted-foreground hidden sm:inline">Limit:</span>
-                    <Select
-                      value={String(pageSize)}
-                      onValueChange={(value) => {
-                        setPageSize(Number(value));
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="h-7 w-[65px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="15">15</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="h-3 w-3" />
-                      </Button>
-                      <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                        {currentPage} / {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus akun guru <strong>{deleteTarget?.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) {
+                  handleDelete(deleteTarget.id, deleteTarget.nama);
+                  setDeleteTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -777,7 +743,7 @@ export const ManageTeacherAccountsView = ({
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
-            
+
             {/* Section 1: Data Pegawai */}
             <div className="space-y-4 rounded-md border p-4 bg-muted/10">
               <div className="flex items-center gap-2 mb-2">
@@ -839,7 +805,7 @@ export const ManageTeacherAccountsView = ({
             <div className="space-y-4 rounded-md border p-4 bg-muted/10">
               <div className="flex items-center gap-2 mb-2">
                 <Phone className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-sm">Kontak & Akademik</h3>
+                <h3 className="font-semibold text-sm">Kontak &amp; Akademik</h3>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 sm:col-span-1">
@@ -992,4 +958,5 @@ export const ManageTeacherAccountsView = ({
     </div>
   );
 };
+
 export default ManageTeacherAccountsView;

@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiCall, getErrorMessage } from '@/utils/apiClient';
 import { 
   RefreshCw, CheckCircle, Users, ArrowUpCircle, 
-  ArrowRight, Home, Eye
+  ArrowRight, Home, Eye, Loader2, GraduationCap
 } from "lucide-react";
 import { StudentData, Kelas } from '@/types/dashboard';
 
@@ -146,22 +146,24 @@ const findClassByLevel = (classes: Kelas[], targetLevel: string): Kelas | null =
 
 /** Get progress indicator line class based on selection state */
 const getProgressLineClass = (hasSelection: boolean): string => {
-  return hasSelection ? 'bg-blue-600' : 'bg-gray-200';
+  return hasSelection ? 'bg-blue-500' : 'bg-border';
 };
 
 /** Get progress indicator color class based on selection state */
 const getProgressColorClass = (hasSelection: boolean): string => {
-  return hasSelection ? 'text-blue-600' : 'text-gray-400';
+  return hasSelection ? 'text-blue-600' : 'text-muted-foreground';
 };
 
 /** Get progress indicator background class based on selection state */
 const getProgressBgClass = (hasSelection: boolean): string => {
-  return hasSelection ? 'bg-blue-600 text-white' : 'bg-gray-200';
+  return hasSelection ? 'bg-blue-600 text-white shadow-sm shadow-blue-200' : 'bg-muted text-muted-foreground';
 };
 
 /** Get student row class based on selection state */
 const getStudentRowClass = (isSelected: boolean): string => {
-  return isSelected ? 'bg-primary/10 border-primary/30' : 'bg-card border-border';
+  return isSelected
+    ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800'
+    : 'bg-card border-border hover:bg-accent/40';
 };
 
 export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => {
@@ -469,15 +471,24 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
   const fromClass = classes.find(c => c.id?.toString() === fromClassId);
   const toClass = classes.find(c => c.id?.toString() === toClassId);
 
+  // Stepper state helpers
+  const step1Done = !!fromClassId && !!toClassId;
+  const step2Done = selectedStudents.size > 0;
+
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+    <div className="space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Naik Kelas Siswa</h1>
-            <p className="text-sm sm:text-base text-gray-600">Kelola kenaikan kelas siswa secara massal</p>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+              <GraduationCap className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Naik Kelas Siswa</h1>
           </div>
+          <p className="text-sm text-muted-foreground pl-0.5">
+            Kelola kenaikan kelas siswa secara massal dengan deteksi otomatis
+          </p>
         </div>
         {fromClassId && (
           <Button 
@@ -489,32 +500,78 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
               setStudents([]);
               setSelectedStudents(new Set());
             }}
-            className="w-fit"
+            className="w-fit gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-3.5 w-3.5" />
             Reset
           </Button>
         )}
       </div>
 
-      {/* Progress Indicator */}
+      {/* Modern Stepper */}
       {fromClassId && (
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-2">
-              <div className="flex items-center gap-2 text-blue-600">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-blue-600 text-white">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+        <Card className="border shadow-sm overflow-hidden">
+          <CardContent className="p-0">
+            <div className="flex">
+              {/* Step 1 */}
+              <div className={`flex-1 flex flex-col sm:flex-row items-center gap-3 px-4 sm:px-6 py-4 transition-colors ${step1Done ? 'bg-emerald-50 dark:bg-emerald-950/20' : 'bg-blue-50 dark:bg-blue-950/20'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${step1Done ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200 dark:shadow-emerald-900' : 'bg-blue-600 text-white shadow-sm shadow-blue-200 dark:shadow-blue-900'}`}>
+                  {step1Done
+                    ? <CheckCircle className="w-4 h-4" />
+                    : <span className="text-xs font-bold">1</span>
+                  }
                 </div>
-                <span className="text-xs sm:text-sm font-medium">Pilih Kelas</span>
+                <div className="text-center sm:text-left">
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${step1Done ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    Langkah 1
+                  </p>
+                  <p className="text-sm font-medium text-foreground">Pilih Kelas</p>
+                </div>
               </div>
-               <div className={`w-8 h-0.5 sm:w-8 sm:h-0.5 ${getProgressLineClass(selectedStudents.size > 0)} hidden sm:block`}></div>
-               <div className={`w-0.5 h-8 sm:w-8 sm:h-0.5 ${getProgressLineClass(selectedStudents.size > 0)} block sm:hidden`}></div>
-               <div className={`flex items-center gap-2 ${getProgressColorClass(selectedStudents.size > 0)}`}>
-                 <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${getProgressBgClass(selectedStudents.size > 0)}`}>
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+
+              {/* Connector */}
+              <div className="flex items-center px-1 sm:px-0">
+                <div className={`w-8 h-0.5 sm:w-10 hidden sm:block transition-colors ${step1Done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-border'}`} />
+                <ArrowRight className={`w-4 h-4 block sm:hidden mx-1 transition-colors ${step1Done ? 'text-emerald-400' : 'text-border'}`} />
+              </div>
+
+              {/* Step 2 */}
+              <div className={`flex-1 flex flex-col sm:flex-row items-center gap-3 px-4 sm:px-6 py-4 transition-colors ${step2Done ? 'bg-emerald-50 dark:bg-emerald-950/20' : step1Done ? 'bg-card' : 'bg-muted/30'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${step2Done ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200 dark:shadow-emerald-900' : step1Done ? getProgressBgClass(false) + ' border border-border' : 'bg-muted text-muted-foreground'}`}>
+                  {step2Done
+                    ? <CheckCircle className="w-4 h-4" />
+                    : <Users className="w-4 h-4" />
+                  }
                 </div>
-                <span className="text-xs sm:text-sm font-medium">Pilih Siswa</span>
+                <div className="text-center sm:text-left">
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${step2Done ? 'text-emerald-600 dark:text-emerald-400' : getProgressColorClass(step1Done)}`}>
+                    Langkah 2
+                  </p>
+                  <p className={`text-sm font-medium ${step1Done ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    Pilih Siswa
+                  </p>
+                </div>
+              </div>
+
+              {/* Connector */}
+              <div className="flex items-center px-1 sm:px-0">
+                <div className={`w-8 h-0.5 sm:w-10 hidden sm:block transition-colors ${step2Done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-border'}`} />
+                <ArrowRight className={`w-4 h-4 block sm:hidden mx-1 transition-colors ${step2Done ? 'text-emerald-400' : 'text-border'}`} />
+              </div>
+
+              {/* Step 3 */}
+              <div className={`flex-1 flex flex-col sm:flex-row items-center gap-3 px-4 sm:px-6 py-4 transition-colors ${step2Done ? 'bg-card' : 'bg-muted/30'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${step2Done ? 'bg-muted border border-border text-muted-foreground' : 'bg-muted text-muted-foreground'}`}>
+                  <ArrowUpCircle className="w-4 h-4" />
+                </div>
+                <div className="text-center sm:text-left">
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${getProgressColorClass(step2Done)}`}>
+                    Langkah 3
+                  </p>
+                  <p className={`text-sm font-medium ${step2Done ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    Konfirmasi
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -522,20 +579,24 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
       )}
 
       {/* Class Selection - SMART AUTO-DETECT */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-            <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+      <Card className="border shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="pb-4 border-b">
+          <CardTitle className="flex items-center gap-2.5 text-base sm:text-lg">
+            <div className="p-1.5 rounded-md bg-blue-100 dark:bg-blue-900/40">
+              <ArrowUpCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            </div>
             Pilih Kelas Asal
           </CardTitle>
           <CardDescription className="text-sm">
             Sistem akan otomatis mendeteksi kelas tujuan berdasarkan tingkat dan jurusan
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="from-class" className="text-sm font-medium">Kelas Asal *</Label>
+        <CardContent className="pt-5">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="from-class" className="text-sm font-medium">
+                Kelas Asal <span className="text-red-500">*</span>
+              </Label>
               <Select value={fromClassId} onValueChange={setFromClassId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Pilih kelas asal (contoh: X IPA 1)" />
@@ -549,20 +610,28 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
                 </SelectContent>
               </Select>
             </div>
+
             {toClassId && (
-              <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-500/10 to-emerald-500/10 rounded-lg border-2 border-primary/20">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                  </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl border border-emerald-200 bg-gradient-to-r from-blue-50 to-emerald-50 dark:from-blue-950/30 dark:to-emerald-950/30 dark:border-emerald-800">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* From class chip */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">
-                      Kelas Tujuan Terdeteksi
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Kelas Asal</p>
+                    <p className="text-sm sm:text-base font-semibold text-blue-700 dark:text-blue-300 truncate">
+                      {fromClass?.nama_kelas}
                     </p>
-                    <p className="text-sm sm:text-lg font-bold text-foreground break-words">
-                      {fromClass?.nama_kelas} → <span className="text-emerald-600 dark:text-emerald-400">{toClass?.nama_kelas}</span>
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="w-8 h-8 rounded-full bg-white dark:bg-muted border flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+
+                  {/* To class chip */}
+                  <div className="flex-1 min-w-0 text-right">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Kelas Tujuan</p>
+                    <p className="text-sm sm:text-base font-semibold text-emerald-700 dark:text-emerald-300 truncate">
+                      {toClass?.nama_kelas}
                     </p>
                   </div>
                 </div>
@@ -572,15 +641,25 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
         </CardContent>
       </Card>
 
-      {/* Info Message */}
+      {/* Info Message - empty state */}
       {!fromClassId && (
-        <Card>
+        <Card className="border border-dashed shadow-none">
           <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <Home className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Sistem Promosi Otomatis</h3>
-              <p className="text-sm sm:text-base text-muted-foreground mb-2 px-2">Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan</p>
-              <p className="text-xs sm:text-sm text-muted-foreground/70 break-words">Contoh: X IPA 1 → XI IPA 1</p>
+            <div className="text-center py-10 px-4">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                <Home className="w-7 h-7 text-muted-foreground/60" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1.5">
+                Sistem Promosi Otomatis
+              </h3>
+              <p className="text-sm text-muted-foreground mb-2 max-w-xs mx-auto">
+                Pilih kelas asal, sistem akan otomatis mendeteksi kelas tujuan berdasarkan pola nama kelas
+              </p>
+              <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/70 bg-muted px-3 py-1.5 rounded-full">
+                <span className="font-medium text-blue-600">X IPA 1</span>
+                <ArrowRight className="w-3 h-3" />
+                <span className="font-medium text-emerald-600">XI IPA 1</span>
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -588,50 +667,72 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
 
       {/* No Students Message */}
       {fromClassId && students.length === 0 && !isLoading && (
-        <Card>
+        <Card className="border shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Tidak Ada Siswa</h3>
-              <p className="text-muted-foreground">Tidak ada siswa ditemukan di kelas yang dipilih</p>
+            <div className="text-center py-10 px-4">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                <Users className="w-7 h-7 text-muted-foreground/60" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1.5">
+                Tidak Ada Siswa
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                Tidak ada siswa ditemukan di kelas yang dipilih
+              </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Status Info */}
+      {/* Status Info Panel */}
       {fromClassId && (
-        <Card>
-          <CardContent className="pt-4">
-            <div className="text-sm text-muted-foreground">
-              <p><strong>Status:</strong></p>
-              <p>Kelas Asal: {fromClass?.nama_kelas || 'Tidak dipilih'}</p>
-              <p>Kelas Tujuan: {toClass?.nama_kelas || 'Belum terdeteksi'}</p>
-              <p>Siswa Tersedia: {students.length} siswa</p>
-              <p>Siswa Terpilih: {selectedStudents.size} siswa</p>
-              {process.env.NODE_ENV === 'development' && (
-                <div className="mt-2 p-2 bg-muted rounded text-xs">
-                  <p><strong>Debug Info:</strong></p>
-                  <p>fromClassId: {fromClassId}</p>
-                  <p>toClassId: {toClassId}</p>
-                  <p>isLoading: {isLoading.toString()}</p>
-                  <p>isProcessing: {isProcessing.toString()}</p>
-                </div>
-              )}
+        <Card className="border shadow-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Kelas Asal</p>
+                <p className="text-sm font-semibold text-foreground truncate">{fromClass?.nama_kelas || '—'}</p>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Kelas Tujuan</p>
+                <p className="text-sm font-semibold text-foreground truncate">{toClass?.nama_kelas || '—'}</p>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Siswa Tersedia</p>
+                <p className="text-sm font-semibold text-foreground">{students.length}</p>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Terpilih</p>
+                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{selectedStudents.size}</p>
+              </div>
             </div>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-3 p-2.5 bg-muted rounded-lg text-xs space-y-1 border border-dashed">
+                <p className="font-semibold text-muted-foreground">Debug Info</p>
+                <p className="text-muted-foreground">fromClassId: {fromClassId}</p>
+                <p className="text-muted-foreground">toClassId: {toClassId}</p>
+                <p className="text-muted-foreground">isLoading: {isLoading.toString()}</p>
+                <p className="text-muted-foreground">isProcessing: {isProcessing.toString()}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
       {/* Students List */}
       {students.length > 0 && (
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Daftar Siswa ({students.length} siswa)
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-4 border-b">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="space-y-0.5">
+                <CardTitle className="flex items-center gap-2.5 text-base sm:text-lg">
+                  <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40">
+                    <Users className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  Daftar Siswa
+                  <Badge variant="secondary" className="ml-1 font-medium">
+                    {students.length}
+                  </Badge>
                 </CardTitle>
                 <CardDescription className="text-sm">
                   Pilih siswa yang akan dinaikkan kelas
@@ -643,7 +744,7 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
                   size="sm"
                   onClick={handleSelectAll}
                   disabled={isLoading}
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-xs gap-1.5 transition-colors"
                 >
                   {selectedStudents.size === students.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
                 </Button>
@@ -653,40 +754,54 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
                     size="sm"
                     onClick={() => setShowPreview(true)}
                     disabled={!toClassId || !fromClassId || isProcessing}
-                    className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
+                    className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 w-full sm:w-auto text-xs gap-1.5 transition-colors"
                   >
+                    <Eye className="w-3.5 h-3.5" />
                     Preview ({selectedStudents.size} siswa)
                   </Button>
                 )}
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-7 w-7 animate-spin text-blue-500" />
               </div>
             ) : (
               <div className="space-y-2">
                 {students.map((student) => (
-                   <div
-                     key={student.id_siswa}
-                     className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-3 ${getStudentRowClass(selectedStudents.has(student.id_siswa))}`}
-                   >
+                  <div
+                    key={student.id_siswa}
+                    className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-xl gap-3 cursor-pointer transition-colors ${getStudentRowClass(selectedStudents.has(student.id_siswa))}`}
+                    onClick={() => handleSelectStudent(student.id_siswa)}
+                  >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <input
                         type="checkbox"
                         checked={selectedStudents.has(student.id_siswa)}
                         onChange={() => handleSelectStudent(student.id_siswa)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0 cursor-pointer"
                       />
+                      {/* Avatar */}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold transition-colors ${
+                        selectedStudents.has(student.id_siswa)
+                          ? 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-100'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {student.nama.charAt(0).toUpperCase()}
+                      </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-foreground truncate">{student.nama}</p>
-                        <p className="text-sm text-muted-foreground">NIS: {student.nis}</p>
+                        <p className="font-medium text-foreground text-sm truncate">{student.nama}</p>
+                        <p className="text-xs text-muted-foreground">NIS: {student.nis}</p>
                       </div>
                     </div>
                     <div className="flex justify-end sm:justify-start">
-                      <Badge variant={student.status === 'aktif' ? 'default' : 'secondary'} className="text-xs">
+                      <Badge
+                        variant={student.status === 'aktif' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
                         {student.status}
                       </Badge>
                     </div>
@@ -702,76 +817,92 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+            <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg">
+              <div className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/40">
+                <ArrowUpCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
               Preview Naik Kelas
             </DialogTitle>
             <DialogDescription className="text-sm">
-              Konfirmasi data siswa yang akan dinaikkan kelas
+              Periksa dan konfirmasi data siswa yang akan dinaikkan kelas
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 sm:p-4 bg-gradient-to-r from-blue-500/10 to-emerald-500/10 rounded-lg border">
-              <div className="text-center">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Dari Kelas</p>
-                <p className="text-sm sm:text-lg font-semibold text-blue-600 dark:text-blue-400 break-words">{fromClass?.nama_kelas}</p>
+
+          <div className="space-y-4 py-1">
+            {/* Class route display */}
+            <div className="grid grid-cols-5 gap-2 items-center p-4 rounded-xl border bg-gradient-to-r from-blue-50 to-emerald-50 dark:from-blue-950/30 dark:to-emerald-950/30 dark:border-blue-800/50">
+              <div className="col-span-2 text-center">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Dari Kelas</p>
+                <p className="text-sm sm:text-base font-bold text-blue-700 dark:text-blue-300 break-words">{fromClass?.nama_kelas}</p>
               </div>
-              <div className="text-center">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Ke Kelas</p>
-                <p className="text-sm sm:text-lg font-semibold text-emerald-600 dark:text-emerald-400 break-words">{toClass?.nama_kelas}</p>
+              <div className="flex justify-center">
+                <div className="w-8 h-8 rounded-full bg-white dark:bg-muted border flex items-center justify-center shadow-sm">
+                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="col-span-2 text-center">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Ke Kelas</p>
+                <p className="text-sm sm:text-base font-bold text-emerald-700 dark:text-emerald-300 break-words">{toClass?.nama_kelas}</p>
               </div>
             </div>
-            
-            <div className="p-3 sm:p-4 bg-muted rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
+
+            {/* Student list in dialog */}
+            <div className="rounded-xl border overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
                 <Users className="w-4 h-4 text-muted-foreground" />
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">
-                  Siswa yang akan dinaikkan ({selectedStudents.size} siswa):
+                <p className="text-sm font-medium text-foreground">
+                  Siswa yang akan dinaikkan
                 </p>
+                <Badge variant="secondary" className="ml-auto text-xs">
+                  {selectedStudents.size} siswa
+                </Badge>
               </div>
-              <div className="max-h-48 sm:max-h-60 overflow-y-auto space-y-1">
+              <div className="max-h-52 sm:max-h-64 overflow-y-auto divide-y">
                 {students
                   .filter(student => selectedStudents.has(student.id_siswa))
                   .map((student) => (
-                    <div key={student.id_siswa} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-card border rounded-lg hover:bg-muted/50 gap-2">
+                    <div key={student.id_siswa} className="flex items-center justify-between px-4 py-2.5 hover:bg-accent/50 transition-colors">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs sm:text-sm font-medium text-blue-700">
+                        <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/60 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
                             {student.nama.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <span className="font-medium text-foreground text-sm sm:text-base truncate block">{student.nama}</span>
-                          <p className="text-xs sm:text-sm text-muted-foreground">NIS: {student.nis}</p>
+                          <span className="font-medium text-foreground text-sm truncate block">{student.nama}</span>
+                          <p className="text-xs text-muted-foreground">NIS: {student.nis}</p>
                         </div>
                       </div>
-                      <div className="flex justify-end sm:justify-start">
-                        <Badge variant="outline" className="text-xs">
-                          {student.status}
-                        </Badge>
-                      </div>
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
+                        {student.status}
+                      </Badge>
                     </div>
                   ))}
               </div>
             </div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowPreview(false)} className="w-full sm:w-auto">
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowPreview(false)}
+              className="w-full sm:w-auto transition-colors"
+            >
               Batal
             </Button>
             <Button 
               onClick={handlePromotion}
               disabled={isProcessing || !toClassId || !fromClassId || selectedStudents.size === 0}
-              className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
+              className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 w-full sm:w-auto transition-colors gap-2"
             >
               {isProcessing ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Memproses...
                 </>
               ) : (
                 <>
-                  <ArrowUpCircle className="w-4 h-4 mr-2" />
+                  <ArrowUpCircle className="w-4 h-4" />
                   Konfirmasi Naik Kelas
                 </>
               )}
@@ -780,39 +911,52 @@ export const StudentPromotionView = ({ onLogout }: { onLogout: () => void }) => 
         </DialogContent>
       </Dialog>
 
-      {/* Quick Action Button */}
+      {/* Quick Action Bottom Card */}
       {selectedStudents.size > 0 && toClassId && (
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
+        <Card className="border shadow-md bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 border-emerald-200 dark:border-emerald-800/50">
+          <CardContent className="pt-4 sm:pt-5 pb-4 sm:pb-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900">Siap untuk Naik Kelas</h3>
-                <p className="text-sm text-gray-500 break-words">
-                  {selectedStudents.size} siswa siap dinaikkan dari {fromClass?.nama_kelas} ke {toClass?.nama_kelas}
-                </p>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground">
+                    Siap untuk Naik Kelas
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    <span className="font-medium text-blue-600 dark:text-blue-400">{selectedStudents.size} siswa</span>
+                    {' '}dari{' '}
+                    <span className="font-medium">{fromClass?.nama_kelas}</span>
+                    {' → '}
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">{toClass?.nama_kelas}</span>
+                  </p>
+                </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => setShowPreview(true)}
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto gap-2 transition-colors"
                 >
-                  <Eye className="w-4 h-4 mr-2" />
+                  <Eye className="w-3.5 h-3.5" />
                   Preview
                 </Button>
                 <Button
+                  size="sm"
                   onClick={handlePromotion}
                   disabled={isProcessing || !toClassId || !fromClassId || selectedStudents.size === 0}
-                  className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
+                  className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 w-full sm:w-auto gap-2 transition-colors"
                 >
                   {isProcessing ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Memproses...
                     </>
                   ) : (
                     <>
-                      <ArrowUpCircle className="w-4 h-4 mr-2" />
+                      <ArrowUpCircle className="w-3.5 h-3.5" />
                       Naik Kelas Sekarang
                     </>
                   )}

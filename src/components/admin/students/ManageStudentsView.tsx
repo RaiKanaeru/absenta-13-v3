@@ -1,19 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import type { Kelas, Student } from "@/types/dashboard";
 import { apiCall, getErrorMessage } from "@/utils/apiClient";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Edit, Eye, EyeOff, FileText, Plus, Search, Trash2, Users, UserCircle, Lock, ShieldCheck, CreditCard, GraduationCap, Key, Badge as BadgeIcon } from "lucide-react";
+import { Edit, Eye, EyeOff, FileText, GraduationCap, Key, Lock, MoreHorizontal, Plus, ShieldCheck, Trash2, UserCircle, Users, CreditCard, Badge as BadgeIcon } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import("@/components/admin/ExcelImportView"));
 
@@ -66,7 +69,6 @@ const handleFormSubmitError = (error: unknown, toastFn: (options: { title?: stri
     }
     toastFn({ title: "Error Validasi", description: errorMessage, variant: "destructive" });
   } else {
-    // We import getErrorMessage at the top
     toastFn({ title: "Error", description: error instanceof Error ? error.message : "Gagal menyimpan data", variant: "destructive" });
   }
 };
@@ -81,7 +83,7 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-  
+
   // Search & Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -91,7 +93,7 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  
+
   const [showImport, setShowImport] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -130,7 +132,6 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
         queryParams.append("status", statusFilter);
       }
 
-      // Append sort info (might be ignored by backend, fallback implemented locally)
       queryParams.append("sort_by", sortField);
       queryParams.append("sort_dir", sortDirection);
 
@@ -176,58 +177,7 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Sort locally as fallback
-  const sortedStudents = useMemo(() => {
-    return [...students].sort((a, b) => {
-      let valA: string | number = "";
-      let valB: string | number = "";
-
-      switch (sortField) {
-        case "nis":
-          valA = (a.nis || "").toLowerCase();
-          valB = (b.nis || "").toLowerCase();
-          break;
-        case "nama":
-          valA = (a.nama || "").toLowerCase();
-          valB = (b.nama || "").toLowerCase();
-          break;
-        case "nama_kelas":
-          valA = (a.nama_kelas || "").toLowerCase();
-          valB = (b.nama_kelas || "").toLowerCase();
-          break;
-        case "jabatan":
-          valA = (a.jabatan || "").toLowerCase();
-          valB = (b.jabatan || "").toLowerCase();
-          break;
-        case "status":
-          valA = a.status || "";
-          valB = b.status || "";
-          break;
-      }
-
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [students, sortField, sortDirection]);
-
   // --- Handlers ---
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40 inline-block" />;
-    return sortDirection === "asc"
-      ? <ArrowUp className="h-3 w-3 ml-1 inline-block" />
-      : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
-  };
-
   const openAddSheet = () => {
     setFormData(INITIAL_FORM_DATA);
     setEditingId(null);
@@ -368,11 +318,213 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
     }
   };
 
+  // --- DataTable column definitions ---
+  const columns: ColumnDef<Student>[] = [
+    {
+      accessorKey: "nis",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="NIS" />,
+      cell: ({ row }) => (
+        <span className="font-mono text-xs">{row.getValue("nis")}</span>
+      ),
+    },
+    {
+      accessorKey: "nama",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Nama" />,
+      cell: ({ row }) => (
+        <span className="font-medium text-xs">{row.getValue("nama")}</span>
+      ),
+    },
+    {
+      accessorKey: "nama_kelas",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Kelas" />,
+      cell: ({ row }) => (
+        <span className="text-xs">{row.getValue("nama_kelas") || "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "jabatan",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Jabatan" />,
+      cell: ({ row }) => (
+        <span className="text-xs">{(row.getValue("jabatan") as string) || "Siswa"}</span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <button
+            type="button"
+            onClick={() => handleToggleStatus(student)}
+            className="cursor-pointer"
+            title={`Klik untuk ${student.status === "aktif" ? "nonaktifkan" : "aktifkan"}`}
+          >
+            <Badge
+              variant={student.status === "aktif" ? "default" : "secondary"}
+              className={`text-xs transition-opacity hover:opacity-80 ${student.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
+            >
+              {student.status === "aktif" ? "Aktif" : "Non-aktif"}
+            </Badge>
+          </button>
+        );
+      },
+    },
+    {
+      id: "aksi",
+      header: () => <div className="text-center text-xs font-medium">Aksi</div>,
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div className="flex justify-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Buka menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={() => openEditSheet(student)}
+                  className="text-xs cursor-pointer"
+                >
+                  <Edit className="mr-2 h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      className="text-xs cursor-pointer text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      Hapus
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Apakah Anda yakin ingin menghapus akun siswa <strong>{student.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(student.id, student.nama, student.nis)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Hapus
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+      enableSorting: false,
+    },
+  ];
+
+  // --- DataTable state mappings ---
+  const pagination: PaginationState = {
+    pageIndex: currentPage - 1,
+    pageSize,
+  };
+
+  const handlePaginationChange = (updater: PaginationState | ((prev: PaginationState) => PaginationState)) => {
+    const next = typeof updater === "function" ? updater(pagination) : updater;
+    setCurrentPage(next.pageIndex + 1);
+    setPageSize(next.pageSize);
+  };
+
+  const sorting: SortingState = [{ id: sortField, desc: sortDirection === "desc" }];
+
+  const handleSortingChange = (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    if (next.length > 0) {
+      setSortField(next[0].id as SortField);
+      setSortDirection(next[0].desc ? "desc" : "asc");
+    } else {
+      setSortField("nama");
+      setSortDirection("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+  // --- Mobile card render ---
+  const renderMobileRow = (student: Student) => (
+    <div key={student.id} className="p-4">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-sm truncate">{student.nama}</h3>
+            <button
+              type="button"
+              onClick={() => handleToggleStatus(student)}
+              className="cursor-pointer shrink-0"
+            >
+              <Badge
+                variant={student.status === "aktif" ? "default" : "secondary"}
+                className={`text-[10px] py-0 transition-opacity hover:opacity-80 ${student.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
+              >
+                {student.status === "aktif" ? "Aktif" : "Non-aktif"}
+              </Badge>
+            </button>
+          </div>
+          <p className="text-xs font-mono text-muted-foreground mt-0.5">{student.nis}</p>
+        </div>
+        <div className="flex items-center gap-1 ml-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openEditSheet(student)}
+            className="h-7 w-7 p-0"
+          >
+            <Edit className="h-3 w-3" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Apakah Anda yakin ingin menghapus akun siswa <strong>{student.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDelete(student.id, student.nama, student.nis)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+        <div>
+          <span className="text-muted-foreground">Kelas:</span>
+          <p className="truncate">{student.nama_kelas || "-"}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Jabatan:</span>
+          <p>{student.jabatan || "Siswa"}</p>
+        </div>
+      </div>
+    </div>
+  );
+
   if (showImport) {
     return <ExcelImportView entityType="siswa" entityName="Data Siswa" onBack={() => { setShowImport(false); fetchStudents(); }} />;
   }
-
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -418,306 +570,68 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
         </div>
       )}
 
-      {/* Search + Filter */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Cari berdasarkan nama atau NIS..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-              <Button
-                variant={statusFilter === "semua" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("semua")}
-                className="text-xs h-9 px-3 whitespace-nowrap"
-              >
-                Semua
-              </Button>
-              <Button
-                variant={statusFilter === "aktif" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("aktif")}
-                className="text-xs h-9 px-3 whitespace-nowrap"
-              >
-                Aktif
-              </Button>
-              <Button
-                variant={statusFilter === "nonaktif" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("nonaktif")}
-                className="text-xs h-9 px-3 whitespace-nowrap"
-              >
-                Non-aktif
-              </Button>
-            </div>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={students}
+        isLoading={isLoading}
+        searchPlaceholder="Cari berdasarkan nama atau NIS..."
+        globalFilter={searchTerm}
+        onGlobalFilterChange={setSearchTerm}
+        manualPagination={true}
+        manualSorting={true}
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
+        pageCount={totalPages}
+        totalItems={totalItems}
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
+        pageSizeOptions={[15, 25, 50, 100]}
+        renderMobileRow={renderMobileRow}
+        emptyIcon={<Users className="w-12 h-12 text-muted-foreground/40" />}
+        emptyTitle="Belum Ada Data"
+        emptyDescription={
+          searchTerm || statusFilter !== "semua"
+            ? "Tidak ada siswa yang sesuai dengan filter"
+            : "Belum ada akun siswa yang ditambahkan"
+        }
+        emptyAction={
+          !searchTerm && statusFilter === "semua" ? (
+            <Button onClick={openAddSheet} size="sm" className="text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Tambah Akun Pertama
+            </Button>
+          ) : undefined
+        }
+        toolbarContent={
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+            <Button
+              variant={statusFilter === "semua" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("semua")}
+              className="text-xs h-9 px-3 whitespace-nowrap"
+            >
+              Semua
+            </Button>
+            <Button
+              variant={statusFilter === "aktif" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("aktif")}
+              className="text-xs h-9 px-3 whitespace-nowrap"
+            >
+              Aktif
+            </Button>
+            <Button
+              variant={statusFilter === "nonaktif" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("nonaktif")}
+              className="text-xs h-9 px-3 whitespace-nowrap"
+            >
+              Non-aktif
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Table / Data */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading && students.length === 0 && (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={crypto.randomUUID()} className="flex items-center gap-4">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24 hidden sm:block" />
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                  <Skeleton className="h-7 w-16 ml-auto" />
-                </div>
-              ))}
-            </div>
-          )}
-          {!isLoading && students.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-              <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
-              <p className="text-sm text-muted-foreground">
-                {searchTerm || statusFilter !== "semua"
-                  ? "Tidak ada siswa yang sesuai dengan filter"
-                  : "Belum ada akun siswa yang ditambahkan"}
-              </p>
-              {!searchTerm && statusFilter === "semua" && (
-                <Button onClick={openAddSheet} size="sm" className="mt-4 text-xs">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Tambah Akun Pertama
-                </Button>
-              )}
-            </div>
-          )}
-          {!isLoading && students.length > 0 && (
-            <>
-              {/* Desktop Table - hidden on mobile */}
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">
-                        <button type="button" onClick={() => handleSort("nis")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          NIS {getSortIcon("nis")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <button type="button" onClick={() => handleSort("nama")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Nama {getSortIcon("nama")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <button type="button" onClick={() => handleSort("nama_kelas")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Kelas {getSortIcon("nama_kelas")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <button type="button" onClick={() => handleSort("jabatan")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Jabatan {getSortIcon("jabatan")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <button type="button" onClick={() => handleSort("status")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors w-full text-left">
-                          Status {getSortIcon("status")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-center text-xs">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="text-xs font-mono">{student.nis}</TableCell>
-                        <TableCell className="font-medium text-xs">{student.nama}</TableCell>
-                        <TableCell className="text-xs">{student.nama_kelas}</TableCell>
-                        <TableCell className="text-xs">{student.jabatan || "Siswa"}</TableCell>
-                        <TableCell>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(student)}
-                            className="cursor-pointer"
-                            title={`Klik untuk ${student.status === "aktif" ? "nonaktifkan" : "aktifkan"}`}
-                          >
-                            <Badge
-                              variant={student.status === "aktif" ? "default" : "secondary"}
-                              className={`text-xs transition-opacity hover:opacity-80 ${student.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
-                            >
-                              {student.status === "aktif" ? "Aktif" : "Non-aktif"}
-                            </Badge>
-                          </button>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditSheet(student)}
-                              className="h-7 w-7 p-0"
-                              title="Edit akun siswa"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Hapus akun siswa">
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Apakah Anda yakin ingin menghapus akun siswa <strong>{student.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(student.id, student.nama, student.nis)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Hapus
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="lg:hidden divide-y">
-                {sortedStudents.map((student) => (
-                  <div key={student.id} className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-sm truncate">{student.nama}</h3>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(student)}
-                            className="cursor-pointer shrink-0"
-                          >
-                            <Badge
-                              variant={student.status === "aktif" ? "default" : "secondary"}
-                              className={`text-[10px] py-0 transition-opacity hover:opacity-80 ${student.status === "aktif" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" : ""}`}
-                            >
-                              {student.status === "aktif" ? "Aktif" : "Non-aktif"}
-                            </Badge>
-                          </button>
-                        </div>
-                        <p className="text-xs font-mono text-muted-foreground mt-0.5">{student.nis}</p>
-                      </div>
-                      <div className="flex items-center gap-1 ml-2 shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditSheet(student)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus akun siswa <strong>{student.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(student.id, student.nama, student.nis)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                      <div>
-                        <span className="text-muted-foreground">Kelas:</span>
-                        <p className="truncate">{student.nama_kelas || "-"}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Jabatan:</span>
-                        <p>{student.jabatan || "Siswa"}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination Footer */}
-              <div className="p-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/20">
-                <div className="text-xs text-muted-foreground">
-                  Menampilkan {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-                  {Math.min(currentPage * pageSize, totalItems)} dari {totalItems} akun siswa
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 mr-2">
-                    <span className="text-xs text-muted-foreground hidden sm:inline">Limit:</span>
-                    <Select
-                      value={String(pageSize)}
-                      onValueChange={(value) => {
-                        setPageSize(Number(value));
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="h-7 w-[65px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="15">15</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="h-3 w-3" />
-                      </Button>
-                      <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                        {currentPage} / {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+        }
+      />
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

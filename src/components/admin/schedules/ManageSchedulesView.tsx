@@ -1,15 +1,24 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { type ColumnDef } from '@tanstack/react-table';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TimeInput } from "@/components/shared/time-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { toast } from "@/hooks/use-toast";
 import { getWIBTime } from "@/lib/time-utils";
 import { JadwalService } from "@/services/jadwalService";
@@ -19,23 +28,19 @@ import { Teacher, Subject, Kelas, Schedule, Room } from '@/types/dashboard';
 import {
   Users,
   Calendar,
-  Search,
   Trash2,
   Edit,
   Download,
   LayoutGrid,
   Eye,
-  
   Plus,
   CheckCircle2,
   XCircle,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   Activity,
   BookOpen,
   Clock,
-  MapPin
+  MapPin,
+  MoreHorizontal,
 } from "lucide-react";
 
 const ExcelImportView = React.lazy(() => import('@/components/admin/ExcelImportView'));
@@ -85,8 +90,6 @@ const TeacherBadgeDisplay = ({ guruList, namaGuru }: { guruList?: string; namaGu
   );
 };
 
-type SortField = "kelas" | "jenis" | "mapel" | "guru" | "ruang" | "hari" | "jam" | "status";
-type SortDirection = "asc" | "desc";
 type StatusFilter = "semua" | "bisa_diabsen" | "tidak_bisa_diabsen";
 
 const generateTimeSlots = (startTime: string, endTime: string, startJamKe: number, hours: number) => {
@@ -151,9 +154,7 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('semua');
-  const [sortField, setSortField] = useState<SortField>('hari');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  
+
   const [searchFilter, setSearchFilter] = useState({
     kelas: 'all',
     hari: 'all',
@@ -258,47 +259,8 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
       return matchesSearch && matchesKelas && matchesHari && matchesJenis && matchesGuru;
     });
 
-    // Sort
-    result = [...result].sort((a, b) => {
-      let valA: string | number | boolean = "";
-      let valB: string | number | boolean = "";
-
-      switch (sortField) {
-        case "kelas": valA = (a.nama_kelas || "").toLowerCase(); valB = (b.nama_kelas || "").toLowerCase(); break;
-        case "jenis": valA = (a.jenis_aktivitas || "").toLowerCase(); valB = (b.jenis_aktivitas || "").toLowerCase(); break;
-        case "mapel": valA = (a.nama_mapel || a.keterangan_khusus || "").toLowerCase(); valB = (b.nama_mapel || b.keterangan_khusus || "").toLowerCase(); break;
-        case "guru": valA = (a.nama_guru || "").toLowerCase(); valB = (b.nama_guru || "").toLowerCase(); break;
-        case "ruang": valA = (a.nama_ruang || "").toLowerCase(); valB = (b.nama_ruang || "").toLowerCase(); break;
-        case "hari": valA = (a.hari || "").toLowerCase(); valB = (b.hari || "").toLowerCase(); break;
-        case "jam": valA = a.jam_mulai || ""; valB = b.jam_mulai || ""; break;
-        case "status": valA = !!a.is_absenable; valB = !!b.is_absenable; break;
-      }
-
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-
     return result;
-  }, [schedules, searchTerm, searchFilter, statusFilter, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40 inline-block" />;
-    return sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline-block" /> : <ArrowDown className="h-3 w-3 ml-1 inline-block" />;
-  };
-
-  const handleRemoveGuru = (idToRemove: number) => {
-    setFormData(p => ({...p, guru_ids: p.guru_ids.filter(x => x !== idToRemove)}));
-  };
+  }, [schedules, searchTerm, searchFilter, statusFilter]);
 
   const openAddSheet = () => {
     setFormData({
@@ -334,9 +296,6 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
     setConsecutiveHours(1);
     setSheetOpen(true);
   };
-
-
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -408,6 +367,299 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
     }
   };
 
+  // ── Column Definitions ──────────────────────────────────────────────────────
+  const columns: ColumnDef<Schedule>[] = useMemo(() => [
+    {
+      accessorKey: 'nama_kelas',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Kelas" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium text-xs">{row.original.nama_kelas}</span>
+      ),
+    },
+    {
+      accessorKey: 'hari',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Hari" />
+      ),
+      cell: ({ row }) => (
+        <div className="text-xs">
+          <span>{row.original.hari}</span>
+          <br />
+          <span className="text-muted-foreground">Jam ke-{row.original.jam_ke}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'jam_mulai',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Jam" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-xs font-mono">
+          {row.original.jam_mulai} - {row.original.jam_selesai}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'nama_mapel',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Mata Pelajaran" />
+      ),
+      cell: ({ row }) => {
+        const schedule = row.original;
+        return (
+          <div className="text-xs">
+            <Badge
+              variant={schedule.jenis_aktivitas === 'pelajaran' ? 'default' : 'secondary'}
+              className="text-[10px] mb-1"
+            >
+              {getActivityTypeLabel(schedule.jenis_aktivitas)}
+            </Badge>
+            <div className="text-muted-foreground">
+              {schedule.jenis_aktivitas === 'pelajaran'
+                ? (schedule.nama_mapel || '-')
+                : (schedule.keterangan_khusus || '-')}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'nama_guru',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Guru" />
+      ),
+      cell: ({ row }) => {
+        const schedule = row.original;
+        if (schedule.jenis_aktivitas !== 'pelajaran') return <span className="text-xs">-</span>;
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap gap-1">
+              <TeacherBadgeDisplay guruList={schedule.guru_list} namaGuru={schedule.nama_guru} />
+            </div>
+            {schedule.is_multi_guru && (
+              <span className="text-[9px] text-muted-foreground flex items-center gap-1">
+                <Users className="w-3 h-3" /> Multi
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'kode_ruang',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Ruang" />
+      ),
+      cell: ({ row }) => (
+        <span className="text-xs">{row.original.kode_ruang || '-'}</span>
+      ),
+    },
+    {
+      accessorKey: 'jenis_aktivitas',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Jenis" />
+      ),
+      cell: ({ row }) => (
+        <Badge
+          variant={row.original.jenis_aktivitas === 'pelajaran' ? 'default' : 'secondary'}
+          className="text-[10px]"
+        >
+          {getActivityTypeLabel(row.original.jenis_aktivitas)}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'is_absenable',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => {
+        const schedule = row.original;
+        return (
+          <button onClick={() => handleToggleAbsenable(schedule)} className="cursor-pointer">
+            <Badge
+              variant={schedule.is_absenable ? 'default' : 'outline'}
+              className={`text-[10px] hover:opacity-80 ${schedule.is_absenable ? 'bg-emerald-500/15 text-emerald-700' : 'text-orange-600 border-orange-200'}`}
+            >
+              {schedule.is_absenable ? 'Bisa Diabsen' : 'Tidak Absen'}
+            </Badge>
+          </button>
+        );
+      },
+    },
+    {
+      id: 'aksi',
+      header: () => <div className="text-right text-xs">Aksi</div>,
+      cell: ({ row }) => {
+        const schedule = row.original;
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Buka menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => openEditSheet(schedule)}>
+                  <Edit className="mr-2 h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      Hapus
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Hapus Jadwal</AlertDialogTitle>
+                      <AlertDialogDescription>Apakah Anda yakin ingin menghapus jadwal ini?</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(schedule.id)} className="bg-destructive hover:bg-destructive/90">Hapus</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+      enableSorting: false,
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [teachers, handleToggleAbsenable, handleDelete, openEditSheet]);
+
+  // ── Toolbar Content ─────────────────────────────────────────────────────────
+  const toolbarContent = (
+    <div className="flex flex-col sm:flex-row gap-2 flex-1">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+        <Button
+          variant={statusFilter === "semua" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setStatusFilter("semua")}
+          className="text-xs h-9 px-3 whitespace-nowrap"
+        >
+          Semua
+        </Button>
+        <Button
+          variant={statusFilter === "bisa_diabsen" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setStatusFilter("bisa_diabsen")}
+          className="text-xs h-9 px-3 whitespace-nowrap"
+        >
+          Bisa Diabsen
+        </Button>
+        <Button
+          variant={statusFilter === "tidak_bisa_diabsen" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setStatusFilter("tidak_bisa_diabsen")}
+          className="text-xs h-9 px-3 whitespace-nowrap"
+        >
+          Tidak Bisa Diabsen
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <Select value={searchFilter.kelas} onValueChange={(v) => setSearchFilter({ ...searchFilter, kelas: v })}>
+          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Kelas" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kelas</SelectItem>
+            {classes.map((k) => <SelectItem key={k.id} value={k.id.toString()}>{k.nama_kelas}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={searchFilter.hari} onValueChange={(v) => setSearchFilter({ ...searchFilter, hari: v })}>
+          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Hari" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Hari</SelectItem>
+            {daysOfWeek.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={searchFilter.jenis} onValueChange={(v) => setSearchFilter({ ...searchFilter, jenis: v })}>
+          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Jenis" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Jenis</SelectItem>
+            <SelectItem value="pelajaran">Pelajaran</SelectItem>
+            <SelectItem value="upacara">Upacara</SelectItem>
+            <SelectItem value="istirahat">Istirahat</SelectItem>
+            <SelectItem value="kegiatan_khusus">Kegiatan Khusus</SelectItem>
+            <SelectItem value="ujian">Ujian</SelectItem>
+            <SelectItem value="libur">Libur</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={searchFilter.guru} onValueChange={(v) => setSearchFilter({ ...searchFilter, guru: v })}>
+          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Guru" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Guru</SelectItem>
+            {teachers.map((t) => <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  // ── Mobile Row Renderer ─────────────────────────────────────────────────────
+  const renderMobileRow = (schedule: Schedule) => (
+    <div key={schedule.id} className="p-4">
+      <div className="flex justify-between mb-2">
+        <div>
+          <h3 className="font-medium text-sm">{schedule.nama_kelas}</h3>
+          <p className="text-xs text-muted-foreground">{schedule.hari} • Jam ke-{schedule.jam_ke} • {schedule.jam_mulai}-{schedule.jam_selesai}</p>
+        </div>
+        <div className="flex gap-1">
+          <Button variant="outline" size="sm" onClick={() => openEditSheet(schedule)} className="h-7 w-7 p-0">
+            <Edit className="h-3 w-3" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive">
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus Jadwal</AlertDialogTitle>
+                <AlertDialogDescription>Yakin ingin menghapus jadwal ini?</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDelete(schedule.id)} className="bg-destructive hover:bg-destructive/90">Hapus</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div><span className="text-muted-foreground">Jenis:</span> <Badge variant="secondary" className="text-[10px] ml-1">{getActivityTypeLabel(schedule.jenis_aktivitas)}</Badge></div>
+        <div>
+          <span className="text-muted-foreground">Status:</span>
+          <button onClick={() => handleToggleAbsenable(schedule)} className="ml-1 cursor-pointer">
+            <Badge variant={schedule.is_absenable ? 'default' : 'outline'} className={`text-[10px] ${schedule.is_absenable ? 'bg-emerald-500/15 text-emerald-700' : 'text-orange-600 border-orange-200'}`}>
+              {schedule.is_absenable ? 'Absen' : 'Tidak Absen'}
+            </Badge>
+          </button>
+        </div>
+      </div>
+      <div className="mt-2 text-xs">
+        <span className="text-muted-foreground">Info:</span>{' '}
+        <span className="ml-1 font-medium">
+          {schedule.jenis_aktivitas === 'pelajaran' ? schedule.nama_mapel : schedule.keterangan_khusus}
+        </span>
+      </div>
+    </div>
+  );
+
+  // ── Early Returns ────────────────────────────────────────────────────────────
   if (showImport) {
     return <ExcelImportView entityType="jadwal" entityName="Jadwal Pelajaran" onBack={() => { setShowImport(false); refreshSchedules(); }} />;
   }
@@ -461,7 +713,7 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={crypto.randomUUID()}>
+            <Card key={`stat-skeleton-${i}`}>
               <CardContent className="p-4">
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-7 w-12" />
@@ -501,259 +753,27 @@ const ManageSchedulesView = ({ onLogout }: { onLogout: () => void }) => {
         </div>
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Cari kelas, mapel, guru, atau ruang..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-                <Button variant={statusFilter === "semua" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("semua")} className="text-xs h-9 px-3 whitespace-nowrap">Semua</Button>
-                <Button variant={statusFilter === "bisa_diabsen" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("bisa_diabsen")} className="text-xs h-9 px-3 whitespace-nowrap">Bisa Diabsen</Button>
-                <Button variant={statusFilter === "tidak_bisa_diabsen" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("tidak_bisa_diabsen")} className="text-xs h-9 px-3 whitespace-nowrap">Tidak Bisa Diabsen</Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Select value={searchFilter.kelas} onValueChange={(v) => setSearchFilter({...searchFilter, kelas: v})}>
-                <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Kelas" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Kelas</SelectItem>
-                  {classes.map((k) => <SelectItem key={k.id} value={k.id.toString()}>{k.nama_kelas}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={searchFilter.hari} onValueChange={(v) => setSearchFilter({...searchFilter, hari: v})}>
-                <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Hari" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Hari</SelectItem>
-                  {daysOfWeek.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={searchFilter.jenis} onValueChange={(v) => setSearchFilter({...searchFilter, jenis: v})}>
-                <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Jenis" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Jenis</SelectItem>
-                  <SelectItem value="pelajaran">Pelajaran</SelectItem>
-                  <SelectItem value="upacara">Upacara</SelectItem>
-                  <SelectItem value="istirahat">Istirahat</SelectItem>
-                  <SelectItem value="kegiatan_khusus">Kegiatan Khusus</SelectItem>
-                  <SelectItem value="ujian">Ujian</SelectItem>
-                  <SelectItem value="libur">Libur</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={searchFilter.guru} onValueChange={(v) => setSearchFilter({...searchFilter, guru: v})}>
-                <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Guru" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Guru</SelectItem>
-                  {teachers.map((t) => <SelectItem key={t.id} value={t.id.toString()}>{t.nama}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading && schedules.length === 0 && (
-            <div className="p-4 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={crypto.randomUUID()} className="flex items-center gap-4">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24 hidden sm:block" />
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                  <Skeleton className="h-7 w-16 ml-auto" />
-                </div>
-              ))}
-            </div>
-          )}
-          {!isLoading && filteredSchedules.length === 0 && (
-            <div className="text-center py-12">
-              <Calendar className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-              <h3 className="text-base font-semibold text-muted-foreground mb-1">Belum Ada Data</h3>
-              <p className="text-sm text-muted-foreground">Tidak ada jadwal yang sesuai</p>
-            </div>
-          )}
-          {!isLoading && filteredSchedules.length > 0 && (
-            <>
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("kelas")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Kelas {getSortIcon("kelas")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("jenis")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Jenis {getSortIcon("jenis")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("mapel")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Mata Pelajaran {getSortIcon("mapel")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("guru")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Guru {getSortIcon("guru")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("ruang")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Ruang {getSortIcon("ruang")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("hari")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Hari {getSortIcon("hari")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("jam")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Jam {getSortIcon("jam")}
-                        </button>
-                      </TableHead>
-                      <TableHead>
-                        <button type="button" onClick={() => handleSort("status")} className="flex items-center text-xs font-medium hover:text-foreground transition-colors">
-                          Status {getSortIcon("status")}
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-right text-xs">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSchedules.map((schedule) => (
-                      <TableRow key={schedule.id}>
-                        <TableCell className="font-medium text-xs">{schedule.nama_kelas}</TableCell>
-                        <TableCell>
-                          <Badge variant={schedule.jenis_aktivitas === 'pelajaran' ? 'default' : 'secondary'} className="text-[10px]">
-                            {getActivityTypeLabel(schedule.jenis_aktivitas)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {schedule.jenis_aktivitas === 'pelajaran' ? (schedule.nama_mapel || '-') : (schedule.keterangan_khusus || '-')}
-                        </TableCell>
-                        <TableCell>
-                          {schedule.jenis_aktivitas === 'pelajaran' ? (
-                            <div className="flex flex-col gap-1">
-                              <div className="flex flex-wrap gap-1">
-                                <TeacherBadgeDisplay guruList={schedule.guru_list} namaGuru={schedule.nama_guru} />
-                              </div>
-                              {schedule.is_multi_guru && <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3"/> Multi</span>}
-                            </div>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell className="text-xs">{schedule.kode_ruang || '-'}</TableCell>
-                        <TableCell className="text-xs">
-                          {schedule.hari} <br/>
-                          <span className="text-muted-foreground">Jam ke-{schedule.jam_ke}</span>
-                        </TableCell>
-                        <TableCell className="text-xs font-mono">{schedule.jam_mulai} - {schedule.jam_selesai}</TableCell>
-                        <TableCell>
-                          <button onClick={() => handleToggleAbsenable(schedule)} className="cursor-pointer">
-                            <Badge variant={schedule.is_absenable ? 'default' : 'outline'} className={`text-[10px] hover:opacity-80 ${schedule.is_absenable ? 'bg-emerald-500/15 text-emerald-700' : 'text-orange-600 border-orange-200'}`}>
-                              {schedule.is_absenable ? 'Bisa Diabsen' : 'Tidak Absen'}
-                            </Badge>
-                          </button>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="outline" size="sm" onClick={() => openEditSheet(schedule)} className="h-7 w-7 p-0">
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive">
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Hapus Jadwal</AlertDialogTitle>
-                                  <AlertDialogDescription>Apakah Anda yakin ingin menghapus jadwal ini?</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(schedule.id)} className="bg-destructive hover:bg-destructive/90">Hapus</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Mobile Card View */}
-              <div className="lg:hidden divide-y">
-                {filteredSchedules.map((schedule) => (
-                  <div key={schedule.id} className="p-4">
-                    <div className="flex justify-between mb-2">
-                      <div>
-                        <h3 className="font-medium text-sm">{schedule.nama_kelas}</h3>
-                        <p className="text-xs text-muted-foreground">{schedule.hari} • Jam ke-{schedule.jam_ke} • {schedule.jam_mulai}-{schedule.jam_selesai}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => openEditSheet(schedule)} className="h-7 w-7 p-0"><Edit className="h-3 w-3" /></Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive"><Trash2 className="h-3 w-3" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Jadwal</AlertDialogTitle>
-                              <AlertDialogDescription>Yakin ingin menghapus jadwal ini?</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(schedule.id)} className="bg-destructive hover:bg-destructive/90">Hapus</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div><span className="text-muted-foreground">Jenis:</span> <Badge variant="secondary" className="text-[10px] ml-1">{getActivityTypeLabel(schedule.jenis_aktivitas)}</Badge></div>
-                      <div>
-                        <span className="text-muted-foreground">Status:</span>
-                        <button onClick={() => handleToggleAbsenable(schedule)} className="ml-1 cursor-pointer">
-                          <Badge variant={schedule.is_absenable ? 'default' : 'outline'} className={`text-[10px] ${schedule.is_absenable ? 'bg-emerald-500/15 text-emerald-700' : 'text-orange-600 border-orange-200'}`}>
-                            {schedule.is_absenable ? 'Absen' : 'Tidak Absen'}
-                          </Badge>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs">
-                      <span className="text-muted-foreground">Info:</span> 
-                      <span className="ml-1 font-medium">
-                        {schedule.jenis_aktivitas === 'pelajaran' ? schedule.nama_mapel : schedule.keterangan_khusus}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Footer */}
-              <div className="p-3 border-t text-xs text-muted-foreground">
-                Menampilkan {filteredSchedules.length} dari {schedules.length} jadwal
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={filteredSchedules}
+        isLoading={isLoading}
+        searchPlaceholder="Cari kelas, mapel, guru, atau ruang..."
+        globalFilter={searchTerm}
+        onGlobalFilterChange={setSearchTerm}
+        toolbarContent={toolbarContent}
+        renderMobileRow={renderMobileRow}
+        emptyIcon={<Calendar className="w-12 h-12 text-muted-foreground/40" />}
+        emptyTitle="Belum Ada Jadwal"
+        emptyDescription="Tidak ada jadwal yang sesuai dengan filter yang dipilih."
+        emptyAction={
+          <Button onClick={openAddSheet} size="sm">
+            <Plus className="w-3 h-3 mr-1" />
+            Tambah Jadwal
+          </Button>
+        }
+        pageSizeOptions={[10, 15, 20, 30, 50]}
+      />
 
       {/* Add/Edit Sheet (Sidebar) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
