@@ -1,29 +1,99 @@
-# ABSENTA 13 - Sistem Absensi Digital Modern (OPTIMIZED)
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/RaiKanaeru/absenta-13-v3?style=for-the-badge&logo=github&label=Version" alt="Version" />
+  <img src="https://img.shields.io/github/last-commit/RaiKanaeru/absenta-13-v3?style=for-the-badge&logo=git&logoColor=white" alt="Last Commit" />
+  <img src="https://img.shields.io/github/license/RaiKanaeru/absenta-13-v3?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/github/actions/workflow/status/RaiKanaeru/absenta-13-v3/sonarcloud.yml?branch=main&style=for-the-badge&logo=github&label=CI" alt="CI Status" />
+</p>
 
-**Deskripsi**: Sistem Absensi Digital untuk Sekolah dengan teknologi modern dan optimasi performa tinggi  
-**Versi**: 1.3.0 (OPTIMIZED)  
-**Platform**: Web Application (React + TypeScript + Node.js + Redis + MySQL)  
-**Status**: Production Ready dengan 150+ Concurrent Users Support
+# ABSENTA 13 — Sistem Absensi Digital Modern
+
+**Sistem Absensi Digital untuk Sekolah** dengan teknologi modern dan optimasi performa tinggi.  
+Mendukung **150+ concurrent users**, multi-role (Admin, Guru, Siswa), dan deployment Docker-first.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind" />
+  <img src="https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white" alt="shadcn/ui" />
+  <br/>
+  <img src="https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express" />
+  <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL" />
+  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+</p>
+
+---
+
+### Code Quality
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=bugs)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=RaiKanaeru_absenta-13-v3&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=RaiKanaeru_absenta-13-v3)
+
+---
+
+## 📋 Table of Contents
+
+- [Fitur Utama](#-fitur-utama)
+- [Screenshots](#-screenshots)
+- [Architecture](#%EF%B8%8F-architecture-overview)
+- [Quick Start](#-quick-start)
+- [Development Commands](#%EF%B8%8F-development-commands)
+- [Environment Variables](#-environment-variables)
+- [Testing](#-testing)
+- [Struktur Project](#%EF%B8%8F-struktur-project)
+- [User Roles & Permissions](#-user-roles--permissions)
+- [API Endpoints](#-api-endpoints)
+- [Security Features](#%EF%B8%8F-security-features)
+- [Deployment Guide](#-deployment-guide)
+- [Performance](#-performance-specifications)
+- [Monitoring & Maintenance](#-monitoring--maintenance)
+- [Troubleshooting](#%EF%B8%8F-troubleshooting)
+- [Production Checklist](#-production-checklist)
+- [Contributing](#-contributing)
+
+---
 
 ## 🚀 Fitur Utama
 
 ### 🎯 Core Features
-- 🎯 **Dashboard Admin Modern**: Kelola semua data sekolah dengan analytics real-time
-- 👨‍🏫 **Dashboard Guru**: Rekap kehadiran dan manajemen kelas dengan export Excel
-- 👨‍🎓 **Dashboard Siswa**: Input kehadiran dan monitoring dengan notifikasi
-- 📊 **Analytics Real-time**: Laporan kehadiran otomatis dengan caching
-- 🔐 **Authentication**: Sistem login multi-role dengan JWT security
-- 📱 **Responsive Design**: Optimal di semua device dengan PWA support
+- 🎯 **Dashboard Admin Modern** — Kelola semua data sekolah dengan analytics real-time
+- 👨‍🏫 **Dashboard Guru** — Rekap kehadiran dan manajemen kelas dengan export Excel
+- 👨‍🎓 **Dashboard Siswa** — Input kehadiran dan monitoring dengan notifikasi
+- 📊 **Analytics Real-time** — Laporan kehadiran otomatis dengan caching
+- 🔐 **Authentication** — Sistem login multi-role dengan JWT security
+- 📱 **Responsive Design** — Optimal di semua device dengan PWA support
 
 ### ⚡ Performance Features
-- 🚀 **High Performance**: Support 150+ concurrent users
-- 💾 **Redis Caching**: Response time < 2s untuk data cached
-- 🔄 **Load Balancing**: Request prioritization dan burst detection
-- 📊 **Real-time Monitoring**: System metrics dan performance tracking
-- 🛡️ **Security System**: Rate limiting, input validation, audit logging
-- 🔄 **Queue System**: Background processing untuk download Excel
-- 💾 **Database Optimization**: Connection pooling dan query optimization
-- 🛡️ **Disaster Recovery**: Automated backup dan recovery procedures
+- 🚀 **High Performance** — Support 150+ concurrent users
+- 💾 **Redis Caching** — Response time < 2s untuk data cached
+- 🔄 **Queue System** — Background processing untuk download Excel
+- 📊 **Real-time Monitoring** — System metrics dan performance tracking
+- 🛡️ **Security System** — Rate limiting, input validation, audit logging
+- 🛡️ **Disaster Recovery** — Automated backup dan recovery procedures
+
+---
+
+## 📸 Screenshots
+
+> **Coming soon** — Screenshot dashboard admin, guru, dan siswa akan ditambahkan di sini.
+>
+> Untuk melihat aplikasi secara langsung, jalankan project dengan `npm run dev:full` dan buka `http://localhost:5173`.
+
+<!-- Uncomment dan ganti path ketika screenshot sudah tersedia:
+<p align="center">
+  <img src="docs/screenshots/admin-dashboard.png" width="45%" alt="Admin Dashboard" />
+  <img src="docs/screenshots/teacher-dashboard.png" width="45%" alt="Teacher Dashboard" />
+</p>
+-->
+
+---
 
 ## 🏗️ Architecture Overview
 
@@ -41,6 +111,8 @@
                        └─────────────────┘
 ```
 
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -53,7 +125,7 @@
 
 1. **Clone atau download project ini**
 ```bash
-git clone <repository-url>
+git clone https://github.com/RaiKanaeru/absenta-13-v3.git
 cd absenta-13-v3
 ```
 
@@ -88,6 +160,8 @@ Frontend: http://localhost:5173
 Backend API: http://localhost:3001
 ```
 
+---
+
 ## 🛠️ Development Commands
 
 | Task | Command | Deskripsi |
@@ -99,8 +173,10 @@ Backend API: http://localhost:3001
 | Lint | `npm run lint` | Jalankan ESLint |
 | Test | `npm test` | Jalankan semua test |
 
+---
 
-## 🔐 Environment Variables
+<details>
+<summary><h2>🔐 Environment Variables</h2></summary>
 
 Buat file `.env` di root directory dengan konfigurasi berikut:
 
@@ -134,29 +210,9 @@ HCAPTCHA_SECRET=your-hcaptcha-secret-key
 
 > ⚠️ **PENTING**: `JWT_SECRET` **WAJIB** diset di production. Server akan gagal start jika tidak diset.
 
-## 🛡️ Security Features
+</details>
 
-### Authentication & Authorization
-- **JWT-based authentication** dengan token expiry 24 jam
-- **Role-based access control** (Admin, Guru, Siswa)
-- **Multi-key rate limiting** — lockout per-akun (5x), per-device (10x), dan per-IP fallback (20x) agar satu siswa salah password tidak memblokir seluruh jaringan WiFi sekolah
-- **hCaptcha verification** — muncul otomatis setelah 3x percobaan gagal per-akun
-
-### Input Validation
-- **SQL Injection protection** dengan parameterized queries
-- **XSS protection** dengan input sanitization
-- **Request validation** untuk semua endpoints
-
-### Security Monitoring
-- **Audit logging** untuk semua aksi penting
-- **IP-based rate limiting** dengan auto-blocking
-- **DDoS protection** dengan burst detection
-- **Suspicious activity tracking**
-
-### Cryptography
-- **bcrypt** untuk password hashing (salt rounds: 10)
-- **crypto.randomBytes** untuk secure ID generation
-- **No hardcoded secrets** - semua dari environment variables
+---
 
 ## 🧪 Testing
 
@@ -177,6 +233,8 @@ npx vitest run
 # Backend saja
 node --test server/__tests__/**/*.test.js
 ```
+
+---
 
 ## 🏗️ Struktur Project
 
@@ -224,93 +282,75 @@ absenta-13-v3/
 
 📌 **Catatan**: Direktori runtime seperti `logs/` atau `exports/` dapat dibuat secara otomatis ketika server berjalan (mis. untuk menyimpan log atau hasil unduhan). Jika belum menjalankan aplikasi, folder ini mungkin belum muncul setelah clone.
 
+---
+
 ## 👥 User Roles & Permissions
 
-### 🛡️ Admin
-- **Dashboard**: Analytics real-time dengan caching
-- **Data Management**: Kelola guru, siswa, kelas, jadwal
-- **Reports**: Export Excel dengan queue system
-- **System**: Monitoring, backup, security logs
-- **Performance**: Load balancer stats, cache stats
+| Role | Fitur Utama |
+|------|-------------|
+| 🛡️ **Admin** | Dashboard analytics, kelola data guru/siswa/kelas/jadwal, export Excel, monitoring, backup, security logs |
+| 👨‍🏫 **Guru** | Input & kelola kehadiran siswa, lihat jadwal, export Excel, rekap kehadiran |
+| 👨‍🎓 **Siswa** | Input kehadiran mandiri, lihat riwayat, ajukan banding, notifikasi real-time |
 
-### 👨‍🏫 Guru  
-- **Attendance**: Input dan kelola kehadiran siswa
-- **Schedule**: Lihat jadwal mengajar dengan caching
-- **Reports**: Export Excel dengan background processing
-- **Analytics**: Rekap kehadiran dengan real-time data
+---
 
-### 👨‍🎓 Siswa
-- **Attendance**: Input kehadiran mandiri
-- **History**: Lihat riwayat kehadiran
-- **Appeal**: Ajukan banding kehadiran
-- **Notifications**: Real-time updates
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **React 18** dengan TypeScript
-- **Tailwind CSS** untuk styling
-- **shadcn/ui** untuk UI components
-- **Vite** sebagai build tool
-- **PWA** support
-
-### Backend
-- **Node.js** dengan Express
-- **MySQL2** dengan connection pooling
-- **Redis** untuk caching dan queue
-- **JWT** untuk authentication
-- **Bull** untuk job queue
-- **ExcelJS** untuk export
-
-### Performance & Monitoring
-- **Connection Pooling** (50 connections)
-- **Redis Caching** dengan TTL
-- **Load Balancing** dengan prioritization
-- **Real-time Monitoring** dengan metrics
-- **Security System** dengan rate limiting
-- **Disaster Recovery** dengan automated backup
-
-## 📊 Performance Specifications
-
-### 🎯 Target Performance
-- **Concurrent Users**: 150+ users
-- **Database Records**: 250K+ records
-- **Response Time**: < 2s (cached), < 5s (uncached)
-- **Memory Usage**: < 1.8GB
-- **Database Query**: < 100ms
-- **Uptime**: 99.9%
-
-### 📈 Actual Performance
-- **Login Success Rate**: 91.3% (137/150 users)
-- **Average Response Time**: 10.6s (login), 2-9ms (queries)
-- **Memory Usage**: 60.3%
-- **CPU Usage**: 11.0%
-- **Cache Hit Ratio**: High untuk dashboard data
-- **Load Balancer**: 183 requests processed
-
-## 🔧 API Endpoints
+<details>
+<summary><h2>🔧 API Endpoints</h2></summary>
 
 ### Authentication
-- `POST /api/login` - User login
-- `POST /api/logout` - User logout
-- `GET /api/verify-token` - Verify JWT token
+- `POST /api/login` — User login
+- `POST /api/logout` — User logout
+- `GET /api/verify-token` — Verify JWT token
 
 ### Admin Endpoints
-- `GET /api/admin/dashboard-stats` - Dashboard analytics (cached)
-- `GET /api/admin/system-metrics` - System performance metrics
-- `GET /api/admin/load-balancer-stats` - Load balancer statistics
-- `GET /api/admin/security-stats` - Security system statistics
-- `GET /api/admin/disaster-recovery-status` - Disaster recovery status
+- `GET /api/admin/dashboard-stats` — Dashboard analytics (cached)
+- `GET /api/admin/system-metrics` — System performance metrics
+- `GET /api/admin/load-balancer-stats` — Load balancer statistics
+- `GET /api/admin/security-stats` — Security system statistics
+- `GET /api/admin/disaster-recovery-status` — Disaster recovery status
 
 ### Backup & Recovery
-- `POST /api/admin/create-semester-backup` - Create backup
-- `GET /api/admin/backup-list` - List backups
-- `POST /api/admin/archive-old-data` - Archive old data
+- `POST /api/admin/create-semester-backup` — Create backup
+- `GET /api/admin/backup-list` — List backups
+- `POST /api/admin/archive-old-data` — Archive old data
 
 ### Queue System
-- `POST /api/guru/request-excel-download` - Request Excel download
-- `GET /api/guru/download-status/:jobId` - Check download status
-- `GET /api/downloads/:filename` - Download file
+- `POST /api/guru/request-excel-download` — Request Excel download
+- `GET /api/guru/download-status/:jobId` — Check download status
+- `GET /api/downloads/:filename` — Download file
+
+</details>
+
+---
+
+<details>
+<summary><h2>🛡️ Security Features</h2></summary>
+
+### Authentication & Authorization
+- **JWT-based authentication** dengan token expiry 24 jam
+- **Role-based access control** (Admin, Guru, Siswa)
+- **Multi-key rate limiting** — lockout per-akun (5x), per-device (10x), dan per-IP fallback (20x) agar satu siswa salah password tidak memblokir seluruh jaringan WiFi sekolah
+- **hCaptcha verification** — muncul otomatis setelah 3x percobaan gagal per-akun
+
+### Input Validation
+- **SQL Injection protection** dengan parameterized queries
+- **XSS protection** dengan input sanitization
+- **Request validation** untuk semua endpoints
+
+### Security Monitoring
+- **Audit logging** untuk semua aksi penting
+- **IP-based rate limiting** dengan auto-blocking
+- **DDoS protection** dengan burst detection
+- **Suspicious activity tracking**
+
+### Cryptography
+- **bcrypt** untuk password hashing (salt rounds: 10)
+- **crypto.randomBytes** untuk secure ID generation
+- **No hardcoded secrets** — semua dari environment variables
+
+</details>
+
+---
 
 ## 🚀 Deployment Guide
 
@@ -354,7 +394,8 @@ node server/index.js  # backend saja
 npm run dev           # frontend saja
 ```
 
-### Alternatif: Manual Deployment dengan PM2
+<details>
+<summary>Alternatif: Manual Deployment dengan PM2</summary>
 
 ```bash
 # 1. Install PM2
@@ -373,29 +414,72 @@ npm run build
 pm2 serve dist 3000 --name "absenta-frontend"
 ```
 
+</details>
+
+---
+
+## 📊 Performance Specifications
+
+### 🎯 Target Performance
+| Metric | Target |
+|--------|--------|
+| Concurrent Users | 150+ users |
+| Database Records | 250K+ records |
+| Response Time | < 2s (cached), < 5s (uncached) |
+| Memory Usage | < 1.8GB |
+| Database Query | < 100ms |
+| Uptime | 99.9% |
+
+### 📈 Actual Performance
+| Metric | Result |
+|--------|--------|
+| Login Success Rate | 91.3% (137/150 users) |
+| Average Response Time | 10.6s (login), 2-9ms (queries) |
+| Memory Usage | 60.3% |
+| CPU Usage | 11.0% |
+| Cache Hit Ratio | High untuk dashboard data |
+| Load Balancer | 183 requests processed |
+
+---
+
 ## 📊 Monitoring & Maintenance
 
-### System Monitoring
-- **Real-time Metrics**: Memory, CPU, Disk usage
-- **Performance Tracking**: Response times, request counts
-- **Alert System**: Threshold-based notifications
-- **Health Checks**: Automated system health monitoring
+<details>
+<summary>System Monitoring</summary>
 
-### Database Maintenance
-- **Automated Backups**: Daily backups dengan retention
-- **Index Optimization**: Automatic index maintenance
-- **Query Performance**: Slow query monitoring
-- **Archive Management**: Old data archiving
+- **Real-time Metrics** — Memory, CPU, Disk usage
+- **Performance Tracking** — Response times, request counts
+- **Alert System** — Threshold-based notifications
+- **Health Checks** — Automated system health monitoring
 
-### Security Monitoring
-- **Rate Limiting**: Request throttling
-- **Input Validation**: SQL injection & XSS protection
-- **Audit Logging**: Security event tracking
-- **IP Blocking**: Suspicious activity blocking
+</details>
+
+<details>
+<summary>Database Maintenance</summary>
+
+- **Automated Backups** — Daily backups dengan retention
+- **Index Optimization** — Automatic index maintenance
+- **Query Performance** — Slow query monitoring
+- **Archive Management** — Old data archiving
+
+</details>
+
+<details>
+<summary>Security Monitoring</summary>
+
+- **Rate Limiting** — Request throttling
+- **Input Validation** — SQL injection & XSS protection
+- **Audit Logging** — Security event tracking
+- **IP Blocking** — Suspicious activity blocking
+
+</details>
+
+---
 
 ## 🛠️ Troubleshooting
 
-### Docker Issues
+<details>
+<summary>Docker Issues</summary>
 
 ```bash
 # Cek status semua container
@@ -411,9 +495,11 @@ docker-compose restart app
 docker-compose up -d --build app
 ```
 
-### Common Issues
+</details>
 
-#### Server Not Starting
+<details>
+<summary>Server Not Starting</summary>
+
 ```bash
 # Check port availability
 netstat -an | findstr :3001
@@ -425,7 +511,11 @@ redis-cli ping
 mysql -u root -p
 ```
 
-#### Performance Issues
+</details>
+
+<details>
+<summary>Performance Issues</summary>
+
 ```bash
 # Check system metrics
 curl http://localhost:3001/api/admin/system-metrics
@@ -437,7 +527,11 @@ curl http://localhost:3001/api/admin/load-balancer-stats
 curl http://localhost:3001/api/admin/queue-stats
 ```
 
-#### Database Issues
+</details>
+
+<details>
+<summary>Database Issues</summary>
+
 ```bash
 # Check connection pool
 curl http://localhost:3001/api/admin/system-metrics
@@ -448,6 +542,10 @@ curl http://localhost:3001/api/admin/system-metrics
 # Restart database optimization
 # Restart server (node server/index.js)
 ```
+
+</details>
+
+---
 
 ## 📋 Production Checklist
 
@@ -467,6 +565,8 @@ curl http://localhost:3001/api/admin/system-metrics
 - [ ] Disaster recovery tested
 - [ ] Documentation updated
 
+---
+
 ## 🤝 Contributing
 
 1. Fork project ini
@@ -475,13 +575,15 @@ curl http://localhost:3001/api/admin/system-metrics
 4. Push ke branch (`git push origin feature/AmazingFeature`)
 5. Buat Pull Request
 
+---
+
 ## 📞 Support
 
 Untuk bantuan dan pertanyaan:
-- **Email**: support@absenta13.com
-- **GitHub Issues**: [Create Issue]
-- **Documentation**: README.md
-- **Performance Issues**: Check monitoring dashboard
+- **GitHub Issues**: [Create Issue](https://github.com/RaiKanaeru/absenta-13-v3/issues)
+- **Documentation**: Lihat folder `docs/`
+
+---
 
 ## 📝 License
 
@@ -489,9 +591,11 @@ Copyright © 2025 ABSENTA Team. All rights reserved.
 
 ---
 
-**ABSENTA 13 OPTIMIZED** - Sistem Absensi Digital Modern dengan Performa Tinggi untuk Sekolah Indonesia 🇮🇩
-
-**Status**: ✅ Production Ready  
-**Performance**: 🚀 150+ Concurrent Users  
-**Security**: 🛡️ Enterprise Grade  
-**Reliability**: 🔄 99.9% Uptime Target
+<p align="center">
+  <strong>ABSENTA 13</strong> — Sistem Absensi Digital Modern dengan Performa Tinggi untuk Sekolah Indonesia 🇮🇩
+  <br/><br/>
+  <img src="https://img.shields.io/badge/Status-Production_Ready-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/Users-150+_Concurrent-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Security-Enterprise_Grade-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/Uptime-99.9%25_Target-purple?style=flat-square" />
+</p>
