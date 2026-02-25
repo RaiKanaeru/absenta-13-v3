@@ -83,7 +83,6 @@ export const getStudentsPaginated = async (page = 1, limit = 15, search = '') =>
         db.query(query, queryParams),
         db.query(countQuery, params)
     ]);
-    const [countResult] = await db.query(countQuery, params);
     
     return {
         data: rows,
