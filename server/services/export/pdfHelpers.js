@@ -3,6 +3,9 @@
  * Streaming response, image conversion, and shared utilities for PDF exports
  */
 
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('PDFHelpers');
 /**
  * Stream PDF buffer as download response
  * @param {Object} res - Express response object
@@ -63,7 +66,7 @@ export function wrapPdfExport(handler, operationName) {
         try {
             await handler(req, res);
         } catch (error) {
-            console.error(`[PDF Export] ${operationName} failed:`, error.message);
+            logger.error(`[PDF Export] ${operationName} failed:`, error.message);
 
             if (!res.headersSent) {
                 res.status(500).json({

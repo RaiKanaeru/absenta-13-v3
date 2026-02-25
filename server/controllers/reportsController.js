@@ -264,28 +264,6 @@ function generateCSV(res, filename, headerInfo, rows, rowMapper) {
 // REPORTS & ANALYTICS ENDPOINTS
 // ================================================
 
-// Update permission request status (Deprecated but kept for compatibility)
-export const updatePermissionStatus = async (req, res) => {
-    const log = logger.withRequest(req, res);
-    const { id } = req.params;
-    const { status } = req.body;
-
-    log.requestStart('UpdatePermissionStatus', { id, status });
-
-    try {
-        if (!status || !['disetujui', 'ditolak'].includes(status)) {
-            log.validationFail('status', status, 'Invalid status');
-            return sendValidationError(res, 'Status harus disetujui atau ditolak', { field: 'status' });
-        }
-
-        // Endpoint deprecated - pengajuan izin sudah dihapus
-        log.warn('Deprecated endpoint called', { id });
-        return sendDeprecatedError(res, 'Pengajuan izin sudah dihapus dari sistem');
-    } catch (error) {
-        log.dbError('updatePermission', error, { id });
-        return sendDatabaseError(res, error);
-    }
-};
 
 // Helper to build analytics queries
 function buildAnalyticsQueries(todayWIB, currentYear, currentMonth) {
@@ -426,24 +404,54 @@ export const getAnalyticsDashboard = async (req, res) => {
         const currentYear = wibNow.getFullYear();
         const currentMonth = wibNow.getMonth() + 1;
 
-        const queries = buildAnalyticsQueries(todayWIB, currentYear, currentMonth);
+        const cacheKey = `report:analytics:dashboard:${todayWIB}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let analyticsData;
+        let wasCached = false;
 
-        // Execute all queries in parallel
-        const results = await Promise.all([
-            db.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
-            db.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
-            db.execute(queries.studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            db.execute(queries.teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
-            db.execute(queries.topAbsentStudentsQuery),
-            db.execute(queries.topAbsentTeachersQuery),
-            db.execute(queries.notificationsQuery)
-        ]);
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'analytics');
+            if (cached !== null) {
+                analyticsData = cached;
+                wasCached = true;
+            } else {
+                const queries = buildAnalyticsQueries(todayWIB, currentYear, currentMonth);
 
-        const analyticsData = formatAnalyticsData(results);
+                // Execute all queries in parallel
+                const results = await Promise.all([
+                    db.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
+                    db.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
+                    db.execute(queries.studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+                    db.execute(queries.teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+                    db.execute(queries.topAbsentStudentsQuery),
+                    db.execute(queries.topAbsentTeachersQuery),
+                    db.execute(queries.notificationsQuery)
+                ]);
+
+                analyticsData = formatAnalyticsData(results);
+                await cacheSystem.set(cacheKey, analyticsData, 'analytics', 300);
+            }
+        } else {
+            const queries = buildAnalyticsQueries(todayWIB, currentYear, currentMonth);
+
+            // Execute all queries in parallel
+            const results = await Promise.all([
+                db.execute('SELECT COUNT(*) as total FROM siswa WHERE status = "aktif"'),
+                db.execute('SELECT COUNT(*) as total FROM guru WHERE status = "aktif"'),
+                db.execute(queries.studentAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+                db.execute(queries.teacherAttendanceQuery, [todayWIB, todayWIB, currentYear, currentMonth]),
+                db.execute(queries.topAbsentStudentsQuery),
+                db.execute(queries.topAbsentTeachersQuery),
+                db.execute(queries.notificationsQuery)
+            ]);
+
+            analyticsData = formatAnalyticsData(results);
+        }
 
         log.success('GetAnalyticsDashboard', { 
             totalStudents: analyticsData.totalStudents, 
-            notificationCount: analyticsData.notifications.length 
+            notificationCount: analyticsData.notifications.length,
+            cached: wasCached
         });
         res.json(analyticsData);
     } catch (error) {
@@ -462,55 +470,119 @@ export const getLiveTeacherAttendance = async (req, res) => {
         const wibNow = getWIBTime();
         const currentDayWIB = HARI_INDONESIA[wibNow.getDay()];
 
-        const query = `
-            SELECT DISTINCT
-                g.id_guru as id,
-                g.nama,
-                g.nip,
-                GROUP_CONCAT(DISTINCT m.nama_mapel ORDER BY m.nama_mapel SEPARATOR ', ') as nama_mapel,
-                GROUP_CONCAT(DISTINCT k.nama_kelas ORDER BY k.nama_kelas SEPARATOR ', ') as nama_kelas,
-                MIN(j.jam_mulai) as jam_mulai,
-                MAX(j.jam_selesai) as jam_selesai,
-                COALESCE(ag.status, 'Belum Absen') as status,
-                DATE_FORMAT(ag.waktu_catat, '%H:%i:%s') as waktu_absen,
-                ag.keterangan,
-                ag.waktu_catat as waktu_absen_full,
-                CASE 
-                    WHEN ag.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
-                    WHEN ag.waktu_catat IS NOT NULL THEN
-                        CASE 
-                            WHEN TIME(ag.waktu_catat) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
-                            WHEN TIME(ag.waktu_catat) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
-                            WHEN TIME(ag.waktu_catat) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
-                            ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
-                        END
-                    ELSE '-'
-                END as keterangan_waktu,
-                CASE 
-                    WHEN ag.waktu_catat IS NOT NULL THEN
-                        CASE 
-                            WHEN HOUR(ag.waktu_catat) < 12 THEN '${REPORT_STATUS.PAGI}'
-                            WHEN HOUR(ag.waktu_catat) < 15 THEN '${REPORT_STATUS.SIANG}'
-                            ELSE '${REPORT_STATUS.SORE}'
-                        END
-                    ELSE '${REPORT_STATUS.BELUM_ABSEN}'
-                END as periode_absen
-            FROM jadwal j
-            LEFT JOIN guru g ON j.guru_id = g.id_guru
-            LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-            JOIN kelas k ON j.kelas_id = k.id_kelas
-            LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
-                AND DATE(ag.tanggal) = ?
-            WHERE j.hari = ?
-            GROUP BY g.id_guru, g.nama, g.nip, ag.status, ag.waktu_catat, ag.keterangan, ag.terlambat
-            ORDER BY 
-                CASE WHEN ag.waktu_catat IS NOT NULL THEN 0 ELSE 1 END,
-                ag.waktu_catat DESC,
-                g.nama
-        `;
+        const cacheKey = `report:live-teacher:${todayWIB}:${currentDayWIB}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
 
-        const [rows] = await db.execute(query, [todayWIB, currentDayWIB]);
-        log.success('GetLiveTeacherAttendance', { count: rows.length, day: currentDayWIB });
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const query = `
+                    SELECT DISTINCT
+                        g.id_guru as id,
+                        g.nama,
+                        g.nip,
+                        GROUP_CONCAT(DISTINCT m.nama_mapel ORDER BY m.nama_mapel SEPARATOR ', ') as nama_mapel,
+                        GROUP_CONCAT(DISTINCT k.nama_kelas ORDER BY k.nama_kelas SEPARATOR ', ') as nama_kelas,
+                        MIN(j.jam_mulai) as jam_mulai,
+                        MAX(j.jam_selesai) as jam_selesai,
+                        COALESCE(ag.status, 'Belum Absen') as status,
+                        DATE_FORMAT(ag.waktu_catat, '%H:%i:%s') as waktu_absen,
+                        ag.keterangan,
+                        ag.waktu_catat as waktu_absen_full,
+                        CASE 
+                            WHEN ag.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
+                            WHEN ag.waktu_catat IS NOT NULL THEN
+                                CASE 
+                                    WHEN TIME(ag.waktu_catat) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
+                                    WHEN TIME(ag.waktu_catat) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
+                                    WHEN TIME(ag.waktu_catat) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
+                                    ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
+                                END
+                            ELSE '-'
+                        END as keterangan_waktu,
+                        CASE 
+                            WHEN ag.waktu_catat IS NOT NULL THEN
+                                CASE 
+                                    WHEN HOUR(ag.waktu_catat) < 12 THEN '${REPORT_STATUS.PAGI}'
+                                    WHEN HOUR(ag.waktu_catat) < 15 THEN '${REPORT_STATUS.SIANG}'
+                                    ELSE '${REPORT_STATUS.SORE}'
+                                END
+                            ELSE '${REPORT_STATUS.BELUM_ABSEN}'
+                        END as periode_absen
+                    FROM jadwal j
+                    LEFT JOIN guru g ON j.guru_id = g.id_guru
+                    LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                    JOIN kelas k ON j.kelas_id = k.id_kelas
+                    LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+                        AND DATE(ag.tanggal) = ?
+                    WHERE j.hari = ?
+                    GROUP BY g.id_guru, g.nama, g.nip, ag.status, ag.waktu_catat, ag.keterangan, ag.terlambat
+                    ORDER BY 
+                        CASE WHEN ag.waktu_catat IS NOT NULL THEN 0 ELSE 1 END,
+                        ag.waktu_catat DESC,
+                        g.nama
+                `;
+                const [dbRows] = await db.execute(query, [todayWIB, currentDayWIB]);
+                rows = dbRows;
+                await cacheSystem.set(cacheKey, rows, 'attendance', 30);
+            }
+        } else {
+            const query = `
+                SELECT DISTINCT
+                    g.id_guru as id,
+                    g.nama,
+                    g.nip,
+                    GROUP_CONCAT(DISTINCT m.nama_mapel ORDER BY m.nama_mapel SEPARATOR ', ') as nama_mapel,
+                    GROUP_CONCAT(DISTINCT k.nama_kelas ORDER BY k.nama_kelas SEPARATOR ', ') as nama_kelas,
+                    MIN(j.jam_mulai) as jam_mulai,
+                    MAX(j.jam_selesai) as jam_selesai,
+                    COALESCE(ag.status, 'Belum Absen') as status,
+                    DATE_FORMAT(ag.waktu_catat, '%H:%i:%s') as waktu_absen,
+                    ag.keterangan,
+                    ag.waktu_catat as waktu_absen_full,
+                    CASE 
+                        WHEN ag.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
+                        WHEN ag.waktu_catat IS NOT NULL THEN
+                            CASE 
+                                WHEN TIME(ag.waktu_catat) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
+                                WHEN TIME(ag.waktu_catat) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
+                                WHEN TIME(ag.waktu_catat) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
+                                ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
+                            END
+                        ELSE '-'
+                    END as keterangan_waktu,
+                    CASE 
+                        WHEN ag.waktu_catat IS NOT NULL THEN
+                            CASE 
+                                WHEN HOUR(ag.waktu_catat) < 12 THEN '${REPORT_STATUS.PAGI}'
+                                WHEN HOUR(ag.waktu_catat) < 15 THEN '${REPORT_STATUS.SIANG}'
+                                ELSE '${REPORT_STATUS.SORE}'
+                            END
+                        ELSE '${REPORT_STATUS.BELUM_ABSEN}'
+                    END as periode_absen
+                FROM jadwal j
+                LEFT JOIN guru g ON j.guru_id = g.id_guru
+                LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                LEFT JOIN absensi_guru ag ON j.id_jadwal = ag.jadwal_id 
+                    AND DATE(ag.tanggal) = ?
+                WHERE j.hari = ?
+                GROUP BY g.id_guru, g.nama, g.nip, ag.status, ag.waktu_catat, ag.keterangan, ag.terlambat
+                ORDER BY 
+                    CASE WHEN ag.waktu_catat IS NOT NULL THEN 0 ELSE 1 END,
+                    ag.waktu_catat DESC,
+                    g.nama
+            `;
+            const [dbRows] = await db.execute(query, [todayWIB, currentDayWIB]);
+            rows = dbRows;
+        }
+
+        log.success('GetLiveTeacherAttendance', { count: rows.length, day: currentDayWIB, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('liveTeacher', error);
@@ -526,50 +598,109 @@ export const getLiveStudentAttendance = async (req, res) => {
     try {
         const todayWIB = getMySQLDateWIB();
 
-        const query = `
-            SELECT 
-                s.id_siswa as id,
-                s.nama,
-                s.nis,
-                k.nama_kelas,
-                COALESCE(a.status, 'Belum Absen') as status,
-                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
-                a.keterangan,
-                a.waktu_absen as waktu_absen_full,
-                CASE 
-                    WHEN a.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
-                    WHEN a.waktu_absen IS NOT NULL THEN
-                        CASE 
-                            WHEN TIME(a.waktu_absen) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
-                            WHEN TIME(a.waktu_absen) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
-                            WHEN TIME(a.waktu_absen) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
-                            ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
-                        END
-                    ELSE '-'
-                END as keterangan_waktu,
-                CASE 
-                    WHEN a.waktu_absen IS NOT NULL THEN
-                        CASE 
-                            WHEN HOUR(a.waktu_absen) < 12 THEN '${REPORT_STATUS.PAGI}'
-                            WHEN HOUR(a.waktu_absen) < 15 THEN '${REPORT_STATUS.SIANG}'
-                            ELSE '${REPORT_STATUS.SORE}'
-                        END
-                    ELSE '${REPORT_STATUS.BELUM_ABSEN}'
-                END as periode_absen
-            FROM siswa s
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND DATE(a.waktu_absen) = ?
-            WHERE s.status = 'aktif'
-            ORDER BY 
-                CASE WHEN a.waktu_absen IS NOT NULL THEN 0 ELSE 1 END,
-                a.waktu_absen DESC,
-                k.nama_kelas,
-                s.nama
-        `;
+        const cacheKey = `report:live-student:${todayWIB}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
 
-        const [rows] = await db.execute(query, [todayWIB]);
-        log.success('GetLiveStudentAttendance', { count: rows.length });
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const query = `
+                    SELECT 
+                        s.id_siswa as id,
+                        s.nama,
+                        s.nis,
+                        k.nama_kelas,
+                        COALESCE(a.status, 'Belum Absen') as status,
+                        DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
+                        a.keterangan,
+                        a.waktu_absen as waktu_absen_full,
+                        CASE 
+                            WHEN a.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
+                            WHEN a.waktu_absen IS NOT NULL THEN
+                                CASE 
+                                    WHEN TIME(a.waktu_absen) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
+                                    WHEN TIME(a.waktu_absen) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
+                                    WHEN TIME(a.waktu_absen) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
+                                    ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
+                                END
+                            ELSE '-'
+                        END as keterangan_waktu,
+                        CASE 
+                            WHEN a.waktu_absen IS NOT NULL THEN
+                                CASE 
+                                    WHEN HOUR(a.waktu_absen) < 12 THEN '${REPORT_STATUS.PAGI}'
+                                    WHEN HOUR(a.waktu_absen) < 15 THEN '${REPORT_STATUS.SIANG}'
+                                    ELSE '${REPORT_STATUS.SORE}'
+                                END
+                            ELSE '${REPORT_STATUS.BELUM_ABSEN}'
+                        END as periode_absen
+                    FROM siswa s
+                    JOIN kelas k ON s.kelas_id = k.id_kelas
+                    LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                        AND DATE(a.waktu_absen) = ?
+                    WHERE s.status = 'aktif'
+                    ORDER BY 
+                        CASE WHEN a.waktu_absen IS NOT NULL THEN 0 ELSE 1 END,
+                        a.waktu_absen DESC,
+                        k.nama_kelas,
+                        s.nama
+                `;
+                const [dbRows] = await db.execute(query, [todayWIB]);
+                rows = dbRows;
+                await cacheSystem.set(cacheKey, rows, 'attendance', 30);
+            }
+        } else {
+            const query = `
+                SELECT 
+                    s.id_siswa as id,
+                    s.nama,
+                    s.nis,
+                    k.nama_kelas,
+                    COALESCE(a.status, 'Belum Absen') as status,
+                    DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
+                    a.keterangan,
+                    a.waktu_absen as waktu_absen_full,
+                    CASE 
+                        WHEN a.terlambat = 1 THEN '${REPORT_STATUS.TERLAMBAT}'
+                        WHEN a.waktu_absen IS NOT NULL THEN
+                            CASE 
+                                WHEN TIME(a.waktu_absen) < '07:00:00' THEN '${REPORT_STATUS.TEPAT_WAKTU}'
+                                WHEN TIME(a.waktu_absen) BETWEEN '07:00:00' AND '07:15:00' THEN '${REPORT_STATUS.TERLAMBAT_RINGAN}'
+                                WHEN TIME(a.waktu_absen) BETWEEN '07:15:00' AND '08:00:00' THEN '${REPORT_STATUS.TERLAMBAT}'
+                                ELSE '${REPORT_STATUS.TERLAMBAT_BERAT}'
+                            END
+                        ELSE '-'
+                    END as keterangan_waktu,
+                    CASE 
+                        WHEN a.waktu_absen IS NOT NULL THEN
+                            CASE 
+                                WHEN HOUR(a.waktu_absen) < 12 THEN '${REPORT_STATUS.PAGI}'
+                                WHEN HOUR(a.waktu_absen) < 15 THEN '${REPORT_STATUS.SIANG}'
+                                ELSE '${REPORT_STATUS.SORE}'
+                            END
+                        ELSE '${REPORT_STATUS.BELUM_ABSEN}'
+                    END as periode_absen
+                FROM siswa s
+                JOIN kelas k ON s.kelas_id = k.id_kelas
+                LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
+                    AND DATE(a.waktu_absen) = ?
+                WHERE s.status = 'aktif'
+                ORDER BY 
+                    CASE WHEN a.waktu_absen IS NOT NULL THEN 0 ELSE 1 END,
+                    a.waktu_absen DESC,
+                    k.nama_kelas,
+                    s.nama
+            `;
+            const [dbRows] = await db.execute(query, [todayWIB]);
+            rows = dbRows;
+        }
+
+        log.success('GetLiveStudentAttendance', { count: rows.length, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('liveStudent', error);
@@ -590,9 +721,25 @@ export const getTeacherAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED, { fields: ['startDate', 'endDate'] });
         }
 
-        const rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
-        
-        log.success('GetTeacherReport', { count: rows.length, startDate, endDate });
+        const cacheKey = `report:teacher:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
+        }
+
+        log.success('GetTeacherReport', { count: rows.length, startDate, endDate, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('teacherReport', error);
@@ -600,7 +747,6 @@ export const getTeacherAttendanceReport = async (req, res) => {
     }
 };
 
-// Download teacher attendance report as Excel (CSV)
 export const downloadTeacherAttendanceReport = async (req, res) => {
     const log = logger.withRequest(req, res);
     const { startDate, endDate, kelas_id } = req.query;
@@ -613,14 +759,30 @@ export const downloadTeacherAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        const rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
+        const cacheKey = `report:teacher:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            rows = await ExportService.getTeacherReportData(startDate, endDate, kelas_id);
+        }
 
         const rowMapper = (row) => 
             `"${row.tanggal_formatted}","${row.nama_kelas}","${row.nama_guru}","${row.nip_guru || ''}","${row.nama_mapel}","${row.jam_hadir || ''}","${row.jam_mulai}","${row.jam_selesai}","${row.jadwal}","${row.status}","${row.keterangan || ''}"`;
 
         generateCSV(res, `laporan-kehadiran-guru-${startDate}-${endDate}.csv`, CSV_HEADERS.TEACHER_REPORT, rows, rowMapper);
 
-        log.success('DownloadTeacherReport', { recordCount: rows.length });
+        log.success('DownloadTeacherReport', { recordCount: rows.length, cached: wasCached });
     } catch (error) {
         log.dbError('downloadTeacher', error);
         return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_DOWNLOAD_TEACHER);
@@ -640,9 +802,25 @@ export const getStudentAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED, { fields: ['startDate', 'endDate'] });
         }
 
-        const rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
-        
-        log.success('GetStudentReport', { count: rows.length });
+        const cacheKey = `report:student:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
+        }
+
+        log.success('GetStudentReport', { count: rows.length, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('studentReport', error);
@@ -663,14 +841,30 @@ export const downloadStudentAttendanceReport = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        const rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
+        const cacheKey = `report:student:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            rows = await ExportService.getStudentReportData(startDate, endDate, kelas_id);
+        }
 
         const rowMapper = (row) => 
             `"${row.tanggal_formatted}","${row.nama_kelas}","${row.nama_siswa}","${row.nis_siswa || ''}","${row.nama_mapel || ''}","${row.nama_guru || ''}","${row.waktu_absen || ''}","${row.jam_mulai || ''}","${row.jam_selesai || ''}","${row.jadwal || ''}","${row.status}","${row.keterangan || ''}"`;
 
         generateCSV(res, `laporan-kehadiran-siswa-${startDate}-${endDate}.csv`, CSV_HEADERS.STUDENT_REPORT, rows, rowMapper);
 
-        log.success('DownloadStudentReport', { recordCount: rows.length });
+        log.success('DownloadStudentReport', { recordCount: rows.length, cached: wasCached });
     } catch (error) {
         log.dbError('downloadStudent', error);
         return sendDatabaseError(res, error, REPORT_MESSAGES.DB_ERROR_DOWNLOAD_STUDENT);
@@ -691,37 +885,81 @@ export const getStudentAttendanceSummary = async (req, res) => {
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
 
-        const rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
-        
-        // Calculate effective days for percentage using DB-backed calculation
-        const effectiveDays = await calculateEffectiveDays(startDate, endDate);
-        
-        // Post-process rows to add percentage with warning for anomalies
-        const processedRows = rows.map(row => {
-            const hadir = Number(row.H) || 0;
-            const dispen = Number(row.D) || 0;
-            const totalPresent = hadir + dispen;
-            
-            // Use centralized calculation with warning
-            const { percentage, capped, raw } = calculateAttendancePercentage(
-                totalPresent, 
-                effectiveDays, 
-                { 
-                    logWarning: true, 
-                    context: `Student: ${row.nama || 'Unknown'} (${row.nis || 'N/A'})` 
-                }
-            );
-            
-            return {
-                ...row,
-                total: effectiveDays, // Show effective days as total expectation
-                actual_total: row.total, // Keep separate record count
-                presentase: percentage.toFixed(2),
-                _raw_percentage: capped ? raw : undefined // Include raw only if capped for debugging
-            };
-        });
+        const cacheKey = `report:student-summary:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let processedRows;
+        let wasCached = false;
 
-        log.success('GetStudentSummary', { count: processedRows.length, effectiveDays });
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                processedRows = cached;
+                wasCached = true;
+            } else {
+                const rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
+                
+                // Calculate effective days for percentage using DB-backed calculation
+                const effectiveDays = await calculateEffectiveDays(startDate, endDate);
+                
+                // Post-process rows to add percentage with warning for anomalies
+                processedRows = rows.map(row => {
+                    const hadir = Number(row.H) || 0;
+                    const dispen = Number(row.D) || 0;
+                    const totalPresent = hadir + dispen;
+                    
+                    // Use centralized calculation with warning
+                    const { percentage, capped, raw } = calculateAttendancePercentage(
+                        totalPresent, 
+                        effectiveDays, 
+                        { 
+                            logWarning: true, 
+                            context: `Student: ${row.nama || 'Unknown'} (${row.nis || 'N/A'})` 
+                        }
+                    );
+                    
+                    return {
+                        ...row,
+                        total: effectiveDays, // Show effective days as total expectation
+                        actual_total: row.total, // Keep separate record count
+                        presentase: percentage.toFixed(2),
+                        _raw_percentage: capped ? raw : undefined // Include raw only if capped for debugging
+                    };
+                });
+                await cacheSystem.set(cacheKey, processedRows, 'attendance', 300);
+            }
+        } else {
+            const rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
+            
+            // Calculate effective days for percentage using DB-backed calculation
+            const effectiveDays = await calculateEffectiveDays(startDate, endDate);
+            
+            // Post-process rows to add percentage with warning for anomalies
+            processedRows = rows.map(row => {
+                const hadir = Number(row.H) || 0;
+                const dispen = Number(row.D) || 0;
+                const totalPresent = hadir + dispen;
+                
+                // Use centralized calculation with warning
+                const { percentage, capped, raw } = calculateAttendancePercentage(
+                    totalPresent, 
+                    effectiveDays, 
+                    { 
+                        logWarning: true, 
+                        context: `Student: ${row.nama || 'Unknown'} (${row.nis || 'N/A'})` 
+                    }
+                );
+                
+                return {
+                    ...row,
+                    total: effectiveDays, // Show effective days as total expectation
+                    actual_total: row.total, // Keep separate record count
+                    presentase: percentage.toFixed(2),
+                    _raw_percentage: capped ? raw : undefined // Include raw only if capped for debugging
+                };
+            });
+        }
+
+        log.success('GetStudentSummary', { count: processedRows.length, cached: wasCached });
         res.json(processedRows);
     } catch (error) {
         log.dbError('studentSummary', error);
@@ -769,7 +1007,23 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
             return sendValidationError(res, validation.error);
         }
 
-        const rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
+        const cacheKey = `report:student-summary:${startDate}:${endDate}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            rows = await ExportService.getStudentSummaryCounts(startDate, endDate, kelas_id);
+        }
 
         log.debug('Building Excel export (streaming)', { studentCount: rows.length });
 
@@ -823,7 +1077,7 @@ export const downloadStudentAttendanceExcel = async (req, res) => {
             rowMapper: rowMapper
         });
 
-        log.success('DownloadStudentExcel', { count: rows.length, effectiveDays, filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx` });
+        log.success('DownloadStudentExcel', { count: rows.length, effectiveDays, cached: wasCached, filename: `ringkasan-kehadiran-siswa-${startDate}-${endDate}.xlsx` });
     } catch (error) {
         log.error('DownloadStudentExcel failed', { error: error.message, stack: error.stack });
 
@@ -856,31 +1110,72 @@ export const getTeacherAttendanceSummary = async (req, res) => {
             log.validationFail('dates', null, 'Date range required');
             return sendValidationError(res, REPORT_MESSAGES.DATE_RANGE_REQUIRED);
         }
-        
-        let query = `
-            SELECT 
-                g.id_guru as guru_id,
-                g.nama,
-                g.nip,
-                COALESCE(SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
-                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
-                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
-                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.TIDAK_HADIR}' THEN 1 ELSE 0 END), 0) AS A,
-                COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
-                COALESCE(COUNT(ag.id_absensi), 0) AS total,
-                CASE 
-                    WHEN COUNT(ag.id_absensi) = 0 THEN 0
-                    ELSE ROUND((SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
-                END AS presentase
-            FROM guru g
-            LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal BETWEEN ? AND ?
-            WHERE g.status = 'aktif'
-        `;
-        const params = [startDate, endDate];
-        query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
-        
-        const [rows] = await db.execute(query, params);
-        log.success('GetTeacherSummary', { count: rows.length });
+
+        const cacheKey = `report:teacher-summary:${startDate}:${endDate}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                let query = `
+                    SELECT 
+                        g.id_guru as guru_id,
+                        g.nama,
+                        g.nip,
+                        COALESCE(SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
+                        COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
+                        COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
+                        COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.TIDAK_HADIR}' THEN 1 ELSE 0 END), 0) AS A,
+                        COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
+                        COALESCE(COUNT(ag.id_absensi), 0) AS total,
+                        CASE 
+                            WHEN COUNT(ag.id_absensi) = 0 THEN 0
+                            ELSE ROUND((SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
+                        END AS presentase
+                    FROM guru g
+                    LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal BETWEEN ? AND ?
+                    WHERE g.status = 'aktif'
+                `;
+                const params = [startDate, endDate];
+                query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
+                
+                const [dbRows] = await db.execute(query, params);
+                rows = dbRows;
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            let query = `
+                SELECT 
+                    g.id_guru as guru_id,
+                    g.nama,
+                    g.nip,
+                    COALESCE(SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END), 0) AS H,
+                    COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.IZIN}' THEN 1 ELSE 0 END), 0) AS I,
+                    COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.SAKIT}' THEN 1 ELSE 0 END), 0) AS S,
+                    COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.TIDAK_HADIR}' THEN 1 ELSE 0 END), 0) AS A,
+                    COALESCE(SUM(CASE WHEN ag.status = '${REPORT_STATUS.DISPEN}' THEN 1 ELSE 0 END), 0) AS D,
+                    COALESCE(COUNT(ag.id_absensi), 0) AS total,
+                    CASE 
+                        WHEN COUNT(ag.id_absensi) = 0 THEN 0
+                        ELSE ROUND((SUM(CASE WHEN ag.status IN ('${REPORT_STATUS.HADIR}', '${REPORT_STATUS.DISPEN}') THEN 1 ELSE 0 END) * 100.0 / COUNT(ag.id_absensi)), 2)
+                    END AS presentase
+                FROM guru g
+                LEFT JOIN absensi_guru ag ON g.id_guru = ag.guru_id AND ag.tanggal BETWEEN ? AND ?
+                WHERE g.status = 'aktif'
+            `;
+            const params = [startDate, endDate];
+            query += ' GROUP BY g.id_guru, g.nama, g.nip ORDER BY g.nama';
+            
+            const [dbRows] = await db.execute(query, params);
+            rows = dbRows;
+        }
+
+        log.success('GetTeacherSummary', { count: rows.length, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('teacherSummary', error);
@@ -965,53 +1260,113 @@ export const getRekapKetidakhadiranGuru = async (req, res) => {
         const monthEndDate = new Date(selectedYear, monthIndex, 0);
         const end = tanggal_akhir || `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
-        const { query, params } = buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate);
+        const cacheKey = `report:rekap-guru:${selectedYear}:${bulan || 'all'}:${tanggal_awal || 'none'}:${tanggal_akhir || 'none'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let processedRows;
+        let wasCached = false;
 
-        const [rows] = await db.execute(query, params);
-
-        // Fetch hari efektif from kalender_akademik for accurate calculation
-        const tahunPelajaran = `${selectedYear}/${selectedYear + 1}`;
-        const { getEffectiveDaysMap } = await import('./kalenderAkademikController.js');
-        const hariEfektifMap = await getEffectiveDaysMap(tahunPelajaran);
-        
-        // Calculate total effective days from map
-        const totalHariEfektif = Object.values(hariEfektifMap).reduce((sum, val) => sum + val, 0);
-        
-        log.info('Fetched hari efektif from kalender_akademik', { 
-            tahunPelajaran, 
-            totalHariEfektif,
-            isAnnual
-        });
-
-        const processedRows = rows.map(row => {
-            const absences = Number.parseInt(row.total_ketidakhadiran) || 0;
-            
-            // For annual view, use total hari efektif; for monthly, use specific month
-            let effectiveDays;
-            if (isAnnual) {
-                effectiveDays = totalHariEfektif;
-            } else if (bulan) {
-                effectiveDays = hariEfektifMap[Number.parseInt(bulan)] || 20;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                processedRows = cached;
+                wasCached = true;
             } else {
-                // Date range mode - estimate based on days
-                const startD = new Date(start);
-                const endD = new Date(end);
-                const daysDiff = Math.ceil((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
-                effectiveDays = Math.round(daysDiff * 0.7); // Approx 70% are working days
-            }
-            
-            const presence = Math.max(0, effectiveDays - absences);
-            
-            return {
-                ...row,
-                total_hari_efektif: effectiveDays,
-                total_kehadiran: presence,
-                persentase_ketidakhadiran: effectiveDays > 0 ? ((absences / effectiveDays) * 100).toFixed(2) : '0.00',
-                persentase_kehadiran: effectiveDays > 0 ? ((presence / effectiveDays) * 100).toFixed(2) : '100.00'
-            };
-        });
+                const { query, params } = buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate);
 
-        log.success('GetRekapKetidakhadiranGuru', { count: processedRows.length, totalHariEfektif });
+                const [rows] = await db.execute(query, params);
+
+                // Fetch hari efektif from kalender_akademik for accurate calculation
+                const tahunPelajaran = `${selectedYear}/${selectedYear + 1}`;
+                const { getEffectiveDaysMap } = await import('./kalenderAkademikController.js');
+                const hariEfektifMap = await getEffectiveDaysMap(tahunPelajaran);
+                
+                // Calculate total effective days from map
+                const totalHariEfektif = Object.values(hariEfektifMap).reduce((sum, val) => sum + val, 0);
+                
+                log.info('Fetched hari efektif from kalender_akademik', { 
+                    tahunPelajaran, 
+                    totalHariEfektif,
+                    isAnnual
+                });
+
+                processedRows = rows.map(row => {
+                    const absences = Number.parseInt(row.total_ketidakhadiran) || 0;
+                    
+                    // For annual view, use total hari efektif; for monthly, use specific month
+                    let effectiveDays;
+                    if (isAnnual) {
+                        effectiveDays = totalHariEfektif;
+                    } else if (bulan) {
+                        effectiveDays = hariEfektifMap[Number.parseInt(bulan)] || 20;
+                    } else {
+                        // Date range mode - estimate based on days
+                        const startD = new Date(start);
+                        const endD = new Date(end);
+                        const daysDiff = Math.ceil((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
+                        effectiveDays = Math.round(daysDiff * 0.7); // Approx 70% are working days
+                    }
+                    
+                    const presence = Math.max(0, effectiveDays - absences);
+                    
+                    return {
+                        ...row,
+                        total_hari_efektif: effectiveDays,
+                        total_kehadiran: presence,
+                        persentase_ketidakhadiran: effectiveDays > 0 ? ((absences / effectiveDays) * 100).toFixed(2) : '0.00',
+                        persentase_kehadiran: effectiveDays > 0 ? ((presence / effectiveDays) * 100).toFixed(2) : '100.00'
+                    };
+                });
+                await cacheSystem.set(cacheKey, processedRows, 'attendance', 300);
+            }
+        } else {
+            const { query, params } = buildGuruAttendanceQuery(isAnnual, selectedYear, start, end, startDate, endDate);
+
+            const [rows] = await db.execute(query, params);
+
+            // Fetch hari efektif from kalender_akademik for accurate calculation
+            const tahunPelajaran = `${selectedYear}/${selectedYear + 1}`;
+            const { getEffectiveDaysMap } = await import('./kalenderAkademikController.js');
+            const hariEfektifMap = await getEffectiveDaysMap(tahunPelajaran);
+            
+            // Calculate total effective days from map
+            const totalHariEfektif = Object.values(hariEfektifMap).reduce((sum, val) => sum + val, 0);
+            
+            log.info('Fetched hari efektif from kalender_akademik', { 
+                tahunPelajaran, 
+                totalHariEfektif,
+                isAnnual
+            });
+
+            processedRows = rows.map(row => {
+                const absences = Number.parseInt(row.total_ketidakhadiran) || 0;
+                
+                // For annual view, use total hari efektif; for monthly, use specific month
+                let effectiveDays;
+                if (isAnnual) {
+                    effectiveDays = totalHariEfektif;
+                } else if (bulan) {
+                    effectiveDays = hariEfektifMap[Number.parseInt(bulan)] || 20;
+                } else {
+                    // Date range mode - estimate based on days
+                    const startD = new Date(start);
+                    const endD = new Date(end);
+                    const daysDiff = Math.ceil((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
+                    effectiveDays = Math.round(daysDiff * 0.7); // Approx 70% are working days
+                }
+                
+                const presence = Math.max(0, effectiveDays - absences);
+                
+                return {
+                    ...row,
+                    total_hari_efektif: effectiveDays,
+                    total_kehadiran: presence,
+                    persentase_ketidakhadiran: effectiveDays > 0 ? ((absences / effectiveDays) * 100).toFixed(2) : '0.00',
+                    persentase_kehadiran: effectiveDays > 0 ? ((presence / effectiveDays) * 100).toFixed(2) : '100.00'
+                };
+            });
+        }
+
+        log.success('GetRekapKetidakhadiranGuru', { count: processedRows.length, cached: wasCached });
         res.json(processedRows);
 
     } catch (error) {
@@ -1043,6 +1398,19 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
 
         // Calculate date range
         const { startDate, endDate } = calculateDateRange(tahun, bulan, tanggal_awal, tanggal_akhir);
+
+        const cacheKey = `report:rekap-siswa:${kelas_id}:${tahun || 'none'}:${bulan || 'all'}:${tanggal_awal || 'none'}:${tanggal_akhir || 'none'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                wasCached = true;
+                log.success('GetRekapKetidakhadiranSiswa', { count: cached.length, cached: wasCached });
+                return res.json(cached);
+            }
+        }
 
         // Fetch rekap data per siswa per bulan
         const query = `
@@ -1078,11 +1446,17 @@ export const getRekapKetidakhadiranSiswa = async (req, res) => {
             
             const finalResult = aggregateAttendanceByStudent(result, diffDays);
             
-            log.success('GetRekapKetidakhadiranSiswa', { count: finalResult.length, mode: 'range' });
+            if (cacheSystem) {
+                await cacheSystem.set(cacheKey, finalResult, 'attendance', 300);
+            }
+            log.success('GetRekapKetidakhadiranSiswa', { count: finalResult.length, mode: 'range', cached: wasCached });
             return res.json(finalResult);
         }
 
-        log.success('GetRekapKetidakhadiranSiswa', { count: result.length });
+        if (cacheSystem) {
+            await cacheSystem.set(cacheKey, result, 'attendance', 300);
+        }
+        log.success('GetRekapKetidakhadiranSiswa', { count: result.length, cached: wasCached });
         res.json(result);
 
     } catch (error) {
@@ -1111,15 +1485,39 @@ export const getStudentsByClass = async (req, res) => {
     log.requestStart('GetStudentsByClass', { kelasId });
 
     try {
-        const query = `
-            SELECT id_siswa as id, nama, nis, jenis_kelamin, kelas_id 
-            FROM siswa 
-            WHERE kelas_id = ? AND status = 'aktif'
-            ORDER BY nama ASC
-        `;
-        const [rows] = await db.execute(query, [kelasId]);
+        const cacheKey = `report:students-by-class:${kelasId}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'students');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const query = `
+                    SELECT id_siswa as id, nama, nis, jenis_kelamin, kelas_id 
+                    FROM siswa 
+                    WHERE kelas_id = ? AND status = 'aktif'
+                    ORDER BY nama ASC
+                `;
+                const [dbRows] = await db.execute(query, [kelasId]);
+                rows = dbRows;
+                await cacheSystem.set(cacheKey, rows, 'students');
+            }
+        } else {
+            const query = `
+                SELECT id_siswa as id, nama, nis, jenis_kelamin, kelas_id 
+                FROM siswa 
+                WHERE kelas_id = ? AND status = 'aktif'
+                ORDER BY nama ASC
+            `;
+            const [dbRows] = await db.execute(query, [kelasId]);
+            rows = dbRows;
+        }
         
-        log.success('GetStudentsByClass', { count: rows.length });
+        log.success('GetStudentsByClass', { count: rows.length, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('studentsByClass', error);
@@ -1159,23 +1557,51 @@ export const getPresensiSiswa = async (req, res) => {
         const monthEndDate = new Date(tahunInt, bulanInt, 0);
         const endDate = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
 
+        const cacheKey = `report:presensi:${kelas_id}:${bulan}:${tahun}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
 
-        const query = `
-            SELECT 
-                a.siswa_id,
-                a.tanggal,
-                a.status,
-                a.keterangan
-            FROM absensi_siswa a
-            JOIN siswa s ON a.siswa_id = s.id_siswa
-            WHERE s.kelas_id = ? 
-              AND a.tanggal BETWEEN ? AND ?
-            ORDER BY a.tanggal ASC
-        `;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const query = `
+                    SELECT 
+                        a.siswa_id,
+                        a.tanggal,
+                        a.status,
+                        a.keterangan
+                    FROM absensi_siswa a
+                    JOIN siswa s ON a.siswa_id = s.id_siswa
+                    WHERE s.kelas_id = ? 
+                      AND a.tanggal BETWEEN ? AND ?
+                    ORDER BY a.tanggal ASC
+                `;
+                const [dbRows] = await db.execute(query, [kelas_id, startDate, endDate]);
+                rows = dbRows;
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            const query = `
+                SELECT 
+                    a.siswa_id,
+                    a.tanggal,
+                    a.status,
+                    a.keterangan
+                FROM absensi_siswa a
+                JOIN siswa s ON a.siswa_id = s.id_siswa
+                WHERE s.kelas_id = ? 
+                  AND a.tanggal BETWEEN ? AND ?
+                ORDER BY a.tanggal ASC
+            `;
+            const [dbRows] = await db.execute(query, [kelas_id, startDate, endDate]);
+            rows = dbRows;
+        }
 
-        const [rows] = await db.execute(query, [kelas_id, startDate, endDate]);
-
-        log.success('GetPresensiSiswa', { count: rows.length });
+        log.success('GetPresensiSiswa', { count: rows.length, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('presensiSiswa', error);

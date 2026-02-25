@@ -228,7 +228,7 @@ export const getSiswaJadwalHariIni = async (req, res) => {
     
     log.requestStart('GetSiswaJadwalHariIni', { siswaId: siswa_id });
 
-    if (!validateUserContext(req, res) || !validatePerwakilanAccess(req, res)) {
+    if (!validateUserContext(req, res)) {
         return;
     }
 
@@ -277,7 +277,7 @@ export const getSiswaJadwalRentang = async (req, res) => {
     
     log.requestStart('GetSiswaJadwalRentang', { siswaId: siswa_id, tanggal });
 
-    if (!validateUserContext(req, res) || !validatePerwakilanAccess(req, res)) {
+    if (!validateUserContext(req, res)) {
         return;
     }
 

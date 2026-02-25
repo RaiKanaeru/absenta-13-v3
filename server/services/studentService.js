@@ -79,7 +79,10 @@ export const getStudentsPaginated = async (page = 1, limit = 15, search = '') =>
     query += ` ORDER BY s.nama ASC LIMIT ? OFFSET ?`;
     const queryParams = [...params, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
     
-    const [rows] = await db.query(query, queryParams);
+    const [[rows], [countResult]] = await Promise.all([
+        db.query(query, queryParams),
+        db.query(countQuery, params)
+    ]);
     const [countResult] = await db.query(countQuery, params);
     
     return {

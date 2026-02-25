@@ -195,16 +195,22 @@ class ExportService {
                 s.nama,
                 s.nis,
                 k.nama_kelas,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Hadir' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as H,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Izin' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as I,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as S,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as A,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(a.tanggal, '#', a.siswa_id) END), 0) as D,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status IN ('Hadir', 'Dispen') THEN CONCAT(a.tanggal, '#', a.siswa_id) END) * 100.0 / NULLIF(COUNT(DISTINCT CONCAT(a.tanggal, '#', a.siswa_id)), 0), 0) as presentase
+                COALESCE(SUM(CASE WHEN deduped.status = 'Hadir' THEN 1 ELSE 0 END), 0) as H,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Izin' THEN 1 ELSE 0 END), 0) as I,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Sakit' THEN 1 ELSE 0 END), 0) as S,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Alpa' THEN 1 ELSE 0 END), 0) as A,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Dispen' THEN 1 ELSE 0 END), 0) as D,
+                COALESCE(
+                    SUM(CASE WHEN deduped.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END) * 100.0 
+                    / NULLIF(COUNT(deduped.status), 0), 
+                0) as presentase
             FROM siswa s
             LEFT JOIN kelas k ON s.kelas_id = k.id_kelas
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                AND a.tanggal BETWEEN ? AND ?
+            LEFT JOIN (
+                SELECT DISTINCT siswa_id, tanggal, status
+                FROM absensi_siswa
+                WHERE tanggal BETWEEN ? AND ?
+            ) deduped ON s.id_siswa = deduped.siswa_id
             WHERE s.status = 'aktif'
         `;
 
@@ -230,15 +236,19 @@ class ExportService {
                 s.nama,
                 s.nis,
                 k.nama_kelas,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status IN ('Hadir', 'Dispen') THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS H,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Izin' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS I,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Sakit' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS S,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Alpa' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS A,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.status = 'Dispen' THEN CONCAT(DATE(a.waktu_absen), '#', a.siswa_id) END), 0) AS D,
-                COALESCE(COUNT(DISTINCT CONCAT(DATE(a.waktu_absen), '#', a.siswa_id)), 0) AS total
+                COALESCE(SUM(CASE WHEN deduped.status IN ('Hadir', 'Dispen') THEN 1 ELSE 0 END), 0) AS H,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Izin' THEN 1 ELSE 0 END), 0) AS I,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
+                COALESCE(SUM(CASE WHEN deduped.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
+                COALESCE(COUNT(deduped.tgl), 0) AS total
             FROM siswa s
-            LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id AND DATE(a.waktu_absen) BETWEEN ? AND ?
             JOIN kelas k ON s.kelas_id = k.id_kelas
+            LEFT JOIN (
+                SELECT DISTINCT siswa_id, DATE(waktu_absen) as tgl, status
+                FROM absensi_siswa
+                WHERE DATE(waktu_absen) BETWEEN ? AND ?
+            ) deduped ON s.id_siswa = deduped.siswa_id
             WHERE s.status = 'aktif'
         `;
 
@@ -258,25 +268,22 @@ class ExportService {
      * Get Schedule Matrix Data for Export
      */
     async getScheduleMatrixData() {
-        // Fetch all classes
-        const [classes] = await this.pool.execute(
-            `SELECT id_kelas, nama_kelas, tingkat FROM kelas WHERE status = 'aktif' ORDER BY tingkat, nama_kelas`
-        );
-
-        // Fetch all schedules
-        const [schedules] = await this.pool.execute(
-            `SELECT 
-                j.*, 
-                g.nama as nama_guru, 
-                m.nama_mapel, 
-                r.nama_ruang, 
-                r.kode_ruang
-             FROM jadwal j
-             LEFT JOIN guru g ON j.guru_id = g.id_guru
-             LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
-             LEFT JOIN ruang_kelas r ON j.ruang_id = r.id_ruang
-             WHERE j.status = 'aktif'`
-        );
+        // Fetch classes and schedules in parallel (independent queries)
+        const [classesResult, schedulesResult] = await Promise.all([
+            this.pool.execute(
+                `SELECT id_kelas, nama_kelas, tingkat FROM kelas WHERE status = 'aktif' ORDER BY tingkat, nama_kelas`
+            ),
+            this.pool.execute(
+                `SELECT j.*, g.nama as nama_guru, m.nama_mapel, r.nama_ruang, r.kode_ruang
+                 FROM jadwal j
+                 LEFT JOIN guru g ON j.guru_id = g.id_guru
+                 LEFT JOIN mapel m ON j.mapel_id = m.id_mapel
+                 LEFT JOIN ruang_kelas r ON j.ruang_id = r.id_ruang
+                 WHERE j.status = 'aktif'`
+            )
+        ]);
+        const [classes] = classesResult;
+        const [schedules] = schedulesResult;
 
         // Transform to convenient map: [kelas_id][hari][jam_ke] = array/object
         const scheduleMap = {};
@@ -293,38 +300,36 @@ class ExportService {
      * Get Laporan Kehadiran Siswa Data (Siswa + Absensi)
      */
     async getLaporanKehadiranSiswaData(kelasId, startDate, endDate, guruId = null) {
-        // 1. Get Siswa
-        const [siswa] = await this.pool.execute(
-            `SELECT s.id_siswa, s.nis, s.nama, k.nama_kelas
-             FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas
-             WHERE s.kelas_id = ? AND s.status = 'aktif' ORDER BY s.nama`,
-            [kelasId]
-        );
-
-        // 2. Get Absensi
+        // Build absensi query based on guruId
         let absensiQuery;
         let absensiParams = [kelasId, startDate, endDate];
 
         if (guruId) {
             // Guru
-            absensiQuery = `
-                SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
-                FROM absensi_siswa a
-                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-                WHERE j.guru_id = ? AND j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?
-            `;
+            absensiQuery = `SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
+                FROM absensi_siswa a JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                WHERE j.guru_id = ? AND j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?`;
             absensiParams = [guruId, kelasId, startDate, endDate];
         } else {
             // Admin
-            absensiQuery = `
-                SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
-                FROM absensi_siswa a
-                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-                WHERE j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?
-            `;
+            absensiQuery = `SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
+                FROM absensi_siswa a JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                WHERE j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?`;
         }
 
-        const [absensi] = await this.pool.execute(absensiQuery, absensiParams);
+        // Run both queries in parallel (siswa list and absensi records are independent)
+        const [siswaResult, absensiResult] = await Promise.all([
+            this.pool.execute(
+                `SELECT s.id_siswa, s.nis, s.nama, k.nama_kelas
+                 FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas
+                 WHERE s.kelas_id = ? AND s.status = 'aktif' ORDER BY s.nama`,
+                [kelasId]
+            ),
+            this.pool.execute(absensiQuery, absensiParams)
+        ]);
+
+        const [siswa] = siswaResult;
+        const [absensi] = absensiResult;
 
         return { siswa, absensi };
     }
@@ -634,27 +639,47 @@ class ExportService {
                 SUM(CASE WHEN a.terlambat = 1 THEN 1 ELSE 0 END) as terlambat_count
         `;
 
-        const groupOrder = `
+        // Separate GROUP BY (for count) and ORDER BY (for data only)
+        const groupClause = `
             GROUP BY a.tanggal, j.hari, j.jam_mulai, j.jam_selesai, m.nama_mapel,
                      j.keterangan_khusus, k.nama_kelas, k.id_kelas, g.nama, ts.total_siswa
-            ORDER BY a.tanggal DESC, j.jam_mulai
         `;
+        const orderClause = `ORDER BY a.tanggal DESC, j.jam_mulai`;
 
         // Paginated mode: return { data, total, page, limit, totalPages }
         if (page !== null && limit !== null) {
-            const countQuery = `SELECT COUNT(*) as total FROM (SELECT 1 ${fromClause} ${groupOrder}) as counted`;
-            const [countResult] = await this.pool.execute(countQuery, params);
-            const total = countResult[0].total;
-            const offset = (page - 1) * limit;
+            // Optimized count: strip ORDER BY (useless for counting) and
+            // unnecessary LEFT JOINs (guru, mapel, siswa count) to reduce CPU.
+            // Only needs absensi_siswa + jadwal + kelas for the GROUP BY key columns.
+            const countFromClause = `
+                FROM absensi_siswa a
+                JOIN jadwal j ON a.jadwal_id = j.id_jadwal
+                JOIN kelas k ON j.kelas_id = k.id_kelas
+                ${whereClause}
+            `;
+            const countGroupClause = `
+                GROUP BY a.tanggal, j.hari, j.jam_mulai, j.jam_selesai,
+                         j.keterangan_khusus, k.nama_kelas, k.id_kelas
+            `;
+            const countQuery = `SELECT COUNT(*) as total FROM (SELECT 1 ${countFromClause} ${countGroupClause}) as counted`;
 
-            const dataQuery = `${selectColumns} ${fromClause} ${groupOrder} LIMIT ? OFFSET ?`;
-            const [rows] = await this.pool.query(dataQuery, [...params, limit, offset]);
+            const offset = (page - 1) * limit;
+            const dataQuery = `${selectColumns} ${fromClause} ${groupClause} ${orderClause} LIMIT ? OFFSET ?`;
+
+            // Run count and data queries in parallel to halve response time
+            const [countResult, dataResult] = await Promise.all([
+                this.pool.execute(countQuery, params),
+                this.pool.query(dataQuery, [...params, limit, offset])
+            ]);
+
+            const total = countResult[0][0].total;
+            const rows = dataResult[0];
 
             return { data: rows, total, page, limit, totalPages: Math.ceil(total / limit) };
         }
 
         // Non-paginated mode: return plain array (backward compatible for Excel export)
-        const query = `${selectColumns} ${fromClause} ${groupOrder}`;
+        const query = `${selectColumns} ${fromClause} ${groupClause} ${orderClause}`;
         const [rows] = await this.pool.execute(query, params);
         return rows;
     }

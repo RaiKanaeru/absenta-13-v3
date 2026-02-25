@@ -12,7 +12,7 @@ import { createLogger } from '../../utils/logger.js';
 const logger = createLogger('Initializer');
 
 export async function initializeDatabase(ddosProtectionInstance = null) {
-    console.log('Initializing optimized database connection...');
+    console.log('Initializing optimized database connection...'); // Pre-logger init
 
     // Systems variables
     const dbOptimization = new DatabaseOptimization();
@@ -29,28 +29,28 @@ export async function initializeDatabase(ddosProtectionInstance = null) {
         await dbOptimization.initialize();
         globalThis.dbOptimization = dbOptimization;
         globalThis.dbPool = dbOptimization.pool;
-        console.log('Database optimization system initialized successfully');
+        logger.info('Database optimization system initialized successfully');
 
         // Initialize query optimizer
         queryOptimizer = new QueryOptimizer(dbOptimization.pool);
         await queryOptimizer.initialize();
-        console.log('Query optimizer initialized successfully');
+        logger.info('Query optimizer initialized successfully');
 
         // Initialize backup system with shared database pool
         backupSystem = new BackupSystem();
         await backupSystem.initialize(dbOptimization.pool);
         globalThis.backupSystem = backupSystem;
-        console.log('Backup system initialized successfully');
+        logger.info('Backup system initialized successfully');
 
         // Initialize download queue system
         downloadQueue = new DownloadQueue();
         await downloadQueue.initialize();
-        console.log('Download queue system initialized successfully');
+        logger.info('Download queue system initialized successfully');
 
         // Initialize cache system
         cacheSystem = new CacheSystem();
         await cacheSystem.initialize();
-        console.log('Cache system initialized successfully');
+        logger.info('Cache system initialized successfully');
 
         // Initialize system monitor
         systemMonitor = new SystemMonitor({
@@ -67,7 +67,7 @@ export async function initializeDatabase(ddosProtectionInstance = null) {
         });
         systemMonitor.start();
         globalThis.systemMonitor = systemMonitor;
-        console.log('System monitor initialized and started');
+        logger.info('System monitor initialized and started');
 
         // Initialize security system
         securitySystem = new SecuritySystem({
@@ -138,7 +138,7 @@ export async function initializeDatabase(ddosProtectionInstance = null) {
             }
         });
         await performanceOptimizer.initialize();
-        console.log('Performance optimizer initialized successfully');
+        logger.info('Performance optimizer initialized successfully');
 
         // Get connection pool for use in endpoints
         globalThis.dbPool = dbOptimization.pool;  // Use the actual pool, not the class instance
@@ -194,11 +194,11 @@ export async function initializeDatabase(ddosProtectionInstance = null) {
         // Set database pool reference for monitoring
         systemMonitor.setDatabasePool(dbOptimization);
 
-        console.log('All systems initialized and ready');
+        logger.info('All systems initialized and ready');
 
     } catch (error) {
-        console.error('Failed to initialize database optimization:', error.message);
-        console.log('Retrying initialization in 5 seconds...');
+        logger.error('Failed to initialize database optimization:', error.message);
+        logger.info('Retrying initialization in 5 seconds...');
 
         return new Promise((resolve, reject) => {
             setTimeout(() => {

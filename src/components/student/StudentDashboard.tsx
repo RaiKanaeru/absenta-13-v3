@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -284,6 +285,7 @@ const StudentDashboardRoutes = (props: StudentDashboardRoutesProps): React.React
     <Route
       index
       element={
+        <ErrorBoundary>
         <KehadiranTab
           loading={props.loading}
           isEditMode={props.isEditMode}
@@ -304,11 +306,13 @@ const StudentDashboardRoutes = (props: StudentDashboardRoutesProps): React.React
           submitKehadiran={props.submitKehadiran}
           openAbsenKelasModal={props.openAbsenKelasModal}
         />
+        </ErrorBoundary>
       }
     />
     <Route
       path="riwayat"
       element={
+        <ErrorBoundary>
         <RiwayatTab
           riwayatData={props.riwayatData}
           riwayatPage={props.riwayatPage}
@@ -316,11 +320,13 @@ const StudentDashboardRoutes = (props: StudentDashboardRoutesProps): React.React
           detailRiwayat={props.detailRiwayat}
           setDetailRiwayat={props.setDetailRiwayat}
         />
+        </ErrorBoundary>
       }
     />
     <Route
       path="banding"
       element={
+        <ErrorBoundary>
         <BandingAbsenTab
           bandingAbsen={props.bandingAbsen}
           expandedBanding={props.expandedBanding}
@@ -342,6 +348,7 @@ const StudentDashboardRoutes = (props: StudentDashboardRoutesProps): React.React
           loadJadwalBandingByDate={props.loadJadwalBandingByDate}
           loadSiswaStatusById={props.loadSiswaStatusById}
         />
+        </ErrorBoundary>
       }
     />
   </Routes>
@@ -604,9 +611,9 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
     logout();
   }, [logout]);
 
-  // Notifications (siswa — uses userData.id since siswaId is derived later)
+  // Notifications (siswa — uses siswa_id for banding-absen endpoint)
   const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
-    useNotifications({ role: 'siswa', userId: userData?.id ?? null, onLogout });
+    useNotifications({ role: 'siswa', userId: userData?.siswa_id ?? null, onLogout });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -620,7 +627,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
    const [expandedBanding, setExpandedBanding] = useState<number | null>(null);
    const [detailRiwayat, setDetailRiwayat] = useState<RiwayatJadwal | null>(null);
    const [loading, setLoading] = useState(false);
-   const [siswaId] = useState<number | null>(userData?.id ?? null);
+   const [siswaId] = useState<number | null>(userData?.siswa_id ?? null);
    const [kelasInfo] = useState<string>('');
    const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -771,7 +778,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
           kelas: string;
           nama: string;
           kelas_id: number;
-        }>(`/api/siswa/${userData.id}/info`);
+        }>(`/api/siswa-perwakilan/info`);
         
         if (data) {
           setSiswaInfo(data);

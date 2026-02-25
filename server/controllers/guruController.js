@@ -236,7 +236,12 @@ export const getGuru = async (req, res) => {
                 sq += ' GROUP BY status';
                 const qp = [...p, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
                 const sp = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
-                const [r] = await db.query(q, qp);
+                const [[r], [cr], [sr]] = await Promise.all([
+                    db.query(q, qp),
+                    db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []),
+                    db.query(sq, sp)
+                ]);
+                return { rows: r, countResult: cr, statsResult: sr };
                 const [cr] = await db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
                 const [sr] = await db.query(sq, sp);
                 return { rows: r, countResult: cr, statsResult: sr };
@@ -268,8 +273,21 @@ export const getGuru = async (req, res) => {
             query += ` ORDER BY g.created_at DESC LIMIT ? OFFSET ?`;
             const queryParams = [...params, Number.parseInt(limit, 10), Number.parseInt(offset, 10)];
 
-            [rows] = await db.query(query, queryParams);
-            [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
+            // Build stats query (independent of data/count results)
+            let statsQuery = 'SELECT status, COUNT(*) as count FROM guru g';
+            let statsParams = [];
+            if (search) {
+                statsQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
+                statsParams = [`%${search}%`, `%${search}%`, `%${search}%`];
+            }
+            statsQuery += ' GROUP BY status';
+
+            // Run all 3 independent queries in parallel
+            [[rows], [countResult], [statsResult]] = await Promise.all([
+                db.query(query, queryParams),
+                db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []),
+                db.query(statsQuery, statsParams)
+            ]);
 
             // Aggregate statistics for the current query condition
             let statsQuery = 'SELECT status, COUNT(*) as count FROM guru g';
@@ -431,7 +449,8 @@ const buildUserUpdateFields = async (data, bcrypt, saltRounds) => {
 // Helper to get guru by ID with user relation
 const getGuruById = async (connection, id) => {
     const [existingGuru] = await connection.execute(
-        'SELECT g.*, u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
+        'SELECT g.id, g.id_guru, g.nip, g.nama, g.username, g.user_id, g.mapel_id, g.status,
+       u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
         [id]
     );
     return existingGuru[0];

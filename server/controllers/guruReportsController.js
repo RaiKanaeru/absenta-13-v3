@@ -42,21 +42,25 @@ export const getPresensiSiswaSmkn13 = async (req, res) => {
         // Try cache first, fallback to DB query
         const cacheSystem = globalThis.cacheSystem;
         let result;
+        let wasCached = false;
 
         if (cacheSystem) {
-            result = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getPresensiSiswaSmkn13(startDate, endDate, effectiveGuruId, kelas_id, pageNum, limitNum),
-                'attendance',
-                300  // 5 minutes TTL
-            );
+            // Check cache first to track actual hit/miss
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                result = cached;
+                wasCached = true;
+            } else {
+                result = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, effectiveGuruId, kelas_id, pageNum, limitNum);
+                await cacheSystem.set(cacheKey, result, 'attendance', 300);
+            }
         } else {
             result = await ExportService.getPresensiSiswaSmkn13(startDate, endDate, effectiveGuruId, kelas_id, pageNum, limitNum);
         }
 
         // result is either plain array (no pagination) or { data, total, page, limit, totalPages }
         const count = Array.isArray(result) ? result.length : result.total;
-        log.success('GetPresensiSiswaSmkn13', { count, guruId, isAdmin, cached: !!cacheSystem });
+        log.success('GetPresensiSiswaSmkn13', { count, guruId, isAdmin, cached: wasCached });
         res.json(result);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
@@ -94,19 +98,22 @@ export const getRekapKetidakhadiran = async (req, res) => {
         // Try cache first, fallback to DB query
         const cacheSystem = globalThis.cacheSystem;
         let rows;
+        let wasCached = false;
 
         if (cacheSystem) {
-            rows = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getRekapKetidakhadiran(startDate, endDate, effectiveGuruId, kelas_id, effectiveReportType),
-                'attendance',
-                300  // 5 minutes TTL
-            );
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getRekapKetidakhadiran(startDate, endDate, effectiveGuruId, kelas_id, effectiveReportType);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
         } else {
             rows = await ExportService.getRekapKetidakhadiran(startDate, endDate, effectiveGuruId, kelas_id, effectiveReportType);
         }
 
-        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType: effectiveReportType, isAdmin, cached: !!cacheSystem });
+        log.success('GetRekapKetidakhadiran', { count: rows.length, reportType: effectiveReportType, isAdmin, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, reportType, guruId });
@@ -132,10 +139,26 @@ export const getGuruClasses = async (req, res) => {
             return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.', { field: 'guru_id' });
         }
 
-        // Use Service Layer
-        const rows = await ExportService.getTeacherClasses(isAdmin ? null : guruId);
+        // Use Service Layer with caching
+        const cacheKey = `report:guru-classes:${isAdmin ? 'all' : guruId}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'schedules');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getTeacherClasses(isAdmin ? null : guruId);
+                await cacheSystem.set(cacheKey, rows, 'schedules');
+            }
+        } else {
+            rows = await ExportService.getTeacherClasses(isAdmin ? null : guruId);
+        }
         
-        log.success('GetGuruClasses', { count: rows.length, isAdmin });
+        log.success('GetGuruClasses', { count: rows.length, isAdmin, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { guruId, userRole });
@@ -167,15 +190,36 @@ export const getAttendanceSummary = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        // Use Service Layer
-        const rows = await ExportService.getTeacherClassAttendanceSummary(
-            startDate, 
-            endDate, 
-            isAdmin ? null : guruId, 
-            kelas_id
-        );
+        // Use Service Layer with caching
+        const cacheKey = `report:attendance-summary:${startDate}:${endDate}:${isAdmin ? 'all' : guruId}:${kelas_id || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let rows;
+        let wasCached = false;
+
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getTeacherClassAttendanceSummary(
+                    startDate, 
+                    endDate, 
+                    isAdmin ? null : guruId, 
+                    kelas_id
+                );
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
+        } else {
+            rows = await ExportService.getTeacherClassAttendanceSummary(
+                startDate, 
+                endDate, 
+                isAdmin ? null : guruId, 
+                kelas_id
+            );
+        }
         
-        log.success('GetAttendanceSummary', { count: rows.length, guruId, isAdmin });
+        log.success('GetAttendanceSummary', { count: rows.length, guruId, isAdmin, cached: wasCached });
         res.json(rows);
     } catch (error) {
         log.dbError('query', error, { startDate, endDate, kelas_id, guruId });
@@ -219,58 +263,124 @@ export const getJadwalPertemuan = async (req, res) => {
             return sendValidationError(res, 'Rentang tanggal maksimal 62 hari', { maxDays: 62, requestedDays: diffDays });
         }
 
-        // Use Service Layer for Schedule Data
-        const jadwalData = await ExportService.getJadwalPertemuanData(kelas_id, isAdmin ? null : guruId);
+        // Use Service Layer with caching
+        const cacheKey = `report:jadwal-pertemuan:${kelas_id}:${startDate}:${endDate}:${isAdmin ? 'all' : guruId}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let responseData;
+        let wasCached = false;
 
-        const pertemuanDates = [];
-        const start = parseDateStringWIB(startDate);
-        const end = parseDateStringWIB(endDate);
-        const endTime = end.getTime();
-        const currentDate = new Date(start);
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'schedules');
+            if (cached !== null) {
+                responseData = cached;
+                wasCached = true;
+            } else {
+                const jadwalData = await ExportService.getJadwalPertemuanData(kelas_id, isAdmin ? null : guruId);
 
-        while (currentDate.getTime() <= endTime) {
-            // Get day name
-            const dayName = HARI_INDONESIA[currentDate.getDay()]; // Using timeUtils HARI_INDONESIA
-            const daySchedules = jadwalData.filter(j => j.hari === dayName);
-            
-            if (daySchedules.length > 0) {
-                // Format date manually to avoid timezone shifts
-                const year = currentDate.getFullYear();
-                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                const day = String(currentDate.getDate()).padStart(2, '0');
+                const pertemuanDates = [];
+                const start = parseDateStringWIB(startDate);
+                const end = parseDateStringWIB(endDate);
+                const endTime = end.getTime();
+                const currentDate = new Date(start);
+
+                while (currentDate.getTime() <= endTime) {
+                    // Get day name
+                    const dayName = HARI_INDONESIA[currentDate.getDay()]; // Using timeUtils HARI_INDONESIA
+                    const daySchedules = jadwalData.filter(j => j.hari === dayName);
+                    
+                    if (daySchedules.length > 0) {
+                        // Format date manually to avoid timezone shifts
+                        const year = currentDate.getFullYear();
+                        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(currentDate.getDate()).padStart(2, '0');
+                        
+                        pertemuanDates.push({
+                            tanggal: `${year}-${month}-${day}`,
+                            hari: dayName,
+                            jadwal: daySchedules.map(s => ({
+                                jam_ke: s.jam_ke, jam_mulai: s.jam_mulai, jam_selesai: s.jam_selesai,
+                                nama_mapel: s.nama_mapel, kode_mapel: s.kode_mapel,
+                                ruang: s.kode_ruang ? `${s.kode_ruang} - ${s.nama_ruang}` : '-',
+                                ...(isAdmin && s.nama_guru ? { nama_guru: s.nama_guru } : {})
+                            }))
+                        });
+                    }
+
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    
+                    // Safety break for infinite loop
+                    if (currentDate.getTime() > endTime + (1000 * 60 * 60 * 24 * 7)) break; // Buffer 1 week
+                }
+
+                responseData = {
+                    success: true,
+                    data: {
+                        pertemuan_dates: pertemuanDates,
+                        total_pertemuan: pertemuanDates.length,
+                        periode: { startDate, endDate, total_days: diffDays },
+                        jadwal_info: jadwalData.length > 0 ? {
+                            nama_kelas: jadwalData[0].nama_kelas,
+                            mata_pelajaran: [...new Set(jadwalData.map(j => j.nama_mapel))]
+                        } : null
+                    }
+                };
+                await cacheSystem.set(cacheKey, responseData, 'schedules');
+            }
+        } else {
+            const jadwalData = await ExportService.getJadwalPertemuanData(kelas_id, isAdmin ? null : guruId);
+
+            const pertemuanDates = [];
+            const start = parseDateStringWIB(startDate);
+            const end = parseDateStringWIB(endDate);
+            const endTime = end.getTime();
+            const currentDate = new Date(start);
+
+            while (currentDate.getTime() <= endTime) {
+                // Get day name
+                const dayName = HARI_INDONESIA[currentDate.getDay()]; // Using timeUtils HARI_INDONESIA
+                const daySchedules = jadwalData.filter(j => j.hari === dayName);
                 
-                pertemuanDates.push({
-                    tanggal: `${year}-${month}-${day}`,
-                    hari: dayName,
-                    jadwal: daySchedules.map(s => ({
-                        jam_ke: s.jam_ke, jam_mulai: s.jam_mulai, jam_selesai: s.jam_selesai,
-                        nama_mapel: s.nama_mapel, kode_mapel: s.kode_mapel,
-                        ruang: s.kode_ruang ? `${s.kode_ruang} - ${s.nama_ruang}` : '-',
-                        ...(isAdmin && s.nama_guru ? { nama_guru: s.nama_guru } : {})
-                    }))
-                });
+                if (daySchedules.length > 0) {
+                    // Format date manually to avoid timezone shifts
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    
+                    pertemuanDates.push({
+                        tanggal: `${year}-${month}-${day}`,
+                        hari: dayName,
+                        jadwal: daySchedules.map(s => ({
+                            jam_ke: s.jam_ke, jam_mulai: s.jam_mulai, jam_selesai: s.jam_selesai,
+                            nama_mapel: s.nama_mapel, kode_mapel: s.kode_mapel,
+                            ruang: s.kode_ruang ? `${s.kode_ruang} - ${s.nama_ruang}` : '-',
+                            ...(isAdmin && s.nama_guru ? { nama_guru: s.nama_guru } : {})
+                        }))
+                    });
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+                
+                // Safety break for infinite loop
+                if (currentDate.getTime() > endTime + (1000 * 60 * 60 * 24 * 7)) break; // Buffer 1 week
             }
 
-            currentDate.setDate(currentDate.getDate() + 1);
-            
-            // Safety break for infinite loop
-            if (currentDate.getTime() > endTime + (1000 * 60 * 60 * 24 * 7)) break; // Buffer 1 week
+            responseData = {
+                success: true,
+                data: {
+                    pertemuan_dates: pertemuanDates,
+                    total_pertemuan: pertemuanDates.length,
+                    periode: { startDate, endDate, total_days: diffDays },
+                    jadwal_info: jadwalData.length > 0 ? {
+                        nama_kelas: jadwalData[0].nama_kelas,
+                        mata_pelajaran: [...new Set(jadwalData.map(j => j.nama_mapel))]
+                    } : null
+                }
+            };
         }
 
-        log.success('GetJadwalPertemuan', { totalPertemuan: pertemuanDates.length, guruId, isAdmin });
+        log.success('GetJadwalPertemuan', { totalPertemuan: responseData.data.total_pertemuan, guruId, isAdmin, cached: wasCached });
         
-        res.json({
-            success: true,
-            data: {
-                pertemuan_dates: pertemuanDates,
-                total_pertemuan: pertemuanDates.length,
-                periode: { startDate, endDate, total_days: diffDays },
-                jadwal_info: jadwalData.length > 0 ? {
-                    nama_kelas: jadwalData[0].nama_kelas,
-                    mata_pelajaran: [...new Set(jadwalData.map(j => j.nama_mapel))]
-                } : null
-            }
-        });
+        res.json(responseData);
     } catch (error) {
         log.dbError('query', error, { kelas_id, startDate, endDate, guruId });
         return sendDatabaseError(res, error, 'Gagal mengambil jadwal pertemuan');
@@ -305,41 +415,88 @@ export const getLaporanKehadiranSiswa = async (req, res) => {
             return sendValidationError(res, 'Tanggal mulai dan tanggal selesai wajib diisi', { fields: ['startDate', 'endDate'] });
         }
 
-        // Use Service Layer
-        const { siswa: siswaData, absensi: absensiData } = await ExportService.getLaporanKehadiranSiswaData(
-            kelas_id, 
-            startDate, 
-            endDate, 
-            isAdmin ? null : guruId
-        );
+        // Use Service Layer with caching
+        const cacheKey = `report:laporan-kehadiran:${kelas_id}:${startDate}:${endDate}:${isAdmin ? 'all' : guruId}`;
+        const cacheSystem = globalThis.cacheSystem;
+        let result;
+        let wasCached = false;
 
-        const absensiMap = new Map();
-        absensiData.forEach(a => {
-            if (!absensiMap.has(a.siswa_id)) absensiMap.set(a.siswa_id, []);
-            absensiMap.get(a.siswa_id).push(a);
-        });
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                result = cached;
+                wasCached = true;
+            } else {
+                const { siswa: siswaData, absensi: absensiData } = await ExportService.getLaporanKehadiranSiswaData(
+                    kelas_id, 
+                    startDate, 
+                    endDate, 
+                    isAdmin ? null : guruId
+                );
 
-        const result = siswaData.map(s => {
-            const riwayat = absensiMap.get(s.id_siswa) || [];
-            return {
-                ...s,
-                rekap: {
-                    H: riwayat.filter(r => ['Hadir', 'Dispen'].includes(r.status)).length,
-                    I: riwayat.filter(r => r.status === 'Izin').length,
-                    S: riwayat.filter(r => r.status === 'Sakit').length,
-                    A: riwayat.filter(r => r.status === 'Alpa').length,
-                    D: riwayat.filter(r => r.status === 'Dispen').length,
-                    total: riwayat.length,
-                    terlambat: riwayat.filter(r => r.terlambat === 1).length
-                },
-                riwayat_absensi: riwayat.map(r => ({
-                    ...r,
-                    is_late: r.terlambat === 1
-                }))
-            };
-        });
+                const absensiMap = new Map();
+                absensiData.forEach(a => {
+                    if (!absensiMap.has(a.siswa_id)) absensiMap.set(a.siswa_id, []);
+                    absensiMap.get(a.siswa_id).push(a);
+                });
 
-        log.success('GetLaporanKehadiranSiswa', { siswaCount: result.length, guruId, isAdmin });
+                result = siswaData.map(s => {
+                    const riwayat = absensiMap.get(s.id_siswa) || [];
+                    return {
+                        ...s,
+                        rekap: {
+                            H: riwayat.filter(r => ['Hadir', 'Dispen'].includes(r.status)).length,
+                            I: riwayat.filter(r => r.status === 'Izin').length,
+                            S: riwayat.filter(r => r.status === 'Sakit').length,
+                            A: riwayat.filter(r => r.status === 'Alpa').length,
+                            D: riwayat.filter(r => r.status === 'Dispen').length,
+                            total: riwayat.length,
+                            terlambat: riwayat.filter(r => r.terlambat === 1).length
+                        },
+                        riwayat_absensi: riwayat.map(r => ({
+                            ...r,
+                            is_late: r.terlambat === 1
+                        }))
+                    };
+                });
+                await cacheSystem.set(cacheKey, result, 'attendance', 300);
+            }
+        } else {
+            const { siswa: siswaData, absensi: absensiData } = await ExportService.getLaporanKehadiranSiswaData(
+                kelas_id, 
+                startDate, 
+                endDate, 
+                isAdmin ? null : guruId
+            );
+
+            const absensiMap = new Map();
+            absensiData.forEach(a => {
+                if (!absensiMap.has(a.siswa_id)) absensiMap.set(a.siswa_id, []);
+                absensiMap.get(a.siswa_id).push(a);
+            });
+
+            result = siswaData.map(s => {
+                const riwayat = absensiMap.get(s.id_siswa) || [];
+                return {
+                    ...s,
+                    rekap: {
+                        H: riwayat.filter(r => ['Hadir', 'Dispen'].includes(r.status)).length,
+                        I: riwayat.filter(r => r.status === 'Izin').length,
+                        S: riwayat.filter(r => r.status === 'Sakit').length,
+                        A: riwayat.filter(r => r.status === 'Alpa').length,
+                        D: riwayat.filter(r => r.status === 'Dispen').length,
+                        total: riwayat.length,
+                        terlambat: riwayat.filter(r => r.terlambat === 1).length
+                    },
+                    riwayat_absensi: riwayat.map(r => ({
+                        ...r,
+                        is_late: r.terlambat === 1
+                    }))
+                };
+            });
+        }
+
+        log.success('GetLaporanKehadiranSiswa', { siswaCount: result.length, guruId, isAdmin, cached: wasCached });
         res.json({ success: true, data: result, periode: { startDate, endDate } });
     } catch (error) {
         log.dbError('query', error, { kelas_id, startDate, endDate, guruId });

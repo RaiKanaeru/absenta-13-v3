@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +81,7 @@ interface LogoUploadZoneProps {
 
 function LogoUploadZone({ id, label, preview, configUrl, onChange, onDelete, getImageSrc }: LogoUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const hasImage = configUrl || preview;
   const displaySrc = hasImage ? getImageSrc(configUrl || preview) : '';
 
@@ -108,6 +109,7 @@ function LogoUploadZone({ id, label, preview, configUrl, onChange, onDelete, get
       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
       <input
         id={id}
+        ref={fileInputRef}
         type="file"
         accept="image/*"
         onChange={onChange}
@@ -130,7 +132,7 @@ function LogoUploadZone({ id, label, preview, configUrl, onChange, onDelete, get
               variant="outline"
               size="icon"
               className="h-7 w-7 rounded-lg"
-              onClick={() => document.getElementById(id)?.click()}
+              onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="h-3 w-3" />
             </Button>
@@ -154,13 +156,13 @@ function LogoUploadZone({ id, label, preview, configUrl, onChange, onDelete, get
               ? "border-primary bg-primary/5 scale-[1.01]"
               : "border-border/60 bg-muted/20 hover:border-primary/50 hover:bg-muted/40"
           )}
-          onClick={() => document.getElementById(id)?.click()}
+          onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && document.getElementById(id)?.click()}
+          onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
         >
           <div className={cn(
             "rounded-full p-2.5 transition-colors",

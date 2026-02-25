@@ -2,9 +2,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-console.log('ABSENTA Modern Server Starting...');
-console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`API Base URL: ${process.env.API_BASE_URL || 'http://localhost:3001'}`);
+console.log('ABSENTA Modern Server Starting...'); // Pre-logger init
+console.log(`Environment: ${process.env.NODE_ENV || 'development'}`); // Pre-logger init
+console.log(`API Base URL: ${process.env.API_BASE_URL || 'http://localhost:3001'}`); // Pre-logger init
 
 import express from 'express';
 import { mkdir } from 'node:fs/promises';
@@ -30,6 +30,9 @@ import {
 import { initAutoAttendanceScheduler } from './services/system/autoAttendanceService.js';
 import { adminActivityLogger } from './middleware/adminActivityLogger.js';
 
+import { createLogger } from './utils/logger.js';
+const logger = createLogger('Server');
+
 // Configuration from environment variables
 const port = Number.parseInt(process.env.PORT) || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
@@ -39,11 +42,11 @@ const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'public', '
 // Validate critical environment variables in production
 if (process.env.NODE_ENV === 'production') {
     if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-insecure-secret') {
-        console.error('CRITICAL: JWT_SECRET must be set in production!');
+        logger.error('CRITICAL: JWT_SECRET must be set in production!');
         process.exit(1);
     }
     if (!process.env.DB_PASSWORD) {
-        console.warn('WARNING: DB_PASSWORD is empty in production!');
+        logger.warn('WARNING: DB_PASSWORD is empty in production!');
     }
 }
 
@@ -104,7 +107,7 @@ const rawAllowedOrigins = process.env.ALLOWED_ORIGINS
 
 const allowedOrigins = rawAllowedOrigins.map(o => o.trim().replace(/\/$/, '')); // Normalize: remove trailing slash
 
-console.log('CORS Allowed Origins:', allowedOrigins);
+logger.info('CORS Allowed Origins:', allowedOrigins);
 
 // Middleware setup
 
@@ -143,7 +146,7 @@ app.use((req, res, next) => {
         
         // Handle preflight OPTIONS request
         if (method === 'OPTIONS') {
-            console.log(`[CORS:${requestId}] Preflight OK - Origin: ${origin}`);
+            logger.info(`[CORS:${requestId}] Preflight OK - Origin: ${origin}`);
             return res.status(204).end();
         }
         
@@ -151,7 +154,7 @@ app.use((req, res, next) => {
     }
 
     // CORS not allowed - log detailed error
-    console.error(formatCORSErrorLog(diagnostic));
+    logger.error(formatCORSErrorLog(diagnostic));
     
     // Set debug headers for troubleshooting
     res.header('X-CORS-Status', 'blocked');
@@ -435,30 +438,31 @@ try {
     initAutoAttendanceScheduler();
 
     const server = app.listen(port, '0.0.0.0', () => {
-        console.log(`[START] ABSENTA Modern Server is running on http://0.0.0.0:${port}`);
-        console.log(`[NETWORK] Accessible from network: http://[YOUR_IP]:${port}`);
-        console.log(`[INFO] Frontend should connect to this server`);
-        console.log(`[DB] Database optimization: Connection pool active`);
+        logger.info(`[START] ABSENTA Modern Server is running on http://0.0.0.0:${port}`);
+        logger.info(`[NETWORK] Accessible from network: http://[YOUR_IP]:${port}`);
+        logger.info(`[INFO] Frontend should connect to this server`);
+        logger.info(`[DB] Database optimization: Connection pool active`);
     });
 
     // Graceful Shutdown
     const shutdown = async (signal) => {
-        console.log(`\n${signal} received. Closing resources...`);
+        logger.info(`
+${signal} received. Closing resources...`);
         try {
             if (globalThis.dbOptimization) {
                 await globalThis.dbOptimization.close();
-                console.log('Database connection pool closed.');
+                logger.info('Database connection pool closed.');
             }
             if (globalThis.systemMonitor) {
                 // Save any pending metrics if needed
-                console.log('System monitor stopped.');
+                logger.info('System monitor stopped.');
             }
             server.close(() => {
-                console.log('HTTP server closed.');
+                logger.info('HTTP server closed.');
                 process.exit(0);
             });
         } catch (err) {
-            console.error('Error during shutdown:', err);
+            logger.error('Error during shutdown:', err);
             process.exit(1);
         }
     };
@@ -468,20 +472,20 @@ try {
 
     // Global Error Handlers for Uncaught Exceptions/Rejections
     process.on('unhandledRejection', (err) => {
-        console.error('[FATAL] UNHANDLED REJECTION! Shutting down...');
-        console.error(err.name, err.message);
-        console.error(err.stack);
+        logger.error('[FATAL] UNHANDLED REJECTION! Shutting down...');
+        logger.error(err.name, err.message);
+        logger.error(err.stack);
         shutdown('UNHANDLED_REJECTION');
     });
 
     process.on('uncaughtException', (err) => {
-        console.error('[FATAL] UNCAUGHT EXCEPTION! Shutting down...');
-        console.error(err.name, err.message);
-        console.error(err.stack);
+        logger.error('[FATAL] UNCAUGHT EXCEPTION! Shutting down...');
+        logger.error(err.name, err.message);
+        logger.error(err.stack);
         shutdown('UNCAUGHT_EXCEPTION');
     });
 
 } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
 }

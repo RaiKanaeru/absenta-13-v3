@@ -5,9 +5,9 @@
 
 import { apiCall } from '@/utils/apiClient';
 
-type JadwalRole = 'admin' | 'guru' | 'siswa';
+export type JadwalRole = 'admin' | 'guru' | 'siswa';
 type JadwalArrayResponse = unknown[];
-type JadwalEnvelopeResponse = { success?: boolean; data?: JadwalArrayResponse };
+export type JadwalEnvelopeResponse = { success?: boolean; data?: JadwalArrayResponse };
 
 export class JadwalService {
 

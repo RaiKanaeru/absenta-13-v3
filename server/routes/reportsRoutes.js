@@ -7,7 +7,6 @@
 import express from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import {
-    updatePermissionStatus,
     getAnalyticsDashboard,
     getLiveTeacherAttendance,
     getLiveStudentAttendance,
@@ -34,8 +33,6 @@ router.use(requireRole(['admin']));
 // Dashboard Analytics
 // ===========================
 
-// Update permission request status (Deprecated)
-router.put('/izin/:id', updatePermissionStatus);
 
 // Main Analytics Dashboard
 /**

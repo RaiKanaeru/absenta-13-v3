@@ -719,6 +719,10 @@ export async function submitStudentAttendance(req, res) {
             await connection.commit();
 
             log.success('SubmitStudentAttendance', { scheduleId, processed: processedStudents.length, date: targetDate });
+            if (globalThis.cacheSystem) {
+                await globalThis.cacheSystem.deletePattern('*', 'attendance');
+                await globalThis.cacheSystem.deletePattern('*', 'analytics');
+            }
             res.json({
                 message: 'Absensi berhasil disimpan',
                 processed: processedStudents.length,
@@ -930,6 +934,10 @@ export async function recordTeacherAttendanceSimple(req, res) {
         );
 
         log.success('RecordTeacherAttendanceSimple', { jadwal_id, guru_id, status: finalStatus });
+        if (globalThis.cacheSystem) {
+            await globalThis.cacheSystem.deletePattern('*', 'attendance');
+            await globalThis.cacheSystem.deletePattern('*', 'analytics');
+        }
         res.json({ success: true, message: 'Absensi berhasil dicatat' });
 
     } catch (error) {
@@ -1006,6 +1014,10 @@ export async function submitTeacherAttendance(req, res) {
             await connection.commit();
             log.success('SubmitTeacherAttendance', { siswa_id, targetDate, entries: Object.keys(kehadiran_data).length });
 
+            if (globalThis.cacheSystem) {
+                await globalThis.cacheSystem.deletePattern('*', 'attendance');
+                await globalThis.cacheSystem.deletePattern('*', 'analytics');
+            }
             res.json({
                 success: true,
                 message: `Data kehadiran guru berhasil disimpan untuk tanggal ${targetDate}`
@@ -1038,7 +1050,9 @@ export async function getAbsensiHistory(req, res) {
 
     try {
         let query = `
-            SELECT ag.*, j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
+            SELECT ag.id_absensi, ag.jadwal_id, ag.guru_id, ag.kelas_id, ag.siswa_pencatat_id,
+                   ag.tanggal, ag.status, ag.keterangan, ag.terlambat, ag.ada_tugas, ag.created_at,
+                   j.jam_ke, j.jam_mulai, j.jam_selesai, j.hari,
                    COALESCE(g.nama, 'Sistem') as nama_guru, k.nama_kelas, COALESCE(m.nama_mapel, j.keterangan_khusus) as nama_mapel,
                    s.nama as nama_pencatat
             FROM absensi_guru ag
@@ -1271,6 +1285,10 @@ export async function submitStudentAttendanceByPiket(req, res) {
             targetDate
         });
 
+        if (globalThis.cacheSystem) {
+            await globalThis.cacheSystem.deletePattern('*', 'attendance');
+            await globalThis.cacheSystem.deletePattern('*', 'analytics');
+        }
         res.json({
             success: true,
             message: `Absensi ${processed} siswa berhasil disimpan oleh piket`,
@@ -1360,6 +1378,10 @@ export async function updateTeacherStatus(req, res) {
             log.success('UpdateTeacherStatus', { action: 'insert', jadwal_id, guru_id, status: finalStatus });
         }
 
+        if (globalThis.cacheSystem) {
+            await globalThis.cacheSystem.deletePattern('*', 'attendance');
+            await globalThis.cacheSystem.deletePattern('*', 'analytics');
+        }
         res.json({
             success: true,
             message: existing.length > 0 ? 'Status guru berhasil diperbarui' : 'Absensi guru berhasil dicatat',

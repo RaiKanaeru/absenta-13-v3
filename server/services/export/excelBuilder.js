@@ -2,6 +2,9 @@ import ExcelJS from 'exceljs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getLetterhead } from '../../utils/letterheadService.js';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('ExcelBuilder');
 
 
 // ============================================
@@ -52,25 +55,25 @@ function loadLogoBuffer(logoUrl, position) {
 
     // Handle base64 data URL
     if (logoUrl.startsWith('data:image/')) {
-        console.log(`[LOG] Logo ${position}: Processing base64 data URL`);
+        logger.info(`Logo ${position}: Processing base64 data URL`);
         const base64Data = logoUrl.split(',')[1];
         return Buffer.from(base64Data, 'base64');
     }
 
     // Handle file path
     const possiblePaths = getLogoPaths(logoUrl);
-    console.log(`[FILE] Searching for logo ${position} in paths:`, possiblePaths);
+    logger.info(`Searching for logo ${position} in paths:`, possiblePaths);
 
     for (const testPath of possiblePaths) {
         if (fs.existsSync(testPath)) {
-            console.log(`[OK] Logo ${position} found at:`, testPath);
+            logger.info(`Logo ${position} found at:`, testPath);
             const buffer = fs.readFileSync(testPath);
-            console.log(`[OK] Logo ${position} loaded successfully, size:`, buffer.length, 'bytes');
+            logger.info(`Logo ${position} loaded successfully, size:`, buffer.length, 'bytes');
             return buffer;
         }
     }
 
-    console.warn(`[WARN] Logo ${position} file not found in any path`);
+    logger.warn(`Logo ${position} file not found in any path`);
     return null;
 }
 
@@ -216,14 +219,14 @@ function processLogo(workbook, worksheet, logoRow, logoUrl, side, currentRow, co
                 : { col: Math.max(columnsCount - 2.2, 1.2), row: topRow, width: logoSize.width, height: logoSize.height };
             
             addLogoToWorksheet(workbook, worksheet, logoBuffer, colPosition);
-            console.log(`[OK] Logo ${position} added to Excel successfully`);
+            logger.info(`Logo ${position} added to Excel successfully`);
         } else {
             const cellIndex = side === 'left' ? 1 : Math.max(columnsCount, 3);
             const alignment = side === 'left' ? 'left' : 'right';
             setLogoFallback(logoRow, cellIndex, `[LOGO ${position.toUpperCase()}]`, alignment);
         }
     } catch (error) {
-        console.warn(`[WARN] Could not add ${side} logo to Excel:`, error.message);
+        logger.warn(`Could not add ${side} logo to Excel:`, error.message);
         const cellIndex = side === 'left' ? 1 : Math.max(columnsCount, 3);
         const alignment = side === 'left' ? 'left' : 'right';
         setLogoFallback(logoRow, cellIndex, `[LOGO ${position.toUpperCase()}]`, alignment);
@@ -253,7 +256,7 @@ function addLogosRow(workbook, worksheet, letterhead, currentRow, columnsCount) 
 
     const logoRow = worksheet.getRow(currentRow);
     
-    console.log('[RENDER] Rendering letterhead with logos:', {
+    logger.info('Rendering letterhead with logos:', {
         logoLeftUrl: letterhead.logoLeftUrl,
         logoRightUrl: letterhead.logoRightUrl
     });
@@ -511,7 +514,7 @@ function setColumnWidths(worksheet, columns) {
  * @param {string} options.title - Main title
  * @param {string} options.subtitle - Subtitle
  * @param {string} options.reportPeriod - Report period string
- * @param {boolean} options.showLetterhead - Whether to show letterhead (deprecated)
+ * @param {boolean} options.showLetterhead - Whether to show letterhead
  * @param {Object} options.letterhead - Letterhead configuration
  * @param {Array} options.columns - Column definitions
  * @param {Array} options.rows - Data rows
@@ -548,7 +551,7 @@ async function buildExcel(options) {
             activeLetterhead = await getLetterhead({ reportKey: null }); // Get global letterhead
             hasLetterheadLines = activeLetterhead?.lines?.length > 0;
         } catch (error) {
-            console.warn('Could not fetch letterhead from database:', error.message);
+        logger.warn('Could not fetch letterhead from database:', error.message);
         }
     }
 

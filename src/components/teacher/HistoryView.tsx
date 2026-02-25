@@ -132,7 +132,7 @@ export const HistoryView = ({ user }: HistoryViewProps) => {
     };
 
     fetchHistory();
-  }, [user.guru_id, user.id, currentPage]);
+  }, [user.guru_id, currentPage]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

@@ -3,7 +3,7 @@
  * Extracted from TeacherDashboard.tsx - EXACT COPY, no UI changes
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,10 +33,6 @@ const getBandingStatusLabel = (status: string): string => {
   }
 };
 
-const getTextareaElement = (elementId: string): HTMLTextAreaElement | null => {
-  const element = document.getElementById(elementId);
-  return element instanceof HTMLTextAreaElement ? element : null;
-};
 
 export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
   const [bandingList, setBandingList] = useState<BandingAbsenTeacher[]>([]);
@@ -48,6 +44,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
   const [totalPending, setTotalPending] = useState(0);
   const [totalAll, setTotalAll] = useState(0);
   const limit = 5;
+  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
   // getAttendanceBadgeClass and getBandingStatusClass are now imported from @/utils/statusMaps
 
@@ -73,7 +70,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
           filter_pending: filterPending.toString()
         });
         
-        const response = await apiCall(`/api/guru/${user.guru_id || user.id}/banding-absen?${params}`);
+        const response = await apiCall(`/api/guru/${user.guru_id}/banding-absen?${params}`);
         
         if (response && typeof response === 'object') {
           setBandingList(response.data || []);
@@ -96,7 +93,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
     };
 
     fetchBandingAbsen();
-  }, [user.guru_id, user.id, currentPage, filterPending]);
+  }, [user.guru_id, currentPage, filterPending]);
 
   const handleFilterToggle = () => {
     setFilterPending(!filterPending);
@@ -116,7 +113,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
         body: JSON.stringify({ 
           status_banding: status, 
           catatan_guru: catatan,
-          diproses_oleh: user.guru_id || user.id
+          diproses_oleh: user.guru_id
         }),
       });
 
@@ -131,7 +128,7 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
         filter_pending: filterPending.toString()
       });
       
-      const response = await apiCall(`/api/guru/${user.guru_id || user.id}/banding-absen?${params}`);
+      const response = await apiCall(`/api/guru/${user.guru_id}/banding-absen?${params}`);
       
       if (response && typeof response === 'object') {
         setBandingList(response.data || []);
@@ -325,10 +322,11 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                   <Textarea 
                                     placeholder="Catatan persetujuan (opsional)" 
                                     id={`approve-banding-${banding.id_banding}`}
+                                    ref={(el) => { if (el) textareaRefs.current.set(`approve-banding-${banding.id_banding}`, el); else textareaRefs.current.delete(`approve-banding-${banding.id_banding}`); }}
                                   />
                                    <Button 
                                      onClick={() => {
-                                       const textarea = getTextareaElement(`approve-banding-${banding.id_banding}`);
+                                       const textarea = textareaRefs.current.get(`approve-banding-${banding.id_banding}`) ?? null;
                                        if (textarea) {
                                          handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
                                        }
@@ -361,11 +359,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                   <Textarea 
                                     placeholder="Alasan penolakan (wajib)" 
                                     id={`reject-banding-${banding.id_banding}`}
+                                    ref={(el) => { if (el) textareaRefs.current.set(`reject-banding-${banding.id_banding}`, el); else textareaRefs.current.delete(`reject-banding-${banding.id_banding}`); }}
                                     required
                                   />
                                    <Button 
                                      onClick={() => {
-                                     const textarea = getTextareaElement(`reject-banding-${banding.id_banding}`);
+                                     const textarea = textareaRefs.current.get(`reject-banding-${banding.id_banding}`) ?? null;
                                      if (textarea?.value.trim()) {
                                        handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
                                      } else if (textarea) {
@@ -494,11 +493,12 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                 <Textarea 
                                   placeholder="Catatan persetujuan (opsional)" 
                                   id={`approve-banding-mobile-${banding.id_banding}`}
+                                  ref={(el) => { if (el) textareaRefs.current.set(`approve-banding-mobile-${banding.id_banding}`, el); else textareaRefs.current.delete(`approve-banding-mobile-${banding.id_banding}`); }}
                                   className="text-sm"
                                 />
                                 <Button 
                                   onClick={() => {
-                                    const textarea = getTextareaElement(`approve-banding-mobile-${banding.id_banding}`);
+                                    const textarea = textareaRefs.current.get(`approve-banding-mobile-${banding.id_banding}`) ?? null;
                                     if (textarea) {
                                       handleBandingResponse(banding.id_banding, 'disetujui', textarea.value);
                                     }
@@ -531,12 +531,13 @@ export const BandingAbsenView = ({ user }: BandingAbsenViewProps) => {
                                 <Textarea 
                                   placeholder="Alasan penolakan (wajib)" 
                                   id={`reject-banding-mobile-${banding.id_banding}`}
+                                  ref={(el) => { if (el) textareaRefs.current.set(`reject-banding-mobile-${banding.id_banding}`, el); else textareaRefs.current.delete(`reject-banding-mobile-${banding.id_banding}`); }}
                                   required
                                   className="text-sm"
                                 />
                                  <Button 
                                    onClick={() => {
-                                     const textarea = getTextareaElement(`reject-banding-mobile-${banding.id_banding}`);
+                                     const textarea = textareaRefs.current.get(`reject-banding-mobile-${banding.id_banding}`) ?? null;
                                      if (textarea?.value.trim()) {
                                        handleBandingResponse(banding.id_banding, 'ditolak', textarea.value);
                                      } else if (textarea) {

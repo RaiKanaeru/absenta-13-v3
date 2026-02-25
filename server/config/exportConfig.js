@@ -187,14 +187,6 @@ export {
     getAbsenceCategory
 } from './attendanceConstants.js';
 
-// Legacy mapping untuk kompatibilitas dengan kode lama
-// @deprecated - Gunakan import dari attendanceConstants.js
-export const STATUS_KEHADIRAN = {
-    HADIR: ['H', 'Hadir', 'T', 'Terlambat', 'D', 'Dispen'],
-    SAKIT: ['S', 'Sakit'],
-    IZIN: ['I', 'Izin'],
-    ALPHA: ['A', 'Alpha', 'Alpa', 'Tanpa Keterangan']
-};
 
 // ================================================
 // CELL MAPPING - REKAP GURU MINGGUAN
@@ -297,7 +289,6 @@ export default {
     TEMPLATE_PATHS,
     REKAP_KELAS_MAPPING,
     REKAP_GURU_MAPPING,
-    STATUS_KEHADIRAN,
     TINGKAT_KELAS,
     getTemplatePathByTingkat,
     extractTingkatFromKelas

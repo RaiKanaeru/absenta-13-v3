@@ -200,7 +200,7 @@ export const AttendanceView = ({ schedule, user, onBack }: AttendanceViewProps) 
           scheduleId: schedule.id,
           attendance: attendanceData,
           notes,
-          guruId: user.guru_id || user.id,
+          guruId: user.guru_id,
           tanggal_absen: isEditMode ? selectedDate : undefined
         }),
       });

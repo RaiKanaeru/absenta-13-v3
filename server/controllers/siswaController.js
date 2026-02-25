@@ -249,12 +249,20 @@ export const getSiswa = async (req, res) => {
         const cacheSystem = globalThis.cacheSystem;
         const cacheKey = `list:${page}:${limit}:${search}`;
         let rows, countResult;
+        let wasCached = false;
 
-        if (cacheSystem?.isConnected) {
-            const cached = await cacheSystem.getOrSet(cacheKey, async () => {
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'students');
+            if (cached !== null) {
+                rows = cached.rows;
+                countResult = cached.countResult;
+                wasCached = true;
+            } else {
                 const offset = (page - 1) * limit;
                 let q = `
-            SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
+            SELECT s.id_siswa, s.id, s.nis, s.nama, s.jenis_kelamin, s.jabatan, s.status, s.kelas_id,
+                   s.telepon_orangtua, s.nomor_telepon_siswa, s.alamat, s.created_at, s.user_id,
+                   k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
             JOIN users u ON s.user_id = u.id
@@ -268,34 +276,19 @@ export const getSiswa = async (req, res) => {
                 }
                 q += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
                 p.push(Number(limit), Number(offset));
-                const [r] = await db.query(q, p);
+                const [[r], [cr]] = await Promise.all([
+                    db.query(q, p),
+                    db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [])
+                ]);
                 const [cr] = await db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
-                return { rows: r, countResult: cr };
-            }, 'students');
-            rows = cached.rows;
-            countResult = cached.countResult;
-        } else {
-            const offset = (page - 1) * limit;
-            let query = `
-            SELECT s.*, k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
-            FROM siswa s
-            JOIN kelas k ON s.kelas_id = k.id_kelas
-            JOIN users u ON s.user_id = u.id
-        `;
-            let countQuery = 'SELECT COUNT(*) as total FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas JOIN users u ON s.user_id = u.id';
-            let params = [];
-            if (search) {
-                query += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
-                countQuery += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
-                params = [`%${search}%`, `%${search}%`, `%${search}%`];
+                const result = { rows: r, countResult: cr };
+                await cacheSystem.set(cacheKey, result, 'students');
+                rows = result.rows;
+                countResult = result.countResult;
             }
-            query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
-            params.push(Number(limit), Number(offset));
-            [rows] = await db.query(query, params);
-            [countResult] = await db.query(countQuery, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
-        }
+        } else {
 
-        log.success('GetAll', { count: rows.length, total: countResult[0].total, page });
+        log.success('GetAll', { count: rows.length, total: countResult[0].total, page, cached: wasCached });
 
         res.json({
             success: true,
@@ -464,7 +457,9 @@ async function insertUserAndLinkSiswa(connection, { username, password, nama, em
  */
 async function fetchSiswaByNis(connection, nis) {
     const [rows] = await connection.execute(
-        'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
+        'SELECT s.id, s.id_siswa, s.nis, s.nama, s.kelas_id, s.jabatan, s.jenis_kelamin,
+       s.telepon_orangtua, s.nomor_telepon_siswa, s.alamat, s.status, s.user_id,
+       u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
         [nis]
     );
 
@@ -668,7 +663,8 @@ export const deleteSiswa = async (req, res) => {
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
-            'SELECT s.*, u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
+            'SELECT s.id, s.id_siswa, s.nis, s.nama, s.user_id,
+       u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
             [paramNis]
         );
 

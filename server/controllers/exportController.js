@@ -758,13 +758,16 @@ export const exportAbsensi = async (req, res) => {
         const cacheKey = `export:absensi:${date_start || 'all'}:${date_end || 'all'}`;
         const cacheSystem = globalThis.cacheSystem;
         let rows;
-        if (cacheSystem?.isConnected) {
-            rows = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getAbsensiGuru(date_start, date_end),
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getAbsensiGuru(date_start, date_end);
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
         } else {
             rows = await ExportService.getAbsensiGuru(date_start, date_end);
         }
@@ -859,13 +862,16 @@ export const exportStudentSummary = async (req, res) => {
         const cacheKey = `export:student-summary:${startDate}:${endDate}:${kelas_id || 'all'}`;
         const cacheSystem = globalThis.cacheSystem;
         let students;
-        if (cacheSystem?.isConnected) {
-            students = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getStudentSummary(startDate, endDate, kelas_id),
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                students = cached;
+                wasCached = true;
+            } else {
+                students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
+                await cacheSystem.set(cacheKey, students, 'attendance', 300);
+            }
         } else {
             students = await ExportService.getStudentSummary(startDate, endDate, kelas_id);
         }
@@ -1087,13 +1093,17 @@ export const exportRekapKetidakhadiran = async (req, res) => {
         const cacheKey = `export:rekap-ketidakhadiran:${tipe}:${startDate}:${endDate}:${kelas_id || 'all'}`;
         const cacheSystem = globalThis.cacheSystem;
         let rows;
-        if (cacheSystem?.isConnected) {
-            rows = await cacheSystem.getOrSet(
-                cacheKey,
-                async () => { const [result] = await db.execute(query, params); return result; },
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const [result] = await db.execute(query, params);
+                rows = result;
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
         } else {
             const [result] = await db.execute(query, params);
             rows = result;
@@ -1179,11 +1189,14 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
         const cacheKeySmkn13 = `export:ringkasan-siswa-smkn13:${kelas_id}:${semester || 'all'}:${tahun_ajaran || 'all'}:${startDate}:${endDate}`;
         const cacheSystemSmkn13 = globalThis.cacheSystem;
         let rows;
-        if (cacheSystemSmkn13?.isConnected) {
-            rows = await cacheSystemSmkn13.getOrSet(
-                cacheKeySmkn13,
-                async () => {
-                    const [result] = await db.execute(`
+        let wasCached = false;
+        if (cacheSystemSmkn13) {
+            const cached = await cacheSystemSmkn13.get(cacheKeySmkn13, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const [result] = await db.execute(`
             SELECT 
                 s.nis,
                 s.nama,
@@ -1200,11 +1213,9 @@ export const exportRingkasanKehadiranSiswaSmkn13 = async (req, res) => {
             GROUP BY s.id_siswa, s.nis, s.nama
             ORDER BY s.nama
         `, [startDate, endDate, kelas_id]);
-                    return result;
-                },
-                'attendance',
-                300
-            );
+                rows = result;
+                await cacheSystemSmkn13.set(cacheKeySmkn13, rows, 'attendance', 300);
+            }
         } else {
             const [result] = await db.execute(`
             SELECT 
@@ -1294,13 +1305,16 @@ export const exportTeacherSummary = async (req, res) => {
         const cacheKey = `export:teacher-summary:${startDate}:${endDate}`;
         const cacheSystem = globalThis.cacheSystem;
         let teachers;
-        if (cacheSystem?.isConnected) {
-            teachers = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getTeacherSummary(startDate, endDate),
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                teachers = cached;
+                wasCached = true;
+            } else {
+                teachers = await ExportService.getTeacherSummary(startDate, endDate);
+                await cacheSystem.set(cacheKey, teachers, 'attendance', 300);
+            }
         } else {
             teachers = await ExportService.getTeacherSummary(startDate, endDate);
         }
@@ -1482,13 +1496,17 @@ export const exportRekapKetidakhadiranGuru = async (req, res) => {
         const cacheKey = `export:rekap-ketidakhadiran-guru:${tahunAjaran}`;
         const cacheSystem = globalThis.cacheSystem;
         let rows;
-        if (cacheSystem?.isConnected) {
-            rows = await cacheSystem.getOrSet(
-                cacheKey,
-                async () => { const [result] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]); return result; },
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                const [result] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
+                rows = result;
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
         } else {
             const [result] = await db.execute(query, [startDate, endDate, ...ABSENT_STATUSES]);
             rows = result;
@@ -1682,13 +1700,16 @@ export const exportRekapKetidakhadiranSiswa = async (req, res) => {
         const cacheKey = `export:rekap-ketidakhadiran-siswa:${tahun}:${kelas_id || 'all'}:${semester}`;
         const cacheSystem = globalThis.cacheSystem;
         let presensiData;
-        if (cacheSystem?.isConnected) {
-            presensiData = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester),
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                presensiData = cached;
+                wasCached = true;
+            } else {
+                presensiData = await ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester);
+                await cacheSystem.set(cacheKey, presensiData, 'attendance', 300);
+            }
         } else {
             presensiData = await ExportService.getRekapKetidakhadiranSiswa(tahun, kelas_id, semester);
         }
@@ -2006,13 +2027,16 @@ export const exportPresensiSiswa = async (req, res) => {
         const cacheKey = `export:presensi-siswa:${tahun}:${bulan}:${kelas_id || 'all'}`;
         const cacheSystem = globalThis.cacheSystem;
         let presensiRows;
-        if (cacheSystem?.isConnected) {
-            presensiRows = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id),
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                presensiRows = cached;
+                wasCached = true;
+            } else {
+                presensiRows = await ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id);
+                await cacheSystem.set(cacheKey, presensiRows, 'attendance', 300);
+            }
         } else {
             presensiRows = await ExportService.getPresensiSiswaDetail(tahun, bulan, kelas_id);
         }
@@ -2070,13 +2094,16 @@ export const exportAdminAttendance = async (req, res) => {
         const cacheKey = 'export:admin-attendance';
         const cacheSystem = globalThis.cacheSystem;
         let rows;
-        if (cacheSystem?.isConnected) {
-            rows = await cacheSystem.getOrSet(
-                cacheKey,
-                () => ExportService.getAdminAttendance(),
-                'attendance',
-                300
-            );
+        let wasCached = false;
+        if (cacheSystem) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) {
+                rows = cached;
+                wasCached = true;
+            } else {
+                rows = await ExportService.getAdminAttendance();
+                await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+            }
         } else {
             rows = await ExportService.getAdminAttendance();
         }

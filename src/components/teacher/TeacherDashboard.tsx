@@ -6,6 +6,7 @@ import { formatDateOnly, getWIBTime } from "@/lib/time-utils";
 import { FontSizeControl } from "@/components/shared/font-size-control";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import {
   Clock, LogOut, History, MessageCircle, ClipboardList, Menu, X, Settings,
   type LucideIcon
@@ -598,11 +599,11 @@ const TeacherDashboardRoutes = ({ schedules, isLoading, user }: TeacherDashboard
           />
         }
       />
-      <Route path="schedule/:scheduleId" element={<TeacherAttendanceRouteWrapper isLoading={isLoading} schedules={schedules} user={user} />} />
-      <Route path="banding" element={<BandingAbsenView user={user} />} />
-      <Route path="reports" element={<LaporanKehadiranSiswaView user={user} />} />
-      <Route path="banding-history" element={<RiwayatBandingAbsenView user={user} />} />
-      <Route path="history" element={<HistoryView user={user} />} />
+      <Route path="schedule/:scheduleId" element={<ErrorBoundary><TeacherAttendanceRouteWrapper isLoading={isLoading} schedules={schedules} user={user} /></ErrorBoundary>} />
+      <Route path="banding" element={<ErrorBoundary><BandingAbsenView user={user} /></ErrorBoundary>} />
+      <Route path="reports" element={<ErrorBoundary><LaporanKehadiranSiswaView user={user} /></ErrorBoundary>} />
+      <Route path="banding-history" element={<ErrorBoundary><RiwayatBandingAbsenView user={user} /></ErrorBoundary>} />
+      <Route path="history" element={<ErrorBoundary><HistoryView user={user} /></ErrorBoundary>} />
     </Routes>
   );
 };
@@ -644,7 +645,7 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
     void loadLatestTeacherProfile(apiRequest, setCurrentUserData);
   }, [apiRequest]);
 
-  const hasTeacherIdentity = Boolean(user.guru_id || user.id);
+  const hasTeacherIdentity = Boolean(user.guru_id);
 
   const fetchSchedules = useCallback(async () => {
     await fetchTeacherSchedules(apiRequest, hasTeacherIdentity, setIsLoading, setSchedules);

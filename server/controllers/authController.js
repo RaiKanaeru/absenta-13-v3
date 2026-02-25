@@ -120,7 +120,7 @@ async function checkLoginAttempts(username, clientId, ip) {
 
         // Lockout sudah expired → hapus
         if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
-            if (useRedis) { try { await redis.del(redisKey); } catch {} }
+            if (useRedis) { try { await redis.del(redisKey); } catch (e) { logger.debug('Redis lockout cleanup failed', { key: redisKey, error: e.message }); } }
             else { fallbackAttempts.delete(key); }
             continue;
         }
@@ -147,7 +147,7 @@ async function checkLoginAttempts(username, clientId, ip) {
         try {
             const data = await redis.get(redisAccountKey);
             if (data) count = JSON.parse(data).count || 0;
-        } catch {}
+        } catch (e) { logger.debug('Redis attempt count fetch failed', { key: redisAccountKey, error: e.message }); }
     } else {
         count = fallbackAttempts.get(accountKey)?.count || 0;
     }
@@ -295,7 +295,7 @@ async function resetLoginAttempts(username, clientId, ip) {
  */
 async function verifyCaptchaToken(token) {
     if (!HCAPTCHA_SECRET) {
-        logger.debug('hCaptcha secret not configured, skipping verification');
+        logger.warn('hCaptcha secret not configured — captcha verification disabled. Set HCAPTCHA_SECRET in production.');
         return true;
     }
     if (!token) return false;
@@ -335,9 +335,9 @@ const MSG_LOGOUT_SUCCESS = 'Logout berhasil';
 async function enrichUserData(user) {
     if (user.role === 'guru') {
         const [guruData] = await db.execute(
-            `SELECT g.*, m.nama_mapel 
-             FROM guru g 
-             LEFT JOIN mapel m ON g.mapel_id = m.id_mapel 
+            `SELECT g.id_guru, g.nip, m.nama_mapel
+             FROM guru g
+             LEFT JOIN mapel m ON g.mapel_id = m.id_mapel
              WHERE g.username = ?`,
             [user.username]
         );
@@ -350,9 +350,9 @@ async function enrichUserData(user) {
         }
     } else if (user.role === 'siswa') {
         const [siswaData] = await db.execute(
-            `SELECT s.*, k.nama_kelas 
-             FROM siswa s 
-             JOIN kelas k ON s.kelas_id = k.id_kelas 
+            `SELECT s.id_siswa, s.nis, s.kelas_id, k.nama_kelas
+             FROM siswa s
+             JOIN kelas k ON s.kelas_id = k.id_kelas
              WHERE s.user_id = ?`,
             [user.id]
         );
@@ -402,12 +402,12 @@ export const login = async (req, res) => {
         const captchaValid = await verifyCaptchaToken(captchaToken);
         if (!captchaValid) {
             log.warn('Captcha verification failed', { username, ip: clientIP });
-            return res.status(400).json({
-                success: false,
-                message: 'Verifikasi keamanan gagal. Silakan selesaikan captcha.',
-                requireCaptcha: true,
-                remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - lockoutCheck.count)
-            });
+            return sendErrorResponse(
+                res,
+                new AppError(ERROR_CODES.VALIDATION_FAILED, 'Verifikasi keamanan gagal. Silakan selesaikan captcha.'),
+                null, null,
+                { requireCaptcha: true, remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - lockoutCheck.count) }
+            );
         }
     }
 
@@ -432,12 +432,12 @@ export const login = async (req, res) => {
         if (rows.length === 0) {
             const attempts = await recordFailedAttempt(username, clientId, clientIP);
             log.warn('Login failed - user not found', { username, ip: clientIP });
-            return res.status(401).json({
-                success: false,
-                message: ERROR_INVALID_CREDENTIALS,
-                requireCaptcha: attempts.requireCaptcha,
-                remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - attempts.count)
-            });
+            return sendErrorResponse(
+                res,
+                new AppError(ERROR_CODES.AUTH_INVALID_CREDENTIALS, ERROR_INVALID_CREDENTIALS),
+                null, null,
+                { requireCaptcha: attempts.requireCaptcha, remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - attempts.count) }
+            );
         }
 
         const user = rows[0];
@@ -463,12 +463,12 @@ export const login = async (req, res) => {
                 );
             }
             
-            return res.status(401).json({
-                success: false,
-                message: ERROR_INVALID_CREDENTIALS,
-                requireCaptcha: attempts.requireCaptcha,
-                remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - attempts.count)
-            });
+            return sendErrorResponse(
+                res,
+                new AppError(ERROR_CODES.AUTH_INVALID_CREDENTIALS, ERROR_INVALID_CREDENTIALS),
+                null, null,
+                { requireCaptcha: attempts.requireCaptcha, remainingAttempts: Math.max(0, LOCKOUT_CONFIG.account.maxAttempts - attempts.count) }
+            );
         }
 
         // SUCCESS - Reset login attempts for all keys

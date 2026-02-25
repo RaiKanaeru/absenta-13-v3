@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { JadwalService } from '../services/jadwalService';
+import type { JadwalRole, JadwalEnvelopeResponse } from '../services/jadwalService';
 
 /**
  * Extract a readable error message from an unknown error value
@@ -19,16 +20,14 @@ const extractErrorMessage = (err: unknown, fallback: string): string => {
  */
 const fetchJadwalByRole = async (role: string, siswaId?: number, tanggal?: string): Promise<unknown[]> => {
   if (role === 'siswa' && siswaId) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res: any = tanggal
-      ? await JadwalService.getJadwalRentangSiswa(siswaId, tanggal)
-      : await JadwalService.getJadwalHariIniSiswa(siswaId);
+    const res: JadwalEnvelopeResponse = tanggal
+      ? await JadwalService.getJadwalRentangSiswa(siswaId, tanggal) as JadwalEnvelopeResponse
+      : await JadwalService.getJadwalHariIniSiswa(siswaId) as JadwalEnvelopeResponse;
     return res?.success && res?.data ? res.data : [];
   }
 
   if (role !== 'siswa') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminGuruData = await JadwalService.getJadwal(role as any);
+    const adminGuruData = await JadwalService.getJadwal(role as JadwalRole);
     return Array.isArray(adminGuruData) ? adminGuruData : [];
   }
 

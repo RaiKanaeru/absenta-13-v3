@@ -1,5 +1,8 @@
 import path from 'node:path';
 import { access } from 'node:fs/promises';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('LetterheadService');
 
 const PUBLIC_ROOT = path.resolve(process.cwd(), 'public');
 const UPLOAD_PREFIX = '/uploads/letterheads/';
@@ -103,7 +106,7 @@ const DEFAULT_LETTERHEAD = {
 export async function getLetterhead({ reportKey = null } = {}) {
   try {
     if (!globalThis.dbPool) {
-      console.warn('[WARN] Database pool tidak tersedia, menggunakan default letterhead');
+      logger.warn('Database pool tidak tersedia, menggunakan default letterhead');
       return DEFAULT_LETTERHEAD;
     }
 
@@ -143,7 +146,7 @@ export async function getLetterhead({ reportKey = null } = {}) {
     const [rows] = await globalThis.dbPool.execute(query, params);
     
     if (rows.length === 0) {
-      console.warn('[WARN] Tidak ada KOP ditemukan, menggunakan default');
+      logger.warn('Tidak ada KOP ditemukan, menggunakan default');
       return DEFAULT_LETTERHEAD;
     }
 
@@ -175,7 +178,7 @@ export async function getLetterhead({ reportKey = null } = {}) {
     };
 
   } catch (error) {
-    console.error('[ERROR] Error fetching letterhead from database:', error);
+    logger.error('Error fetching letterhead from database:', error);
     return DEFAULT_LETTERHEAD;
   }
 }
@@ -226,7 +229,7 @@ export async function setLetterheadGlobal(letterhead) {
     return true;
 
   } catch (error) {
-    console.error('[ERROR] Error saving global letterhead:', error);
+    logger.error('Error saving global letterhead:', error);
     return false;
   }
 }
@@ -282,7 +285,7 @@ export async function setLetterheadForReport(reportKey, letterhead) {
     return true;
 
   } catch (error) {
-    console.error('[ERROR] Error saving report letterhead:', error);
+    logger.error('Error saving report letterhead:', error);
     return false;
   }
 }
@@ -309,7 +312,7 @@ export async function getAllLetterheads() {
     return rows;
 
   } catch (error) {
-    console.error('[ERROR] Error fetching all letterheads:', error);
+    logger.error('Error fetching all letterheads:', error);
     return [];
   }
 }
@@ -331,7 +334,7 @@ export async function deleteLetterhead(id) {
     return result.affectedRows > 0;
 
   } catch (error) {
-    console.error('[ERROR] Error deleting letterhead:', error);
+    logger.error('Error deleting letterhead:', error);
     return false;
   }
 }

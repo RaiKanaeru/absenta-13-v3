@@ -11,6 +11,9 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('ErrorHandler');
 
 // ================================================
 // ERROR CODES & MESSAGES
@@ -159,7 +162,7 @@ export function sendErrorResponse(res, error, userMessage = null, statusCode = n
     const errorToLog = error || new Error(userMessage || ERROR_CODES.INTERNAL_ERROR.message);
     
     // Log error
-    console.error(`[${requestId}] Error:`, {
+    logger.error(`[${requestId}] Error:`, {
         message: errorToLog.message,
         code: errorToLog.code,
         stack: isDevelopment ? errorToLog.stack : undefined

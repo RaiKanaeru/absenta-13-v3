@@ -152,7 +152,8 @@ export const getJamPelajaranByKelas = async (req, res) => {
         }
         
         const [rows] = await db.execute(`
-            SELECT jp.*, k.nama_kelas
+            SELECT jp.id, jp.kelas_id, jp.jam_ke, jp.jam_mulai, jp.jam_selesai, jp.is_piket,
+                   jp.is_piket_full, jp.label, jp.keterangan, jp.status, k.nama_kelas
             FROM jam_pelajaran jp
             JOIN kelas k ON jp.kelas_id = k.id_kelas
             WHERE jp.kelas_id = ?
@@ -186,7 +187,8 @@ export const getAllJamPelajaran = async (req, res) => {
     
     try {
         const [rows] = await db.execute(`
-            SELECT jp.*, k.nama_kelas, k.tingkat
+            SELECT jp.id, jp.kelas_id, jp.jam_ke, jp.jam_mulai, jp.jam_selesai, jp.is_piket,
+                   jp.is_piket_full, jp.label, jp.keterangan, jp.status, k.nama_kelas, k.tingkat
             FROM jam_pelajaran jp
             JOIN kelas k ON jp.kelas_id = k.id_kelas
             WHERE jp.status = 'aktif' AND k.status = 'aktif'

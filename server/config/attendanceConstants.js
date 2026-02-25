@@ -272,20 +272,6 @@ export const SQL_COUNT_PER_CATEGORY = {
     DISPEN: `COALESCE(SUM(CASE WHEN status = 'Dispen' THEN 1 ELSE 0 END), 0)`
 };
 
-// ================================================
-// LEGACY COMPATIBILITY
-// ================================================
-
-/**
- * @deprecated Use PRESENT_STATUSES instead
- */
-export const STATUS_KEHADIRAN_LEGACY = {
-    HADIR: ['H', 'Hadir', 'T', 'Terlambat'],
-    SAKIT: ['S', 'Sakit'],
-    IZIN: ['I', 'Izin'],
-    ALPHA: ['A', 'Alpha', 'Alpa', 'Tanpa Keterangan']
-};
-
 export default {
     STUDENT_STATUSES,
     TEACHER_STATUSES,
