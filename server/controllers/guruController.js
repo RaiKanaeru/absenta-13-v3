@@ -437,8 +437,8 @@ const buildUserUpdateFields = async (data, bcrypt, saltRounds) => {
 // Helper to get guru by ID with user relation
 const getGuruById = async (connection, id) => {
     const [existingGuru] = await connection.execute(
-        'SELECT g.id, g.id_guru, g.nip, g.nama, g.username, g.user_id, g.mapel_id, g.status,
-       u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?',
+        `SELECT g.id, g.id_guru, g.nip, g.nama, g.username, g.user_id, g.mapel_id, g.status,
+               u.id as user_id FROM guru g LEFT JOIN users u ON g.user_id = u.id WHERE g.id = ?`,
         [id]
     );
     return existingGuru[0];

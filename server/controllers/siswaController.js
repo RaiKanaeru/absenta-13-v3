@@ -286,6 +286,31 @@ export const getSiswa = async (req, res) => {
                 countResult = result.countResult;
             }
         } else {
+            const offset = (page - 1) * limit;
+            let q = `
+            SELECT s.id_siswa, s.id, s.nis, s.nama, s.jenis_kelamin, s.jabatan, s.status, s.kelas_id,
+                   s.telepon_orangtua, s.nomor_telepon_siswa, s.alamat, s.created_at, s.user_id,
+                   k.nama_kelas, u.username, u.email as user_email, u.status as user_status, u.is_perwakilan
+            FROM siswa s
+            JOIN kelas k ON s.kelas_id = k.id_kelas
+            JOIN users u ON s.user_id = u.id
+        `;
+            let cq = 'SELECT COUNT(*) as total FROM siswa s JOIN kelas k ON s.kelas_id = k.id_kelas JOIN users u ON s.user_id = u.id';
+            let p = [];
+            if (search) {
+                q += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+                cq += ' WHERE (s.nama LIKE ? OR s.nis LIKE ? OR k.nama_kelas LIKE ?)';
+                p = [`%${search}%`, `%${search}%`, `%${search}%`];
+            }
+            q += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
+            p.push(Number(limit), Number(offset));
+            const [[r], [cr]] = await Promise.all([
+                db.query(q, p),
+                db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [])
+            ]);
+            rows = r;
+            countResult = cr;
+        }
 
         log.success('GetAll', { count: rows.length, total: countResult[0].total, page, cached: wasCached });
 
@@ -456,9 +481,9 @@ async function insertUserAndLinkSiswa(connection, { username, password, nama, em
  */
 async function fetchSiswaByNis(connection, nis) {
     const [rows] = await connection.execute(
-        'SELECT s.id, s.id_siswa, s.nis, s.nama, s.kelas_id, s.jabatan, s.jenis_kelamin,
-       s.telepon_orangtua, s.nomor_telepon_siswa, s.alamat, s.status, s.user_id,
-       u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
+        `SELECT s.id, s.id_siswa, s.nis, s.nama, s.kelas_id, s.jabatan, s.jenis_kelamin,
+               s.telepon_orangtua, s.nomor_telepon_siswa, s.alamat, s.status, s.user_id,
+               u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?`,
         [nis]
     );
 
@@ -662,8 +687,8 @@ export const deleteSiswa = async (req, res) => {
     try {
         // Cek apakah siswa ada
         const [existingSiswa] = await connection.execute(
-            'SELECT s.id, s.id_siswa, s.nis, s.nama, s.user_id,
-       u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?',
+            `SELECT s.id, s.id_siswa, s.nis, s.nama, s.user_id,
+                   u.id as user_id FROM siswa s LEFT JOIN users u ON s.user_id = u.id WHERE s.nis = ?`,
             [paramNis]
         );
 
