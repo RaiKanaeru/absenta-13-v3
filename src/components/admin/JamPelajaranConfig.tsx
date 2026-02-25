@@ -19,7 +19,9 @@ import {
     RotateCcw,
     Copy,
     Plus,
-    Trash2
+    Trash2,
+    Check,
+    CheckCheck
 } from 'lucide-react';
 
 interface JamPelajaran {
@@ -203,6 +205,15 @@ const JamPelajaranConfig: React.FC = () => {
         }
     };
 
+    const getKelasTingkat = (kelas: Kelas): string => {
+        if (kelas.tingkat) return kelas.tingkat;
+        const name = kelas.nama_kelas;
+        if (name.startsWith('XII')) return 'XII';
+        if (name.startsWith('XI')) return 'XI';
+        if (name.startsWith('X')) return 'X';
+        return '';
+    };
+
     // Update jam pelajaran field
     const updateJam = (index: number, field: keyof JamPelajaran, value: string | number) => {
         const updated = [...jamPelajaran];
@@ -305,7 +316,52 @@ const JamPelajaranConfig: React.FC = () => {
                                             <DialogTitle>Salin Jam Pelajaran</DialogTitle>
                                         </DialogHeader>
                                         <div className="space-y-4">
-<p className="text-sm text-muted-foreground">
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {(['X', 'XI', 'XII'] as const).map((tingkat) => {
+                                                    const classesOfTingkat = kelasList.filter(k => k.id_kelas !== selectedKelasId && getKelasTingkat(k) === tingkat);
+                                                    const allSelected = classesOfTingkat.length > 0 && classesOfTingkat.every(k => copyTargets.includes(k.id_kelas));
+                                                    return (
+                                                        <Button
+                                                            key={tingkat}
+                                                            variant={allSelected ? "default" : "outline"}
+                                                            size="sm"
+                                                            className="h-8"
+                                                            onClick={() => {
+                                                                if (allSelected) {
+                                                                    setCopyTargets(prev => prev.filter(id => !classesOfTingkat.some(k => k.id_kelas === id)));
+                                                                } else {
+                                                                    const newIds = classesOfTingkat.map(k => k.id_kelas).filter(id => !copyTargets.includes(id));
+                                                                    setCopyTargets(prev => [...prev, ...newIds]);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {allSelected && <Check className="h-3 w-3 mr-1" />}
+                                                            Semua {tingkat}
+                                                        </Button>
+                                                    );
+                                                })}
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="h-8"
+                                                    onClick={() => {
+                                                        const allIds = kelasList.filter(k => k.id_kelas !== selectedKelasId).map(k => k.id_kelas);
+                                                        setCopyTargets(allIds);
+                                                    }}
+                                                >
+                                                    <CheckCheck className="h-3 w-3 mr-1" />
+                                                    Pilih Semua
+                                                </Button>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="h-8"
+                                                    onClick={() => setCopyTargets([])}
+                                                >
+                                                    Hapus Semua
+                                                </Button>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground">
                                                 Salin konfigurasi jam dari <strong>{selectedKelas.nama_kelas}</strong> ke:
                                             </p>
                                             <div className="grid grid-cols-2 gap-2">
