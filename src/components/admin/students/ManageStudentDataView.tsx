@@ -142,53 +142,6 @@ export const ManageStudentDataView = ({
     setDialogOpen(true);
   };
 
-    setFormData(INITIAL_FORM_DATA);
-    setEditingId(null);
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (student: StudentData) => {
-    setFormData({
-      nis: student.nis,
-      nama: student.nama,
-      kelas_id: student.kelas_id?.toString() || "",
-      jenis_kelamin: student.jenis_kelamin as Gender,
-      alamat: student.alamat || "",
-      telepon_orangtua: student.telepon_orangtua || "",
-      nomor_telepon_siswa: student.nomor_telepon_siswa || "",
-      status: student.status as "aktif" | "nonaktif",
-      username: student.username || "",
-      password: "",
-      email: student.email || "",
-      jabatan: student.jabatan || "Siswa",
-    });
-    setEditingId(student.id_siswa);
-    setDialogOpen(true);
-  };
-    setFormData(INITIAL_FORM_DATA);
-    setEditingId(null);
-    setSheetOpen(true);
-  };
-
-  const openEditSheet = (student: StudentData) => {
-    setFormData({
-      nis: student.nis,
-      nama: student.nama,
-      kelas_id: student.kelas_id?.toString() || "",
-      jenis_kelamin: student.jenis_kelamin as Gender,
-      alamat: student.alamat || "",
-      telepon_orangtua: student.telepon_orangtua || "",
-      nomor_telepon_siswa: student.nomor_telepon_siswa || "",
-      status: student.status as "aktif" | "nonaktif",
-      username: student.username || "",
-      password: "",
-      email: student.email || "",
-      jabatan: student.jabatan || "Siswa",
-    });
-    setEditingId(student.id_siswa);
-    setSheetOpen(true);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -590,17 +543,9 @@ export const ManageStudentDataView = ({
             </Button>
           ) : undefined
         }
-          statusFilter === "semua" ? (
-            <Button onClick={openAddSheet} size="sm" className="mt-4 text-xs">
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Tambah Siswa Pertama
-            </Button>
-          ) : undefined
-        }
         pageSizeOptions={[10, 15, 25, 50, 100]}
       />
 
-      {/* Add/Edit Sheet (Sidebar) */}
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
@@ -612,22 +557,6 @@ export const ManageStudentDataView = ({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
 
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle>{editingId ? "Edit Data Siswa" : "Tambah Data Siswa"}</DialogTitle>
-            <DialogDescription>
-              {editingId ? "Perbarui informasi data siswa" : "Tambahkan data siswa baru ke sistem"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
-        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Data Siswa" : "Tambah Data Siswa"}</DialogTitle>
-            <DialogDescription>
-              {editingId ? "Perbarui informasi data siswa" : "Tambahkan data siswa baru ke sistem"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
 
             {/* Section 1: Data Akademik Siswa */}
             <div className="space-y-4 rounded-md border p-4 bg-muted/10">
@@ -801,25 +730,6 @@ export const ManageStudentDataView = ({
             <DialogFooter className="px-6 py-4 border-t bg-muted/50 mt-0">
               <div className="flex w-full sm:justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto text-sm">
-                  Batal
-                </Button>
-                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
-                  {isSaving ? "Menyimpan..." : (
-                    <>
-                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
-                      {getSubmitButtonText(isSaving, !!editingId)}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </DialogFooter>
-
-              <div className="flex w-full sm:justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto text-sm">
-                  Batal
-                </Button>
-              <div className="flex w-full sm:justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
                   Batal
                 </Button>
                 <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">

@@ -141,15 +141,6 @@ export const ManageTeacherDataView = ({
     setDialogOpen(true);
   };
 
-    setFormData(INITIAL_FORM_DATA);
-    setEditingId(null);
-    setDialogOpen(true);
-  };
-    setFormData(INITIAL_FORM_DATA);
-    setEditingId(null);
-    setSheetOpen(true);
-  };
-
   const openEditDialog = (teacher: TeacherData) => {
     setFormData({
       nip: teacher.nip,
@@ -163,33 +154,6 @@ export const ManageTeacherDataView = ({
     });
     setEditingId(teacher.id);
     setDialogOpen(true);
-  };
-
-    setFormData({
-      nip: teacher.nip,
-      nama: teacher.nama,
-      email: teacher.email || "",
-      mata_pelajaran: teacher.mata_pelajaran || "",
-      alamat: teacher.alamat || "",
-      telepon: teacher.telepon || "",
-      jenis_kelamin: teacher.jenis_kelamin as GenderOption,
-      status: teacher.status as "aktif" | "nonaktif",
-    });
-    setEditingId(teacher.id);
-    setDialogOpen(true);
-  };
-    setFormData({
-      nip: teacher.nip,
-      nama: teacher.nama,
-      email: teacher.email || "",
-      mata_pelajaran: teacher.mata_pelajaran || "",
-      alamat: teacher.alamat || "",
-      telepon: teacher.telepon || "",
-      jenis_kelamin: teacher.jenis_kelamin as GenderOption,
-      status: teacher.status as "aktif" | "nonaktif",
-    });
-    setEditingId(teacher.id);
-    setSheetOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -627,15 +591,6 @@ export const ManageTeacherDataView = ({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle>{editingId ? "Edit Data Guru" : "Tambah Data Guru"}</DialogTitle>
-            <DialogDescription>
-              {editingId ? "Perbarui informasi data guru" : "Tambahkan data guru baru ke sistem"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
 
             {/* Section 1: Data Pegawai */}
             <div className="space-y-4 rounded-md border p-4 bg-muted/10">

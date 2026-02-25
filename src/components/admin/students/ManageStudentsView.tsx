@@ -633,7 +633,6 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
         }
       />
 
-      {/* Add/Edit Dialog (Centered) */}
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
@@ -645,16 +644,6 @@ export const ManageStudentsView = ({ onLogout }: ManageStudentsViewProps) => {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
 
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
-        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Akun Siswa" : "Tambah Akun Siswa"}</DialogTitle>
-            <DialogDescription>
-              {editingId ? "Perbarui informasi akun login siswa" : "Tambahkan akun login siswa baru ke sistem"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
 
             {/* Section 1: Data Siswa */}
             <div className="space-y-4 rounded-md border p-4 bg-muted/10">
