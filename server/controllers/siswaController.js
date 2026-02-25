@@ -280,7 +280,6 @@ export const getSiswa = async (req, res) => {
                     db.query(q, p),
                     db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [])
                 ]);
-                const [cr] = await db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
                 const result = { rows: r, countResult: cr };
                 await cacheSystem.set(cacheKey, result, 'students');
                 rows = result.rows;

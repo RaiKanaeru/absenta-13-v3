@@ -242,9 +242,6 @@ export const getGuru = async (req, res) => {
                     db.query(sq, sp)
                 ]);
                 return { rows: r, countResult: cr, statsResult: sr };
-                const [cr] = await db.query(cq, search ? [`%${search}%`, `%${search}%`, `%${search}%`] : []);
-                const [sr] = await db.query(sq, sp);
-                return { rows: r, countResult: cr, statsResult: sr };
             }, 'teachers');
             rows = cached.rows;
             countResult = cached.countResult;
@@ -289,15 +286,6 @@ export const getGuru = async (req, res) => {
                 db.query(statsQuery, statsParams)
             ]);
 
-            // Aggregate statistics for the current query condition
-            let statsQuery = 'SELECT status, COUNT(*) as count FROM guru g';
-            let statsParams = [];
-            if (search) {
-                statsQuery += ' WHERE (g.nama LIKE ? OR g.nip LIKE ? OR g.username LIKE ?)';
-                statsParams = [`%${search}%`, `%${search}%`, `%${search}%`];
-            }
-            statsQuery += ' GROUP BY status';
-            [statsResult] = await db.query(statsQuery, statsParams);
         }
         
         let aktifCount = 0;
