@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
@@ -79,7 +79,7 @@ export const ManageTeacherDataView = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("semua");
   const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
@@ -135,13 +135,49 @@ export const ManageTeacherDataView = ({
   }, [teachers, statusFilter]);
 
   // --- Handlers ---
-  const openAddSheet = () => {
+  const openAddDialog = () => {
+    setFormData(INITIAL_FORM_DATA);
+    setEditingId(null);
+    setDialogOpen(true);
+  };
+
+    setFormData(INITIAL_FORM_DATA);
+    setEditingId(null);
+    setDialogOpen(true);
+  };
     setFormData(INITIAL_FORM_DATA);
     setEditingId(null);
     setSheetOpen(true);
   };
 
-  const openEditSheet = (teacher: TeacherData) => {
+  const openEditDialog = (teacher: TeacherData) => {
+    setFormData({
+      nip: teacher.nip,
+      nama: teacher.nama,
+      email: teacher.email || "",
+      mata_pelajaran: teacher.mata_pelajaran || "",
+      alamat: teacher.alamat || "",
+      telepon: teacher.telepon || "",
+      jenis_kelamin: teacher.jenis_kelamin as GenderOption,
+      status: teacher.status as "aktif" | "nonaktif",
+    });
+    setEditingId(teacher.id);
+    setDialogOpen(true);
+  };
+
+    setFormData({
+      nip: teacher.nip,
+      nama: teacher.nama,
+      email: teacher.email || "",
+      mata_pelajaran: teacher.mata_pelajaran || "",
+      alamat: teacher.alamat || "",
+      telepon: teacher.telepon || "",
+      jenis_kelamin: teacher.jenis_kelamin as GenderOption,
+      status: teacher.status as "aktif" | "nonaktif",
+    });
+    setEditingId(teacher.id);
+    setDialogOpen(true);
+  };
     setFormData({
       nip: teacher.nip,
       nama: teacher.nama,
@@ -189,7 +225,7 @@ export const ManageTeacherDataView = ({
       toast({ title: "Berhasil", description: editingId ? "Data guru berhasil diperbarui" : "Data guru berhasil ditambahkan" });
       setFormData(INITIAL_FORM_DATA);
       setEditingId(null);
-      setSheetOpen(false);
+      setDialogOpen(false);
       fetchTeachers();
     } catch (error) {
       toast({
@@ -352,7 +388,7 @@ export const ManageTeacherDataView = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={() => openEditSheet(teacher)}>
+                  <DropdownMenuItem onClick={() => openEditDialog(teacher)}>
                     <Edit className="mr-2 h-3.5 w-3.5" />
                     Edit
                   </DropdownMenuItem>
@@ -425,7 +461,7 @@ export const ManageTeacherDataView = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={() => openEditSheet(teacher)}>
+                <DropdownMenuItem onClick={() => openEditDialog(teacher)}>
                   <Edit className="mr-2 h-3.5 w-3.5" />
                   Edit
                 </DropdownMenuItem>
@@ -502,7 +538,7 @@ export const ManageTeacherDataView = ({
             <FileText className="h-3.5 w-3.5 mr-1.5" />
             Import Excel
           </Button>
-          <Button onClick={openAddSheet} size="sm" className="text-xs">
+          <Button onClick={openAddDialog} size="sm" className="text-xs">
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Tambah Guru
           </Button>
@@ -568,7 +604,7 @@ export const ManageTeacherDataView = ({
         }
         emptyAction={
           statusFilter === "semua" ? (
-            <Button onClick={openAddSheet} size="sm" className="text-xs">
+            <Button onClick={openAddDialog} size="sm" className="text-xs">
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Tambah Guru Pertama
             </Button>
@@ -580,16 +616,26 @@ export const ManageTeacherDataView = ({
         pageSizeOptions={[15, 25, 50, 100]}
       />
 
-      {/* Add/Edit Sheet (Sidebar) */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editingId ? "Edit Data Guru" : "Tambah Data Guru"}</SheetTitle>
-            <SheetDescription>
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle>{editingId ? "Edit Data Guru" : "Tambah Data Guru"}</DialogTitle>
+            <DialogDescription>
               {editingId ? "Perbarui informasi data guru" : "Tambahkan data guru baru ke sistem"}
-            </SheetDescription>
-          </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle>{editingId ? "Edit Data Guru" : "Tambah Data Guru"}</DialogTitle>
+            <DialogDescription>
+              {editingId ? "Perbarui informasi data guru" : "Tambahkan data guru baru ke sistem"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
 
             {/* Section 1: Data Pegawai */}
             <div className="space-y-4 rounded-md border p-4 bg-muted/10">
@@ -750,9 +796,9 @@ export const ManageTeacherDataView = ({
               </div>
             </div>
 
-            <SheetFooter className="pt-6 mt-6 border-t">
+            <DialogFooter className="px-6 py-4 border-t bg-muted/50 mt-0">
               <div className="flex w-full sm:justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto text-sm">
                   Batal
                 </Button>
                 <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
@@ -764,10 +810,10 @@ export const ManageTeacherDataView = ({
                   )}
                 </Button>
               </div>
-            </SheetFooter>
+            </DialogFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

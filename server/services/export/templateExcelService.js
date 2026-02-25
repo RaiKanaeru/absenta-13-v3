@@ -238,15 +238,15 @@ export async function fetchRekapSiswaByKelas(dbPool, kelasId, semester = 'gasal'
             s.nis,
             s.nama,
             s.jenis_kelamin,
-            MONTH(a.waktu_absen) AS bulan,
+            MONTH(a.tanggal) AS bulan,
             a.status,
             COUNT(*) AS jumlah
         FROM siswa s
         LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-            AND DATE(a.waktu_absen) BETWEEN ? AND ?
+            AND a.tanggal BETWEEN ? AND ?
             AND a.status IN ('Sakit', 'S', 'Izin', 'I', 'Alpha', 'Alpa', 'A')
         WHERE s.kelas_id = ? AND s.status = 'aktif'
-        GROUP BY s.id_siswa, s.nis, s.nama, s.jenis_kelamin, MONTH(a.waktu_absen), a.status
+        GROUP BY s.id_siswa, s.nis, s.nama, s.jenis_kelamin, MONTH(a.tanggal), a.status
         ORDER BY s.nama
     `;
     

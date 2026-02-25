@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -90,7 +90,7 @@ export const ManageTeacherAccountsView = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Delete confirmation dialog state
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; nama: string } | null>(null);
@@ -204,8 +204,54 @@ export const ManageTeacherAccountsView = ({
   }, [fetchSubjects]);
 
   // --- Handlers ---
-  const openAddSheet = () => {
+  const openAddDialog = () => {
     setFormData(INITIAL_FORM_DATA);
+    setEditingId(null);
+    setShowPassword(false);
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (teacher: Teacher) => {
+    setFormData({
+      nama: teacher.nama || "",
+      username: teacher.username || teacher.user_username || "",
+      password: "",
+      nip: teacher.nip || "",
+      mapel_id: teacher.mapel_id ? String(teacher.mapel_id) : "",
+      email: teacher.email || teacher.user_email || "",
+      no_telp: teacher.no_telp || "",
+      jenis_kelamin: (teacher.jenis_kelamin || "") as GenderType,
+      alamat: teacher.alamat || teacher.address || teacher.user_alamat || teacher.user_address || "",
+      status: (teacher.status || "aktif") as AccountStatusType,
+    });
+    setEditingId(teacher.id);
+    setShowPassword(false);
+    setDialogOpen(true);
+  };
+
+    setFormData(INITIAL_FORM_DATA);
+    setEditingId(null);
+    setShowPassword(false);
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (teacher: Teacher) => {
+    setFormData({
+      nama: teacher.nama || "",
+      username: teacher.username || teacher.user_username || "",
+      password: "",
+      nip: teacher.nip || "",
+      mapel_id: teacher.mapel_id ? String(teacher.mapel_id) : "",
+      email: teacher.email || teacher.user_email || "",
+      no_telp: teacher.no_telp || "",
+      jenis_kelamin: (teacher.jenis_kelamin || "") as GenderType,
+      alamat: teacher.alamat || teacher.address || teacher.user_alamat || teacher.user_address || "",
+      status: (teacher.status || "aktif") as AccountStatusType,
+    });
+    setEditingId(teacher.id);
+    setShowPassword(false);
+    setDialogOpen(true);
+  };
     setEditingId(null);
     setShowPassword(false);
     setSheetOpen(true);
@@ -295,7 +341,7 @@ export const ManageTeacherAccountsView = ({
       toast({ title: "Berhasil", description: editingId ? "Akun guru berhasil diperbarui!" : "Akun guru berhasil ditambahkan!" });
       setFormData(INITIAL_FORM_DATA);
       setEditingId(null);
-      setSheetOpen(false);
+      setDialogOpen(false);
       fetchTeachers();
     } catch (error) {
       const errorDetails = typeof error === "object" && error !== null && "details" in error ? (error as { details?: unknown }).details : undefined;
@@ -459,6 +505,16 @@ export const ManageTeacherAccountsView = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
                 <DropdownMenuItem
+                  onClick={() => openEditDialog(teacher)}
+                  className="text-xs gap-2"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+
+                  onClick={() => openEditDialog(teacher)}
+                  className="text-xs gap-2"
+                >
                   onClick={() => openEditSheet(teacher)}
                   className="text-xs gap-2"
                 >
@@ -542,6 +598,16 @@ export const ManageTeacherAccountsView = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
               <DropdownMenuItem
+                onClick={() => openEditDialog(teacher)}
+                className="text-xs gap-2"
+              >
+                <Edit className="h-3.5 w-3.5" />
+                Edit
+              </DropdownMenuItem>
+
+                onClick={() => openEditDialog(teacher)}
+                className="text-xs gap-2"
+              >
                 onClick={() => openEditSheet(teacher)}
                 className="text-xs gap-2"
               >
@@ -620,7 +686,7 @@ export const ManageTeacherAccountsView = ({
             <FileText className="h-3.5 w-3.5 mr-1.5" />
             Import Excel
           </Button>
-          <Button onClick={openAddSheet} size="sm" className="text-xs">
+          <Button onClick={openAddDialog} size="sm" className="text-xs">
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Tambah Akun
           </Button>
@@ -698,7 +764,7 @@ export const ManageTeacherAccountsView = ({
         }
         emptyAction={
           !searchTerm && statusFilter === "semua" ? (
-            <Button onClick={openAddSheet} size="sm" className="text-xs">
+            <Button onClick={openAddDialog} size="sm" className="text-xs">
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Tambah Akun Pertama
             </Button>
@@ -733,15 +799,248 @@ export const ManageTeacherAccountsView = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add/Edit Sheet (Sidebar) */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editingId ? "Edit Akun Guru" : "Tambah Akun Guru"}</SheetTitle>
-            <SheetDescription>
+      {/* Add/Edit Dialog */}
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="w-[95vw] sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle>{editingId ? "Edit Akun Guru" : "Tambah Akun Guru"}</DialogTitle>
+            <DialogDescription>
               {editingId ? "Perbarui informasi akun login guru" : "Tambahkan akun login guru baru ke sistem"}
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
+
+            {/* Section 1: Data Pegawai */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10 mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <UserCircle className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Data Pegawai</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="nip" className="text-sm font-medium">
+                    NIP <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nip"
+                      value={formData.nip}
+                      onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
+                      placeholder="Masukkan NIP"
+                      className="pl-9"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="jenis_kelamin" className="text-sm font-medium">
+                    Jenis Kelamin
+                  </Label>
+                  <Select value={formData.jenis_kelamin} onValueChange={(value) => setFormData({ ...formData, jenis_kelamin: value as GenderType })}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Pilih..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="L">Laki-laki</SelectItem>
+                      <SelectItem value="P">Perempuan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="nama" className="text-sm font-medium">
+                    Nama Lengkap <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <UserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="nama"
+                      value={formData.nama}
+                      onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                      placeholder="Masukkan nama lengkap"
+                      className="pl-9"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Kontak & Akademik */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Phone className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Kontak &amp; Akademik</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="Masukkan email"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="no_telp" className="text-sm font-medium">
+                    No. Telepon
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="no_telp"
+                      value={formData.no_telp}
+                      onChange={(e) => setFormData({ ...formData, no_telp: e.target.value })}
+                      placeholder="Nomor telepon"
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="mapel_id" className="text-sm font-medium">
+                    Mata Pelajaran
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <BookOpen className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.mapel_id} onValueChange={(value) => setFormData({ ...formData, mapel_id: value })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue placeholder="Pilih mata pelajaran" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.filter((subject, index, self) => {
+                          const key = `${subject.id}-${subject.nama_mapel}`;
+                          return self.findIndex(s => `${s.id}-${s.nama_mapel}` === key) === index;
+                        }).map((subject) => (
+                          <SelectItem key={`subject-${subject.id}`} value={String(subject.id)}>
+                            {subject.nama_mapel}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Kredensial Login */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">Kredensial Login</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="username" className="text-sm font-medium">
+                    Username <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <UserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      placeholder="Masukkan username login"
+                      className="pl-9"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Password {editingId && <span className="text-muted-foreground text-[10px] ml-1 font-normal">(Opsional)</span>}
+                    {!editingId && <span className="text-destructive">*</span>}
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder={editingId ? "Kosongkan jika tetap" : "Masukkan password"}
+                      required={!editingId}
+                      className="pl-9 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="status" className="text-sm font-medium">
+                    Status Akun
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 z-10 text-muted-foreground pointer-events-none">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as AccountStatusType })}>
+                      <SelectTrigger className="pl-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aktif">Aktif</SelectItem>
+                        <SelectItem value="nonaktif">Non-aktif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="px-6 py-4 border-t bg-muted/50 mt-0">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto text-sm">
+                  {isSaving ? "Menyimpan..." : (
+                    <>
+                      {editingId ? <Edit className="mr-2 w-4 h-4" /> : <Plus className="mr-2 w-4 h-4" />}
+                      {editingId ? "Perbarui Akun" : "Simpan Akun"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle>{editingId ? "Edit Akun Guru" : "Tambah Akun Guru"}</DialogTitle>
+            <DialogDescription>
+              {editingId ? "Perbarui informasi akun login guru" : "Tambahkan akun login guru baru ke sistem"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto px-6 pb-6">
+
+            {/* Section 1: Data Pegawai */}
+            <div className="space-y-4 rounded-md border p-4 bg-muted/10 mt-4">
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Edit Akun Guru" : "Tambah Akun Guru"}</DialogTitle>
+            <DialogDescription>
+              {editingId ? "Perbarui informasi akun login guru" : "Tambahkan akun login guru baru ke sistem"}
+            </DialogDescription>
+          </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-6">
 
             {/* Section 1: Data Pegawai */}
@@ -937,7 +1236,11 @@ export const ManageTeacherAccountsView = ({
               </div>
             </div>
 
-            <SheetFooter className="pt-6 mt-6 border-t">
+            <DialogFooter className="px-6 py-4 border-t bg-muted/50 mt-0">
+              <div className="flex w-full sm:justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto text-sm">
+                  Batal
+                </Button>
               <div className="flex w-full sm:justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setSheetOpen(false)} className="w-full sm:w-auto text-sm">
                   Batal
@@ -951,10 +1254,10 @@ export const ManageTeacherAccountsView = ({
                   )}
                 </Button>
               </div>
-            </SheetFooter>
+            </DialogFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

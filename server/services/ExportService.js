@@ -69,16 +69,22 @@ class ExportService {
      * @param {string|number} kelasId 
      */
     async getStudentReportData(startDate, endDate, kelasId) {
+        const cacheKey = `export:student-report:${startDate}:${endDate}:${kelasId || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        if (cacheSystem?.isConnected) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) return cached;
+        }
         let query = `
             SELECT 
-                DATE_FORMAT(a.waktu_absen, '%Y-%m-%d') as tanggal,
-                DATE_FORMAT(a.waktu_absen, '%d/%m/%Y') as tanggal_formatted,
+                a.tanggal,
+                DATE_FORMAT(a.tanggal, '%d/%m/%Y') as tanggal_formatted,
                 k.nama_kelas,
                 s.nama as nama_siswa,
                 s.nis as nis_siswa,
                 'Absensi Harian' as nama_mapel,
                 'Siswa Perwakilan' as nama_guru,
-                DATE_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
+                TIME_FORMAT(a.waktu_absen, '%H:%i:%s') as waktu_absen,
                 '07:00' as jam_mulai,
                 '17:00' as jam_selesai,
                 '07:00 - 17:00' as jadwal,
@@ -88,7 +94,7 @@ class ExportService {
             FROM absensi_siswa a
             JOIN siswa s ON a.siswa_id = s.id_siswa
             JOIN kelas k ON s.kelas_id = k.id_kelas
-            WHERE DATE(a.waktu_absen) BETWEEN ? AND ?
+            WHERE a.tanggal BETWEEN ? AND ?
         `;
 
         const params = [startDate, endDate];
@@ -101,6 +107,9 @@ class ExportService {
         query += ' ORDER BY a.waktu_absen DESC, k.nama_kelas, s.nama';
 
         const [rows] = await this.pool.execute(query, params);
+        if (cacheSystem?.isConnected) {
+            await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+        }
         return rows;
     }
 
@@ -231,6 +240,12 @@ class ExportService {
      * Get Student Summary Counts (Raw Data for calculation)
      */
     async getStudentSummaryCounts(startDate, endDate, kelasId) {
+        const cacheKey = `export:student-summary:${startDate}:${endDate}:${kelasId || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        if (cacheSystem?.isConnected) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) return cached;
+        }
         let query = `
             SELECT 
                 s.nama,
@@ -245,9 +260,9 @@ class ExportService {
             FROM siswa s
             JOIN kelas k ON s.kelas_id = k.id_kelas
             LEFT JOIN (
-                SELECT DISTINCT siswa_id, DATE(waktu_absen) as tgl, status
+                SELECT DISTINCT siswa_id, tanggal as tgl, status
                 FROM absensi_siswa
-                WHERE DATE(waktu_absen) BETWEEN ? AND ?
+                WHERE tanggal BETWEEN ? AND ?
             ) deduped ON s.id_siswa = deduped.siswa_id
             WHERE s.status = 'aktif'
         `;
@@ -261,6 +276,9 @@ class ExportService {
         query += ' GROUP BY s.id_siswa, s.nama, s.nis, k.nama_kelas ORDER BY k.nama_kelas, s.nama';
 
         const [rows] = await this.pool.execute(query, params);
+        if (cacheSystem?.isConnected) {
+            await cacheSystem.set(cacheKey, rows, 'attendance', 300);
+        }
         return rows;
     }
 
@@ -300,21 +318,27 @@ class ExportService {
      * Get Laporan Kehadiran Siswa Data (Siswa + Absensi)
      */
     async getLaporanKehadiranSiswaData(kelasId, startDate, endDate, guruId = null) {
+        const cacheKey = `export:laporan-kehadiran:${kelasId}:${startDate}:${endDate}:${guruId || 'all'}`;
+        const cacheSystem = globalThis.cacheSystem;
+        if (cacheSystem?.isConnected) {
+            const cached = await cacheSystem.get(cacheKey, 'attendance');
+            if (cached !== null) return cached;
+        }
         // Build absensi query based on guruId
         let absensiQuery;
         let absensiParams = [kelasId, startDate, endDate];
 
         if (guruId) {
             // Guru
-            absensiQuery = `SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
+            absensiQuery = `SELECT a.siswa_id, a.status, a.terlambat, a.tanggal, j.jam_ke
                 FROM absensi_siswa a JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-                WHERE j.guru_id = ? AND j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?`;
+                WHERE j.guru_id = ? AND j.kelas_id = ? AND a.tanggal BETWEEN ? AND ?`;
             absensiParams = [guruId, kelasId, startDate, endDate];
         } else {
             // Admin
-            absensiQuery = `SELECT a.siswa_id, a.status, a.terlambat, DATE(a.waktu_absen) as tanggal, j.jam_ke
+            absensiQuery = `SELECT a.siswa_id, a.status, a.terlambat, a.tanggal, j.jam_ke
                 FROM absensi_siswa a JOIN jadwal j ON a.jadwal_id = j.id_jadwal
-                WHERE j.kelas_id = ? AND DATE(a.waktu_absen) BETWEEN ? AND ?`;
+                WHERE j.kelas_id = ? AND a.tanggal BETWEEN ? AND ?`;
         }
 
         // Run both queries in parallel (siswa list and absensi records are independent)
@@ -331,7 +355,11 @@ class ExportService {
         const [siswa] = siswaResult;
         const [absensi] = absensiResult;
 
-        return { siswa, absensi };
+        const result = { siswa, absensi };
+        if (cacheSystem?.isConnected) {
+            await cacheSystem.set(cacheKey, result, 'attendance', 300);
+        }
+        return result;
     }
 
     /**

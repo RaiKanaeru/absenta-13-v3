@@ -171,7 +171,27 @@ class DatabaseOptimization {
                 columns: '(jadwal_id, tanggal)',
                 description: 'Optimize schedule-based queries'
             },
-            
+            // Composite index for SMKN13 report query
+            {
+                table: 'absensi_siswa',
+                name: 'idx_tanggal_jadwal_status',
+                columns: '(tanggal, jadwal_id, status)',
+                description: 'Optimize SMKN13 report aggregation queries'
+            },
+            // Composite index for student summary
+            {
+                table: 'absensi_siswa',
+                name: 'idx_tanggal_siswa_status',
+                columns: '(tanggal, siswa_id, status)',
+                description: 'Optimize student summary count queries'
+            },
+            // Index for siswa table - used in total_siswa subquery
+            {
+                table: 'siswa',
+                name: 'idx_siswa_kelas_status',
+                columns: '(kelas_id, status)',
+                description: 'Optimize student count per class queries'
+            },
         ];
 
         try {
@@ -196,12 +216,65 @@ class DatabaseOptimization {
             }
             
             logger.info('Database indexing completed');
+            await this.verifyCoveringIndexes();
+            
             
         } catch (error) {
             logger.error('Database indexing failed', error);
             throw error;
         }
     }
+    /**
+     * Verify covering indexes from migration 003 exist for report query performance
+     * These indexes are critical — queries use tanggal column for date filtering
+     */
+    async verifyCoveringIndexes() {
+        const requiredIndexes = [
+            {
+                table: 'absensi_siswa',
+                name: 'idx_absensi_report_covering',
+                columns: '(`tanggal`, `jadwal_id`, `status`, `terlambat`)',
+                purpose: 'report queries'
+            },
+            {
+                table: 'absensi_siswa', 17#YN|@D:\CODING\absenta-13-v3\server\services\system\database-optimization.js
+                name: 'idx_absensi_rekap_covering',
+                columns: '(`tanggal`, `jadwal_id`, `siswa_id`, `status`, `terlambat`)',
+                purpose: 'rekap queries'
+            },
+            {
+                table: 'siswa',
+                name: 'idx_siswa_status_kelas',
+                columns: '(`status`, `kelas_id`)',
+                purpose: 'student count subqueries'
+            }
+        ];
+
+        for (const idx of requiredIndexes) {
+            try {
+                const [rows] = await this.pool.execute(
+                    `SHOW INDEX FROM \`${idx.table}\` WHERE Key_name = ?`,
+                    [idx.name]
+                );
+                if (rows.length > 0) {
+                    logger.debug(`Covering index ${idx.name} exists on ${idx.table}`);
+                } else {
+                    logger.warn(`Covering index ${idx.name} missing on ${idx.table}, creating for ${idx.purpose}`);
+                    await this.pool.execute(
+                        `ALTER TABLE \`${idx.table}\` ADD INDEX \`${idx.name}\` ${idx.columns}`
+                    );
+                    logger.info(`Created covering index ${idx.name} on ${idx.table}`);
+                }
+            } catch (error) {
+                if (error.code === 'ER_DUP_KEYNAME') {
+                    logger.debug(`Index ${idx.name} already exists (duplicate key name)`);
+                } else {
+                    logger.error(`Failed to verify/create index ${idx.name}`, error);
+                }
+            }
+        }
+    }
+],op:
 
     /**
      * Test query performance before and after optimization

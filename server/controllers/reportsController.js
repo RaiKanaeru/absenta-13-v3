@@ -642,7 +642,7 @@ export const getLiveStudentAttendance = async (req, res) => {
                     FROM siswa s
                     JOIN kelas k ON s.kelas_id = k.id_kelas
                     LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                        AND DATE(a.waktu_absen) = ?
+                        AND a.tanggal = ?
                     WHERE s.status = 'aktif'
                     ORDER BY 
                         CASE WHEN a.waktu_absen IS NOT NULL THEN 0 ELSE 1 END,
@@ -688,7 +688,7 @@ export const getLiveStudentAttendance = async (req, res) => {
                 FROM siswa s
                 JOIN kelas k ON s.kelas_id = k.id_kelas
                 LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 
-                    AND DATE(a.waktu_absen) = ?
+                    AND a.tanggal = ?
                 WHERE s.status = 'aktif'
                 ORDER BY 
                     CASE WHEN a.waktu_absen IS NOT NULL THEN 0 ELSE 1 END,

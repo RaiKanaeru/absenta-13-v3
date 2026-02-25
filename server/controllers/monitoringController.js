@@ -246,7 +246,7 @@ function calculateHealthFromMetrics(memoryPercent, heapPercent, cpuUsage, diskMe
 /**
  * Helper to build dashboard response object
  */
-function buildDashboardResponse(systemData, appData, dbData, otherData) {
+function buildDashboardResponse(systemData, appData, dbData, otherData, redisData = {}) {
     const { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus, diskMetrics, heapInfo } = systemData;
     const { systemMonitorMetrics, dbConnectionStats } = dbData;
     const { loadBalancerStats, alerts, healthStatus } = otherData;
@@ -314,6 +314,10 @@ function buildDashboardResponse(systemData, appData, dbData, otherData) {
                     min: systemMonitorMetrics?.database?.responseTime?.min || 0,
                     max: systemMonitorMetrics?.database?.responseTime?.max || 0
                 }
+            },
+            redis: {
+                connected: redisData.connected || false,
+                cacheStats: redisData.cacheStats || { hits: 0, misses: 0, sets: 0, deletes: 0 }
             }
         },
         system: {
@@ -350,7 +354,16 @@ function buildDashboardResponse(systemData, appData, dbData, otherData) {
                 critical: alerts.filter(a => a.severity === 'critical').length,
                 emergency: alerts.filter(a => a.severity === 'emergency').length
             }
-        }
+        },
+        redis: (() => {
+            const cs = globalThis.cacheSystem;
+            if (!cs) return { connected: false, status: 'unavailable' };
+            return {
+                connected: cs.isConnected || false,
+                status: cs.redis?.status || 'unknown',
+                cacheStats: cs.getCacheStatistics ? cs.getCacheStatistics() : { hits: 0, misses: 0, sets: 0, deletes: 0 }
+            };
+        })()
     };
 }
 
@@ -721,12 +734,19 @@ export const getSystemPerformance = async (req, res) => {
             totalMemory, freeMemory, usedMemory, cpuUsagePercent
         });
 
-        // Get Redis stats
+        // Get Redis stats from CacheSystem (uses ioredis)
         let redisStats = { connected: false, error: 'Redis not available' };
-        if (globalThis.redis && globalThis.redis.isOpen) {
+        const cacheSystem = globalThis.cacheSystem;
+        if (cacheSystem && cacheSystem.isConnected && cacheSystem.redis) {
             try {
-                const info = await globalThis.redis.info();
-                redisStats = { connected: true, info };
+                const info = await cacheSystem.redis.info();
+                const cacheStats = cacheSystem.getCacheStatistics ? cacheSystem.getCacheStatistics() : {};
+                redisStats = { 
+                    connected: true, 
+                    info,
+                    cacheStats,
+                    status: cacheSystem.redis.status
+                };
             } catch (err) {
                 redisStats = { connected: false, error: err.message };
             }
@@ -775,11 +795,15 @@ function getDiskMetrics() {
  * Helper: gather database connection pool stats
  */
 function getDbConnectionStats() {
-    const extractPoolStats = (pool) => ({
-        active: pool._allConnections?.length || 0,
-        idle: pool._freeConnections?.length || 0,
-        total: (pool._allConnections?.length || 0) + (pool._freeConnections?.length || 0)
-    });
+    const extractPoolStats = (poolWrapper) => {
+        // mysql2/promise pool wraps the underlying pool in .pool property
+        const innerPool = poolWrapper?.pool || poolWrapper;
+        return {
+            active: innerPool?._allConnections?.length || 0,
+            idle: innerPool?._freeConnections?.length || 0,
+            total: (innerPool?._allConnections?.length || 0) + (innerPool?._freeConnections?.length || 0)
+        };
+    };
 
     if (globalThis.dbOptimization?.pool) {
         return extractPoolStats(globalThis.dbOptimization.pool);
@@ -844,12 +868,22 @@ export const getMonitoringDashboard = async (req, res) => {
         const dbConnectionStats = getDbConnectionStats();
         const { systemMonitorMetrics, alerts, healthStatus } = getSystemMonitorData();
 
+        // Get Redis stats for dashboard
+        let redisData = { connected: false };
+        if (globalThis.cacheSystem && globalThis.cacheSystem.isConnected) {
+            redisData = {
+                connected: true,
+                cacheStats: globalThis.cacheSystem.cacheStats || { hits: 0, misses: 0, sets: 0, deletes: 0 }
+            };
+        }
+
         // Structure response to match frontend expectations
         const responseData = buildDashboardResponse(
             { totalMemory, usedMemory, freeMemory, cpuUsage, loadAverage, cpus, diskMetrics, heapInfo },
-            {}, // appData is handled inside helper via systemMonitorMetrics
+            {},
             { systemMonitorMetrics, dbConnectionStats },
-            { loadBalancerStats, alerts, healthStatus }
+            { loadBalancerStats, alerts, healthStatus },
+            redisData
         );
 
         log.success('GetMonitoringDashboard', { 
