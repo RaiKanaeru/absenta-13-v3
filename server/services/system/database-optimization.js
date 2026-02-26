@@ -237,7 +237,7 @@ class DatabaseOptimization {
                 purpose: 'report queries'
             },
             {
-                table: 'absensi_siswa', 17#YN|@D:\CODING\absenta-13-v3\server\services\system\database-optimization.js
+                table: 'absensi_siswa',
                 name: 'idx_absensi_rekap_covering',
                 columns: '(`tanggal`, `jadwal_id`, `siswa_id`, `status`, `terlambat`)',
                 purpose: 'rekap queries'
@@ -274,7 +274,7 @@ class DatabaseOptimization {
             }
         }
     }
-],op:
+
 
     /**
      * Test query performance before and after optimization
