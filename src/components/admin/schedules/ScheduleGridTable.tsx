@@ -1324,26 +1324,49 @@ function MasterGridClassRows({
             );
 
             return daySlots.map((slot) => {
-              const isSpecial = slot.jenis !== 'pelajaran';
+              const cell = cls.schedule[day]?.[slot.jam_ke];
+              const deleted = isPendingDelete(cls.kelas_id, day, slot.jam_ke);
+              const pending = hasPending(cls.kelas_id, day, slot.jam_ke);
+              const cellId = `${cls.kelas_id}-${day}-${slot.jam_ke}-cell`;
+
+              const isCellIstirahat = cell && !deleted && (cell.jenis === 'istirahat' || (cell.mapel && cell.mapel.toUpperCase().includes('ISTIRAHAT')));
+              const isGlobalSpecial = slot.jenis !== 'pelajaran';
+              const isSpecial = isGlobalSpecial || isCellIstirahat;
 
               // For special slots: render a spanning td only on mapel row; skip ruang & guru rows
               if (isSpecial) {
                 if (subRow === 'mapel') {
+                  const label = isCellIstirahat ? (cell.mapel || 'ISTIRAHAT') : (slot.label || slot.jenis);
+                  const color = isCellIstirahat ? (cell.color || '#FEF3C7') : (slot.jenis === 'istirahat' ? '#FEF3C7' : '#DBEAFE');
+                  const innerContent = (
+                    <span className="text-[10px] uppercase leading-tight block">
+                      {label}
+                    </span>
+                  );
                   return (
                     <td
                       key={`${day}-${slot.jam_ke}`}
                       rowSpan={3}
-                      className="border border-slate-300 text-center align-middle font-semibold text-slate-600 tracking-wide p-1"
+                      className={`border border-slate-300 text-center align-middle font-semibold text-slate-800 tracking-wide p-1 ${pending && !isGlobalSpecial ? 'outline outline-2 outline-amber-400 outline-offset-[-2px]' : ''}`}
                       style={{
-                        backgroundColor:
-                          slot.jenis === 'istirahat' ? '#FEF3C7' : '#DBEAFE',
+                        backgroundColor: color,
                         minWidth: SLOT_W,
                         width: SLOT_W,
                       }}
                     >
-                      <span className="text-[10px] uppercase leading-tight block">
-                        {slot.label || slot.jenis}
-                      </span>
+                      {isGlobalSpecial ? (
+                        innerContent
+                      ) : (
+                        <DroppableCell
+                          cellId={cellId}
+                          isDisabled={false}
+                          onClick={() => onCellClick(cls.kelas_id, day, slot.jam_ke, cell)}
+                        >
+                          <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
+                            {innerContent}
+                          </div>
+                        </DroppableCell>
+                      )}
                     </td>
                   );
                 }
@@ -1369,10 +1392,6 @@ function MasterGridClassRows({
                 return null;
               }
 
-              const cell = cls.schedule[day]?.[slot.jam_ke];
-              const pending = hasPending(cls.kelas_id, day, slot.jam_ke);
-              const deleted = isPendingDelete(cls.kelas_id, day, slot.jam_ke);
-              const cellId = `${cls.kelas_id}-${day}-${slot.jam_ke}-cell`;
 
               const bgColor = cell && cell.mapel && !deleted
                 ? getSubjectColor(cell.mapel, cell.color)
