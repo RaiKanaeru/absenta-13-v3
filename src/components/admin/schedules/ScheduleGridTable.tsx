@@ -1272,6 +1272,13 @@ interface MasterGridClassRowsProps {
   KAT_W: number;
 }
 
+
+const isSameCell = (c1: ScheduleCell | null | undefined, c2: ScheduleCell | null | undefined) => {
+  if (!c1 || !c2) return false;
+  if (!c1.mapel && !c2.mapel) return true;
+  return c1.mapel === c2.mapel && c1.ruang === c2.ruang && JSON.stringify(c1.guru) === JSON.stringify(c2.guru);
+};
+
 function MasterGridClassRows({
   cls,
   days,
@@ -1323,15 +1330,27 @@ function MasterGridClassRows({
               (a, b) => a.jam_ke - b.jam_ke
             );
 
-            return daySlots.map((slot) => {
+            return daySlots.map((slot, index) => {
               const cell = cls.schedule[day]?.[slot.jam_ke];
               const deleted = isPendingDelete(cls.kelas_id, day, slot.jam_ke);
               const pending = hasPending(cls.kelas_id, day, slot.jam_ke);
               const cellId = `${cls.kelas_id}-${day}-${slot.jam_ke}-cell`;
 
+
               const isCellIstirahat = cell && !deleted && (cell.jenis === 'istirahat' || (cell.mapel && cell.mapel.toUpperCase().includes('ISTIRAHAT')));
               const isGlobalSpecial = slot.jenis !== 'pelajaran';
               const isSpecial = isGlobalSpecial || isCellIstirahat;
+
+              const prevSlot = index > 0 ? daySlots[index - 1] : null;
+              const prevCell = prevSlot ? cls.schedule[day]?.[prevSlot.jam_ke] : null;
+              const prevDeleted = prevSlot ? isPendingDelete(cls.kelas_id, day, prevSlot.jam_ke) : false;
+              const isSameAsPrev = !isSpecial && !deleted && !prevDeleted && isSameCell(cell, prevCell);
+
+              const nextSlot = index < daySlots.length - 1 ? daySlots[index + 1] : null;
+              const nextCell = nextSlot ? cls.schedule[day]?.[nextSlot.jam_ke] : null;
+              const nextDeleted = nextSlot ? isPendingDelete(cls.kelas_id, day, nextSlot.jam_ke) : false;
+              const isSameAsNext = !isSpecial && !deleted && !nextDeleted && isSameCell(cell, nextCell);
+
 
               // For special slots: render a spanning td only on mapel row; skip ruang & guru rows
               if (isSpecial) {
@@ -1362,7 +1381,7 @@ function MasterGridClassRows({
                           isDisabled={false}
                           onClick={() => onCellClick(cls.kelas_id, day, slot.jam_ke, cell)}
                         >
-                          <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
+                          <div className={`w-full h-full flex items-center justify-center px-1 overflow-hidden ${isSameAsPrev ? 'opacity-0' : 'opacity-100'}`}>
                             {innerContent}
                           </div>
                         </DroppableCell>
@@ -1438,7 +1457,7 @@ function MasterGridClassRows({
               return (
                 <td
                   key={`${day}-${slot.jam_ke}`}
-                  className={`border border-slate-200 p-0 align-middle ${pending ? 'outline outline-2 outline-amber-400 outline-offset-[-2px]' : ''} ${subRow === 'guru' ? 'border-b-2 border-b-slate-400' : ''}`}
+                  className={`border-y border-slate-200 p-0 align-middle ${!isSameAsPrev ? 'border-l' : 'border-l-0'} ${!isSameAsNext ? 'border-r' : 'border-r-0'} ${pending ? 'outline outline-2 outline-amber-400 outline-offset-[-2px]' : ''} ${subRow === 'guru' ? 'border-b-2 border-b-slate-400' : ''}`}
                   style={{
                     backgroundColor: bgColor,
                     minWidth: SLOT_W,
@@ -1451,7 +1470,7 @@ function MasterGridClassRows({
                     isDisabled={false}
                     onClick={() => onCellClick(cls.kelas_id, day, slot.jam_ke, cell)}
                   >
-                    <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
+                    <div className={`w-full h-full flex items-center justify-center px-1 overflow-hidden ${isSameAsPrev ? 'opacity-0' : 'opacity-100'}`}>
                       {content}
                     </div>
                   </DroppableCell>
