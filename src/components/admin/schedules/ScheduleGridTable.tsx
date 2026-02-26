@@ -104,6 +104,8 @@ interface MatrixResponse {
   message?: string;
 }
 
+const SLOT_W = 100;
+
 interface ScheduleGridTableProps {
   onBack: () => void;
   onLogout: () => void;
@@ -1153,7 +1155,7 @@ function MasterGrid({
   return (
     <table
       className="border-collapse text-xs"
-      style={{ tableLayout: 'fixed', minWidth: `${KELAS_W + KAT_W + days.length * 80}px` }}
+      style={{ tableLayout: 'fixed', minWidth: `${KELAS_W + KAT_W + Object.values(daySlotCounts).reduce((sum, c) => sum + c, 0) * SLOT_W}px` }}
     >
       <thead>
         {/* ── Row 1: Corner + Hari labels ──────────────────────────────── */}
@@ -1172,7 +1174,7 @@ function MasterGrid({
               key={day}
               colSpan={daySlotCounts[day] || 1}
               className="sticky top-0 z-30 border border-slate-300 bg-slate-700 text-white font-semibold text-center py-1 px-2"
-              style={{ minWidth: (daySlotCounts[day] || 1) * 80 }}
+              style={{ minWidth: (daySlotCounts[day] || 1) * SLOT_W }}
             >
               {day.toUpperCase()}
             </th>
@@ -1191,8 +1193,8 @@ function MasterGrid({
                 className="sticky z-30 border border-slate-300 bg-slate-600 text-white font-medium text-center py-0.5 px-1 whitespace-nowrap"
                 style={{
                   top: 28,
-                  minWidth: 80,
-                  width: 80,
+                  minWidth: SLOT_W,
+                  width: SLOT_W,
                   backgroundColor:
                     slot.jenis === 'istirahat'
                       ? '#92400e'
@@ -1219,7 +1221,7 @@ function MasterGrid({
               <th
                 key={`${day}-${slot.jam_ke}-waktu`}
                 className="sticky z-30 border border-slate-300 bg-slate-500 text-white font-normal text-center py-0.5 px-1 whitespace-nowrap"
-                style={{ top: 56, minWidth: 80, width: 80 }}
+                style={{ top: 56, minWidth: SLOT_W, width: SLOT_W }}
               >
                 {slot.jam_mulai}–{slot.jam_selesai}
               </th>
@@ -1295,7 +1297,7 @@ function MasterGridClassRows({
   return (
     <>
       {subRows.map((subRow, subIdx) => (
-        <tr key={`${cls.kelas_id}-${subRow}`} className="border-b border-slate-200">
+        <tr key={`${cls.kelas_id}-${subRow}`} className={`border-b ${subRow === 'guru' ? 'border-b-2 border-b-slate-400' : 'border-slate-200'}`}>
           {/* ── Kelas label — only on first sub-row ── */}
           {subIdx === 0 && (
             <td
@@ -1335,8 +1337,8 @@ function MasterGridClassRows({
                       style={{
                         backgroundColor:
                           slot.jenis === 'istirahat' ? '#FEF3C7' : '#DBEAFE',
-                        minWidth: 80,
-                        width: 80,
+                        minWidth: SLOT_W,
+                        width: SLOT_W,
                       }}
                     >
                       <span className="text-[10px] uppercase leading-tight block">
@@ -1358,7 +1360,7 @@ function MasterGridClassRows({
                       key={`${day}-${slot.jam_ke}`}
                       rowSpan={3}
                       className="border border-slate-200 bg-slate-50/50 text-center align-middle"
-                      style={{ minWidth: 80, width: 80 }}
+                      style={{ minWidth: SLOT_W, width: SLOT_W }}
                     >
                       <span className="text-[10px] text-slate-300">–</span>
                     </td>
@@ -1392,7 +1394,7 @@ function MasterGridClassRows({
                 if (subRow === 'mapel') {
                   content = (
                     <span className="font-bold text-slate-800 leading-tight truncate block text-center text-[10px]">
-                      {cell.kode_mapel || cell.mapel}
+                      {cell.mapel}
                     </span>
                   );
                 } else if (subRow === 'ruang') {
@@ -1404,7 +1406,7 @@ function MasterGridClassRows({
                 } else {
                   const guruName =
                     cell.guru_detail && cell.guru_detail.length > 0
-                      ? cell.guru_detail[0].kode_guru || cell.guru_detail[0].nama_guru
+                      ? cell.guru_detail[0].nama_guru || cell.guru_detail[0].kode_guru
                       : cell.guru?.join(', ') || '—';
                   content = (
                     <span className="text-slate-700 leading-tight truncate block text-center text-[10px]">
@@ -1417,11 +1419,11 @@ function MasterGridClassRows({
               return (
                 <td
                   key={`${day}-${slot.jam_ke}`}
-                  className={`border border-slate-200 p-0 align-middle ${pending ? 'outline outline-2 outline-amber-400 outline-offset-[-2px]' : ''}`}
+                  className={`border border-slate-200 p-0 align-middle ${pending ? 'outline outline-2 outline-amber-400 outline-offset-[-2px]' : ''} ${subRow === 'guru' ? 'border-b-2 border-b-slate-400' : ''}`}
                   style={{
                     backgroundColor: bgColor,
-                    minWidth: 80,
-                    width: 80,
+                    minWidth: SLOT_W,
+                    width: SLOT_W,
                     height: subRow === 'mapel' ? 28 : 22,
                   }}
                 >
