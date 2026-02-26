@@ -1,9 +1,11 @@
 /**
- * ScheduleGridTable - Class-Focused Schedule Grid View
+ * ScheduleGridTable - Master Grid View (Excel-style)
  *
- * Shows 1 class at a time with Days (columns) × Jam Ke (rows) layout.
- * Each cell is a stacked card: Mapel + Guru + Ruang.
- * Click-to-edit via Dialog; Drag-and-drop from sidebar as secondary.
+ * Shows ALL classes simultaneously:
+ * - Y-axis: Kelas (rowSpan=3) → Kategori (MAPEL | RUANG | GURU)
+ * - X-axis: Hari (colSpan) → Jam Ke → Waktu
+ * - Break/Istirahat/Pembiasaan slots span all 3 sub-rows (rowSpan=3)
+ * - Click-to-edit via Dialog; Save all pending changes together.
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -327,32 +329,12 @@ export function ScheduleGridTable({
     }
   }, [filteredClasses, selectedKelasId]);
 
-  // Selected class data from matrix
+  // Which class is selected (for dialog title)
   const selectedClassData = useMemo(() => {
     if (!matrixData || !selectedKelasId) return null;
     return matrixData.classes.find((c) => String(c.kelas_id) === selectedKelasId) ?? null;
   }, [matrixData, selectedKelasId]);
 
-  // Union of all jam_ke values across all days for the selected class
-  const allJamSlots = useMemo<JamSlot[]>(() => {
-    if (!matrixData) return [];
-
-    const seenJamKe = new Set<number>();
-    const slots: JamSlot[] = [];
-
-    for (const day of matrixData.days) {
-      for (const slot of matrixData.jamSlots[day] || []) {
-        if (!seenJamKe.has(slot.jam_ke)) {
-          seenJamKe.add(slot.jam_ke);
-          slots.push(slot);
-        }
-      }
-    }
-
-    return slots.sort((a, b) => a.jam_ke - b.jam_ke);
-  }, [matrixData]);
-
-  // Days from API
   const days = useMemo(() => matrixData?.days ?? [], [matrixData]);
 
   // ── Palette filtering ──────────────────────────────────────────────────────
@@ -390,7 +372,7 @@ export function ScheduleGridTable({
     try {
       const params = new URLSearchParams();
       if (selectedTingkat !== 'all') params.append('tingkat', selectedTingkat);
-      if (selectedKelasId) params.append('kelas_id', selectedKelasId);
+      // For master grid we fetch ALL classes — no kelas_id filter
 
       const response = await apiCall<{ data?: MatrixResponse }>(
         `/api/admin/jadwal/matrix?${params}`,
@@ -408,7 +390,7 @@ export function ScheduleGridTable({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTingkat, selectedKelasId, onLogout]);
+  }, [selectedTingkat, onLogout]);
 
   useEffect(() => {
     fetchMatrix();
@@ -771,6 +753,12 @@ export function ScheduleGridTable({
     );
   }
 
+  // ─── Visible classes (filtered by tingkat) ──────────────────────────────────
+  const visibleClasses = matrixData.classes.filter((cls) => {
+    if (selectedTingkat === 'all') return true;
+    return String(cls.nama_kelas || '').startsWith(selectedTingkat);
+  });
+
   // ─── Main render ───────────────────────────────────────────────────────────
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -783,7 +771,7 @@ export function ScheduleGridTable({
               <Button onClick={onBack} variant="ghost" size="sm">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Kembali
               </Button>
-              <h1 className="text-base font-bold hidden sm:block">Grid Editor Jadwal</h1>
+              <h1 className="text-base font-bold hidden sm:block">Master Grid Jadwal</h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -802,23 +790,6 @@ export function ScheduleGridTable({
                 </SelectContent>
               </Select>
 
-              {/* Class selector */}
-              <Select value={selectedKelasId} onValueChange={setSelectedKelasId}>
-                <SelectTrigger className="w-44 h-8 text-xs">
-                  <SelectValue placeholder="Pilih kelas" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredClasses.map((kelas) => {
-                    const kelasId = String(getKelasId(kelas));
-                    return (
-                      <SelectItem key={kelasId} value={kelasId}>
-                        {kelas.nama_kelas}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-
               <Button
                 onClick={fetchMatrix}
                 variant="outline"
@@ -830,7 +801,7 @@ export function ScheduleGridTable({
                 Refresh
               </Button>
 
-              {/* Copy/Paste actions for selected class */}
+              {/* Copy/Paste actions — uses selectedKelasId for source */}
               {selectedKelasId && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -882,22 +853,15 @@ export function ScheduleGridTable({
             </div>
           )}
 
-          {/* Class-Focused Grid */}
-          <div className="flex-1 overflow-auto">
-            {selectedClassData ? (
-              <ScheduleGrid
-                classData={selectedClassData}
-                days={days}
-                jamSlots={allJamSlots}
-                matrixJamSlots={matrixData.jamSlots}
-                onCellClick={handleCellClick}
-                pendingChanges={pendingChanges}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-                Pilih kelas untuk melihat jadwal
-              </div>
-            )}
+          {/* ── Master Grid Table ────────────────────────────────────────── */}
+          <div className="flex-1 overflow-auto max-h-[75vh]">
+            <MasterGrid
+              days={days}
+              matrixJamSlots={matrixData.jamSlots}
+              visibleClasses={visibleClasses}
+              pendingChanges={pendingChanges}
+              onCellClick={handleCellClick}
+            />
           </div>
         </div>
 
@@ -988,7 +952,7 @@ export function ScheduleGridTable({
             <DialogHeader>
               <DialogTitle className="text-base">
                 Edit Jadwal —{' '}
-                {selectedClassData?.nama_kelas} ·{' '}
+                {matrixData.classes.find(c => c.kelas_id === editingCell.kelas_id)?.nama_kelas} ·{' '}
                 {editingCell.hari} Jam {editingCell.jam_ke}
               </DialogTitle>
             </DialogHeader>
@@ -1116,227 +1080,367 @@ export function ScheduleGridTable({
   );
 }
 
-// ─── ScheduleGrid sub-component ───────────────────────────────────────────────
+// ─── MasterGrid sub-component ─────────────────────────────────────────────────
+// Excel-style: Y = Kelas × {MAPEL,RUANG,GURU}, X = Hari × JamKe
 
-interface ScheduleGridProps {
-  classData: ClassSchedule;
+interface MasterGridProps {
   days: string[];
-  jamSlots: JamSlot[];
   matrixJamSlots: Record<string, JamSlot[]>;
+  visibleClasses: ClassSchedule[];
+  pendingChanges: PendingChange[];
   onCellClick: (
     kelas_id: number,
     hari: string,
     jam_ke: number,
     cell: ScheduleCell | null | undefined
   ) => void;
-  pendingChanges: PendingChange[];
 }
 
-function ScheduleGrid({
-  classData,
+function MasterGrid({
   days,
-  jamSlots,
   matrixJamSlots,
-  onCellClick,
+  visibleClasses,
   pendingChanges,
-}: Readonly<ScheduleGridProps>) {
-  const hasPending = (hari: string, jamKe: number) =>
+  onCellClick,
+}: Readonly<MasterGridProps>) {
+  // Build per-day slot lists for quick lookup
+  const daySlotSets = useMemo(() => {
+    const map: Record<string, Set<number>> = {};
+    for (const day of days) {
+      map[day] = new Set((matrixJamSlots[day] || []).map((s) => s.jam_ke));
+    }
+    return map;
+  }, [days, matrixJamSlots]);
+
+  // Slot colSpan per day: how many slots that day has
+  const daySlotCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const day of days) {
+      map[day] = (matrixJamSlots[day] || []).length;
+    }
+    return map;
+  }, [days, matrixJamSlots]);
+
+  const hasPending = (kelasId: number, hari: string, jamKe: number) =>
     pendingChanges.some(
       (p) =>
-        p.kelas_id === classData.kelas_id &&
+        p.kelas_id === kelasId &&
         p.hari === hari &&
         p.jam_ke === jamKe &&
         p.action !== 'delete'
     );
 
-  const isPendingDelete = (hari: string, jamKe: number) =>
+  const isPendingDelete = (kelasId: number, hari: string, jamKe: number) =>
     pendingChanges.some(
       (p) =>
-        p.kelas_id === classData.kelas_id &&
+        p.kelas_id === kelasId &&
         p.hari === hari &&
         p.jam_ke === jamKe &&
         p.action === 'delete'
     );
 
+  // ── Row 1: Hari headers (colSpan = number of slots in that day × 1 col each)
+  // ── Row 2: "Jam Ke" sub-headers per slot per day
+  // ── Row 3: "Waktu" sub-headers per slot per day
+  // Then for each kelas: 3 data rows (MAPEL / RUANG / GURU)
+
+  // sticky offsets for left columns
+  // Col 0 (Kelas): left-0, width 80px
+  // Col 1 (Kategori): left-[80px], width 64px
+  const KELAS_W = 80;
+  const KAT_W = 64;
+
   return (
-    <div className="overflow-auto">
-      <table className="border-collapse w-full min-w-[600px]">
-        <thead className="sticky top-0 z-20 bg-background">
-          <tr>
-            {/* Jam Ke header */}
-            <th className="sticky left-0 z-30 bg-slate-800 text-white text-xs font-semibold p-2 border w-20 min-w-[80px]">
-              <div className="text-center">
-                <div>Jam</div>
-                <div className="text-slate-300 font-normal">Waktu</div>
-              </div>
+    <table
+      className="border-collapse text-xs"
+      style={{ tableLayout: 'fixed', minWidth: `${KELAS_W + KAT_W + days.length * 80}px` }}
+    >
+      <thead>
+        {/* ── Row 1: Corner + Hari labels ──────────────────────────────── */}
+        <tr>
+          {/* Top-left corner — spans 2 header cols, 3 header rows */}
+          <th
+            rowSpan={3}
+            colSpan={2}
+            className="sticky left-0 z-40 border border-slate-300 bg-slate-800 text-white font-bold text-center align-middle"
+            style={{ width: KELAS_W + KAT_W, minWidth: KELAS_W + KAT_W }}
+          >
+            Kelas
+          </th>
+          {days.map((day) => (
+            <th
+              key={day}
+              colSpan={daySlotCounts[day] || 1}
+              className="sticky top-0 z-30 border border-slate-300 bg-slate-700 text-white font-semibold text-center py-1 px-2"
+              style={{ minWidth: (daySlotCounts[day] || 1) * 80 }}
+            >
+              {day.toUpperCase()}
             </th>
-            {/* Day headers */}
-            {days.map((day) => (
-              <th
-                key={day}
-                className="bg-slate-700 text-white text-xs font-semibold p-2 border text-center min-w-[120px]"
-              >
-                {day.toUpperCase()}
-              </th>
-            ))}
-          </tr>
-        </thead>
+          ))}
+        </tr>
 
-        <tbody>
-          {jamSlots.map((slot) => {
-            const isSpecialSlot = slot.jenis !== 'pelajaran';
-
-            return (
-              <tr key={slot.jam_ke} className="border-b">
-                {/* Jam Ke column */}
-                <td className="sticky left-0 z-10 bg-muted border-r p-2 text-center w-20 min-w-[80px]">
-                  <div className="flex flex-col items-center gap-0.5">
-                    {isSpecialSlot ? (
-                      <span className="text-xs font-medium text-muted-foreground">—</span>
-                    ) : (
-                      <span className="text-sm font-bold text-foreground">{slot.jam_ke}</span>
-                    )}
-                    <span className="text-xs text-muted-foreground leading-tight">
-                      {slot.jam_mulai}
-                    </span>
-                    <span className="text-xs text-muted-foreground leading-tight">
-                      {slot.jam_selesai}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Day cells */}
-                {days.map((day) => {
-                  // Check if this day even has this jam_ke slot
-                  const dayHasSlot = (matrixJamSlots[day] || []).some(
-                    (s) => s.jam_ke === slot.jam_ke
-                  );
-
-                  if (!dayHasSlot) {
-                    return (
-                      <td
-                        key={day}
-                        className="border p-0 bg-muted/30"
-                      >
-                        <div className="h-16 flex items-center justify-center">
-                          <span className="text-xs text-muted-foreground/40">–</span>
-                        </div>
-                      </td>
-                    );
-                  }
-
-                  if (isSpecialSlot) {
-                    return (
-                      <td
-                        key={day}
-                        className="border p-0"
-                        style={{ backgroundColor: slot.jenis === 'istirahat' ? '#FFF3CD' : '#DBEAFE' }}
-                      >
-                        <div className="h-10 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-slate-600 tracking-wide">
-                            {slot.label?.toUpperCase() || slot.jenis.toUpperCase()}
-                          </span>
-                        </div>
-                      </td>
-                    );
-                  }
-
-                  const cell = classData.schedule[day]?.[slot.jam_ke];
-                  const cellId = `${classData.kelas_id}-${day}-${slot.jam_ke}-cell`;
-                  const isPending = hasPending(day, slot.jam_ke);
-                  const isDeleted = isPendingDelete(day, slot.jam_ke);
-
-                  return (
-                    <td key={day} className="border p-0">
-                      <DroppableCell
-                        cellId={cellId}
-                        isDisabled={false}
-                        onClick={() => onCellClick(classData.kelas_id, day, slot.jam_ke, cell)}
-                      >
-                        <ScheduleCellCard
-                          cell={isDeleted ? null : cell}
-                          isPending={isPending}
-                          isDeleted={isDeleted}
-                        />
-                      </DroppableCell>
-                    </td>
-                  );
-                })}
-              </tr>
+        {/* ── Row 2: Jam Ke per slot ─────────────────────────────────────── */}
+        <tr>
+          {days.map((day) => {
+            const daySlots = (matrixJamSlots[day] || []).sort(
+              (a, b) => a.jam_ke - b.jam_ke
             );
+            return daySlots.map((slot) => (
+              <th
+                key={`${day}-${slot.jam_ke}-ke`}
+                className="sticky z-30 border border-slate-300 bg-slate-600 text-white font-medium text-center py-0.5 px-1 whitespace-nowrap"
+                style={{
+                  top: 28,
+                  minWidth: 80,
+                  width: 80,
+                  backgroundColor:
+                    slot.jenis === 'istirahat'
+                      ? '#92400e'
+                      : slot.jenis === 'pembiasaan'
+                      ? '#1e40af'
+                      : undefined,
+                }}
+              >
+                {slot.jenis !== 'pelajaran'
+                  ? (slot.label || slot.jenis).toUpperCase()
+                  : `Jam ${slot.jam_ke}`}
+              </th>
+            ));
           })}
-        </tbody>
-      </table>
-    </div>
+        </tr>
+
+        {/* ── Row 3: Waktu per slot ─────────────────────────────────────── */}
+        <tr>
+          {days.map((day) => {
+            const daySlots = (matrixJamSlots[day] || []).sort(
+              (a, b) => a.jam_ke - b.jam_ke
+            );
+            return daySlots.map((slot) => (
+              <th
+                key={`${day}-${slot.jam_ke}-waktu`}
+                className="sticky z-30 border border-slate-300 bg-slate-500 text-white font-normal text-center py-0.5 px-1 whitespace-nowrap"
+                style={{ top: 56, minWidth: 80, width: 80 }}
+              >
+                {slot.jam_mulai}–{slot.jam_selesai}
+              </th>
+            ));
+          })}
+        </tr>
+      </thead>
+
+      <tbody>
+        {visibleClasses.map((cls) => {
+          return (
+            <MasterGridClassRows
+              key={cls.kelas_id}
+              cls={cls}
+              days={days}
+              daySlotSets={daySlotSets}
+              matrixJamSlots={matrixJamSlots}
+              hasPending={hasPending}
+              isPendingDelete={isPendingDelete}
+              onCellClick={onCellClick}
+              KELAS_W={KELAS_W}
+              KAT_W={KAT_W}
+            />
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
-// ─── ScheduleCellCard sub-component ──────────────────────────────────────────
+// ─── MasterGridClassRows ──────────────────────────────────────────────────────
+// Renders 3 rows for one class: MAPEL / RUANG / GURU
 
-interface ScheduleCellCardProps {
-  cell: ScheduleCell | null | undefined;
-  isPending?: boolean;
-  isDeleted?: boolean;
+interface MasterGridClassRowsProps {
+  cls: ClassSchedule;
+  days: string[];
+  daySlotSets: Record<string, Set<number>>;
+  matrixJamSlots: Record<string, JamSlot[]>;
+  hasPending: (kelasId: number, hari: string, jamKe: number) => boolean;
+  isPendingDelete: (kelasId: number, hari: string, jamKe: number) => boolean;
+  onCellClick: (
+    kelas_id: number,
+    hari: string,
+    jam_ke: number,
+    cell: ScheduleCell | null | undefined
+  ) => void;
+  KELAS_W: number;
+  KAT_W: number;
 }
 
-function ScheduleCellCard({ cell, isPending, isDeleted }: Readonly<ScheduleCellCardProps>) {
-  if (isDeleted) {
-    return (
-      <div className="h-16 flex items-center justify-center group transition-colors hover:bg-red-50">
-        <span className="text-xs text-red-400 line-through">Dihapus</span>
-      </div>
-    );
-  }
+function MasterGridClassRows({
+  cls,
+  days,
+  daySlotSets,
+  matrixJamSlots,
+  hasPending,
+  isPendingDelete,
+  onCellClick,
+  KELAS_W,
+  KAT_W,
+}: Readonly<MasterGridClassRowsProps>) {
+  // For each slot index, track which slots are special so we only render rowSpan=3 on row 0
+  // and skip rows 1 & 2 for that slot.
 
-  if (!cell || !cell.mapel) {
-    return (
-      <div className="h-16 flex items-center justify-center group transition-colors hover:bg-muted/60">
-        <Plus className="w-4 h-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
-      </div>
-    );
-  }
-
-  const bgColor = cell.isSpecial
-    ? cell.color
-    : getSubjectColor(cell.mapel, cell.color);
-
-  const guruName =
-    cell.guru_detail && cell.guru_detail.length > 0
-      ? cell.guru_detail[0].nama_guru
-      : cell.guru?.join(', ') || '';
+  type SubRow = 'mapel' | 'ruang' | 'guru';
+  const subRows: SubRow[] = ['mapel', 'ruang', 'guru'];
+  const subRowLabels: Record<SubRow, string> = {
+    mapel: 'MAPEL',
+    ruang: 'RUANG',
+    guru: 'GURU',
+  };
 
   return (
-    <div
-      className={`
-        h-16 p-1.5 flex flex-col justify-between overflow-hidden transition-all
-        hover:brightness-95 cursor-pointer relative
-        ${isPending ? 'ring-2 ring-amber-400 ring-inset' : ''}
-      `}
-      style={{ backgroundColor: bgColor }}
-      title={`${cell.nama_mapel || cell.mapel} — ${guruName} — ${cell.ruang || ''}`}
-    >
-      {/* Mapel name */}
-      <span className="text-xs font-bold text-slate-800 truncate leading-tight">
-        {cell.nama_mapel || cell.mapel}
-      </span>
+    <>
+      {subRows.map((subRow, subIdx) => (
+        <tr key={`${cls.kelas_id}-${subRow}`} className="border-b border-slate-200">
+          {/* ── Kelas label — only on first sub-row ── */}
+          {subIdx === 0 && (
+            <td
+              rowSpan={3}
+              className="sticky left-0 z-20 border border-slate-300 bg-slate-100 font-bold text-center align-middle text-slate-800 text-xs leading-tight p-1"
+              style={{ width: KELAS_W, minWidth: KELAS_W }}
+            >
+              {cls.nama_kelas}
+            </td>
+          )}
 
-      {/* Guru name */}
-      <span className="text-xs text-slate-700 truncate leading-tight opacity-90">
-        {guruName}
-      </span>
+          {/* ── Kategori label ── */}
+          <td
+            className="sticky z-20 border border-slate-300 bg-slate-50 text-slate-500 font-semibold text-center align-middle text-[10px] uppercase tracking-wide p-0.5"
+            style={{ left: KELAS_W, width: KAT_W, minWidth: KAT_W }}
+          >
+            {subRowLabels[subRow]}
+          </td>
 
-      {/* Room badge */}
-      {cell.ruang && (
-        <span className="inline-flex self-start items-center rounded bg-black/10 px-1 py-0 text-xs text-slate-800 font-medium leading-tight mt-0.5 truncate max-w-full">
-          {cell.ruang}
-        </span>
-      )}
+          {/* ── Data cells for each day × slot ── */}
+          {days.map((day) => {
+            const daySlots = (matrixJamSlots[day] || []).sort(
+              (a, b) => a.jam_ke - b.jam_ke
+            );
 
-      {/* Pending indicator */}
-      {isPending && (
-        <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
-      )}
-    </div>
+            return daySlots.map((slot) => {
+              const isSpecial = slot.jenis !== 'pelajaran';
+
+              // For special slots: render a spanning td only on mapel row; skip ruang & guru rows
+              if (isSpecial) {
+                if (subRow === 'mapel') {
+                  return (
+                    <td
+                      key={`${day}-${slot.jam_ke}`}
+                      rowSpan={3}
+                      className="border border-slate-300 text-center align-middle font-semibold text-slate-600 tracking-wide p-1"
+                      style={{
+                        backgroundColor:
+                          slot.jenis === 'istirahat' ? '#FEF3C7' : '#DBEAFE',
+                        minWidth: 80,
+                        width: 80,
+                      }}
+                    >
+                      <span className="text-[10px] uppercase leading-tight block">
+                        {slot.label || slot.jenis}
+                      </span>
+                    </td>
+                  );
+                }
+                // ruang & guru rows: cell was already covered by rowSpan — skip
+                return null;
+              }
+
+              // Regular pelajaran slot
+              // Check if this day even has this jam_ke slot
+              if (!daySlotSets[day]?.has(slot.jam_ke)) {
+                if (subRow === 'mapel') {
+                  return (
+                    <td
+                      key={`${day}-${slot.jam_ke}`}
+                      rowSpan={3}
+                      className="border border-slate-200 bg-slate-50/50 text-center align-middle"
+                      style={{ minWidth: 80, width: 80 }}
+                    >
+                      <span className="text-[10px] text-slate-300">–</span>
+                    </td>
+                  );
+                }
+                return null;
+              }
+
+              const cell = cls.schedule[day]?.[slot.jam_ke];
+              const pending = hasPending(cls.kelas_id, day, slot.jam_ke);
+              const deleted = isPendingDelete(cls.kelas_id, day, slot.jam_ke);
+              const cellId = `${cls.kelas_id}-${day}-${slot.jam_ke}-cell`;
+
+              const bgColor = cell && cell.mapel && !deleted
+                ? getSubjectColor(cell.mapel, cell.color)
+                : '#ffffff';
+
+              let content: React.ReactNode = null;
+
+              if (deleted) {
+                if (subRow === 'mapel') content = <span className="text-red-400 line-through text-[10px]">Dihapus</span>;
+              } else if (!cell || !cell.mapel) {
+                if (subRow === 'mapel') {
+                  content = (
+                    <span className="flex items-center justify-center w-full h-full text-slate-300">
+                      <Plus className="w-3 h-3" />
+                    </span>
+                  );
+                }
+              } else {
+                if (subRow === 'mapel') {
+                  content = (
+                    <span className="font-bold text-slate-800 leading-tight truncate block text-center text-[10px]">
+                      {cell.kode_mapel || cell.mapel}
+                    </span>
+                  );
+                } else if (subRow === 'ruang') {
+                  content = (
+                    <span className="text-slate-700 leading-tight truncate block text-center text-[10px]">
+                      {cell.ruang || '—'}
+                    </span>
+                  );
+                } else {
+                  const guruName =
+                    cell.guru_detail && cell.guru_detail.length > 0
+                      ? cell.guru_detail[0].kode_guru || cell.guru_detail[0].nama_guru
+                      : cell.guru?.join(', ') || '—';
+                  content = (
+                    <span className="text-slate-700 leading-tight truncate block text-center text-[10px]">
+                      {guruName}
+                    </span>
+                  );
+                }
+              }
+
+              return (
+                <td
+                  key={`${day}-${slot.jam_ke}`}
+                  className={`border border-slate-200 p-0 align-middle ${pending ? 'outline outline-2 outline-amber-400 outline-offset-[-2px]' : ''}`}
+                  style={{
+                    backgroundColor: bgColor,
+                    minWidth: 80,
+                    width: 80,
+                    height: subRow === 'mapel' ? 28 : 22,
+                  }}
+                >
+                  <DroppableCell
+                    cellId={cellId}
+                    isDisabled={false}
+                    onClick={() => onCellClick(cls.kelas_id, day, slot.jam_ke, cell)}
+                  >
+                    <div className="w-full h-full flex items-center justify-center px-1 overflow-hidden">
+                      {content}
+                    </div>
+                  </DroppableCell>
+                </td>
+              );
+            });
+          })}
+        </tr>
+      ))}
+    </>
   );
 }
 
