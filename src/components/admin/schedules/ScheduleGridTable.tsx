@@ -64,7 +64,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
+import { mergePendingChange, mergePendingChanges, PendingChange } from './scheduleUtils';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface JamSlot {
@@ -115,17 +115,6 @@ interface ScheduleGridTableProps {
   classes: Kelas[];
 }
 
-interface PendingChange {
-  kelas_id: number;
-  hari: string;
-  jam_ke: number;
-  mapel_id?: number | null;
-  guru_id?: number | null;
-  ruang_id?: number | null;
-  rowType?: string;
-  action?: 'delete';
-  [key: string]: string | number | null | undefined;
-}
 
 type TeacherWithLegacyId = Teacher & { id_guru?: number };
 type SubjectWithLegacyId = Subject & { id_mapel?: number };
@@ -266,6 +255,45 @@ function DroppableCell({
   );
 }
 
+// ─── DraggableCellContent ────────────────────────────────────────────────────
+
+function DraggableCellContent({
+  cellId,
+  cell,
+  kelasId,
+  hari,
+  jamKe,
+  children,
+}: Readonly<{
+  cellId: string;
+  cell: ScheduleCell;
+  kelasId: number;
+  hari: string;
+  jamKe: number;
+  children: React.ReactNode;
+}>) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `drag-${cellId}`,
+    data: {
+      type: 'cell' as const,
+      item: cell,
+      source: { kelas_id: kelasId, hari, jam_ke: jamKe },
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`w-full h-full ${isDragging ? 'opacity-30' : ''}`}
+      style={{ cursor: 'grab' }}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ScheduleGridTable({
@@ -303,8 +331,9 @@ export function ScheduleGridTable({
   // Drag state
   const [activeDragItem, setActiveDragItem] = useState<{
     id: string;
-    type: 'guru' | 'mapel';
-    item: Teacher | Subject;
+    type: 'guru' | 'mapel' | 'cell';
+    item: Teacher | Subject | ScheduleCell;
+    source?: { kelas_id: number; hari: string; jam_ke: number };
   } | null>(null);
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -413,6 +442,21 @@ export function ScheduleGridTable({
     },
     [matrixData]
   );
+  const checkRoomConflict = useCallback(
+    (ruangId: number, hari: string, jamKe: number, excludeKelasId: number) => {
+      if (!matrixData || !ruangId) return null;
+      for (const cls of matrixData.classes) {
+        if (cls.kelas_id === excludeKelasId) continue;
+        const cell = cls.schedule[hari]?.[jamKe];
+        if (cell?.ruang_id === ruangId) {
+          return { kelas: cls.nama_kelas, ruang: cell.ruang || '' };
+        }
+      }
+      return null;
+    },
+    [matrixData]
+  );
+
 
   // ── Drag helpers ───────────────────────────────────────────────────────────
   const extractDragItemId = useCallback(
@@ -451,32 +495,191 @@ export function ScheduleGridTable({
   // ── Drag handlers ──────────────────────────────────────────────────────────
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const { type, item } = active.data.current as {
-      type: 'guru' | 'mapel';
-      item: Teacher | Subject;
+    const data = active.data.current as {
+      type: 'guru' | 'mapel' | 'cell';
+      item: Teacher | Subject | ScheduleCell;
+      source?: { kelas_id: number; hari: string; jam_ke: number };
     };
-    setActiveDragItem({ id: active.id as string, type, item });
+    setActiveDragItem({
+      id: active.id as string,
+      type: data.type,
+      item: data.item,
+      source: data.source,
+    });
   };
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
+      setActiveDragItem(null); // Always clear drag state
       if (!over || !matrixData) return;
 
       // Cell ID format: `{kelas_id}-{hari}-{jam_ke}-cell`
       const parts = (over.id as string).split('-');
-      const kelasId = Number.parseInt(parts[0]);
-      const hari = parts[1];
-      const jamKe = Number.parseInt(parts[2]);
+      const targetKelasId = Number.parseInt(parts[0]);
+      const targetHari = parts[1];
+      const targetJamKe = Number.parseInt(parts[2]);
 
-      const dragType = active.data.current?.type as 'guru' | 'mapel';
-      const dragItem = active.data.current?.item as Teacher | Subject | undefined;
-      if (!dragItem) return;
+      const dragData = active.data.current as {
+        type: 'guru' | 'mapel' | 'cell';
+        item: Teacher | Subject | ScheduleCell;
+        source?: { kelas_id: number; hari: string; jam_ke: number };
+      };
+
+      // ─── Cell-to-cell move ────────────────────────────────────────────────────
+      if (dragData.type === 'cell' && dragData.source) {
+        const source = dragData.source;
+        const sourceCell = dragData.item as ScheduleCell;
+
+        // Self-drop — no-op
+        if (
+          source.kelas_id === targetKelasId &&
+          source.hari === targetHari &&
+          source.jam_ke === targetJamKe
+        ) {
+          return;
+        }
+
+        // Cross-day block
+        if (source.hari !== targetHari) {
+          toast({
+            title: 'Tidak Didukung',
+            description: 'Pindah jadwal antar hari belum didukung. Gunakan edit manual.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Block drop on global special slots
+        const targetSlots = matrixData.jamSlots[targetHari] || [];
+        const targetSlot = targetSlots.find((s) => s.jam_ke === targetJamKe);
+        if (targetSlot && targetSlot.jenis !== 'pelajaran') {
+          toast({
+            title: 'Tidak Bisa',
+            description: `Slot ${targetSlot.label || targetSlot.jenis} tidak bisa diisi jadwal.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        // Check room conflict at target
+        const sourceRuangId = sourceCell.ruang_id;
+        if (sourceRuangId) {
+          const roomConflict = checkRoomConflict(sourceRuangId, targetHari, targetJamKe, targetKelasId);
+          if (roomConflict) {
+            toast({
+              title: 'Potensi Bentrok Ruang',
+              description: `Ruang sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
+              variant: 'destructive',
+              duration: 5000,
+            });
+          }
+        }
+
+        // Check teacher conflict at target
+        const guruId = sourceCell.guru_detail?.[0]?.guru_id;
+        if (guruId) {
+          const conflict = checkTeacherConflict(guruId, targetHari, targetJamKe, targetKelasId);
+          if (conflict) {
+            toast({
+              title: 'Potensi Bentrok Guru',
+              description: `Guru sudah mengajar di ${conflict.kelas} pada jam ini!`,
+              variant: 'destructive',
+              duration: 5000,
+            });
+            // Still allow — warning only, backend will enforce
+          }
+        }
+
+        // Check if target is occupied
+        const targetClass = matrixData.classes.find((c) => c.kelas_id === targetKelasId);
+        const targetCell = targetClass?.schedule[targetHari]?.[targetJamKe];
+        if (targetCell && targetCell.mapel) {
+          toast({
+            title: 'Jadwal Ditimpa (Draft)',
+            description: `Slot sebelumnya (${targetCell.mapel}) akan digantikan. Klik Simpan untuk permanen.`,
+            duration: 5000,
+          });
+        }
+
+        // Generate move: delete source + upsert target
+        const deleteChange: PendingChange = {
+          kelas_id: source.kelas_id,
+          hari: source.hari,
+          jam_ke: source.jam_ke,
+          action: 'delete',
+        };
+        const upsertChange: PendingChange = {
+          kelas_id: targetKelasId,
+          hari: targetHari,
+          jam_ke: targetJamKe,
+          mapel_id: sourceCell.mapel_id,
+          guru_id: guruId,
+          ruang_id: sourceCell.ruang_id,
+        };
+
+        setPendingChanges((prev) => mergePendingChanges(prev, [deleteChange, upsertChange]));
+
+        // Update local matrix state
+        setMatrixData((prev) => {
+          if (!prev) return null;
+          const newClasses = prev.classes.map((cls) => {
+            const newSchedule = { ...cls.schedule };
+
+            // Clear source
+            if (cls.kelas_id === source.kelas_id) {
+              if (newSchedule[source.hari]) {
+                const updatedDay = { ...newSchedule[source.hari] };
+                delete updatedDay[source.jam_ke];
+                newSchedule[source.hari] = updatedDay;
+              }
+            }
+
+            // Set target
+            if (cls.kelas_id === targetKelasId) {
+              if (!newSchedule[targetHari]) newSchedule[targetHari] = {};
+              newSchedule[targetHari] = {
+                ...newSchedule[targetHari],
+                [targetJamKe]: { ...sourceCell, id: 0 },
+              };
+            }
+
+            if (cls.kelas_id === source.kelas_id || cls.kelas_id === targetKelasId) {
+              return { ...cls, schedule: newSchedule };
+            }
+        // Check room conflict if cell already has a room assigned
+        const targetClass = matrixData.classes.find((c) => c.kelas_id === targetKelasId);
+        const targetCell = targetClass?.schedule[targetHari]?.[targetJamKe];
+        if (targetCell?.ruang_id) {
+          const roomConflict = checkRoomConflict(targetCell.ruang_id, targetHari, targetJamKe, targetKelasId);
+          if (roomConflict) {
+            toast({
+              title: 'Potensi Bentrok Ruang',
+              description: `Ruang sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
+              variant: 'destructive',
+              duration: 5000,
+            });
+          }
+        }
+            return cls;
+          });
+          return { ...prev, classes: newClasses };
+        });
+
+        toast({
+          title: 'Jadwal Dipindah (Draft)',
+          description: `${sourceCell.mapel} → Jam ${targetJamKe}. Klik Simpan untuk permanen.`,
+        });
+        return;
+      }
+
+      // ─── Palette drag (existing logic) ──────────────────────────────────────────────
+      const dragType = dragData.type as 'guru' | 'mapel';
+      const dragItem = dragData.item as Teacher | Subject;
 
       if (dragType === 'guru') {
         const currentTeacher = dragItem as Teacher;
         const guruId = getTeacherId(currentTeacher) ?? 0;
-        const conflict = checkTeacherConflict(guruId, hari, jamKe, kelasId);
+        const conflict = checkTeacherConflict(guruId, targetHari, targetJamKe, targetKelasId);
         if (conflict) {
           toast({
             title: 'Potensi Bentrok Jadwal',
@@ -489,26 +692,21 @@ export function ScheduleGridTable({
 
       const dragItemId = extractDragItemId(dragItem, dragType);
       const change: PendingChange = {
-        kelas_id: kelasId,
-        hari,
-        jam_ke: jamKe,
+        kelas_id: targetKelasId,
+        hari: targetHari,
+        jam_ke: targetJamKe,
         [dragType === 'guru' ? 'guru_id' : 'mapel_id']: dragItemId ?? null,
       };
 
-      setPendingChanges((prev) => {
-        const filtered = prev.filter(
-          (p) => !(p.kelas_id === kelasId && p.hari === hari && p.jam_ke === jamKe)
-        );
-        return [...filtered, change];
-      });
+      setPendingChanges((prev) => mergePendingChange(prev, change));
 
       setMatrixData((prev) => {
         if (!prev) return null;
         const newClasses = prev.classes.map((cls) => {
-          if (cls.kelas_id === kelasId) {
+          if (cls.kelas_id === targetKelasId) {
             const newSchedule = { ...cls.schedule };
-            if (!newSchedule[hari]) newSchedule[hari] = {};
-            const existingCell = newSchedule[hari][jamKe] || {
+            if (!newSchedule[targetHari]) newSchedule[targetHari] = {};
+            const existingCell = newSchedule[targetHari][targetJamKe] || {
               id: null,
               mapel: '',
               mapel_id: 0,
@@ -519,7 +717,7 @@ export function ScheduleGridTable({
               color: '#fff',
               jenis: 'pelajaran',
             };
-            newSchedule[hari][jamKe] = updateScheduleCellWithDragItem(
+            newSchedule[targetHari][targetJamKe] = updateScheduleCellWithDragItem(
               existingCell,
               dragItem,
               dragType
@@ -534,10 +732,10 @@ export function ScheduleGridTable({
       const itemLabel = isTeacherItem(dragItem) ? dragItem.nama : dragItem.nama_mapel;
       toast({
         title: 'Jadwal Diupdate (Draft)',
-        description: `${itemLabel} → ${hari} Jam ${jamKe}. Klik Simpan untuk permanen.`,
+        description: `${itemLabel} → ${targetHari} Jam ${targetJamKe}. Klik Simpan untuk permanen.`,
       });
     },
-    [matrixData, checkTeacherConflict, extractDragItemId, updateScheduleCellWithDragItem]
+    [matrixData, checkTeacherConflict, checkRoomConflict, extractDragItemId, updateScheduleCellWithDragItem]
   );
 
   // ── Save all ───────────────────────────────────────────────────────────────
@@ -609,11 +807,7 @@ export function ScheduleGridTable({
     if (!editingCell || !editMapelId || !editGuruId) return;
     const { kelas_id, hari, jam_ke } = editingCell;
 
-    const filtered = pendingChanges.filter(
-      (c) => !(c.kelas_id === kelas_id && c.hari === hari && c.jam_ke === jam_ke)
-    );
-    filtered.push({ kelas_id, hari, jam_ke, mapel_id: editMapelId, guru_id: editGuruId, ruang_id: editRuangId });
-    setPendingChanges(filtered);
+    setPendingChanges((prev) => mergePendingChange(prev, { kelas_id, hari, jam_ke, mapel_id: editMapelId, guru_id: editGuruId, ruang_id: editRuangId }));
 
     if (matrixData) {
       const newClasses = matrixData.classes.map((cls) => {
@@ -653,11 +847,7 @@ export function ScheduleGridTable({
   const handleCellDelete = () => {
     if (!editingCell) return;
     const { kelas_id, hari, jam_ke } = editingCell;
-    const filtered = pendingChanges.filter(
-      (c) => !(c.kelas_id === kelas_id && c.hari === hari && c.jam_ke === jam_ke)
-    );
-    filtered.push({ kelas_id, hari, jam_ke, action: 'delete' });
-    setPendingChanges(filtered);
+    setPendingChanges((prev) => mergePendingChange(prev, { kelas_id, hari, jam_ke, action: 'delete' }));
 
     if (matrixData) {
       const newClasses = matrixData.classes.map((cls) => {
@@ -707,7 +897,7 @@ export function ScheduleGridTable({
       }
     }
 
-    setPendingChanges([...pendingChanges, ...newChanges]);
+    setPendingChanges((prev) => mergePendingChanges(prev, newChanges));
 
     const newClasses = matrixData.classes.map((cls) => {
       if (cls.kelas_id === targetKelasId) {
@@ -1056,26 +1246,40 @@ export function ScheduleGridTable({
       {/* ── Drag Overlay ─────────────────────────────────────────────────────── */}
       <DragOverlay>
         {activeDragItem ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg border bg-background/90 shadow-xl w-48 pointer-events-none ring-2 ring-blue-500">
-            <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-            {activeDragItem.type === 'guru' ? (
-              <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            ) : (
-              <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">
-                {activeDragItem.type === 'guru'
-                  ? (activeDragItem.item as Teacher).nama
-                  : (activeDragItem.item as Subject).nama_mapel}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {activeDragItem.type === 'guru'
-                  ? (activeDragItem.item as Teacher).nip || '-'
-                  : (activeDragItem.item as Subject).kode_mapel || '-'}
-              </p>
+          activeDragItem.type === 'cell' ? (
+            <div className="flex items-center gap-2 p-2 rounded-lg border bg-background/90 shadow-xl w-48 pointer-events-none ring-2 ring-green-500">
+              <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">
+                  {(activeDragItem.item as ScheduleCell).mapel}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {(activeDragItem.item as ScheduleCell).guru?.[0] || '—'}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 p-2 rounded-lg border bg-background/90 shadow-xl w-48 pointer-events-none ring-2 ring-blue-500">
+              <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+              {activeDragItem.type === 'guru' ? (
+                <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              ) : (
+                <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">
+                  {activeDragItem.type === 'guru'
+                    ? (activeDragItem.item as Teacher).nama
+                    : (activeDragItem.item as Subject).nama_mapel}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {activeDragItem.type === 'guru'
+                    ? (activeDragItem.item as Teacher).nip || '-'
+                    : (activeDragItem.item as Subject).kode_mapel || '-'}
+                </p>
+              </div>
+            </div>
+          )
         ) : null}
       </DragOverlay>
     </DndContext>
@@ -1470,9 +1674,17 @@ function MasterGridClassRows({
                     isDisabled={false}
                     onClick={() => onCellClick(cls.kelas_id, day, slot.jam_ke, cell)}
                   >
-                    <div className={`w-full h-full flex items-center justify-center px-1 overflow-hidden ${isSameAsPrev ? 'opacity-0' : 'opacity-100'}`}>
-                      {content}
-                    </div>
+                    {cell && cell.mapel && !deleted ? (
+                      <DraggableCellContent cellId={cellId} cell={cell} kelasId={cls.kelas_id} hari={day} jamKe={slot.jam_ke}>
+                        <div className={`w-full h-full flex items-center justify-center px-1 overflow-hidden ${isSameAsPrev ? 'opacity-0' : 'opacity-100'}`}>
+                          {content}
+                        </div>
+                      </DraggableCellContent>
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center px-1 overflow-hidden ${isSameAsPrev ? 'opacity-0' : 'opacity-100'}`}>
+                        {content}
+                      </div>
+                    )}
                   </DroppableCell>
                 </td>
               );
