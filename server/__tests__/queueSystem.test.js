@@ -49,4 +49,88 @@ describe('DownloadQueue file access', () => {
         assert.strictEqual(status.result.filename, 'report_u1_test.xlsx');
         assert.strictEqual(status.result.filepath, undefined);
     });
+
+    it('builds stable deduplication keys for equivalent filters', () => {
+        const queue = new DownloadQueue();
+        queue.dedupTtlMs = 300000;
+
+        const keyA = queue.buildJobDedupKey('student-attendance', 7, {
+            tanggal_mulai: '2026-01-01',
+            tanggal_selesai: '2026-01-31',
+            kelas_id: 3,
+            nested: { b: 2, a: 1 }
+        });
+
+        const keyB = queue.buildJobDedupKey('student-attendance', 7, {
+            kelas_id: 3,
+            tanggal_selesai: '2026-01-31',
+            nested: { a: 1, b: 2 },
+            tanggal_mulai: '2026-01-01'
+        });
+
+        assert.strictEqual(keyA, keyB);
+    });
+
+    it('returns existing active job when deduplication key already exists', async () => {
+        const queue = new DownloadQueue();
+        queue.adaptiveThrottleEnabled = false;
+
+        const existingJob = {
+            id: 'existing-job-1',
+            getState: async () => 'active'
+        };
+
+        queue.queues.excelDownload = {
+            getJobCounts: async () => ({ waiting: 0, active: 0, delayed: 0 }),
+            getJob: async () => existingJob,
+            getWaiting: async () => [{ id: 'existing-job-1' }],
+            add: async () => {
+                throw new Error('should not add duplicate job');
+            }
+        };
+
+        const result = await queue.addExcelDownloadJob({
+            type: 'student-attendance',
+            userRole: 'guru',
+            userId: 21,
+            filters: {
+                tanggal_mulai: '2026-01-01',
+                tanggal_selesai: '2026-01-31'
+            }
+        });
+
+        assert.strictEqual(result.jobId, 'existing-job-1');
+        assert.strictEqual(result.deduplicated, true);
+        assert.strictEqual(result.status, 'active');
+    });
+
+    it('rejects new jobs when queue depth exceeds max depth', async () => {
+        const queue = new DownloadQueue();
+        queue.adaptiveThrottleEnabled = false;
+        queue.queueMaxDepth = 1;
+
+        queue.queues.excelDownload = {
+            getJobCounts: async () => ({ waiting: 1, active: 0, delayed: 0 }),
+            getJob: async () => null,
+            add: async () => ({ id: 'new-job-1' }),
+            getWaiting: async () => []
+        };
+
+        await assert.rejects(
+            () => queue.addExcelDownloadJob({
+                type: 'student-attendance',
+                userRole: 'guru',
+                userId: 22,
+                filters: {
+                    tanggal_mulai: '2026-01-01',
+                    tanggal_selesai: '2026-01-31'
+                }
+            }),
+            (error) => {
+                assert.strictEqual(error.name, 'QueueBackpressureError');
+                assert.match(error.message, /Queue sedang penuh/);
+                return true;
+            }
+        );
+    });
 });

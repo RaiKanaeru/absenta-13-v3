@@ -7,7 +7,7 @@
 import ExcelJS from 'exceljs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendNotFoundError, sendPermissionError, sendServiceUnavailableError, sendValidationError } from '../utils/errorHandler.js';
+import { AppError, ERROR_CODES, sendDatabaseError, sendErrorResponse, sendNotFoundError, sendPermissionError, sendRateLimitError, sendServiceUnavailableError, sendValidationError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import ExportService from '../services/ExportService.js';
 import {
@@ -927,6 +927,13 @@ export const exportStudentSummary = async (req, res) => {
 export const exportRiwayatBandingAbsen = async (req, res) => {
     try {
         const { startDate, endDate, kelas_id, status, guru_id } = req.query;
+
+        // Validate required date parameters
+        if (!startDate || !endDate) {
+            return sendValidationError(res, 'Parameter startDate dan endDate wajib diisi', {
+                fields: ['startDate', 'endDate']
+            });
+        }
         const role = req.user?.role;
         let guruId = null;
 
@@ -2735,6 +2742,13 @@ export const requestExcelDownload = async (req, res) => {
         });
 
     } catch (error) {
+        if (error?.name === 'QueueBackpressureError') {
+            return sendRateLimitError(
+                res,
+                error.message || 'Queue sedang padat, silakan coba lagi',
+                error.retryAfterSeconds || 15
+            );
+        }
         return sendDatabaseError(res, error);
     }
 };

@@ -514,7 +514,7 @@ export const getPerformanceMetrics = async (req, res) => {
     log.requestStart('GetPerformanceMetrics', {});
 
     try {
-        const metrics = globalThis.performanceOptimizer ? globalThis.performanceOptimizer.getMetrics() : null;
+        const metrics = globalThis.performanceOptimizer ? globalThis.performanceOptimizer.getPerformanceMetrics() : null;
         log.success('GetPerformanceMetrics', { available: !!globalThis.performanceOptimizer });
         return sendSuccessResponse(res, metrics);
     } catch (error) {
@@ -680,9 +680,13 @@ export const getQueueStats = async (req, res) => {
     log.requestStart('GetQueueStats', {});
 
     try {
-        const stats = globalThis.downloadQueue ? await globalThis.downloadQueue.getQueueStats() : null;
+        const stats = globalThis.downloadQueue ? await globalThis.downloadQueue.getQueueStatistics() : null;
+        const queueData = stats ? {
+            ...stats,
+            collectedAt: new Date().toISOString()
+        } : null;
         log.success('GetQueueStats', { available: !!globalThis.downloadQueue });
-        return sendSuccessResponse(res, stats);
+        return sendSuccessResponse(res, queueData);
     } catch (error) {
         log.error('GetQueueStats failed', { error: error.message });
         return sendDatabaseError(res, error);
@@ -709,6 +713,8 @@ export const getSystemPerformance = async (req, res) => {
             queryStats: {},
             cacheStats: { size: 0, entries: [] }
         };
+
+        const queueStats = globalThis.downloadQueue ? await globalThis.downloadQueue.getQueueStatistics() : null;
 
         // Get system metrics
         const memoryUsage = process.memoryUsage();
@@ -757,7 +763,8 @@ export const getSystemPerformance = async (req, res) => {
             loadBalancer: loadBalancerStats,
             queryOptimizer: queryOptimizerStats,
             redis: redisStats,
-            system: systemMetrics
+            system: systemMetrics,
+            queue: queueStats
         });
     } catch (error) {
         log.error('GetSystemPerformance failed', { error: error.message });

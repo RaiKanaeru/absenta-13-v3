@@ -1,7 +1,7 @@
 /**
  * QUEUE SYSTEM FOR DOWNLOADS
  * Phase 3: Redis & Bull Queue for handling concurrent Excel downloads
- * Target: Handle 80 concurrent downloads, Priority system, Background processing
+ * Target: Adaptive concurrency, backpressure, priority system, background processing
  */
 
 import dotenv from 'dotenv';
@@ -12,11 +12,54 @@ import Redis from 'ioredis';
 import ExcelJS from 'exceljs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import mysql from 'mysql2/promise';
 import { createLogger } from '../../utils/logger.js';
 import { buildDownloadFilename, isFilenameOwnedByUser, isSafeFilename } from '../../utils/downloadAccess.js';
 
 const logger = createLogger('Queue');
+
+const parsePositiveInt = (value, fallback, min = 1, max = Number.MAX_SAFE_INTEGER) => {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
+};
+
+const parseBoolean = (value, fallback) => {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value === 'boolean') return value;
+    const normalized = String(value).trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+    return fallback;
+};
+
+const normalizeForStableStringify = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((item) => normalizeForStableStringify(item));
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.keys(value)
+            .sort()
+            .reduce((acc, key) => {
+                acc[key] = normalizeForStableStringify(value[key]);
+                return acc;
+            }, {});
+    }
+
+    return value;
+};
+
+class QueueBackpressureError extends Error {
+    constructor(message, retryAfterSeconds = 15, details = null) {
+        super(message);
+        this.name = 'QueueBackpressureError';
+        this.code = 'QUEUE_BACKPRESSURE';
+        this.retryAfterSeconds = retryAfterSeconds;
+        this.details = details;
+    }
+}
 
 class DownloadQueue {
     constructor() {
@@ -43,7 +86,7 @@ class DownloadQueue {
             password: process.env.DB_PASSWORD || '',
             database: process.env.DB_NAME || 'absenta13',
             port: Number.parseInt(process.env.DB_PORT) || 3306,
-            connectionLimit: 10,
+            connectionLimit: parsePositiveInt(process.env.DB_CONNECTION_LIMIT, 10, 1, 200),
             acquireTimeout: 10000,
             timezone: process.env.DB_TIMEZONE || '+07:00'
         };
@@ -52,7 +95,23 @@ class DownloadQueue {
         this.pool = null;
         this.queues = {};
         this.downloadDir = process.env.REPORTS_DIR || './downloads';
-        this.maxConcurrentDownloads = 80;
+        this.maxConcurrentDownloads = this.getSafeDefaultConcurrency(this.dbConfig.connectionLimit, 6, 12);
+        this.maxConcurrentDownloads = parsePositiveInt(process.env.QUEUE_EXPORT_CONCURRENCY, this.maxConcurrentDownloads, 1, 40);
+        this.reportWorkerConcurrency = parsePositiveInt(process.env.QUEUE_REPORT_CONCURRENCY, 2, 1, 20);
+        this.queueMaxDepth = parsePositiveInt(process.env.QUEUE_MAX_DEPTH, 250, 25, 5000);
+        this.globalRateMax = parsePositiveInt(process.env.QUEUE_GLOBAL_RATE_MAX, 20, 1, 2000);
+        this.globalRateDurationMs = parsePositiveInt(process.env.QUEUE_GLOBAL_RATE_DURATION_MS, 1000, 100, 60000);
+        this.maxJobAttempts = parsePositiveInt(process.env.QUEUE_JOB_ATTEMPTS, 3, 1, 10);
+        this.jobBackoffDelayMs = parsePositiveInt(process.env.QUEUE_JOB_BACKOFF_DELAY_MS, 2000, 200, 60000);
+        this.dedupTtlMs = parsePositiveInt(process.env.QUEUE_DEDUP_TTL_MS, 60000, 1000, 60 * 60 * 1000);
+        this.adaptiveThrottleEnabled = parseBoolean(process.env.QUEUE_ENABLE_ADAPTIVE_THROTTLE, true);
+        this.cpuWarnThreshold = parsePositiveInt(process.env.QUEUE_DB_CPU_WARN, 80, 40, 99);
+        this.cpuCriticalThreshold = parsePositiveInt(process.env.QUEUE_DB_CPU_CRITICAL, 90, 50, 100);
+        this.warningDelayMs = parsePositiveInt(process.env.QUEUE_WARNING_DELAY_MS, 3000, 0, 120000);
+        this.criticalRetryAfterSeconds = parsePositiveInt(process.env.QUEUE_CRITICAL_RETRY_AFTER_SECONDS, 30, 5, 300);
+        this.pressureMonitorIntervalMs = parsePositiveInt(process.env.QUEUE_PRESSURE_CHECK_INTERVAL_MS, 5000, 1000, 60000);
+        this.queuePausedForPressure = false;
+        this.pressureMonitorInterval = null;
         this.fileAccessMap = new Map();
         this.fileAccessTtlMs = 24 * 60 * 60 * 1000;
         this.maxExportSize = 50 * 1024 * 1024; // 50MB
@@ -61,6 +120,16 @@ class DownloadQueue {
             guru: 2,     // Medium priority
             siswa: 3     // Lowest priority
         };
+
+        if (this.cpuWarnThreshold >= this.cpuCriticalThreshold) {
+            this.cpuWarnThreshold = Math.max(40, this.cpuCriticalThreshold - 5);
+        }
+    }
+
+    getSafeDefaultConcurrency(connectionLimit, fallback, hardCap) {
+        const scaled = Math.floor(connectionLimit * 0.35);
+        const safe = Number.isFinite(scaled) && scaled > 0 ? scaled : fallback;
+        return Math.max(2, Math.min(hardCap, safe));
     }
 
     /**
@@ -84,6 +153,9 @@ class DownloadQueue {
             
             // Start queue processors
             await this.startQueueProcessors();
+
+            // Start adaptive pressure monitor
+            await this.startPressureMonitor();
             
             // Start file cleanup scheduler
             await this.startFileCleanupScheduler();
@@ -150,14 +222,32 @@ class DownloadQueue {
     async initializeQueues() {
         logger.info('Initializing Bull queues');
         
-        const redisOpts = {
-            redis: this.redisConfig
+        const sharedQueueOptions = {
+            redis: this.redisConfig,
+            limiter: {
+                max: this.globalRateMax,
+                duration: this.globalRateDurationMs
+            }
         };
 
-        this.queues.excelDownload = new Queue('excel-download', redisOpts);
-        this.queues.reportGeneration = new Queue('report-generation', redisOpts);
+        this.queues.excelDownload = new Queue('excel-download', sharedQueueOptions);
+        this.queues.reportGeneration = new Queue('report-generation', {
+            ...sharedQueueOptions,
+            limiter: {
+                max: Math.max(1, Math.floor(this.globalRateMax / 2)),
+                duration: this.globalRateDurationMs
+            }
+        });
         
-        logger.info('Queues initialized');
+        logger.info('Queues initialized', {
+            exportConcurrency: this.maxConcurrentDownloads,
+            reportConcurrency: this.reportWorkerConcurrency,
+            maxQueueDepth: this.queueMaxDepth,
+            limiter: {
+                max: this.globalRateMax,
+                duration: this.globalRateDurationMs
+            }
+        });
     }
 
     /**
@@ -181,11 +271,27 @@ class DownloadQueue {
             }
         });
 
-        this.queues.reportGeneration.process(5, async (job) => {
+        this.queues.reportGeneration.process(this.reportWorkerConcurrency, async (job) => {
              const { type } = job.data;
              if (type === 'semester-report') {
                  return this.processSemesterReportGeneration(job);
              }
+        });
+
+        this.queues.excelDownload.on('completed', (job) => {
+            logger.info('Download job completed', { jobId: job.id, type: job?.data?.type });
+        });
+
+        this.queues.excelDownload.on('failed', (job, err) => {
+            logger.error('Download job failed', {
+                jobId: job?.id,
+                type: job?.data?.type,
+                error: err.message
+            });
+        });
+
+        this.queues.excelDownload.on('stalled', (job) => {
+            logger.warn('Download job stalled', { jobId: job?.id, type: job?.data?.type });
         });
         
         // Report generation queue events
@@ -198,6 +304,147 @@ class DownloadQueue {
         });
         
         logger.info('Queue processors started');
+    }
+
+    async startPressureMonitor() {
+        if (!this.adaptiveThrottleEnabled) {
+            logger.info('Adaptive queue throttle disabled');
+            return;
+        }
+
+        const monitorPressure = async () => {
+            try {
+                const pressureState = await this.getQueuePressureState();
+                await this.applyAdaptiveThrottle(pressureState);
+            } catch (error) {
+                logger.warn('Adaptive pressure monitor check failed', { error: error.message });
+            }
+        };
+
+        await monitorPressure();
+        this.pressureMonitorInterval = setInterval(monitorPressure, this.pressureMonitorIntervalMs);
+
+        logger.info('Adaptive pressure monitor started', {
+            intervalMs: this.pressureMonitorIntervalMs,
+            cpuWarnThreshold: this.cpuWarnThreshold,
+            cpuCriticalThreshold: this.cpuCriticalThreshold
+        });
+    }
+
+    getCurrentSystemCpuUsage() {
+        const monitor = globalThis.systemMonitor;
+        if (!monitor || typeof monitor.getMetrics !== 'function') {
+            return null;
+        }
+
+        const metrics = monitor.getMetrics();
+        const usage = Number(metrics?.system?.cpu?.usage);
+        if (!Number.isFinite(usage)) {
+            return null;
+        }
+
+        return Math.max(0, Math.min(100, usage));
+    }
+
+    getCpuPressureLevel(cpuUsage) {
+        if (!Number.isFinite(cpuUsage)) {
+            return 'unknown';
+        }
+
+        if (cpuUsage >= this.cpuCriticalThreshold) {
+            return 'critical';
+        }
+
+        if (cpuUsage >= this.cpuWarnThreshold) {
+            return 'warning';
+        }
+
+        return 'normal';
+    }
+
+    buildJobDedupKey(type, userId, filters) {
+        const normalizedFilters = normalizeForStableStringify(filters || {});
+        const fingerprintSource = JSON.stringify({ type, userId, filters: normalizedFilters });
+        const digest = createHash('sha1').update(fingerprintSource).digest('hex').slice(0, 16);
+        const bucket = Math.floor(Date.now() / this.dedupTtlMs);
+        return `excel:${type}:u${userId}:${digest}:${bucket}`;
+    }
+
+    async getQueuePressureState(existingCounts = null) {
+        const queue = this.queues.excelDownload;
+        const emptyCounts = {
+            waiting: 0,
+            active: 0,
+            delayed: 0,
+            completed: 0,
+            failed: 0,
+            paused: 0
+        };
+
+        const counts = existingCounts || (queue
+            ? await queue.getJobCounts('waiting', 'active', 'delayed', 'completed', 'failed', 'paused')
+            : emptyCounts);
+
+        const queueDepth = (counts.waiting || 0) + (counts.active || 0) + (counts.delayed || 0);
+        const queueUtilizationPercent = Number(((queueDepth / this.queueMaxDepth) * 100).toFixed(2));
+        const cpuUsage = this.getCurrentSystemCpuUsage();
+        const cpuLevel = this.getCpuPressureLevel(cpuUsage);
+
+        let admissionOpen = true;
+        let reason = null;
+        let retryAfterSeconds = null;
+
+        if (queueDepth >= this.queueMaxDepth) {
+            admissionOpen = false;
+            reason = `Queue sedang penuh (${queueDepth}/${this.queueMaxDepth})`;
+            retryAfterSeconds = 15;
+        }
+
+        if (this.adaptiveThrottleEnabled && cpuLevel === 'critical') {
+            admissionOpen = false;
+            reason = `CPU tinggi (${cpuUsage.toFixed(1)}%), queue ditahan sementara`;
+            retryAfterSeconds = this.criticalRetryAfterSeconds;
+        }
+
+        return {
+            queueDepth,
+            queueUtilizationPercent,
+            cpuUsage,
+            cpuLevel,
+            admissionOpen,
+            reason,
+            retryAfterSeconds,
+            queuePausedForPressure: this.queuePausedForPressure
+        };
+    }
+
+    async applyAdaptiveThrottle(pressureState = null) {
+        if (!this.adaptiveThrottleEnabled || !this.queues.excelDownload) {
+            return;
+        }
+
+        const state = pressureState || await this.getQueuePressureState();
+        const queue = this.queues.excelDownload;
+        const canResumeAt = Math.max(0, this.cpuWarnThreshold - 5);
+
+        if (state.cpuLevel === 'critical' && !this.queuePausedForPressure) {
+            await queue.pause();
+            this.queuePausedForPressure = true;
+            logger.warn('Queue paused due to high CPU pressure', {
+                cpuUsage: state.cpuUsage,
+                cpuCriticalThreshold: this.cpuCriticalThreshold
+            });
+            return;
+        }
+
+        if (this.queuePausedForPressure && Number.isFinite(state.cpuUsage) && state.cpuUsage < canResumeAt) {
+            await queue.resume();
+            this.queuePausedForPressure = false;
+            logger.info('Queue resumed after CPU pressure recovered', {
+                cpuUsage: state.cpuUsage,
+                resumeThreshold: canResumeAt
+            });
+        }
     }
 
     /**
@@ -217,15 +464,53 @@ class DownloadQueue {
         if (!Number.isFinite(normalizedUserId)) {
             throw new TypeError('Valid userId is required');
         }
+
+        await this.applyAdaptiveThrottle();
+        const pressureState = await this.getQueuePressureState();
+        if (!pressureState.admissionOpen) {
+            throw new QueueBackpressureError(
+                pressureState.reason || 'Queue sementara tidak menerima job baru',
+                pressureState.retryAfterSeconds,
+                pressureState
+            );
+        }
+
+        const dedupKey = this.buildJobDedupKey(type, normalizedUserId, jobData.filters);
+        const existingJob = await this.queues.excelDownload.getJob(dedupKey);
+        if (existingJob) {
+            const existingState = await existingJob.getState();
+            if (!['completed', 'failed'].includes(existingState)) {
+                return {
+                    jobId: existingJob.id,
+                    status: existingState,
+                    deduplicated: true,
+                    deduplicationKey: dedupKey,
+                    estimatedTime: this.estimateProcessingTime(jobPriority),
+                    queuePosition: await this.getQueuePosition(existingJob.id)
+                };
+            }
+
+            try {
+                await existingJob.remove();
+            } catch (removeError) {
+                logger.debug('Failed to remove old deduplicated job', {
+                    dedupKey,
+                    error: removeError.message
+                });
+            }
+        }
+
+        const queueDelayMs = pressureState.cpuLevel === 'warning' ? this.warningDelayMs : 0;
         
         const jobOptions = {
             priority: jobPriority,
-            delay: 0,
-            attempts: 3,
+            delay: queueDelayMs,
+            attempts: this.maxJobAttempts,
             backoff: {
                 type: 'exponential',
-                delay: 2000
-            }
+                delay: this.jobBackoffDelayMs
+            },
+            jobId: dedupKey
         };
 
         try {
@@ -233,16 +518,34 @@ class DownloadQueue {
                 ...jobData,
                 timestamp: new Date().toISOString(),
                 userId: normalizedUserId,
-                userRole
+                userRole,
+                dedupKey
             }, jobOptions);
 
-            logger.info('Added download job', { type, jobId: job.id, priority: jobPriority });
+            logger.info('Added download job', {
+                type,
+                jobId: job.id,
+                priority: jobPriority,
+                queueDelayMs,
+                queueDepth: pressureState.queueDepth,
+                cpuUsage: pressureState.cpuUsage
+            });
             
             return {
                 jobId: job.id,
                 status: 'queued',
+                deduplicated: false,
+                deduplicationKey: dedupKey,
                 estimatedTime: this.estimateProcessingTime(jobPriority),
-                queuePosition: await this.getQueuePosition(job.id)
+                queuePosition: await this.getQueuePosition(job.id),
+                throttled: queueDelayMs > 0,
+                throttledDelayMs: queueDelayMs,
+                pressure: {
+                    queueDepth: pressureState.queueDepth,
+                    queueUtilizationPercent: pressureState.queueUtilizationPercent,
+                    cpuUsage: pressureState.cpuUsage,
+                    cpuLevel: pressureState.cpuLevel
+                }
             };
 
         } catch (error) {
@@ -734,37 +1037,66 @@ class DownloadQueue {
         try {
             const excelQueue = this.queues.excelDownload;
             const reportQueue = this.queues.reportGeneration;
-            
-            const [excelWaiting, excelActive, excelCompleted, excelFailed] = await Promise.all([
-                excelQueue.getWaiting(),
-                excelQueue.getActive(),
-                excelQueue.getCompleted(),
-                excelQueue.getFailed()
+
+            const [excelCounts, reportCounts] = await Promise.all([
+                excelQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed', 'paused'),
+                reportQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed', 'paused')
             ]);
-            
-            const [reportWaiting, reportActive, reportCompleted, reportFailed] = await Promise.all([
-                reportQueue.getWaiting(),
-                reportQueue.getActive(),
-                reportQueue.getCompleted(),
-                reportQueue.getFailed()
-            ]);
+
+            const pressureState = await this.getQueuePressureState(excelCounts);
+
+            const excelWaiting = excelCounts.waiting || 0;
+            const excelActive = excelCounts.active || 0;
+            const excelCompleted = excelCounts.completed || 0;
+            const excelFailed = excelCounts.failed || 0;
+            const excelDelayed = excelCounts.delayed || 0;
+
+            const reportWaiting = reportCounts.waiting || 0;
+            const reportActive = reportCounts.active || 0;
+            const reportCompleted = reportCounts.completed || 0;
+            const reportFailed = reportCounts.failed || 0;
+            const reportDelayed = reportCounts.delayed || 0;
             
             return {
                 excelDownload: {
-                    waiting: excelWaiting.length,
-                    active: excelActive.length,
-                    completed: excelCompleted.length,
-                    failed: excelFailed.length,
-                    total: excelWaiting.length + excelActive.length + excelCompleted.length + excelFailed.length
+                    waiting: excelWaiting,
+                    active: excelActive,
+                    delayed: excelDelayed,
+                    completed: excelCompleted,
+                    failed: excelFailed,
+                    total: excelWaiting + excelActive + excelDelayed + excelCompleted + excelFailed
                 },
                 reportGeneration: {
-                    waiting: reportWaiting.length,
-                    active: reportActive.length,
-                    completed: reportCompleted.length,
-                    failed: reportFailed.length,
-                    total: reportWaiting.length + reportActive.length + reportCompleted.length + reportFailed.length
+                    waiting: reportWaiting,
+                    active: reportActive,
+                    delayed: reportDelayed,
+                    completed: reportCompleted,
+                    failed: reportFailed,
+                    total: reportWaiting + reportActive + reportDelayed + reportCompleted + reportFailed
                 },
                 maxConcurrentDownloads: this.maxConcurrentDownloads,
+                reportWorkerConcurrency: this.reportWorkerConcurrency,
+                queueMaxDepth: this.queueMaxDepth,
+                limiter: {
+                    max: this.globalRateMax,
+                    duration: this.globalRateDurationMs
+                },
+                pressure: {
+                    queueDepth: pressureState.queueDepth,
+                    queueUtilizationPercent: pressureState.queueUtilizationPercent,
+                    cpuUsage: pressureState.cpuUsage,
+                    cpuLevel: pressureState.cpuLevel,
+                    admissionOpen: pressureState.admissionOpen,
+                    reason: pressureState.reason,
+                    retryAfterSeconds: pressureState.retryAfterSeconds,
+                    queuePausedForPressure: pressureState.queuePausedForPressure
+                },
+                adaptiveThrottle: {
+                    enabled: this.adaptiveThrottleEnabled,
+                    cpuWarnThreshold: this.cpuWarnThreshold,
+                    cpuCriticalThreshold: this.cpuCriticalThreshold,
+                    warningDelayMs: this.warningDelayMs
+                },
                 redisConnected: this.redis.status === 'ready'
             };
 
@@ -794,7 +1126,8 @@ class DownloadQueue {
     async getQueuePosition(jobId) {
         try {
             const waitingJobs = await this.queues.excelDownload.getWaiting();
-            const position = waitingJobs.findIndex(job => job.id === jobId);
+            const expectedId = String(jobId);
+            const position = waitingJobs.findIndex(job => String(job.id) === expectedId);
             return position >= 0 ? position + 1 : 0;
         } catch (error) {
             logger.debug('Failed to get queue position', { error: error.message });
@@ -925,6 +1258,12 @@ class DownloadQueue {
      */
     async close() {
         try {
+            // Clear pressure monitor
+            if (this.pressureMonitorInterval) {
+                clearInterval(this.pressureMonitorInterval);
+                this.pressureMonitorInterval = null;
+            }
+
             // Clear file cleanup scheduler
             if (this.cleanupInterval) {
                 clearInterval(this.cleanupInterval);
