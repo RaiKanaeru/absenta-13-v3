@@ -17,7 +17,7 @@ import { ClipboardList, Search, ArrowLeft, Loader2, FileSpreadsheet, AlertCircle
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TeacherUserData } from "@/types/teacher";
 import { apiCall } from "./apiUtils";
-import { downloadExcelFromApi } from '@/utils/exportUtils';
+import { downloadExcelFromApi, downloadPdf } from '@/utils/exportUtils';
 
 interface RekapKetidakhadiranViewProps {
   user: TeacherUserData;
@@ -34,6 +34,7 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     (async ()=>{
@@ -126,6 +127,44 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
        });
      } finally {
       setExporting(false);
+    }
+  };
+
+  const downloadPdfReport = async () => {
+    if (!validateDateRange()) {
+      toast({
+        title: "Error",
+        description: error,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setExportingPdf(true);
+      const params = buildQueryParams();
+
+      await downloadPdf(
+        '/api/export/pdf/rekap-ketidakhadiran',
+        `rekap-ketidakhadiran-${reportType}-${dateRange.startDate}-${dateRange.endDate}.pdf`,
+        params
+      );
+
+      toast({
+        title: "Berhasil!",
+        description: "File PDF berhasil diunduh"
+      });
+    } catch (err) {
+      console.error('RekapKetidakhadiranView: Failed to export PDF', err);
+      const message = 'Gagal mengunduh file PDF';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -260,7 +299,21 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                   <ClipboardList className="w-5 h-5" />
                   Rekap Ketidakhadiran {reportType === 'bulanan' ? 'Bulanan' : 'Tahunan'}
                 </CardTitle>
-                <Button onClick={downloadExcel} variant="outline" size="sm" disabled={exporting}>
+                <div className="flex items-center gap-2">
+                  <Button onClick={downloadPdfReport} variant="outline" size="sm" disabled={exportingPdf} className="text-red-600 border-red-200 hover:bg-red-50">
+                    {exportingPdf ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        PDF...
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardList className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </>
+                    )}
+                  </Button>
+                  <Button onClick={downloadExcel} variant="outline" size="sm" disabled={exporting}>
                   {exporting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -272,7 +325,8 @@ export const RekapKetidakhadiranView = ({ user, onBack }: RekapKetidakhadiranVie
                       Export Excel
                     </>
                   )}
-                </Button>
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

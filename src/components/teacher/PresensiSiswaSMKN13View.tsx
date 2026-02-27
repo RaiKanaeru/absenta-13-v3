@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { formatDateWIB } from "@/lib/time-utils";
-import { downloadExcelFromApi } from "@/utils/exportUtils";
+import { downloadExcelFromApi, downloadPdf } from "@/utils/exportUtils";
 import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { FileText, Search, ArrowLeft, FileSpreadsheet, Loader2, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { getErrorMessage } from "@/utils/apiClient";
@@ -30,6 +30,31 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+interface PresensiSmkn13Row {
+  tanggal: string;
+  hari: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  mata_pelajaran: string;
+  nama_kelas: string;
+  nama_guru: string;
+  total_siswa: number;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+  dispen: number;
+  terlambat_count: number;
+}
+
+interface PresensiSmkn13ApiResponse {
+  data: PresensiSmkn13Row[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 interface PresensiSiswaSMKN13ViewProps {
   user: TeacherUserData;
   onBack?: () => void;
@@ -39,10 +64,11 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [kelasOptions, setKelasOptions] = useState<{id:number, nama_kelas:string}[]>([]);
   const [selectedKelas, setSelectedKelas] = useState('');
-  const [reportData, setReportData] = useState<Record<string, string | number>[]>([]);
+  const [reportData, setReportData] = useState<PresensiSmkn13Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -70,7 +96,7 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       });
       if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
       
-      const res = await apiCall(`/api/guru/presensi-siswa-smkn13?${params.toString()}`);
+      const res = await apiCall<PresensiSmkn13ApiResponse | PresensiSmkn13Row[]>(`/api/guru/presensi-siswa-smkn13?${params.toString()}`);
       
       // Handle paginated response { data, total, page, limit, totalPages }
       if (res && !Array.isArray(res) && res.data) {
@@ -132,6 +158,41 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      const message = 'Mohon pilih periode mulai dan akhir';
+      setError(message);
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const params = new URLSearchParams({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    });
+    if (selectedKelas && selectedKelas !== 'all') params.append('kelas_id', selectedKelas);
+
+    try {
+      setExportingPdf(true);
+      await downloadPdf(
+        '/api/export/pdf/presensi-siswa-smkn13',
+        `presensi-siswa-smkn13-${dateRange.startDate}-${dateRange.endDate}.pdf`,
+        params
+      );
+      toast({ title: "Berhasil", description: "File PDF berhasil diunduh" });
+    } catch (error) {
+      const message = getErrorMessage(error) || 'Gagal mengunduh file PDF';
+      setError(message);
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -228,24 +289,45 @@ export const PresensiSiswaSMKN13View = ({ user, onBack }: PresensiSiswaSMKN13Vie
                     </Badge>
                   )}
                 </CardTitle>
-                <Button
-                  onClick={handleDownloadExcel}
-                  disabled={exporting}
-                  variant="outline"
-                  size="sm"
-                >
-                  {exporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Mengekspor...
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet className="w-4 h-4 mr-2" />
-                      Export Excel
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleDownloadPdf}
+                    disabled={exportingPdf}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    {exportingPdf ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        PDF...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleDownloadExcel}
+                    disabled={exporting}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {exporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Mengekspor...
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Export Excel
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

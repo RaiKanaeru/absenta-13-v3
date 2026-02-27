@@ -450,6 +450,181 @@ export const exportPresensiSiswaPdf = wrapPdfExport(async (req, res) => {
 }, 'Presensi Siswa PDF');
 
 // ================================================
+// REKAP KETIDAKHADIRAN (PERIODIC) PDF
+// GET /api/export/pdf/rekap-ketidakhadiran
+// ================================================
+
+/**
+ * Export rekap ketidakhadiran periodik (guru/admin) as PDF.
+ * @param {import('express').Request} req - Express request (query: startDate, endDate, kelas_id, reportType)
+ * @param {import('express').Response} res - Express response
+ */
+export const exportRekapKetidakhadiranPdf = wrapPdfExport(async (req, res) => {
+    const { startDate, endDate, kelas_id, reportType = 'bulanan' } = req.query;
+    const guruId = req.user?.role === 'admin' ? null : req.user?.guru_id;
+
+    if (req.user?.role !== 'admin' && !guruId) {
+        return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.');
+    }
+
+    if (!startDate || !endDate) {
+        return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi');
+    }
+
+    const rows = await ExportService.getRekapKetidakhadiran(
+        startDate,
+        endDate,
+        guruId,
+        kelas_id,
+        reportType
+    );
+
+    const reportData = rows.map((row, index) => ({
+        no: index + 1,
+        periode: row.periode,
+        kelas: row.nama_kelas,
+        total_siswa: row.total_siswa,
+        hadir: row.hadir,
+        izin: row.izin,
+        sakit: row.sakit,
+        alpa: row.alpa,
+        dispen: row.dispen,
+        total_absen: (Number(row.izin) || 0) + (Number(row.sakit) || 0) + (Number(row.alpa) || 0) + (Number(row.dispen) || 0)
+    }));
+
+    const columns = [
+        { key: 'no', label: 'No', width: 5, align: 'center', format: 'number' },
+        { key: 'periode', label: 'Periode', width: 12, align: 'center' },
+        { key: 'kelas', label: 'Kelas', width: 18, align: 'left' },
+        { key: 'total_siswa', label: 'Siswa', width: 8, align: 'center', format: 'number' },
+        { key: 'hadir', label: 'Hadir', width: 8, align: 'center', format: 'number' },
+        { key: 'izin', label: 'Izin', width: 8, align: 'center', format: 'number' },
+        { key: 'sakit', label: 'Sakit', width: 8, align: 'center', format: 'number' },
+        { key: 'alpa', label: 'Alpa', width: 8, align: 'center', format: 'number' },
+        { key: 'dispen', label: 'Dispen', width: 8, align: 'center', format: 'number' },
+        { key: 'total_absen', label: 'Total Absen', width: 12, align: 'center', format: 'number' }
+    ];
+
+    const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.REKAP_KETIDAKHADIRAN_SISWA });
+    const reportPeriod = `${startDate} - ${endDate}`;
+    const reportTitle = reportType === 'tahunan'
+        ? 'REKAP KETIDAKHADIRAN TAHUNAN'
+        : 'REKAP KETIDAKHADIRAN BULANAN';
+
+    const buffer = await buildPdf({
+        title: reportTitle,
+        subtitle: 'Ringkasan ketidakhadiran per kelas',
+        reportPeriod,
+        showLetterhead: true,
+        letterhead,
+        columns,
+        rows: reportData,
+        orientation: 'landscape'
+    });
+
+    const filename = generatePdfFilename(`Rekap_Ketidakhadiran_${reportType}`, startDate, endDate);
+    streamPdfResponse(res, buffer, filename);
+
+    logger.info('Rekap ketidakhadiran periodik PDF exported', {
+        startDate,
+        endDate,
+        kelas_id,
+        reportType,
+        rowCount: reportData.length,
+        role: req.user?.role
+    });
+}, 'Rekap Ketidakhadiran Periodik PDF');
+
+// ================================================
+// PRESENSI SISWA SMKN13 PERIODIC PDF
+// GET /api/export/pdf/presensi-siswa-smkn13
+// ================================================
+
+/**
+ * Export Presensi Siswa SMKN13 periodik (guru/admin) as PDF.
+ * @param {import('express').Request} req - Express request (query: startDate, endDate, kelas_id)
+ * @param {import('express').Response} res - Express response
+ */
+export const exportPresensiSiswaSmkn13Pdf = wrapPdfExport(async (req, res) => {
+    const { startDate, endDate, kelas_id } = req.query;
+    const guruId = req.user?.role === 'admin' ? null : req.user?.guru_id;
+
+    if (req.user?.role !== 'admin' && !guruId) {
+        return sendValidationError(res, 'Data guru tidak ditemukan. Silakan login ulang.');
+    }
+
+    if (!startDate || !endDate) {
+        return sendValidationError(res, 'Tanggal mulai dan akhir harus diisi');
+    }
+
+    const rows = await ExportService.getPresensiSiswaSmkn13(
+        startDate,
+        endDate,
+        guruId,
+        kelas_id,
+        null,
+        null
+    );
+
+    const reportData = rows.map((row, index) => ({
+        no: index + 1,
+        tanggal: row.tanggal,
+        hari: row.hari,
+        jam: `${row.jam_mulai} - ${row.jam_selesai}`,
+        mapel: row.mata_pelajaran,
+        kelas: row.nama_kelas,
+        guru: row.nama_guru,
+        total_siswa: row.total_siswa,
+        hadir: row.hadir,
+        izin: row.izin,
+        sakit: row.sakit,
+        alpa: row.alpa,
+        dispen: row.dispen,
+        terlambat: row.terlambat_count
+    }));
+
+    const columns = [
+        { key: 'no', label: 'No', width: 5, align: 'center', format: 'number' },
+        { key: 'tanggal', label: 'Tanggal', width: 11, align: 'center' },
+        { key: 'hari', label: 'Hari', width: 10, align: 'center' },
+        { key: 'jam', label: 'Jam', width: 14, align: 'center' },
+        { key: 'mapel', label: 'Mapel', width: 18, align: 'left' },
+        { key: 'kelas', label: 'Kelas', width: 12, align: 'center' },
+        { key: 'guru', label: 'Guru', width: 18, align: 'left' },
+        { key: 'total_siswa', label: 'Siswa', width: 8, align: 'center', format: 'number' },
+        { key: 'hadir', label: 'H', width: 6, align: 'center', format: 'number' },
+        { key: 'izin', label: 'I', width: 6, align: 'center', format: 'number' },
+        { key: 'sakit', label: 'S', width: 6, align: 'center', format: 'number' },
+        { key: 'alpa', label: 'A', width: 6, align: 'center', format: 'number' },
+        { key: 'dispen', label: 'D', width: 6, align: 'center', format: 'number' },
+        { key: 'terlambat', label: 'Terlambat', width: 10, align: 'center', format: 'number' }
+    ];
+
+    const letterhead = await getLetterhead({ reportKey: REPORT_KEYS.PRESENSI_SISWA });
+    const buffer = await buildPdf({
+        title: 'PRESENSI SISWA SMKN 13',
+        subtitle: 'Format periodik berdasarkan jadwal',
+        reportPeriod: `${startDate} - ${endDate}`,
+        showLetterhead: true,
+        letterhead,
+        columns,
+        rows: reportData,
+        orientation: 'landscape'
+    });
+
+    const filename = generatePdfFilename('Presensi_Siswa_SMKN13', startDate, endDate);
+    streamPdfResponse(res, buffer, filename);
+
+    logger.info('Presensi siswa SMKN13 periodik PDF exported', {
+        startDate,
+        endDate,
+        kelas_id,
+        rowCount: reportData.length,
+        role: req.user?.role
+    });
+}, 'Presensi Siswa SMKN13 Periodik PDF');
+
+// ================================================
 // LAPORAN KEHADIRAN SISWA (GURU VIEW) PDF
 // GET /api/export/pdf/laporan-kehadiran-siswa
 // ================================================

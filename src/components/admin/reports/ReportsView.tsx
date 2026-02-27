@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from '@/hooks/use-toast';
-import { downloadExcelFromApi } from '@/utils/exportUtils';
+import { downloadExcelFromApi, downloadPdf } from '@/utils/exportUtils';
 import BandingAbsenReportView from './BandingAbsenReportView';
 import { TeacherAttendanceSummaryView } from './TeacherAttendanceSummaryView';
 import { LaporanKehadiranSiswaView } from '@/components/teacher/LaporanKehadiranSiswaView';
@@ -45,6 +45,7 @@ export const ReportsView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
   // BUT for 'student_export', we should switch to `RekapKetidakhadiranView` as planned.
 
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [exportError, setExportError] = useState('');
   const [selectedYearTeacher, setSelectedYearTeacher] = useState<string>(new Date().getFullYear().toString());
 
@@ -74,6 +75,34 @@ export const ReportsView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
       toast({ title: "Export Gagal", description: message, variant: "destructive" });
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportTeacherRecapPdf = async () => {
+    if (!selectedYearTeacher) {
+      toast({ title: "Data tidak lengkap", description: "Pilih tahun ajaran terlebih dahulu", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setExportingPdf(true);
+      setExportError('');
+      const params = new URLSearchParams({ tahun: selectedYearTeacher });
+      await downloadPdf(
+        '/api/export/pdf/rekap-ketidakhadiran-guru',
+        `REKAP_KETIDAKHADIRAN_GURU_${selectedYearTeacher}.pdf`,
+        params
+      );
+      toast({ title: "Export Berhasil", description: "File PDF Guru sedang diunduh...", variant: "default" });
+    } catch (error: unknown) {
+      let message = "Unknown error";
+      if (error instanceof Error) message = error.message;
+      else if (typeof error === 'object' && error !== null) message = JSON.stringify(error);
+      else if (typeof error === 'string' || typeof error === 'number' || typeof error === 'boolean') message = String(error);
+      setExportError(message);
+      toast({ title: "Export Gagal", description: message, variant: "destructive" });
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -253,10 +282,13 @@ export const ReportsView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                   </Alert>
                 )}
 
-                <div className="flex justify-end pt-4">
-                <Button onClick={handleExportTeacherRecap} disabled={exporting} variant="outline" size="sm">
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button onClick={handleExportTeacherRecapPdf} disabled={exportingPdf} variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
+                    {exportingPdf ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses PDF...</> : <><FileText className="w-4 h-4 mr-2" /> Export PDF</>}
+                  </Button>
+                  <Button onClick={handleExportTeacherRecap} disabled={exporting} variant="outline" size="sm">
                     {exporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</> : <><FileSpreadsheet className="w-4 h-4 mr-2" /> Export Excel</>}
-                </Button>
+                  </Button>
                 </div>
             </CardContent>
             </Card>

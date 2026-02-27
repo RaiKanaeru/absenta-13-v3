@@ -11,6 +11,7 @@ import {
 } from '../controllers/guruReportsController.js';
 import { getBandingAbsenReport } from '../controllers/bandingAbsenController.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { exportPressureGuard } from '../middleware/exportPressureGuard.js';
 
 const router = express.Router();
 
@@ -48,6 +49,6 @@ router.get('/banding-absen-history', authenticateToken, requireRole(['guru', 'ad
 import { requestExcelDownload, getDownloadStatus, exportLaporanKehadiranSiswa } from '../controllers/exportController.js';
 router.post('/request-excel-download', authenticateToken, requireRole(['guru', 'admin']), requestExcelDownload);
 router.get('/download-status/:jobId', authenticateToken, requireRole(['guru', 'admin']), getDownloadStatus);
-router.get('/download-laporan-kehadiran-siswa', authenticateToken, requireRole(['guru', 'admin']), exportLaporanKehadiranSiswa);
+router.get('/download-laporan-kehadiran-siswa', authenticateToken, requireRole(['guru', 'admin']), exportPressureGuard, exportLaporanKehadiranSiswa);
 
 export default router;
