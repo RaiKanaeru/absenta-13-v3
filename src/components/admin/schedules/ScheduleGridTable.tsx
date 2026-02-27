@@ -43,6 +43,7 @@ import {
   Copy,
   ClipboardPaste,
   MoreHorizontal,
+  MapPin,
 } from 'lucide-react';
 import { apiCall } from '@/utils/apiClient';
 import { Teacher, Subject, Room, Kelas } from '@/types/dashboard';
@@ -57,6 +58,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import {
   DropdownMenu,
@@ -182,8 +193,8 @@ function DraggableItem({
   isDisabled,
 }: Readonly<{
   id: string;
-  type: 'guru' | 'mapel';
-  data: Teacher | Subject;
+  type: 'guru' | 'mapel' | 'ruang';
+  data: Teacher | Subject | Room;
   isDisabled?: boolean;
 }>) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -194,10 +205,17 @@ function DraggableItem({
 
   const style = { opacity: isDragging ? 0.3 : 1 };
   const isGuru = type === 'guru';
-  const displayName = isTeacherItem(data) ? data.nama : data.nama_mapel;
-  const displayCode = isTeacherItem(data)
-    ? data.nip || '-'
-    : (data as Subject).kode_mapel || '-';
+  const isRuang = type === 'ruang';
+  const displayName = isRuang
+    ? (data as Room).nama_ruang || (data as Room).kode_ruang
+    : isGuru ? (data as Teacher).nama : (data as Subject).nama_mapel;
+  const displayCode = isRuang
+    ? (data as Room).kode_ruang || '-'
+    : isGuru ? (data as Teacher).nip || '-' : (data as Subject).kode_mapel || '-';
+
+
+
+
 
   return (
     <button
@@ -216,6 +234,8 @@ function DraggableItem({
       <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       {isGuru ? (
         <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+      ) : isRuang ? (
+        <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
       ) : (
         <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
       )}
@@ -331,9 +351,23 @@ export function ScheduleGridTable({
   // Drag state
   const [activeDragItem, setActiveDragItem] = useState<{
     id: string;
-    type: 'guru' | 'mapel' | 'cell';
-    item: Teacher | Subject | ScheduleCell;
+    type: 'guru' | 'mapel' | 'ruang' | 'cell';
+    item: Teacher | Subject | Room | ScheduleCell;
     source?: { kelas_id: number; hari: string; jam_ke: number };
+  } | null>(null);
+
+  // Mismatch warning state (confirmation dialog)
+  const [mismatchWarning, setMismatchWarning] = useState<{
+    guruName: string;
+    guruMapel: string;
+    targetMapel: string;
+    pendingDrop: {
+      dragItem: Teacher | Subject | Room;
+      dragType: 'guru' | 'mapel' | 'ruang';
+      targetKelasId: number;
+      targetHari: string;
+      targetJamKe: number;
+    };
   } | null>(null);
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -391,6 +425,18 @@ export function ScheduleGridTable({
       )
       .slice(0, 30);
   }, [subjects, searchTerm]);
+
+  const filteredRooms = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return rooms
+      .filter(
+        (r) =>
+          (r.nama_ruang || '').toLowerCase().includes(term) ||
+          (r.kode_ruang || '').toLowerCase().includes(term)
+      )
+      .slice(0, 30);
+  }, [rooms, searchTerm]);
+
 
   // ── Sensors ────────────────────────────────────────────────────────────────
   const sensors = useSensors(
@@ -458,10 +504,31 @@ export function ScheduleGridTable({
   );
 
 
+
+  const checkTeacherSubjectMatch = useCallback(
+    (teacher: Teacher, mapelId: number | undefined, mapelName: string | undefined): boolean => {
+      const teacherMapelStr = (teacher.mata_pelajaran || teacher.nama_mapel || '').toLowerCase().trim();
+      const targetMapelStr = (mapelName || '').toLowerCase().trim();
+
+      if (teacher.mapel_id && mapelId && teacher.mapel_id === mapelId) {
+        return true;
+      }
+
+      if (teacherMapelStr && targetMapelStr) {
+        if (teacherMapelStr === targetMapelStr) return true;
+        if (teacherMapelStr.includes(targetMapelStr) || targetMapelStr.includes(teacherMapelStr)) return true;
+        return false;
+      }
+
+      return true;
+    },
+    []
+  );
   // ── Drag helpers ───────────────────────────────────────────────────────────
   const extractDragItemId = useCallback(
-    (dragItem: Teacher | Subject, dragType: 'guru' | 'mapel'): number | undefined => {
+    (dragItem: Teacher | Subject | Room, dragType: 'guru' | 'mapel' | 'ruang'): number | undefined => {
       if (dragType === 'guru') return getTeacherId(dragItem as Teacher);
+      if (dragType === 'ruang') return (dragItem as Room).id;
       return getSubjectId(dragItem as Subject);
     },
     []
@@ -470,8 +537,8 @@ export function ScheduleGridTable({
   const updateScheduleCellWithDragItem = useCallback(
     (
       existingCell: ScheduleCell,
-      dragItem: Teacher | Subject,
-      dragType: 'guru' | 'mapel'
+      dragItem: Teacher | Subject | Room,
+      dragType: 'guru' | 'mapel' | 'ruang'
     ): ScheduleCell => {
       const updatedCell = { ...existingCell };
       if (dragType === 'guru') {
@@ -480,6 +547,11 @@ export function ScheduleGridTable({
         updatedCell.guru_detail = [
           { guru_id: getTeacherId(g) ?? 0, nama_guru: g.nama, kode_guru: g.nip || '' },
         ];
+      } else if (dragType === 'ruang') {
+        const r = dragItem as Room;
+        updatedCell.ruang = r.kode_ruang || r.nama_ruang || '';
+        updatedCell.ruang_id = r.id;
+        updatedCell.nama_ruang = r.nama_ruang;
       } else {
         const m = dragItem as Subject;
         updatedCell.mapel = m.kode_mapel || m.nama_mapel;
@@ -492,12 +564,80 @@ export function ScheduleGridTable({
     []
   );
 
+  // ── Apply palette drop (shared by direct drop and mismatch confirmation) ──
+  const applyPaletteDrop = useCallback(
+    (
+      dragItem: Teacher | Subject | Room,
+      dragType: 'guru' | 'mapel' | 'ruang',
+      targetKelasId: number,
+      targetHari: string,
+      targetJamKe: number
+    ) => {
+      const dragItemId = extractDragItemId(dragItem, dragType);
+      const change: PendingChange = {
+        kelas_id: targetKelasId,
+        hari: targetHari,
+        jam_ke: targetJamKe,
+        [dragType === 'guru' ? 'guru_id' : dragType === 'ruang' ? 'ruang_id' : 'mapel_id']: dragItemId ?? null,
+      };
+
+      setPendingChanges((prev) => mergePendingChange(prev, change));
+
+      setMatrixData((prev) => {
+        if (!prev) return null;
+        const newClasses = prev.classes.map((cls) => {
+          if (cls.kelas_id === targetKelasId) {
+            const newSchedule = { ...cls.schedule };
+            if (!newSchedule[targetHari]) newSchedule[targetHari] = {};
+            const existingCell = newSchedule[targetHari][targetJamKe] || {
+              id: null,
+              mapel: '',
+              mapel_id: 0,
+              ruang: '',
+              ruang_id: 0,
+              guru: [],
+              guru_detail: [],
+              color: '#fff',
+              jenis: 'pelajaran',
+            };
+            newSchedule[targetHari][targetJamKe] = updateScheduleCellWithDragItem(
+              existingCell,
+              dragItem,
+              dragType
+            );
+            return { ...cls, schedule: newSchedule };
+          }
+          return cls;
+        });
+        return { ...prev, classes: newClasses };
+      });
+
+      let itemLabel = '';
+      if (dragType === 'guru') itemLabel = (dragItem as Teacher).nama;
+      else if (dragType === 'ruang') itemLabel = (dragItem as Room).nama_ruang || (dragItem as Room).kode_ruang || '';
+      else itemLabel = (dragItem as Subject).nama_mapel;
+      toast({
+        title: 'Jadwal Diupdate (Draft)',
+        description: `${itemLabel} → ${targetHari} Jam ${targetJamKe}. Klik Simpan untuk permanen.`,
+      });
+    },
+    [extractDragItemId, updateScheduleCellWithDragItem]
+  );
+
+  // ── Mismatch confirmation handler ─────────────────────────────────────────
+  const handleMismatchConfirm = useCallback(() => {
+    if (!mismatchWarning) return;
+    const { dragItem, dragType, targetKelasId, targetHari, targetJamKe } = mismatchWarning.pendingDrop;
+    applyPaletteDrop(dragItem, dragType, targetKelasId, targetHari, targetJamKe);
+    setMismatchWarning(null);
+  }, [mismatchWarning, applyPaletteDrop]);
+
   // ── Drag handlers ──────────────────────────────────────────────────────────
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const data = active.data.current as {
-      type: 'guru' | 'mapel' | 'cell';
-      item: Teacher | Subject | ScheduleCell;
+      type: 'guru' | 'mapel' | 'ruang' | 'cell';
+      item: Teacher | Subject | Room | ScheduleCell;
       source?: { kelas_id: number; hari: string; jam_ke: number };
     };
     setActiveDragItem({
@@ -521,8 +661,8 @@ export function ScheduleGridTable({
       const targetJamKe = Number.parseInt(parts[2]);
 
       const dragData = active.data.current as {
-        type: 'guru' | 'mapel' | 'cell';
-        item: Teacher | Subject | ScheduleCell;
+        type: 'guru' | 'mapel' | 'ruang' | 'cell';
+        item: Teacher | Subject | Room | ScheduleCell;
         source?: { kelas_id: number; hari: string; jam_ke: number };
       };
 
@@ -673,9 +813,10 @@ export function ScheduleGridTable({
       }
 
       // ─── Palette drag (existing logic) ──────────────────────────────────────────────
-      const dragType = dragData.type as 'guru' | 'mapel';
-      const dragItem = dragData.item as Teacher | Subject;
+      const dragType = dragData.type as 'guru' | 'mapel' | 'ruang';
+      const dragItem = dragData.item as Teacher | Subject | Room;
 
+      // Conflict checks (teacher time conflict, room conflict) — warning only
       if (dragType === 'guru') {
         const currentTeacher = dragItem as Teacher;
         const guruId = getTeacherId(currentTeacher) ?? 0;
@@ -690,52 +831,73 @@ export function ScheduleGridTable({
         }
       }
 
-      const dragItemId = extractDragItemId(dragItem, dragType);
-      const change: PendingChange = {
-        kelas_id: targetKelasId,
-        hari: targetHari,
-        jam_ke: targetJamKe,
-        [dragType === 'guru' ? 'guru_id' : 'mapel_id']: dragItemId ?? null,
-      };
+      if (dragType === 'ruang') {
+        const currentRoom = dragItem as Room;
+        const roomConflict = checkRoomConflict(currentRoom.id, targetHari, targetJamKe, targetKelasId);
+        if (roomConflict) {
+          toast({
+            title: 'Potensi Bentrok Ruang',
+            description: `Ruang ${currentRoom.nama_ruang || currentRoom.kode_ruang} sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
+            variant: 'destructive',
+            duration: 5000,
+          });
+        }
+      }
 
-      setPendingChanges((prev) => mergePendingChange(prev, change));
+      // ─── Teacher-Subject mismatch check → show confirmation dialog ──────────
+      let hasMismatch = false;
+      let mismatchGuruName = '';
+      let mismatchGuruMapel = '';
+      let mismatchTargetMapel = '';
 
-      setMatrixData((prev) => {
-        if (!prev) return null;
-        const newClasses = prev.classes.map((cls) => {
-          if (cls.kelas_id === targetKelasId) {
-            const newSchedule = { ...cls.schedule };
-            if (!newSchedule[targetHari]) newSchedule[targetHari] = {};
-            const existingCell = newSchedule[targetHari][targetJamKe] || {
-              id: null,
-              mapel: '',
-              mapel_id: 0,
-              ruang: '',
-              ruang_id: 0,
-              guru: [],
-              guru_detail: [],
-              color: '#fff',
-              jenis: 'pelajaran',
-            };
-            newSchedule[targetHari][targetJamKe] = updateScheduleCellWithDragItem(
-              existingCell,
-              dragItem,
-              dragType
-            );
-            return { ...cls, schedule: newSchedule };
+      if (dragType === 'guru') {
+        const currentTeacher = dragItem as Teacher;
+        const tgtClass = matrixData.classes.find((c) => c.kelas_id === targetKelasId);
+        const tgtCell = tgtClass?.schedule[targetHari]?.[targetJamKe];
+        if (tgtCell?.mapel_id && tgtCell.mapel_id > 0) {
+          if (!checkTeacherSubjectMatch(currentTeacher, tgtCell.mapel_id, tgtCell.nama_mapel || tgtCell.mapel)) {
+            hasMismatch = true;
+            mismatchGuruName = currentTeacher.nama;
+            mismatchGuruMapel = currentTeacher.nama_mapel || currentTeacher.mata_pelajaran || 'Tidak diketahui';
+            mismatchTargetMapel = tgtCell.nama_mapel || tgtCell.mapel;
           }
-          return cls;
-        });
-        return { ...prev, classes: newClasses };
-      });
+        }
+      }
 
-      const itemLabel = isTeacherItem(dragItem) ? dragItem.nama : dragItem.nama_mapel;
-      toast({
-        title: 'Jadwal Diupdate (Draft)',
-        description: `${itemLabel} → ${targetHari} Jam ${targetJamKe}. Klik Simpan untuk permanen.`,
-      });
+      if (dragType === 'mapel') {
+        const tgtClass = matrixData.classes.find((c) => c.kelas_id === targetKelasId);
+        const tgtCell = tgtClass?.schedule[targetHari]?.[targetJamKe];
+        if (tgtCell?.guru_detail && tgtCell.guru_detail.length > 0) {
+          const droppedSubject = dragItem as Subject;
+          const droppedSubjectId = getSubjectId(droppedSubject);
+          const existingGuruId = tgtCell.guru_detail[0].guru_id;
+          const existingTeacher = teachers.find((t) => getTeacherId(t) === existingGuruId);
+          if (existingTeacher && droppedSubjectId) {
+            if (!checkTeacherSubjectMatch(existingTeacher, droppedSubjectId, droppedSubject.nama_mapel)) {
+              hasMismatch = true;
+              mismatchGuruName = existingTeacher.nama;
+              mismatchGuruMapel = existingTeacher.nama_mapel || existingTeacher.mata_pelajaran || 'Tidak diketahui';
+              mismatchTargetMapel = droppedSubject.nama_mapel;
+            }
+          }
+        }
+      }
+
+      // If mismatch detected → defer drop and show confirmation dialog
+      if (hasMismatch) {
+        setMismatchWarning({
+          guruName: mismatchGuruName,
+          guruMapel: mismatchGuruMapel,
+          targetMapel: mismatchTargetMapel,
+          pendingDrop: { dragItem, dragType, targetKelasId, targetHari, targetJamKe },
+        });
+        return;
+      }
+
+      // No mismatch → apply immediately
+      applyPaletteDrop(dragItem, dragType, targetKelasId, targetHari, targetJamKe);
     },
-    [matrixData, checkTeacherConflict, checkRoomConflict, extractDragItemId, updateScheduleCellWithDragItem]
+    [matrixData, checkTeacherConflict, checkRoomConflict, extractDragItemId, updateScheduleCellWithDragItem, teachers, checkTeacherSubjectMatch, applyPaletteDrop]
   );
 
   // ── Save all ───────────────────────────────────────────────────────────────
@@ -1085,6 +1247,10 @@ export function ScheduleGridTable({
                 <BookOpen className="w-3 h-3 mr-1" />
                 Mapel ({filteredSubjects.length})
               </TabsTrigger>
+              <TabsTrigger value="ruang" className="flex-1 text-xs">
+                <MapPin className="w-3 h-3 mr-1" />
+                Ruang ({filteredRooms.length})
+              </TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1">
@@ -1117,6 +1283,22 @@ export function ScheduleGridTable({
                       id={`mapel-${subject.id}`}
                       type="mapel"
                       data={subject}
+                    />
+                  ))
+                )}
+              </TabsContent>
+              <TabsContent value="ruang" className="p-2 space-y-1 m-0">
+                {filteredRooms.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Tidak ada ruang ditemukan
+                  </p>
+                ) : (
+                  filteredRooms.map((room) => (
+                    <DraggableItem
+                      key={`ruang-${room.id}`}
+                      id={`ruang-${room.id}`}
+                      type="ruang"
+                      data={room}
                     />
                   ))
                 )}
@@ -1242,6 +1424,40 @@ export function ScheduleGridTable({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Mismatch Confirmation Dialog ──────────────────────────────────────── */}
+      <AlertDialog open={!!mismatchWarning} onOpenChange={(open) => !open && setMismatchWarning(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              ⚠️ Guru-Mapel Tidak Sesuai
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  <strong>{mismatchWarning?.guruName}</strong> memiliki Mata Pelajaran Utama{' '}
+                  <strong className="text-foreground">{mismatchWarning?.guruMapel}</strong>, tetapi akan ditugaskan ke{' '}
+                  <strong className="text-foreground">{mismatchWarning?.targetMapel}</strong>.
+                </p>
+                <p className="text-xs">
+                  Ini bukan mapel utama guru tersebut. Apakah Anda yakin ingin melanjutkan?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMismatchWarning(null)}>
+              Batalkan
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMismatchConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Tetap Lanjutkan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Drag Overlay ─────────────────────────────────────────────────────── */}
       <DragOverlay>
@@ -1389,7 +1605,7 @@ function MasterGrid({
         <tr>
           {days.map((day) => {
             const daySlots = (matrixJamSlots[day] || []).sort(
-              (a, b) => a.jam_ke - b.jam_ke
+              (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
             );
             return daySlots.map((slot) => (
               <th
@@ -1419,7 +1635,7 @@ function MasterGrid({
         <tr>
           {days.map((day) => {
             const daySlots = (matrixJamSlots[day] || []).sort(
-              (a, b) => a.jam_ke - b.jam_ke
+              (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
             );
             return daySlots.map((slot) => (
               <th
@@ -1479,7 +1695,6 @@ interface MasterGridClassRowsProps {
 
 const isSameCell = (c1: ScheduleCell | null | undefined, c2: ScheduleCell | null | undefined) => {
   if (!c1 || !c2) return false;
-  if (!c1.mapel && !c2.mapel) return true;
   return c1.mapel === c2.mapel && c1.ruang === c2.ruang && JSON.stringify(c1.guru) === JSON.stringify(c2.guru);
 };
 
@@ -1531,7 +1746,7 @@ function MasterGridClassRows({
           {/* ── Data cells for each day × slot ── */}
           {days.map((day) => {
             const daySlots = (matrixJamSlots[day] || []).sort(
-              (a, b) => a.jam_ke - b.jam_ke
+              (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
             );
 
             return daySlots.map((slot, index) => {
@@ -1616,7 +1831,7 @@ function MasterGridClassRows({
               }
 
 
-              const bgColor = cell && cell.mapel && !deleted
+              const bgColor = cell && (cell.mapel || (cell.guru_detail && cell.guru_detail.length > 0)) && !deleted
                 ? getSubjectColor(cell.mapel, cell.color)
                 : '#ffffff';
 
@@ -1624,7 +1839,7 @@ function MasterGridClassRows({
 
               if (deleted) {
                 if (subRow === 'mapel') content = <span className="text-red-400 line-through text-[10px]">Dihapus</span>;
-              } else if (!cell || !cell.mapel) {
+              } else if (!cell) {
                 if (subRow === 'mapel') {
                   content = (
                     <span className="flex items-center justify-center w-full h-full text-slate-300">
@@ -1634,27 +1849,31 @@ function MasterGridClassRows({
                 }
               } else {
                 if (subRow === 'mapel') {
-                  content = (
+                  content = cell.mapel ? (
                     <span className="font-bold text-slate-800 leading-tight truncate block text-center text-[10px]">
                       {cell.mapel}
                     </span>
-                  );
-                } else if (subRow === 'ruang') {
-                  content = (
-                    <span className="text-slate-700 leading-tight truncate block text-center text-[10px]">
-                      {cell.ruang || '—'}
+                  ) : (
+                    <span className="flex items-center justify-center w-full h-full text-slate-400">
+                      <Plus className="w-3 h-3" />
                     </span>
                   );
+                } else if (subRow === 'ruang') {
+                  content = cell.ruang ? (
+                    <span className="text-slate-700 leading-tight truncate block text-center text-[10px]">
+                      {cell.ruang}
+                    </span>
+                  ) : null;
                 } else {
                   const guruName =
                     cell.guru_detail && cell.guru_detail.length > 0
                       ? cell.guru_detail[0].nama_guru || cell.guru_detail[0].kode_guru
-                      : cell.guru?.join(', ') || '—';
-                  content = (
+                      : cell.guru && cell.guru.length > 0 ? cell.guru.join(', ') : null;
+                  content = guruName ? (
                     <span className="text-slate-700 leading-tight truncate block text-center text-[10px]">
                       {guruName}
                     </span>
-                  );
+                  ) : null;
                 }
               }
 
@@ -1674,7 +1893,7 @@ function MasterGridClassRows({
                     isDisabled={false}
                     onClick={() => onCellClick(cls.kelas_id, day, slot.jam_ke, cell)}
                   >
-                    {cell && cell.mapel && !deleted ? (
+                    {cell && (cell.mapel || (cell.guru_detail && cell.guru_detail.length > 0)) && !deleted ? (
                       <DraggableCellContent cellId={cellId} cell={cell} kelasId={cls.kelas_id} hari={day} jamKe={slot.jam_ke}>
                         <div className={`w-full h-full flex items-center justify-center px-1 overflow-hidden ${isSameAsPrev ? 'opacity-0' : 'opacity-100'}`}>
                           {content}
