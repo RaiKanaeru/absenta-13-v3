@@ -75,7 +75,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { mergePendingChange, mergePendingChanges, PendingChange } from './scheduleUtils';
+import { mergePendingChange, mergePendingChanges, pendingChangeKey, PendingChange } from './scheduleUtils';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface JamSlot {
@@ -759,6 +759,21 @@ export function ScheduleGridTable({
 
         setPendingChanges((prev) => mergePendingChanges(prev, [deleteChange, upsertChange]));
 
+        // Room conflict check during cell-to-cell drag (moved OUTSIDE state setter to avoid stale closure)
+        const targetClassSnapshot = matrixData.classes.find((c) => c.kelas_id === targetKelasId);
+        const targetCellSnapshot = targetClassSnapshot?.schedule[targetHari]?.[targetJamKe];
+        if (targetCellSnapshot?.ruang_id) {
+          const roomConflict = checkRoomConflict(targetCellSnapshot.ruang_id, targetHari, targetJamKe, targetKelasId);
+          if (roomConflict) {
+            toast({
+              title: 'Potensi Bentrok Ruang',
+              description: `Ruang ${roomConflict.ruang} sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
+              variant: 'destructive',
+              duration: 5000,
+            });
+          }
+        }
+
         // Update local matrix state
         setMatrixData((prev) => {
           if (!prev) return null;
@@ -786,20 +801,6 @@ export function ScheduleGridTable({
             if (cls.kelas_id === source.kelas_id || cls.kelas_id === targetKelasId) {
               return { ...cls, schedule: newSchedule };
             }
-        // Check room conflict if cell already has a room assigned
-        const targetClass = matrixData.classes.find((c) => c.kelas_id === targetKelasId);
-        const targetCell = targetClass?.schedule[targetHari]?.[targetJamKe];
-        if (targetCell?.ruang_id) {
-          const roomConflict = checkRoomConflict(targetCell.ruang_id, targetHari, targetJamKe, targetKelasId);
-          if (roomConflict) {
-            toast({
-              title: 'Potensi Bentrok Ruang',
-              description: `Ruang sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
-              variant: 'destructive',
-              duration: 5000,
-            });
-          }
-        }
             return cls;
           });
           return { ...prev, classes: newClasses };
@@ -812,8 +813,33 @@ export function ScheduleGridTable({
         return;
       }
 
-      // ─── Palette drag (existing logic) ──────────────────────────────────────────────
-      const dragType = dragData.type as 'guru' | 'mapel' | 'ruang';
+      // Conflict checks (teacher time conflict, room conflict) — warning only
+      if (dragType === 'guru') {
+        const currentTeacher = dragItem as Teacher;
+        const guruId = getTeacherId(currentTeacher) ?? 0;
+        const conflict = checkTeacherConflict(guruId, targetHari, targetJamKe, targetKelasId);
+        if (conflict) {
+          toast({
+            title: 'Potensi Bentrok Jadwal',
+            description: `Guru ${currentTeacher.nama} sudah mengajar di ${conflict.kelas} pada jam ini!`,
+            variant: 'destructive',
+            duration: 5000,
+          });
+        }
+      }
+
+      if (dragType === 'ruang') {
+        const currentRoom = dragItem as Room;
+        const roomConflict = checkRoomConflict(currentRoom.id, targetHari, targetJamKe, targetKelasId);
+        if (roomConflict) {
+          toast({
+            title: 'Potensi Bentrok Ruang',
+            description: `Ruang ${currentRoom.nama_ruang || currentRoom.kode_ruang} sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
+            variant: 'destructive',
+            duration: 5000,
+          });
+        }
+      }
       const dragItem = dragData.item as Teacher | Subject | Room;
 
       // Conflict checks (teacher time conflict, room conflict) — warning only
@@ -1543,24 +1569,6 @@ function MasterGrid({
     return map;
   }, [days, matrixJamSlots]);
 
-  const hasPending = (kelasId: number, hari: string, jamKe: number) =>
-    pendingChanges.some(
-      (p) =>
-        p.kelas_id === kelasId &&
-        p.hari === hari &&
-        p.jam_ke === jamKe &&
-        p.action !== 'delete'
-    );
-
-  const isPendingDelete = (kelasId: number, hari: string, jamKe: number) =>
-    pendingChanges.some(
-      (p) =>
-        p.kelas_id === kelasId &&
-        p.hari === hari &&
-        p.jam_ke === jamKe &&
-        p.action === 'delete'
-    );
-
   // ── Row 1: Hari headers (colSpan = number of slots in that day × 1 col each)
   // ── Row 2: "Jam Ke" sub-headers per slot per day
   // ── Row 3: "Waktu" sub-headers per slot per day
@@ -1652,6 +1660,8 @@ function MasterGrid({
 
       <tbody>
         {visibleClasses.map((cls) => {
+          // Filter only the changes relevant to this class so React.memo can short-circuit
+          const classPending = pendingChanges.filter((p) => p.kelas_id === cls.kelas_id);
           return (
             <MasterGridClassRows
               key={cls.kelas_id}
@@ -1659,8 +1669,7 @@ function MasterGrid({
               days={days}
               daySlotSets={daySlotSets}
               matrixJamSlots={matrixJamSlots}
-              hasPending={hasPending}
-              isPendingDelete={isPendingDelete}
+              classPending={classPending}
               onCellClick={onCellClick}
               KELAS_W={KELAS_W}
               KAT_W={KAT_W}
@@ -1680,8 +1689,8 @@ interface MasterGridClassRowsProps {
   days: string[];
   daySlotSets: Record<string, Set<number>>;
   matrixJamSlots: Record<string, JamSlot[]>;
-  hasPending: (kelasId: number, hari: string, jamKe: number) => boolean;
-  isPendingDelete: (kelasId: number, hari: string, jamKe: number) => boolean;
+  /** Pending changes that belong to this class only (pre-filtered for memo efficiency) */
+  classPending: PendingChange[];
   onCellClick: (
     kelas_id: number,
     hari: string,
@@ -1698,17 +1707,31 @@ const isSameCell = (c1: ScheduleCell | null | undefined, c2: ScheduleCell | null
   return c1.mapel === c2.mapel && c1.ruang === c2.ruang && JSON.stringify(c1.guru) === JSON.stringify(c2.guru);
 };
 
-function MasterGridClassRows({
+function MasterGridClassRowsInner({
   cls,
   days,
   daySlotSets,
   matrixJamSlots,
-  hasPending,
-  isPendingDelete,
+  classPending,
   onCellClick,
   KELAS_W,
   KAT_W,
 }: Readonly<MasterGridClassRowsProps>) {
+  // O(1) lookup map — only rebuilt when this class's pending changes update
+  const pendingMap = useMemo(
+    () => new Map(classPending.map((p) => [pendingChangeKey(p), p])),
+    [classPending]
+  );
+
+  const hasPending = (hari: string, jamKe: number) => {
+    const entry = pendingMap.get(`${cls.kelas_id}-${hari}-${jamKe}`);
+    return entry !== undefined && entry.action !== 'delete';
+  };
+
+  const isPendingDelete = (hari: string, jamKe: number) => {
+    const entry = pendingMap.get(`${cls.kelas_id}-${hari}-${jamKe}`);
+    return entry?.action === 'delete';
+  };
   // For each slot index, track which slots are special so we only render rowSpan=3 on row 0
   // and skip rows 1 & 2 for that slot.
 
@@ -1751,8 +1774,8 @@ function MasterGridClassRows({
 
             return daySlots.map((slot, index) => {
               const cell = cls.schedule[day]?.[slot.jam_ke];
-              const deleted = isPendingDelete(cls.kelas_id, day, slot.jam_ke);
-              const pending = hasPending(cls.kelas_id, day, slot.jam_ke);
+              const deleted = isPendingDelete(day, slot.jam_ke);
+              const pending = hasPending(day, slot.jam_ke);
               const cellId = `${cls.kelas_id}-${day}-${slot.jam_ke}-cell`;
 
 
@@ -1762,12 +1785,12 @@ function MasterGridClassRows({
 
               const prevSlot = index > 0 ? daySlots[index - 1] : null;
               const prevCell = prevSlot ? cls.schedule[day]?.[prevSlot.jam_ke] : null;
-              const prevDeleted = prevSlot ? isPendingDelete(cls.kelas_id, day, prevSlot.jam_ke) : false;
+              const prevDeleted = prevSlot ? isPendingDelete(day, prevSlot.jam_ke) : false;
               const isSameAsPrev = !isSpecial && !deleted && !prevDeleted && isSameCell(cell, prevCell);
 
               const nextSlot = index < daySlots.length - 1 ? daySlots[index + 1] : null;
               const nextCell = nextSlot ? cls.schedule[day]?.[nextSlot.jam_ke] : null;
-              const nextDeleted = nextSlot ? isPendingDelete(cls.kelas_id, day, nextSlot.jam_ke) : false;
+              const nextDeleted = nextSlot ? isPendingDelete(day, nextSlot.jam_ke) : false;
               const isSameAsNext = !isSpecial && !deleted && !nextDeleted && isSameCell(cell, nextCell);
 
 
@@ -1914,5 +1937,23 @@ function MasterGridClassRows({
     </>
   );
 }
+
+/**
+ * React.memo wrapper with custom areEqual — only re-renders when cls data
+ * or this class's pending changes actually change.
+ */
+const MasterGridClassRows = React.memo(
+  MasterGridClassRowsInner,
+  (prev, next) => {
+    if (prev.cls !== next.cls) return false;
+    if (prev.classPending.length !== next.classPending.length) return false;
+    // Compare by JSON — classPending is already filtered to this class only,
+    // so the array is small (< number of jam slots, typically ≤ 10 items).
+    if (JSON.stringify(prev.classPending) !== JSON.stringify(next.classPending)) return false;
+    // Static props — days, daySlotSets, matrixJamSlots, KELAS_W, KAT_W and onCellClick
+    // are stable across renders (parent recreates them only on fetchMatrix).
+    return true;
+  }
+);
 
 export default ScheduleGridTable;
