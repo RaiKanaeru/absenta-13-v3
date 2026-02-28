@@ -29,6 +29,7 @@ interface JamPelajaran {
     jam_ke: number;
     jam_mulai: string;
     jam_selesai: string;
+    jenis: 'pelajaran' | 'istirahat' | 'pembiasaan';
     keterangan?: string | null;
 }
 
@@ -83,7 +84,12 @@ const JamPelajaranConfig: React.FC = () => {
             });
             const result = await response.json();
             if (result.success) {
-                setJamPelajaran(result.data);
+                // Ensure jenis is set (default data may not have it)
+                const dataWithJenis = result.data.map((jam: Partial<JamPelajaran> & { jam_ke: number; jam_mulai: string; jam_selesai: string }) => ({
+                    ...jam,
+                    jenis: (jam.jenis ?? 'pelajaran') as JamPelajaran['jenis']
+                }));
+                setJamPelajaran(dataWithJenis);
             }
         } catch (error) {
             toast({ variant: "destructive", title: "Gagal memuat jam default", description: error instanceof Error ? error.message : "Terjadi kesalahan" });
@@ -105,6 +111,7 @@ const JamPelajaranConfig: React.FC = () => {
                 // Format time to HH:MM
                 const formatted = result.data.map((jam: JamPelajaran) => ({
                     ...jam,
+                    jenis: (jam.jenis ?? 'pelajaran') as JamPelajaran['jenis'],
                     jam_mulai: formatTimeForInput(jam.jam_mulai),
                     jam_selesai: formatTimeForInput(jam.jam_selesai)
                 }));
@@ -231,6 +238,7 @@ const JamPelajaranConfig: React.FC = () => {
                 jam_ke: newJamKe,
                 jam_mulai: lastJam?.jam_selesai || '07:00',
                 jam_selesai: '07:45',
+                jenis: 'pelajaran' as const,
                 keterangan: null
             }
         ]);
@@ -411,7 +419,8 @@ const JamPelajaranConfig: React.FC = () => {
                                     <div className="col-span-1">Jam</div>
                                     <div className="col-span-3">Mulai</div>
                                     <div className="col-span-3">Selesai</div>
-                                    <div className="col-span-4">Keterangan</div>
+                                    <div className="col-span-2">Jenis</div>
+                                    <div className="col-span-2">Keterangan</div>
                                     <div className="col-span-1"></div>
                                 </div>
 
@@ -419,7 +428,7 @@ const JamPelajaranConfig: React.FC = () => {
                                 {jamPelajaran.map((jam, index) => (
                                     <div key={jam.jam_ke} className="grid grid-cols-12 gap-2 items-center">
                                         <div className="col-span-1">
-                                            <Badge variant="secondary" className="w-full justify-center">
+                                            <Badge variant={jam.jenis === 'istirahat' ? 'destructive' : 'secondary'} className="w-full justify-center">
                                                 {jam.jam_ke}
                                             </Badge>
                                         </div>
@@ -439,9 +448,24 @@ const JamPelajaranConfig: React.FC = () => {
                                                 className="font-mono"
                                             />
                                         </div>
-                                        <div className="col-span-4">
+                                        <div className="col-span-2">
+                                            <Select
+                                                value={jam.jenis}
+                                                onValueChange={(v) => updateJam(index, 'jenis', v as JamPelajaran['jenis'])}
+                                            >
+                                                <SelectTrigger className="w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="pelajaran">Pelajaran</SelectItem>
+                                                    <SelectItem value="istirahat">Istirahat</SelectItem>
+                                                    <SelectItem value="pembiasaan">Pembiasaan</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="col-span-2">
                                             <Input
-                                                placeholder="Keterangan (opsional)"
+                                                placeholder="Keterangan"
                                                 value={jam.keterangan || ''}
                                                 onChange={(e) => updateJam(index, 'keterangan', e.target.value)}
                                             />

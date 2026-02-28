@@ -339,7 +339,7 @@ const fetchJamSlotsByDay = async () => {
     const [allJamSlots] = await db.execute(
         `SELECT hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
          FROM jam_pelajaran 
-         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`
+         ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_mulai, jam_ke`
     );
 
     const jamSlotsByDay = {};
@@ -361,7 +361,7 @@ const fetchJamSlotsByClass = async (kelasId) => {
             `SELECT hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label
              FROM jam_pelajaran_kelas
              WHERE kelas_id = ?
-             ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_ke`,
+             ORDER BY FIELD(hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'), jam_mulai, jam_ke`,
             [kelasId]
         );
 

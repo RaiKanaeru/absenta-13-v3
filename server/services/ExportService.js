@@ -424,7 +424,7 @@ class ExportService {
                     COALESCE(SUM(CASE WHEN a.status = 'Sakit' THEN 1 ELSE 0 END), 0) AS S,
                     COALESCE(SUM(CASE WHEN a.status = 'Alpa' THEN 1 ELSE 0 END), 0) AS A,
                     COALESCE(SUM(CASE WHEN a.status = 'Dispen' THEN 1 ELSE 0 END), 0) AS D,
-                    COUNT(a.id_absensi) AS total
+                    COUNT(a.id) AS total
                 FROM siswa s
                 JOIN kelas k ON s.kelas_id = k.id_kelas
                 LEFT JOIN absensi_siswa a ON s.id_siswa = a.siswa_id 

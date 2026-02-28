@@ -20,7 +20,7 @@ import { ArrowLeft, Save, RefreshCw, Calendar, Filter, PanelRightOpen, PanelRigh
 import { apiCall } from '@/utils/apiClient';
 import { getErrorMessage } from '@/lib/utils';
 import { Teacher, Subject, Room } from '@/types/dashboard';
-import { DragPalette } from './DragPalette';
+import { mergePendingChange, mergePendingChanges, PendingChange as Change } from './scheduleUtils';
 
 // Types
 interface JamSlot {
@@ -57,14 +57,6 @@ interface MatrixData {
   rows: GridRow[];
 }
 
-interface Change {
-  kelas_id: number;
-  jam_ke: number;
-  mapel_id?: number | null;
-  guru_id?: number | null;
-  ruang_id?: number | null;
-  action?: 'delete';
-}
 
 interface ScheduleGridEditorProps {
   onBack: () => void;
@@ -235,19 +227,14 @@ export function ScheduleGridEditor({
 
     const { kelas_id, jam_ke } = editingCell;
 
-    const filtered = pendingChanges.filter(c => !(c.kelas_id === kelas_id && c.jam_ke === jam_ke));
-
-    if (editMapelId && editGuruId) {
-      filtered.push({
-        kelas_id,
-        jam_ke,
-        mapel_id: editMapelId,
-        guru_id: editGuruId,
-        ruang_id: editRuangId
-      });
-    }
-
-    setPendingChanges(filtered);
+    setPendingChanges((prev) => mergePendingChange(prev, {
+      kelas_id,
+      hari: selectedHari,
+      jam_ke,
+      mapel_id: editMapelId,
+      guru_id: editGuruId,
+      ruang_id: editRuangId
+    }));
 
     // Optimistic UI update
     if (matrixData) {
@@ -287,9 +274,7 @@ export function ScheduleGridEditor({
 
     const { kelas_id, jam_ke } = editingCell;
 
-    const filtered = pendingChanges.filter(c => !(c.kelas_id === kelas_id && c.jam_ke === jam_ke));
-    filtered.push({ kelas_id, jam_ke, action: 'delete' });
-    setPendingChanges(filtered);
+    setPendingChanges((prev) => mergePendingChange(prev, { kelas_id, jam_ke, hari: selectedHari, action: 'delete' }));
 
     if (matrixData) {
       const newRows = matrixData.rows.map(row => {
@@ -363,7 +348,7 @@ export function ScheduleGridEditor({
       });
     }
 
-    setPendingChanges([...pendingChanges, ...newChanges]);
+    setPendingChanges((prev) => mergePendingChanges(prev, newChanges.map(c => ({ ...c, hari: selectedHari }))));
 
     // Optimistic UI update
     const newRows = matrixData.rows.map(row => {

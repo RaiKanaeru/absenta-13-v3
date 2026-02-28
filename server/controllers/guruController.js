@@ -817,7 +817,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             WHERE jadwal.guru_id = ? AND absensi.waktu_absen >= ?
         `;
 
-        const [countResult] = await db.execute(countQuery, [guruId, thirtyDaysAgoWIB]);
+        const [countResult] = await db.query(countQuery, [guruId, thirtyDaysAgoWIB]);
         const totalDays = countResult[0].total_days;
         const totalPages = Math.ceil(totalDays / Number.parseInt(limit));
         const offset = (Number.parseInt(page) - 1) * Number.parseInt(limit);
@@ -830,7 +830,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             ORDER BY tanggal DESC LIMIT ? OFFSET ?
         `;
 
-        const [datesResult] = await db.execute(datesQuery, [guruId, thirtyDaysAgoWIB, Number.parseInt(limit), offset]);
+        const [datesResult] = await db.query(datesQuery, [guruId, thirtyDaysAgoWIB, Number.parseInt(limit), offset]);
         const dates = datesResult.map(row => row.tanggal);
 
         if (dates.length === 0) {
@@ -860,7 +860,7 @@ export const getGuruStudentAttendanceHistory = async (req, res) => {
             ORDER BY absensi.waktu_absen DESC, jadwal.jam_ke ASC
         `;
 
-        const [history] = await db.execute(query, [guruId, ...dates]);
+        const [history] = await db.query(query, [guruId, ...dates]);
 
         log.success('GetStudentHistory', { count: history.length, totalDays, guruId });
         return sendSuccessResponse(res, history, 'Riwayat absensi siswa', 200, {

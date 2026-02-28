@@ -27,6 +27,8 @@ const logger = createLogger('JamPelajaran');
 const MIN_JAM_KE = 1;
 const MAX_JAM_KE = 15;
 const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+const DEFAULT_TAHUN_AJARAN = '2025/2026';
+const VALID_JENIS = new Set(['pelajaran', 'istirahat', 'pembiasaan']);
 
 const DEFAULT_JAM_PELAJARAN = [
     { jam_ke: 1, jam_mulai: '06:30', jam_selesai: '07:15', keterangan: null },
@@ -58,6 +60,18 @@ function isValidTimeRange(jamMulai, jamSelesai) {
     const start = jamMulai.replaceAll(':', '');
     const end = jamSelesai.replaceAll(':', '');
     return Number.parseInt(start) < Number.parseInt(end);
+}
+
+/**
+ * Calculate duration in minutes between two time strings (HH:MM or HH:MM:SS)
+ * @param {string} jamMulai
+ * @param {string} jamSelesai
+ * @returns {number}
+ */
+function calculateDurasiMenit(jamMulai, jamSelesai) {
+    const [h1, m1] = jamMulai.split(':').map(Number);
+    const [h2, m2] = jamSelesai.split(':').map(Number);
+    return (h2 * 60 + m2) - (h1 * 60 + m1);
 }
 
 /**
@@ -132,6 +146,16 @@ function validateJamPelajaranEntry(jam, jamIndex, seenJamKe, errors) {
             });
         }
     }
+
+    // jenis validation (optional field)
+    if (jam.jenis !== undefined && jam.jenis !== null && !VALID_JENIS.has(jam.jenis)) {
+        errors.push({
+            index: jamIndex,
+            field: 'jenis',
+            value: jam.jenis,
+            message: `Jenis harus salah satu dari: ${[...VALID_JENIS].join(', ')}`
+        });
+    }
 }
 
 /**
@@ -152,22 +176,22 @@ export const getJamPelajaranByKelas = async (req, res) => {
         }
         
         const [rows] = await db.execute(`
-            SELECT jp.id, jp.kelas_id, jp.jam_ke, jp.jam_mulai, jp.jam_selesai, jp.is_piket,
-                   jp.is_piket_full, jp.label, jp.keterangan, jp.status, k.nama_kelas
-            FROM jam_pelajaran jp
-            JOIN kelas k ON jp.kelas_id = k.id_kelas
-            WHERE jp.kelas_id = ?
-            ORDER BY jp.jam_ke ASC
+            SELECT jpk.id, jpk.kelas_id, jpk.jam_ke, jpk.jam_mulai, jpk.jam_selesai,
+                   jpk.durasi_menit, jpk.jenis, jpk.label, k.nama_kelas
+            FROM jam_pelajaran_kelas jpk
+            JOIN kelas k ON jpk.kelas_id = k.id_kelas
+            WHERE jpk.kelas_id = ?
+            ORDER BY jpk.jam_ke ASC
         `, [kelasId]);
         
         log.success('GetByKelas', { kelasId, count: rows.length });
         
-        // Map label to keterangan for FE compatibility
+        // Map label to keterangan for FE compatibility; include jenis
         const mappedRows = rows.map(row => ({
             ...row,
-            keterangan: row.label || row.keterangan
+            keterangan: row.label,
+            jenis: row.jenis
         }));
-
         return sendSuccessResponse(res, mappedRows, `Berhasil mengambil ${rows.length} jam pelajaran`);
         
     } catch (error) {
@@ -187,12 +211,12 @@ export const getAllJamPelajaran = async (req, res) => {
     
     try {
         const [rows] = await db.execute(`
-            SELECT jp.id, jp.kelas_id, jp.jam_ke, jp.jam_mulai, jp.jam_selesai, jp.is_piket,
-                   jp.is_piket_full, jp.label, jp.keterangan, jp.status, k.nama_kelas, k.tingkat
-            FROM jam_pelajaran jp
-            JOIN kelas k ON jp.kelas_id = k.id_kelas
-            WHERE jp.status = 'aktif' AND k.status = 'aktif'
-            ORDER BY k.tingkat, k.nama_kelas, jp.jam_ke ASC
+            SELECT jpk.id, jpk.kelas_id, jpk.jam_ke, jpk.jam_mulai, jpk.jam_selesai,
+                   jpk.durasi_menit, jpk.jenis, jpk.label, k.nama_kelas, k.tingkat
+            FROM jam_pelajaran_kelas jpk
+            JOIN kelas k ON jpk.kelas_id = k.id_kelas
+            WHERE k.status = 'aktif'
+            ORDER BY k.tingkat, k.nama_kelas, jpk.jam_ke ASC
         `);
         
         // Group by kelas
@@ -210,7 +234,9 @@ export const getAllJamPelajaran = async (req, res) => {
                 jam_ke: row.jam_ke,
                 jam_mulai: row.jam_mulai,
                 jam_selesai: row.jam_selesai,
-                keterangan: row.label || row.keterangan, // Map label to keterangan for FE compatibility
+                durasi_menit: row.durasi_menit,
+                jenis: row.jenis,
+                keterangan: row.label, // Map label to keterangan for FE compatibility
                 hari: row.hari
             });
             return acc;
@@ -309,15 +335,20 @@ export const upsertJamPelajaran = async (req, res) => {
             let upsertedCount = 0;
             for (const jam of jam_pelajaran) {
                 for (const hari of (jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'])) {
+                    const jenis = jam.jenis && VALID_JENIS.has(jam.jenis) ? jam.jenis : 'pelajaran';
+                    const durasi_menit = (typeof jam.durasi_menit === 'number')
+                        ? jam.durasi_menit
+                        : calculateDurasiMenit(jam.jam_mulai, jam.jam_selesai);
                     await connection.execute(`
-                        INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO jam_pelajaran_kelas (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label, tahun_ajaran)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON DUPLICATE KEY UPDATE
                             jam_mulai = VALUES(jam_mulai),
                             jam_selesai = VALUES(jam_selesai),
-                            label = VALUES(label),
-                            updated_at = CURRENT_TIMESTAMP
-                    `, [kelasId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
+                            durasi_menit = VALUES(durasi_menit),
+                            jenis = VALUES(jenis),
+                            label = VALUES(label)
+                    `, [kelasId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, durasi_menit, jenis, jam.keterangan || jam.label || null, DEFAULT_TAHUN_AJARAN]);
                 }
                 upsertedCount++;
             }
@@ -368,7 +399,7 @@ export const deleteJamPelajaranByKelas = async (req, res) => {
         const kelasName = kelas.length > 0 ? kelas[0].nama_kelas : `ID ${kelasId}`;
         
         const [result] = await db.execute(
-            'DELETE FROM jam_pelajaran WHERE kelas_id = ?',
+            'DELETE FROM jam_pelajaran_kelas WHERE kelas_id = ?',
             [kelasId]
         );
         
@@ -407,15 +438,20 @@ async function copyScheduleToClass(connection, targetId, sourceJam, log) {
     
     for (const jam of sourceJam) {
         for (const hari of (jam.hari ? [jam.hari] : ['Senin', 'Selasa', 'Rabu', 'Kamis'])) {
+            const jenis = jam.jenis && VALID_JENIS.has(jam.jenis) ? jam.jenis : 'pelajaran';
+            const durasi_menit = (typeof jam.durasi_menit === 'number')
+                ? jam.durasi_menit
+                : calculateDurasiMenit(jam.jam_mulai, jam.jam_selesai);
             await connection.execute(`
-                INSERT INTO jam_pelajaran (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, label)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO jam_pelajaran_kelas (kelas_id, hari, jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label, tahun_ajaran)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     jam_mulai = VALUES(jam_mulai),
                     jam_selesai = VALUES(jam_selesai),
-                    label = VALUES(label),
-                    updated_at = CURRENT_TIMESTAMP
-            `, [targetId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, jam.keterangan || jam.label || null]);
+                    durasi_menit = VALUES(durasi_menit),
+                    jenis = VALUES(jenis),
+                    label = VALUES(label)
+            `, [targetId, hari, jam.jam_ke, jam.jam_mulai, jam.jam_selesai, durasi_menit, jenis, jam.label || jam.keterangan || null, DEFAULT_TAHUN_AJARAN]);
         }
     }
     return targetKelas[0].nama_kelas;
@@ -441,7 +477,7 @@ export const copyJamPelajaran = async (req, res) => {
         
         // Check if source kelas has jam pelajaran
         const [sourceJam] = await db.execute(
-            'SELECT jam_ke, jam_mulai, jam_selesai, keterangan FROM jam_pelajaran WHERE kelas_id = ? ORDER BY jam_ke',
+            'SELECT jam_ke, jam_mulai, jam_selesai, durasi_menit, jenis, label FROM jam_pelajaran_kelas WHERE kelas_id = ? ORDER BY jam_ke',
             [sourceKelasId]
         );
         
