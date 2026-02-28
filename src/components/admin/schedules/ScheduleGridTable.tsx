@@ -54,6 +54,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -354,6 +355,7 @@ export function ScheduleGridTable({
   const [editingSlot, setEditingSlot] = useState<{
     day: string;
     slot: JamSlot;
+    kelas_id?: number;
   } | null>(null);
   const [editSlotJamMulai, setEditSlotJamMulai] = useState('');
   const [editSlotJamSelesai, setEditSlotJamSelesai] = useState('');
@@ -1088,8 +1090,8 @@ export function ScheduleGridTable({
   };
 
   // ─── Slot Editor handlers ──────────────────────────────────────────────────
-  const handleSlotClick = useCallback((day: string, slot: JamSlot) => {
-    setEditingSlot({ day, slot });
+  const handleSlotClick = useCallback((day: string, slot: JamSlot, kelas_id?: number) => {
+    setEditingSlot({ day, slot, kelas_id });
     setEditSlotJamMulai(formatTime(slot.jam_mulai));
     setEditSlotJamSelesai(formatTime(slot.jam_selesai));
     setEditSlotJenis(slot.jenis);
@@ -1111,7 +1113,7 @@ export function ScheduleGridTable({
       label: editSlotJenis !== 'pelajaran' ? editSlotLabel : undefined,
     };
 
-    const kelasId = selectedKelasId || String(matrixData.classes[0]?.kelas_id);
+    const kelasId = editingSlot.kelas_id ? String(editingSlot.kelas_id) : (selectedKelasId || String(matrixData.classes[0]?.kelas_id));
     if (!kelasId) return;
 
     try {
@@ -1119,6 +1121,7 @@ export function ScheduleGridTable({
         method: 'POST',
         body: JSON.stringify({
           jam_pelajaran: daySlots.map(s => ({
+            hari: day,
             jam_ke: s.jam_ke,
             jam_mulai: s.jam_mulai,
             jam_selesai: s.jam_selesai,
@@ -1304,20 +1307,23 @@ export function ScheduleGridTable({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="w-full rounded-none border-b">
-              <TabsTrigger value="guru" className="flex-1 text-xs">
-                <User className="w-3 h-3 mr-1" />
-                Guru ({filteredTeachers.length})
-              </TabsTrigger>
-              <TabsTrigger value="mapel" className="flex-1 text-xs">
-                <BookOpen className="w-3 h-3 mr-1" />
-                Mapel ({filteredSubjects.length})
-              </TabsTrigger>
-              <TabsTrigger value="ruang" className="flex-1 text-xs">
-                <MapPin className="w-3 h-3 mr-1" />
-                Ruang ({filteredRooms.length})
-              </TabsTrigger>
-            </TabsList>
+          <TabsList className="w-full rounded-none border-b grid grid-cols-3">
+            <TabsTrigger value="guru" className="flex-col gap-0 text-[10px] leading-tight py-1.5 px-0">
+              <User className="w-3 h-3 mb-0.5" />
+              <span>Guru</span>
+              <span className="text-[9px] opacity-60">({filteredTeachers.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="mapel" className="flex-col gap-0 text-[10px] leading-tight py-1.5 px-0">
+              <BookOpen className="w-3 h-3 mb-0.5" />
+              <span>Mapel</span>
+              <span className="text-[9px] opacity-60">({filteredSubjects.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="ruang" className="flex-col gap-0 text-[10px] leading-tight py-1.5 px-0">
+              <MapPin className="w-3 h-3 mb-0.5" />
+              <span>Ruang</span>
+              <span className="text-[9px] opacity-60">({filteredRooms.length})</span>
+            </TabsTrigger>
+          </TabsList>
 
             <ScrollArea className="flex-1">
               <TabsContent value="guru" className="p-2 space-y-1 m-0">
@@ -1395,6 +1401,9 @@ export function ScheduleGridTable({
                 {matrixData.classes.find(c => c.kelas_id === editingCell.kelas_id)?.nama_kelas} ·{' '}
                 {editingCell.hari} Jam {editingCell.jam_ke}
               </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Ubah mapel, guru, atau ruang untuk slot jadwal ini
+              </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -1502,6 +1511,9 @@ export function ScheduleGridTable({
                   ? (editingSlot.slot.label || editingSlot.slot.jenis).toUpperCase()
                   : `Jam ${editingSlot.slot.jam_ke}`}
               </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Ubah waktu dan konfigurasi slot jam pelajaran
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -1532,7 +1544,7 @@ export function ScheduleGridTable({
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingSlot(null)}>Batal</Button>
-              <Button onClick={handleSaveSlot}>Simpan</Button>
+              <Button onClick={handleSaveSlot} disabled={!editSlotJamMulai || !editSlotJamSelesai}>Simpan</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1635,7 +1647,7 @@ interface MasterGridProps {
     jam_ke: number,
     cell: ScheduleCell | null | undefined
   ) => void;
-  onSlotClick?: (day: string, slot: JamSlot) => void;
+  onSlotClick?: (day: string, slot: JamSlot, kelas_id?: number) => void;
 }
 
 function MasterGrid({
@@ -1722,7 +1734,7 @@ function MasterGrid({
             return daySlots.map((slot) => (
               <th
                 key={`${day}-${slot.jam_ke}-ke`}
-                className={`sticky z-30 border border-slate-300 bg-slate-600 text-white font-medium text-center py-0.5 px-1 whitespace-nowrap cursor-pointer hover:opacity-80 ${slot.jenis !== 'pelajaran' ? 'text-[9px]' : 'text-[11px]'}`}
+                className={`sticky z-30 border border-slate-300 bg-slate-600 text-white font-medium text-center py-0.5 px-1 whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${slot.jenis !== 'pelajaran' ? 'text-[9px]' : 'text-[11px]'}`}
                 style={{
                   top: 28,
                   minWidth: SLOT_W,
@@ -1734,8 +1746,8 @@ function MasterGrid({
                       ? '#1e40af'
                       : undefined,
                 }}
-              >
                 onClick={() => onSlotClick?.(day, slot)}
+              >
                 {slot.jenis !== 'pelajaran'
                   ? (slot.label || slot.jenis).toUpperCase()
                   : `Jam ${slot.jam_ke}`}
@@ -1751,10 +1763,10 @@ function MasterGrid({
             return daySlots.map((slot) => (
               <th
                 key={`${day}-${slot.jam_ke}-waktu`}
-                className="sticky z-30 border border-slate-300 bg-slate-500 text-white font-normal text-[10px] text-center py-0.5 px-1 whitespace-nowrap cursor-pointer hover:opacity-80"
+                className="sticky z-30 border border-slate-300 bg-slate-500 text-white font-normal text-[10px] text-center py-0.5 px-1 whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ top: 56, minWidth: SLOT_W, width: SLOT_W }}
-              >
                 onClick={() => onSlotClick?.(day, slot)}
+              >
                 {formatTime(slot.jam_mulai)}–{formatTime(slot.jam_selesai)}
               </th>
             ));
@@ -1804,7 +1816,7 @@ interface MasterGridClassRowsProps {
   ) => void;
   KELAS_W: number;
   KAT_W: number;
-  onSlotClick?: (day: string, slot: JamSlot) => void;
+  onSlotClick?: (day: string, slot: JamSlot, kelas_id?: number) => void;
 }
 
 
@@ -1938,8 +1950,8 @@ function MasterGridClassRowsInner({
                       {isGlobalSpecial ? (
                         <button
                           type="button"
-                          className="w-full h-full flex items-center justify-center cursor-pointer hover:opacity-80"
-                          onClick={() => onSlotClick?.(day, slot)}
+                          className="w-full h-full flex items-center justify-center cursor-pointer hover:opacity-80 rounded transition-opacity"
+                          onClick={() => onSlotClick?.(day, slot, cls.kelas_id)}
                         >
                           {innerContent}
                         </button>
