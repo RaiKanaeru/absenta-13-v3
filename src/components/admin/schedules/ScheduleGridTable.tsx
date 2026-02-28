@@ -813,33 +813,7 @@ export function ScheduleGridTable({
         return;
       }
 
-      // Conflict checks (teacher time conflict, room conflict) — warning only
-      if (dragType === 'guru') {
-        const currentTeacher = dragItem as Teacher;
-        const guruId = getTeacherId(currentTeacher) ?? 0;
-        const conflict = checkTeacherConflict(guruId, targetHari, targetJamKe, targetKelasId);
-        if (conflict) {
-          toast({
-            title: 'Potensi Bentrok Jadwal',
-            description: `Guru ${currentTeacher.nama} sudah mengajar di ${conflict.kelas} pada jam ini!`,
-            variant: 'destructive',
-            duration: 5000,
-          });
-        }
-      }
-
-      if (dragType === 'ruang') {
-        const currentRoom = dragItem as Room;
-        const roomConflict = checkRoomConflict(currentRoom.id, targetHari, targetJamKe, targetKelasId);
-        if (roomConflict) {
-          toast({
-            title: 'Potensi Bentrok Ruang',
-            description: `Ruang ${currentRoom.nama_ruang || currentRoom.kode_ruang} sudah digunakan di ${roomConflict.kelas} pada jam ini!`,
-            variant: 'destructive',
-            duration: 5000,
-          });
-        }
-      }
+      const dragType = dragData.type as 'guru' | 'mapel' | 'ruang';
       const dragItem = dragData.item as Teacher | Subject | Room;
 
       // Conflict checks (teacher time conflict, room conflict) — warning only
@@ -1505,6 +1479,8 @@ export function ScheduleGridTable({
               <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               {activeDragItem.type === 'guru' ? (
                 <User className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              ) : activeDragItem.type === 'ruang' ? (
+                <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
               ) : (
                 <BookOpen className="w-4 h-4 text-green-500 flex-shrink-0" />
               )}
@@ -1512,11 +1488,15 @@ export function ScheduleGridTable({
                 <p className="text-xs font-medium truncate">
                   {activeDragItem.type === 'guru'
                     ? (activeDragItem.item as Teacher).nama
+                    : activeDragItem.type === 'ruang'
+                    ? (activeDragItem.item as Room).nama_ruang || (activeDragItem.item as Room).kode_ruang
                     : (activeDragItem.item as Subject).nama_mapel}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {activeDragItem.type === 'guru'
                     ? (activeDragItem.item as Teacher).nip || '-'
+                    : activeDragItem.type === 'ruang'
+                    ? (activeDragItem.item as Room).kode_ruang || '-'
                     : (activeDragItem.item as Subject).kode_mapel || '-'}
                 </p>
               </div>
@@ -1569,6 +1549,17 @@ function MasterGrid({
     return map;
   }, [days, matrixJamSlots]);
 
+  // Pre-sorted jam slots per day — computed once, not on every render
+  const sortedJamSlots = useMemo(() => {
+    const map: Record<string, JamSlot[]> = {};
+    for (const day of days) {
+      map[day] = [...(matrixJamSlots[day] || [])].sort(
+        (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
+      );
+    }
+    return map;
+  }, [days, matrixJamSlots]);
+
   // ── Row 1: Hari headers (colSpan = number of slots in that day × 1 col each)
   // ── Row 2: "Jam Ke" sub-headers per slot per day
   // ── Row 3: "Waktu" sub-headers per slot per day
@@ -1612,9 +1603,7 @@ function MasterGrid({
         {/* ── Row 2: Jam Ke per slot ─────────────────────────────────────── */}
         <tr>
           {days.map((day) => {
-            const daySlots = (matrixJamSlots[day] || []).sort(
-              (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
-            );
+            const daySlots = sortedJamSlots[day] || [];
             return daySlots.map((slot) => (
               <th
                 key={`${day}-${slot.jam_ke}-ke`}
@@ -1642,9 +1631,7 @@ function MasterGrid({
         {/* ── Row 3: Waktu per slot ─────────────────────────────────────── */}
         <tr>
           {days.map((day) => {
-            const daySlots = (matrixJamSlots[day] || []).sort(
-              (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
-            );
+            const daySlots = sortedJamSlots[day] || [];
             return daySlots.map((slot) => (
               <th
                 key={`${day}-${slot.jam_ke}-waktu`}
@@ -1704,7 +1691,11 @@ interface MasterGridClassRowsProps {
 
 const isSameCell = (c1: ScheduleCell | null | undefined, c2: ScheduleCell | null | undefined) => {
   if (!c1 || !c2) return false;
-  return c1.mapel === c2.mapel && c1.ruang === c2.ruang && JSON.stringify(c1.guru) === JSON.stringify(c2.guru);
+  if (c1.mapel !== c2.mapel || c1.ruang !== c2.ruang) return false;
+  const g1 = c1.guru, g2 = c2.guru;
+  if (g1.length !== g2.length) return false;
+  for (let i = 0; i < g1.length; i++) { if (g1[i] !== g2[i]) return false; }
+  return true;
 };
 
 function MasterGridClassRowsInner({
@@ -1722,6 +1713,17 @@ function MasterGridClassRowsInner({
     () => new Map(classPending.map((p) => [pendingChangeKey(p), p])),
     [classPending]
   );
+
+  // Pre-sorted jam slots per day — avoid inline .sort() on every render
+  const sortedJamSlots = useMemo(() => {
+    const map: Record<string, JamSlot[]> = {};
+    for (const day of days) {
+      map[day] = [...(matrixJamSlots[day] || [])].sort(
+        (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
+      );
+    }
+    return map;
+  }, [days, matrixJamSlots]);
 
   const hasPending = (hari: string, jamKe: number) => {
     const entry = pendingMap.get(`${cls.kelas_id}-${hari}-${jamKe}`);
@@ -1768,9 +1770,7 @@ function MasterGridClassRowsInner({
 
           {/* ── Data cells for each day × slot ── */}
           {days.map((day) => {
-            const daySlots = (matrixJamSlots[day] || []).sort(
-              (a, b) => a.jam_mulai.localeCompare(b.jam_mulai)
-            );
+            const daySlots = sortedJamSlots[day] || [];
 
             return daySlots.map((slot, index) => {
               const cell = cls.schedule[day]?.[slot.jam_ke];

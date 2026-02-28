@@ -14,12 +14,18 @@ export interface PendingChange {
 }
 
 /** 
+ * Returns the canonical string key for a PendingChange: `${kelas_id}-${hari}-${jam_ke}`.
+ */
+export function pendingChangeKey(change: Pick<PendingChange, 'kelas_id' | 'hari' | 'jam_ke'>): string {
+  return `${change.kelas_id}-${change.hari}-${change.jam_ke}`;
+}
+
+/** 
  * Merge a new PendingChange into the array, deduplicating by kelas_id+hari+jam_ke (last-write-wins) 
  */
 export function mergePendingChange(prev: PendingChange[], change: PendingChange): PendingChange[] {
-  const filtered = prev.filter(
-    (p) => !(p.kelas_id === change.kelas_id && p.hari === change.hari && p.jam_ke === change.jam_ke)
-  );
+  const key = pendingChangeKey(change);
+  const filtered = prev.filter((p) => pendingChangeKey(p) !== key);
   return [...filtered, change];
 }
 
@@ -32,4 +38,12 @@ export function mergePendingChanges(prev: PendingChange[], changes: PendingChang
     result = mergePendingChange(result, change);
   }
   return result;
+}
+
+/**
+ * Build a Map from PendingChange array for O(1) lookup.
+ * Key: `${kelas_id}-${hari}-${jam_ke}`
+ */
+export function buildPendingMap(changes: PendingChange[]): Map<string, PendingChange> {
+  return new Map(changes.map((p) => [pendingChangeKey(p), p]));
 }
