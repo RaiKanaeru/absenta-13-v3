@@ -115,7 +115,7 @@ interface MatrixResponse {
   message?: string;
 }
 
-const SLOT_W = 100;
+const SLOT_W = 120;
 
 interface ScheduleGridTableProps {
   onBack: () => void;
@@ -160,6 +160,8 @@ const getSubjectColor = (mapel: string, defaultColor?: string): string => {
   }
   return defaultColor || '#E5E7EB';
 };
+
+const formatTime = (t: string): string => t?.slice(0, 5) || '';
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
@@ -347,6 +349,16 @@ export function ScheduleGridTable({
     kelas_id: number;
     schedule: Record<string, Record<number, ScheduleCell | null>>;
   } | null>(null);
+
+  // Slot editor state
+  const [editingSlot, setEditingSlot] = useState<{
+    day: string;
+    slot: JamSlot;
+  } | null>(null);
+  const [editSlotJamMulai, setEditSlotJamMulai] = useState('');
+  const [editSlotJamSelesai, setEditSlotJamSelesai] = useState('');
+  const [editSlotJenis, setEditSlotJenis] = useState<'pelajaran' | 'istirahat' | 'pembiasaan'>('pelajaran');
+  const [editSlotLabel, setEditSlotLabel] = useState('');
 
   // Drag state
   const [activeDragItem, setActiveDragItem] = useState<{
@@ -1075,6 +1087,59 @@ export function ScheduleGridTable({
     });
   };
 
+  // ─── Slot Editor handlers ──────────────────────────────────────────────────
+  const handleSlotClick = useCallback((day: string, slot: JamSlot) => {
+    setEditingSlot({ day, slot });
+    setEditSlotJamMulai(formatTime(slot.jam_mulai));
+    setEditSlotJamSelesai(formatTime(slot.jam_selesai));
+    setEditSlotJenis(slot.jenis);
+    setEditSlotLabel(slot.label || '');
+  }, []);
+
+  const handleSaveSlot = useCallback(async () => {
+    if (!editingSlot || !matrixData) return;
+    const day = editingSlot.day;
+    const daySlots = [...(matrixData.jamSlots[day] || [])];
+    const idx = daySlots.findIndex(s => s.jam_ke === editingSlot.slot.jam_ke);
+    if (idx === -1) return;
+
+    daySlots[idx] = {
+      ...daySlots[idx],
+      jam_mulai: editSlotJamMulai,
+      jam_selesai: editSlotJamSelesai,
+      jenis: editSlotJenis,
+      label: editSlotJenis !== 'pelajaran' ? editSlotLabel : undefined,
+    };
+
+    const kelasId = selectedKelasId || String(matrixData.classes[0]?.kelas_id);
+    if (!kelasId) return;
+
+    try {
+      const response = await apiCall<{ success: boolean; error?: string }>(`/api/admin/jam-pelajaran/${kelasId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          jam_pelajaran: daySlots.map(s => ({
+            jam_ke: s.jam_ke,
+            jam_mulai: s.jam_mulai,
+            jam_selesai: s.jam_selesai,
+            jenis: s.jenis,
+            label: s.label || null,
+          }))
+        })
+      });
+
+      if (response.success) {
+        toast({ title: 'Berhasil', description: 'Konfigurasi jam diperbarui' });
+        setEditingSlot(null);
+        fetchMatrix();
+      } else {
+        throw new Error(response.error || 'Gagal menyimpan');
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Gagal menyimpan', variant: 'destructive' });
+    }
+  }, [editingSlot, matrixData, editSlotJamMulai, editSlotJamSelesai, editSlotJenis, editSlotLabel, selectedKelasId, fetchMatrix]);
+
   // ─── Loading state ─────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -1215,6 +1280,7 @@ export function ScheduleGridTable({
               visibleClasses={visibleClasses}
               pendingChanges={pendingChanges}
               onCellClick={handleCellClick}
+              onSlotClick={handleSlotClick}
             />
           </div>
         </div>
@@ -1425,6 +1491,53 @@ export function ScheduleGridTable({
         </Dialog>
       )}
 
+
+      {/* ── Slot Configuration Dialog ───────────────────────────────────────────── */}
+      {editingSlot && (
+        <Dialog open={!!editingSlot} onOpenChange={(open) => !open && setEditingSlot(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-base">
+                Edit Slot — {editingSlot.day} {editingSlot.slot.jenis !== 'pelajaran'
+                  ? (editingSlot.slot.label || editingSlot.slot.jenis).toUpperCase()
+                  : `Jam ${editingSlot.slot.jam_ke}`}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-sm">Mulai</Label>
+                <Input type="time" value={editSlotJamMulai} onChange={(e) => setEditSlotJamMulai(e.target.value)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-sm">Selesai</Label>
+                <Input type="time" value={editSlotJamSelesai} onChange={(e) => setEditSlotJamSelesai(e.target.value)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-sm">Jenis</Label>
+                <Select value={editSlotJenis} onValueChange={(v) => setEditSlotJenis(v as 'pelajaran' | 'istirahat' | 'pembiasaan')}>
+                  <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pelajaran">Pelajaran</SelectItem>
+                    <SelectItem value="istirahat">Istirahat</SelectItem>
+                    <SelectItem value="pembiasaan">Pembiasaan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editSlotJenis !== 'pelajaran' && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right text-sm">Label</Label>
+                  <Input value={editSlotLabel} onChange={(e) => setEditSlotLabel(e.target.value)} placeholder="e.g. Istirahat 1" className="col-span-3" />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingSlot(null)}>Batal</Button>
+              <Button onClick={handleSaveSlot}>Simpan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* ── Mismatch Confirmation Dialog ──────────────────────────────────────── */}
       <AlertDialog open={!!mismatchWarning} onOpenChange={(open) => !open && setMismatchWarning(null)}>
         <AlertDialogContent>
@@ -1522,6 +1635,7 @@ interface MasterGridProps {
     jam_ke: number,
     cell: ScheduleCell | null | undefined
   ) => void;
+  onSlotClick?: (day: string, slot: JamSlot) => void;
 }
 
 function MasterGrid({
@@ -1530,6 +1644,7 @@ function MasterGrid({
   visibleClasses,
   pendingChanges,
   onCellClick,
+  onSlotClick,
 }: Readonly<MasterGridProps>) {
   // Build per-day slot lists for quick lookup
   const daySlotSets = useMemo(() => {
@@ -1607,7 +1722,7 @@ function MasterGrid({
             return daySlots.map((slot) => (
               <th
                 key={`${day}-${slot.jam_ke}-ke`}
-                className="sticky z-30 border border-slate-300 bg-slate-600 text-white font-medium text-center py-0.5 px-1 whitespace-nowrap"
+                className={`sticky z-30 border border-slate-300 bg-slate-600 text-white font-medium text-center py-0.5 px-1 whitespace-nowrap cursor-pointer hover:opacity-80 ${slot.jenis !== 'pelajaran' ? 'text-[9px]' : 'text-[11px]'}`}
                 style={{
                   top: 28,
                   minWidth: SLOT_W,
@@ -1620,6 +1735,7 @@ function MasterGrid({
                       : undefined,
                 }}
               >
+                onClick={() => onSlotClick?.(day, slot)}
                 {slot.jenis !== 'pelajaran'
                   ? (slot.label || slot.jenis).toUpperCase()
                   : `Jam ${slot.jam_ke}`}
@@ -1635,10 +1751,11 @@ function MasterGrid({
             return daySlots.map((slot) => (
               <th
                 key={`${day}-${slot.jam_ke}-waktu`}
-                className="sticky z-30 border border-slate-300 bg-slate-500 text-white font-normal text-center py-0.5 px-1 whitespace-nowrap"
+                className="sticky z-30 border border-slate-300 bg-slate-500 text-white font-normal text-[10px] text-center py-0.5 px-1 whitespace-nowrap cursor-pointer hover:opacity-80"
                 style={{ top: 56, minWidth: SLOT_W, width: SLOT_W }}
               >
-                {slot.jam_mulai}–{slot.jam_selesai}
+                onClick={() => onSlotClick?.(day, slot)}
+                {formatTime(slot.jam_mulai)}–{formatTime(slot.jam_selesai)}
               </th>
             ));
           })}
@@ -1658,6 +1775,7 @@ function MasterGrid({
               matrixJamSlots={matrixJamSlots}
               classPending={classPending}
               onCellClick={onCellClick}
+              onSlotClick={onSlotClick}
               KELAS_W={KELAS_W}
               KAT_W={KAT_W}
             />
@@ -1686,6 +1804,7 @@ interface MasterGridClassRowsProps {
   ) => void;
   KELAS_W: number;
   KAT_W: number;
+  onSlotClick?: (day: string, slot: JamSlot) => void;
 }
 
 
@@ -1705,6 +1824,7 @@ function MasterGridClassRowsInner({
   matrixJamSlots,
   classPending,
   onCellClick,
+  onSlotClick,
   KELAS_W,
   KAT_W,
 }: Readonly<MasterGridClassRowsProps>) {
@@ -1816,7 +1936,13 @@ function MasterGridClassRowsInner({
                       }}
                     >
                       {isGlobalSpecial ? (
-                        innerContent
+                        <button
+                          type="button"
+                          className="w-full h-full flex items-center justify-center cursor-pointer hover:opacity-80"
+                          onClick={() => onSlotClick?.(day, slot)}
+                        >
+                          {innerContent}
+                        </button>
                       ) : (
                         <DroppableCell
                           cellId={cellId}
