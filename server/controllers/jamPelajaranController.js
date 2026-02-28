@@ -24,11 +24,11 @@ import db from '../config/db.js';
 const logger = createLogger('JamPelajaran');
 
 // Constants
-const MIN_JAM_KE = 1;
+const MIN_JAM_KE = 0;
 const MAX_JAM_KE = 15;
 const TIME_REGEX = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const DEFAULT_TAHUN_AJARAN = '2025/2026';
-const VALID_JENIS = new Set(['pelajaran', 'istirahat', 'pembiasaan']);
+const VALID_JENIS = new Set(['pelajaran', 'istirahat', 'pembiasaan', 'upacara']);
 
 const DEFAULT_JAM_PELAJARAN = [
     { jam_ke: 1, jam_mulai: '06:30', jam_selesai: '07:15', keterangan: null },

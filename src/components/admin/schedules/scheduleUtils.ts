@@ -25,7 +25,18 @@ export function pendingChangeKey(change: Pick<PendingChange, 'kelas_id' | 'hari'
  */
 export function mergePendingChange(prev: PendingChange[], change: PendingChange): PendingChange[] {
   const key = pendingChangeKey(change);
+  const existing = prev.find((p) => pendingChangeKey(p) === key);
   const filtered = prev.filter((p) => pendingChangeKey(p) !== key);
+  if (existing) {
+    // Field-level merge: preserve existing fields, override only what the new change provides
+    const merged: PendingChange = { ...existing };
+    if (change.mapel_id !== undefined) merged.mapel_id = change.mapel_id;
+    if (change.guru_id !== undefined) merged.guru_id = change.guru_id;
+    if (change.ruang_id !== undefined) merged.ruang_id = change.ruang_id;
+    if (change.rowType !== undefined) merged.rowType = change.rowType;
+    if (change.action !== undefined) merged.action = change.action;
+    return [...filtered, merged];
+  }
   return [...filtered, change];
 }
 

@@ -359,7 +359,7 @@ export function ScheduleGridTable({
   } | null>(null);
   const [editSlotJamMulai, setEditSlotJamMulai] = useState('');
   const [editSlotJamSelesai, setEditSlotJamSelesai] = useState('');
-  const [editSlotJenis, setEditSlotJenis] = useState<'pelajaran' | 'istirahat' | 'pembiasaan'>('pelajaran');
+  const [editSlotJenis, setEditSlotJenis] = useState<'pelajaran' | 'istirahat' | 'pembiasaan' | 'upacara'>('pelajaran');
   const [editSlotLabel, setEditSlotLabel] = useState('');
 
   // Drag state
@@ -921,14 +921,45 @@ export function ScheduleGridTable({
       return;
     }
 
+    // Filter out incomplete changes for empty cells (no existing jadwal row in DB)
+    // For empty cells (id null/0), BOTH mapel_id AND guru_id are required by backend.
+    // For existing cells (id > 0), partial updates are allowed (backend fills from existing row).
+    const validChanges = pendingChanges.filter((change) => {
+      if (change.action === 'delete') return true; // deletes are always valid
+      const cls = matrixData?.classes.find((c) => c.kelas_id === change.kelas_id);
+      const existingCell = cls?.schedule[change.hari]?.[change.jam_ke];
+      const hasExistingRow = existingCell && existingCell.id && existingCell.id > 0;
+      if (!hasExistingRow && (!change.mapel_id || !change.guru_id)) {
+        return false; // Skip incomplete entries for empty cells
+      }
+      return true;
+    });
+
+    const skippedCount = pendingChanges.length - validChanges.length;
+    if (skippedCount > 0) {
+      toast({
+        title: 'Perhatian',
+        description: `${skippedCount} perubahan dilewati — sel kosong memerlukan guru DAN mapel.`,
+        variant: 'default',
+      });
+    }
+
+    if (validChanges.length === 0) {
+      toast({
+        title: 'Tidak ada perubahan valid',
+        description: 'Lengkapi guru DAN mapel untuk sel kosong.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const changesByHari: Record<string, PendingChange[]> = {};
-      for (const change of pendingChanges) {
+      for (const change of validChanges) {
         if (!changesByHari[change.hari]) changesByHari[change.hari] = [];
         changesByHari[change.hari].push(change);
       }
-
       for (const [hari, changes] of Object.entries(changesByHari)) {
         await apiCall('/api/admin/jadwal/matrix/batch', {
           method: 'POST',
@@ -937,7 +968,7 @@ export function ScheduleGridTable({
         });
       }
 
-      toast({ title: 'Sukses', description: `${pendingChanges.length} perubahan disimpan` });
+      toast({ title: 'Sukses', description: `${validChanges.length} perubahan disimpan` });
       setPendingChanges([]);
       fetchMatrix();
     } catch (error: unknown) {
@@ -1526,12 +1557,13 @@ export function ScheduleGridTable({
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right text-sm">Jenis</Label>
-                <Select value={editSlotJenis} onValueChange={(v) => setEditSlotJenis(v as 'pelajaran' | 'istirahat' | 'pembiasaan')}>
+                <Select value={editSlotJenis} onValueChange={(v) => setEditSlotJenis(v as 'pelajaran' | 'istirahat' | 'pembiasaan' | 'upacara')}>
                   <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pelajaran">Pelajaran</SelectItem>
                     <SelectItem value="istirahat">Istirahat</SelectItem>
                     <SelectItem value="pembiasaan">Pembiasaan</SelectItem>
+                    <SelectItem value="upacara">Upacara</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
