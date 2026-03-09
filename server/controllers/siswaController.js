@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { invalidateUserSessions } from '../utils/authHelpers.js';
 import db from '../config/db.js';
 
 import dotenv from 'dotenv';
@@ -653,6 +654,12 @@ export const updateSiswa = async (req, res) => {
 
             await connection.commit();
             log.success('Update', { nis: paramNis, nama: nama || siswa.nama });
+
+            // Invalidate sessions if deactivated
+            if (req.body.status && req.body.status !== 'aktif' && siswa.user_id) {
+                await invalidateUserSessions(siswa.user_id);
+            }
+
             if (globalThis.cacheSystem?.isConnected) {
                 await globalThis.cacheSystem.deletePattern('*', 'students');
                 await globalThis.cacheSystem.deletePattern('*', 'analytics');
@@ -859,6 +866,9 @@ export const changePassword = async (req, res) => {
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
+
+        // Invalidate all existing sessions after password change
+        await invalidateUserSessions(userId);
 
         log.success('ChangePassword', { userId });
         return sendSuccessResponse(res, null, 'Password berhasil diubah');

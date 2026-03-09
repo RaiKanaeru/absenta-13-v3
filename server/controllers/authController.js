@@ -499,11 +499,21 @@ export const login = async (req, res) => {
         const cacheSystem = globalThis.cacheSystem;
         if (cacheSystem?.isConnected) {
             try {
-                await cacheSystem.redis.setex(`rt:${rtHash}`, 7 * 24 * 3600, JSON.stringify({
+                const pipeline = cacheSystem.redis.pipeline();
+                
+                // Individual token record
+                pipeline.setex(`rt:${rtHash}`, 7 * 24 * 3600, JSON.stringify({
                     userId: user.id,
                     username: user.username,
                     createdAt: Date.now()
                 }));
+                
+                // Track in user's token set
+                const userTokensKey = `user_refresh_tokens:${user.id}`;
+                pipeline.sadd(userTokensKey, rtHash);
+                pipeline.expire(userTokensKey, 7 * 24 * 3600);
+                
+                await pipeline.exec();
             } catch (err) {
                 logger.warn('Failed to store refresh token in Redis', { error: err.message });
             }
@@ -563,7 +573,13 @@ export const logout = async (req, res) => {
         if (cacheSystem?.isConnected) {
             try {
                 const rtHash = crypto.createHash('sha256').update(refreshTokenValue).digest('hex');
-                await cacheSystem.redis.del(`rt:${rtHash}`);
+                const userId = req.user?.id || 'unknown';
+                
+                const pipeline = cacheSystem.redis.pipeline();
+                pipeline.del(`rt:${rtHash}`);
+                pipeline.srem(`user_refresh_tokens:${userId}`, rtHash);
+                
+                await pipeline.exec();
             } catch (err) {
                 logger.warn('Failed to revoke refresh token from Redis', { error: err.message });
             }
@@ -650,12 +666,20 @@ export const refresh = async (req, res) => {
         if (cacheSystem?.isConnected) {
             try {
                 const pipeline = cacheSystem.redis.pipeline();
+                const userTokensKey = `user_refresh_tokens:${user.id}`;
+
                 pipeline.del(`rt:${rtHash}`);          // Delete old
+                pipeline.srem(userTokensKey, rtHash);  // Remove old from set
+
+                // Create new
                 pipeline.setex(`rt:${newRtHash}`, 7 * 24 * 3600, JSON.stringify({
                     userId: user.id,
                     username: user.username,
                     createdAt: Date.now()
                 }));
+                pipeline.sadd(userTokensKey, newRtHash); // Add new to set
+                pipeline.expire(userTokensKey, 7 * 24 * 3600); // Reset set expiry
+
                 await pipeline.exec();
             } catch (err) {
                 logger.warn('Redis pipeline failed during token rotation', { error: err.message });

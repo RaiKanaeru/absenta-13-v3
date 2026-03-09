@@ -8,6 +8,7 @@ import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicat
 import dotenv from 'dotenv';
 import { getMySQLDateTimeWIB, getWIBTime } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { invalidateUserSessions } from '../utils/authHelpers.js';
 import db from '../config/db.js';
 
 dotenv.config();
@@ -507,6 +508,12 @@ export const updateGuru = async (req, res) => {
 
             await connection.commit();
             log.success('UpdateGuru', { id, nama: nama || guru.nama });
+
+            // Invalidate sessions if deactivated
+            if (req.body.status && ['nonaktif', 'pensiun'].includes(req.body.status) && guru.user_id) {
+                await invalidateUserSessions(guru.user_id);
+            }
+
             if (globalThis.cacheSystem?.isConnected) {
                 await globalThis.cacheSystem.deletePattern('*', 'teachers');
                 await globalThis.cacheSystem.deletePattern('*', 'schedules');
@@ -688,6 +695,9 @@ export const changePassword = async (req, res) => {
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
+
+        // Invalidate all existing sessions after password change
+        await invalidateUserSessions(userId);
 
         log.success('ChangePassword', { userId });
         return sendSuccessResponse(res, null, 'Password berhasil diubah');

@@ -10,7 +10,7 @@ if (!JWT_SECRET) {
 }
 
 // Middleware to authenticate JWT token
-export function authenticateToken(req, res, next) {
+export async function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader?.split(' ')[1] || req.cookies?.token;
 
@@ -18,18 +18,36 @@ export function authenticateToken(req, res, next) {
         return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_UNAUTHORIZED, 'Token akses diperlukan'));
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            const errorCode = err.name === 'TokenExpiredError'
-                ? ERROR_CODES.AUTH_TOKEN_EXPIRED
-                : ERROR_CODES.AUTH_UNAUTHORIZED;
-            return sendErrorResponse(res, new AppError(errorCode, 'Token tidak valid atau kadaluarsa'));
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        
+        // Check for session invalidation (password changes/logout all)
+        if (globalThis.cacheSystem?.redis) {
+            try {
+                const validAfterStr = await globalThis.cacheSystem.redis.get(`user_token_valid_after:${user.id}`);
+                if (validAfterStr) {
+                    const validAfter = parseInt(validAfterStr, 10);
+                    // iat is in seconds, validAfter should also be in seconds
+                    if (user.iat < validAfter) {
+                        return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_UNAUTHORIZED, 'Sesi telah berakhir atau password diubah'));
+                    }
+                }
+            } catch (redisError) {
+                // Fail-open: if Redis is down, allow access but log error
+                if (globalThis.logger) {
+                    globalThis.logger.error('Redis error in authenticateToken:', redisError);
+                }
+            }
         }
 
         req.user = user;
-
         next();
-    });
+    } catch (err) {
+        const errorCode = err.name === 'TokenExpiredError'
+            ? ERROR_CODES.AUTH_TOKEN_EXPIRED
+            : ERROR_CODES.AUTH_UNAUTHORIZED;
+        return sendErrorResponse(res, new AppError(errorCode, 'Token tidak valid atau kadaluarsa'));
+    }
 }
 
 // Role-based access control middleware

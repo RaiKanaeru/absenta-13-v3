@@ -8,6 +8,7 @@ import db from '../config/db.js';
 import { sendDatabaseError, sendValidationError, sendNotFoundError, sendDuplicateError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { getMySQLDateTimeWIB } from '../utils/timeUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { invalidateUserSessions } from '../utils/authHelpers.js';
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -119,6 +120,9 @@ export const changeAdminPassword = async (req, res) => {
             'UPDATE users SET password = ?, updated_at = ? WHERE id = ?',
             [hashedPassword, getMySQLDateTimeWIB(), userId]
         );
+
+        // Invalidate all existing sessions after password change
+        await invalidateUserSessions(userId);
 
         log.success('ChangePassword', { userId });
         return sendSuccessResponse(res, null, 'Password berhasil diubah');
