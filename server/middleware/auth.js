@@ -27,8 +27,15 @@ export async function authenticateToken(req, res, next) {
                 const validAfterStr = await globalThis.cacheSystem.redis.get(`user_token_valid_after:${user.id}`);
                 if (validAfterStr) {
                     const validAfter = parseInt(validAfterStr, 10);
-                    // iat is in seconds, validAfter should also be in seconds
-                    if (user.iat < validAfter) {
+                    // Support legacy validAfter (in seconds) and new validAfter (in ms)
+                    // If length > 10, it's a timestamp in milliseconds (valid past year 2286)
+                    const isMs = validAfterStr.length > 10;
+                    const validAfterMs = isMs ? validAfter : validAfter * 1000;
+                    
+                    // Use user.issuedAt if available, otherwise fallback to user.iat * 1000
+                    const tokenTimeMs = user.issuedAt || (user.iat * 1000);
+                    
+                    if (tokenTimeMs <= validAfterMs) {
                         return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_UNAUTHORIZED, 'Sesi telah berakhir atau password diubah'));
                     }
                 }

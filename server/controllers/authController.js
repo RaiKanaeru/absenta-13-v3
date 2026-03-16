@@ -22,6 +22,7 @@ import dotenv from 'dotenv';
 import { AppError, ERROR_CODES, sendErrorResponse, sendRateLimitError, sendValidationError, sendSuccessResponse } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import db from '../config/db.js';
+import { invalidateUserSessions } from '../utils/authHelpers.js';
 
 dotenv.config();
 
@@ -484,6 +485,7 @@ export const login = async (req, res) => {
             nama: user.nama,
             role: user.role,
             is_perwakilan: Number(user.is_perwakilan) === 1,
+            issuedAt: Date.now(),
             ...additionalData
         };
 
@@ -594,6 +596,30 @@ export const logout = async (req, res) => {
 };
 
 /**
+ * Logout user from all devices — invalidates all sessions and revokes all refresh tokens
+ * POST /api/logout-all
+ */
+export const logoutAll = async (req, res) => {
+    const log = logger.withRequest(req, res);
+    const userId = req.user?.id;
+
+    if (!userId) {
+        return sendErrorResponse(res, new AppError(ERROR_CODES.AUTH_UNAUTHORIZED, 'User tidak terautentikasi'));
+    }
+
+    // Revoke all refresh tokens and set valid_after to invalidate existing access tokens
+    await invalidateUserSessions(userId);
+    
+    // Clear current device cookies
+    res.clearCookie('token');
+    res.clearCookie('refreshToken', { path: '/' });
+    
+    log.info('User logged out from all devices', { userId, username: req.user?.username });
+    
+    return sendSuccessResponse(res, null, 'Berhasil logout dari semua perangkat');
+};
+
+/**
  * Refresh access token using refresh token
  * POST /api/refresh
  */
@@ -652,6 +678,7 @@ export const refresh = async (req, res) => {
             nama: user.nama,
             role: user.role,
             is_perwakilan: Number(user.is_perwakilan) === 1,
+            issuedAt: Date.now(),
             ...additionalData
         };
 

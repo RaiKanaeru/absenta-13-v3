@@ -25,12 +25,12 @@ export const invalidateUserSessions = async (userId) => {
     }
 
     const redis = cache.redis;
-    const now = Math.floor(Date.now() / 1000);
+    const nowMs = Date.now();
     const validAfterKey = `user_token_valid_after:${userId}`;
     const refreshTokensSetKey = `user_refresh_tokens:${userId}`;
 
     // 1. Set the valid_after timestamp (valid for 30 days)
-    await redis.set(validAfterKey, now, 'EX', 30 * 24 * 60 * 60);
+    await redis.set(validAfterKey, nowMs, 'EX', 30 * 24 * 60 * 60);
 
     // 2. Fetch all refresh token hashes for this user
     const tokenHashes = await redis.smembers(refreshTokensSetKey);
