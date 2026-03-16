@@ -17,6 +17,7 @@ export interface AuthContextValue {
   remainingAttempts: number | null;
   login: (credentials: Credentials) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -283,6 +284,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  const logoutAll = useCallback(async () => {
+    try {
+      const token = getCleanToken();
+      const response = await fetch(getApiUrl("/api/logout-all"), {
+        method: "POST",
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (!response.ok) {
+        let errorMessage = "Terjadi kesalahan saat logout dari semua perangkat";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            const result = await response.json();
+            errorMessage = extractErrorMessage(result) || errorMessage;
+          }
+        } catch {
+          // Fallback to default message if parsing fails
+        }
+        throw new Error(errorMessage);
+      }
+
+      clearAuthToken();
+      setUser(null);
+      setError(null);
+
+      toast({
+        title: "Logout Berhasil",
+        description: "Anda telah keluar dari semua perangkat",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Gagal logout",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan saat logout semua perangkat",
+      });
+      // We don't automatically clear local auth state if the network request fails,
+      // as instructed: "Clear local auth state only after a successful logout-all response; if the request fails, keep the current session intact and show an error toast."
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -294,8 +337,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       remainingAttempts,
       login,
       logout,
+      logoutAll,
     }),
-    [user, isLoading, isAuthenticating, error, requireCaptcha, remainingAttempts, login, logout]
+    [user, isLoading, isAuthenticating, error, requireCaptcha, remainingAttempts, login, logout, logoutAll]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -379,6 +379,7 @@ interface TeacherSidebarProps {
   navigate: ReturnType<typeof useNavigate>;
   userName: string;
   onLogout: () => void;
+  onLogoutAll: () => void;
   onEditProfile: () => void;
   notifications: ReturnType<typeof useNotifications>['notifications'];
   unreadCount: number;
@@ -446,6 +447,7 @@ const TeacherSidebar = ({
   navigate,
   userName,
   onLogout,
+  onLogoutAll,
   onEditProfile,
   notifications,
   unreadCount,
@@ -543,6 +545,16 @@ const TeacherSidebar = ({
             <LogOut className="h-4 w-4" />
             {showLabel && <span className="ml-2">Keluar</span>}
           </Button>
+
+          <Button
+            onClick={onLogoutAll}
+            variant="outline"
+            size="sm"
+            className={`w-full ${showLabel ? '' : 'px-2'} text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50`}
+          >
+            <LogOut className="h-4 w-4" />
+            {showLabel && <span className="ml-2">Logout Semua</span>}
+          </Button>
         </div>
       </div>
     </div>
@@ -610,10 +622,14 @@ const TeacherDashboardRoutes = ({ schedules, isLoading, user }: TeacherDashboard
 
 // Main TeacherDashboard Component
 export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
-  const { logout } = useAuth();
+  const { logout, logoutAll } = useAuth();
   const onLogout = useCallback(() => {
     void logout();
   }, [logout]);
+
+  const onLogoutAll = useCallback(() => {
+    void logoutAll();
+  }, [logoutAll]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -664,6 +680,7 @@ export const TeacherDashboard = ({ userData }: TeacherDashboardProps) => {
         navigate={navigate}
         userName={user.nama}
         onLogout={onLogout}
+        onLogoutAll={onLogoutAll}
         onEditProfile={() => setShowEditProfile(true)}
         notifications={notifications}
         unreadCount={unreadCount}

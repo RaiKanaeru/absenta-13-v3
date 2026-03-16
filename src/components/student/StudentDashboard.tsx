@@ -32,6 +32,7 @@ interface StudentDashboardProps {
     username: string;
     nama: string;
     role: string;
+    siswa_id?: number;
   };
 }
 
@@ -58,6 +59,7 @@ interface StudentSidebarProps {
   navigate: ReturnType<typeof useNavigate>;
   userName: string;
   onLogout: () => void;
+  onLogoutAll: () => void;
   onEditProfile: () => void;
   notifications: ReturnType<typeof useNotifications>['notifications'];
   unreadCount: number;
@@ -72,6 +74,7 @@ const StudentSidebar = ({
   navigate,
   userName,
   onLogout,
+  onLogoutAll,
   onEditProfile,
   notifications,
   unreadCount,
@@ -182,6 +185,16 @@ const StudentSidebar = ({
           >
             <LogOut className="h-4 w-4" />
             {showLabel && <span className="ml-2">Keluar</span>}
+          </Button>
+
+          <Button
+            onClick={onLogoutAll}
+            variant="outline"
+            size="sm"
+            className={`w-full ${showLabel ? '' : 'px-2'} text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50`}
+          >
+            <LogOut className="h-4 w-4" />
+            {showLabel && <span className="ml-2">Logout Semua</span>}
           </Button>
         </div>
       </div>
@@ -606,10 +619,14 @@ const handleKehadiranStatusUpdateError = (
 };
 
 export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
-  const { logout } = useAuth();
+  const { logout, logoutAll } = useAuth();
   const onLogout = useCallback(() => {
     logout();
   }, [logout]);
+
+  const onLogoutAll = useCallback(() => {
+    logoutAll();
+  }, [logoutAll]);
 
   // Notifications (siswa — uses siswa_id for banding-absen endpoint)
   const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
@@ -1649,6 +1666,7 @@ export const StudentDashboard = ({ userData }: StudentDashboardProps) => {
         navigate={navigate}
         userName={currentUserData.nama}
         onLogout={onLogout}
+        onLogoutAll={onLogoutAll}
         onEditProfile={() => setShowEditProfile(true)}
         notifications={notifications}
         unreadCount={unreadCount}

@@ -110,7 +110,7 @@ const SubView = ({ children }: { children: React.ReactNode }) => {
 // ---------------------------------------------------------------------------
 
 export const AdminDashboard = () => {
-  const { logout, user } = useAuth();
+  const { logout, logoutAll, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -126,6 +126,16 @@ export const AdminDashboard = () => {
       });
     });
   }, [logout]);
+
+  const handleLogoutAll = React.useCallback(() => {
+    logoutAll().catch((error) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal logout semua perangkat",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan",
+      });
+    });
+  }, [logoutAll]);
 
   // Notifications (admin — no userId needed)
   const { notifications, unreadCount, isLoading: notifLoading, refresh: notifRefresh } =
@@ -286,6 +296,17 @@ export const AdminDashboard = () => {
               <LogOut className="h-4 w-4" />
               {sidebarOpen && <span className="ml-2 block lg:hidden">Keluar</span>}
               <span className="ml-2 hidden lg:block">Keluar</span>
+            </Button>
+
+            <Button
+              onClick={handleLogoutAll}
+              variant="outline"
+              size="sm"
+              className={`w-full ${sidebarOpen ? '' : 'px-2 lg:px-3'} text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50`}
+            >
+              <LogOut className="h-4 w-4" />
+              {sidebarOpen && <span className="ml-2 block lg:hidden">Logout Semua</span>}
+              <span className="ml-2 hidden lg:block">Logout Semua</span>
             </Button>
           </div>
         </div>
