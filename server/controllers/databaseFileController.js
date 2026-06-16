@@ -43,15 +43,16 @@ const resolveTargetDir = (pathType) => {
  */
 const checkBlockedSqlPatterns = (sqlContent) => {
     const BLOCKED_SQL_PATTERNS = [
-        'drop database',
-        'drop table',
-        'truncate table',
-        'truncate ',
+        /\bdrop\s+database\b/i,
+        /\bdrop\s+table\b/i,
+        /\btruncate\b/i,
     ];
-    const lowerSql = sqlContent.toLowerCase();
     for (const pattern of BLOCKED_SQL_PATTERNS) {
-        if (lowerSql.includes(pattern)) {
-            return `Keamanan: ${pattern.trim().toUpperCase()} tidak diizinkan`;
+        const match = sqlContent.match(pattern);
+        if (match) {
+            // Extract the matched pattern to show in the error message
+            const matchedText = match[0].trim().toUpperCase();
+            return `Keamanan: ${matchedText} tidak diizinkan`;
         }
     }
     return null;
