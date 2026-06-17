@@ -15,7 +15,7 @@ on:
 
 env:
   DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/absenta13
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
 
 jobs:
   # ==========================================
@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
