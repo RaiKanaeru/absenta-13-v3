@@ -420,7 +420,7 @@ async function performManualDatabaseBackup(filepath, filename) {
         for (const table of tables) {
             try {
                 // Get table structure
-                const [createResult] = await db.execute(`SHOW CREATE TABLE ${table}`);
+                const [createResult] = await db.execute(`SHOW CREATE TABLE \`${table}\``);
                 if (createResult.length > 0) {
                     backupContent += `\n-- Table: ${table}\n`;
                     backupContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
@@ -428,7 +428,7 @@ async function performManualDatabaseBackup(filepath, filename) {
                 }
 
                 // Get table data
-                const [rows] = await db.execute(`SELECT * FROM ${table}`);
+                const [rows] = await db.execute(`SELECT * FROM \`${table}\``);
                 if (rows.length > 0) {
                     for (const row of rows) {
                         const columns = Object.keys(row).map(col => `\`${col}\``).join(', ');
