@@ -1,0 +1,4 @@
+## 2024-07-03 - [CRITICAL] Path Traversal in File Deletion
+**Vulnerability:** Arbitrary file deletion via path traversal in the `deleteLogo` endpoint in `server/controllers/letterheadController.js`. The endpoint used an unsanitized URL field (`logoLeftUrl`, etc.) from the configuration to directly construct a file path for deletion (`path.join('public', file)`).
+**Learning:** Even internal configuration values or database records can be tampered with by authorized users (e.g., admins). Do not trust any input that specifies a file path without verifying it against an absolute allowed boundary.
+**Prevention:** Always extract just the filename from a requested path, construct an absolute path using a known base directory, and explicitly verify that the resolved absolute path starts with the allowed base directory boundary before performing file operations.

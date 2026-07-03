@@ -330,9 +330,22 @@ export const deleteLogo = async (req, res) => {
         // Delete physical file if it exists
         if (file && file.startsWith(UPLOAD_URL_PREFIX)) {
             try {
-                const filePath = path.join('public', file);
-                await fs.unlink(filePath);
-                log.debug('Physical file deleted', { filePath });
+                const requestedPath = file.slice(UPLOAD_URL_PREFIX.length);
+                const filename = path.basename(requestedPath);
+
+                if (filename && filename === requestedPath && !filename.includes('..') && !filename.startsWith('.')) {
+                    const filePath = path.resolve(UPLOAD_FS_ABSOLUTE_PATH, filename);
+                    const allowedBoundary = `${UPLOAD_FS_ABSOLUTE_PATH}${path.sep}`;
+
+                    if (filePath === UPLOAD_FS_ABSOLUTE_PATH || filePath.startsWith(allowedBoundary)) {
+                        await fs.unlink(filePath);
+                        log.debug('Physical file deleted', { filePath });
+                    } else {
+                        log.warn('Could not delete physical file: Path traversal detected', { file });
+                    }
+                } else {
+                    log.warn('Could not delete physical file: Invalid filename', { file });
+                }
             } catch (fileError) {
                 log.warn('Could not delete physical file', { error: fileError.message });
             }
