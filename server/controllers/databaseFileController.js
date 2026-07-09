@@ -37,27 +37,6 @@ const resolveTargetDir = (pathType) => {
 };
 
 /**
- * Check for blocked SQL patterns in content
- * @param {string} sqlContent - SQL content to check
- * @returns {string|null} Error message if blocked pattern found, null otherwise
- */
-const checkBlockedSqlPatterns = (sqlContent) => {
-    const BLOCKED_SQL_PATTERNS = [
-        'drop database',
-        'drop table',
-        'truncate table',
-        'truncate ',
-    ];
-    const lowerSql = sqlContent.toLowerCase();
-    for (const pattern of BLOCKED_SQL_PATTERNS) {
-        if (lowerSql.includes(pattern)) {
-            return `Keamanan: ${pattern.trim().toUpperCase()} tidak diizinkan`;
-        }
-    }
-    return null;
-};
-
-/**
  * List all SQL files in allowed directories
  */
 export const listDatabaseFiles = async (req, res) => {
@@ -155,10 +134,19 @@ export const executeDatabaseFile = async (req, res) => {
             return sendValidationError(res, 'File kosong');
         }
 
-        // Check for blocked SQL patterns
-        const blockedError = checkBlockedSqlPatterns(cleanSql);
-        if (blockedError) {
-            return sendPermissionError(res, blockedError);
+        // Parse statements first
+        const commands = splitSqlStatements(cleanSql);
+        if (commands.length === 0) {
+            return sendValidationError(res, 'Tidak ada perintah SQL yang dapat dieksekusi');
+        }
+
+        // Check for blocked SQL patterns on individual statements to avoid false positives in strings/comments
+        const dangerousPattern = /^\s*(drop|truncate|alter|delete|grant|revoke|replace|update)\b/i;
+        for (const cmd of commands) {
+            if (dangerousPattern.test(cmd)) {
+                const match = cmd.match(dangerousPattern);
+                return sendPermissionError(res, `Keamanan: Perintah '${match[1].toUpperCase()}' tidak diizinkan`);
+            }
         }
 
         // Execute
@@ -166,11 +154,6 @@ export const executeDatabaseFile = async (req, res) => {
         let queryCount = 0;
         
         try {
-             const commands = splitSqlStatements(cleanSql);
-             if (commands.length === 0) {
-                 return sendValidationError(res, 'Tidak ada perintah SQL yang dapat dieksekusi');
-             }
-             
              await connection.beginTransaction();
              for (const cmd of commands) {
                  if(cmd.trim()) {
