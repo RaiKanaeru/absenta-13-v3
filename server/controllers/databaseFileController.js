@@ -47,6 +47,7 @@ const checkBlockedSqlPatterns = (sqlContent) => {
         'drop table',
         'truncate table',
         'truncate ',
+        'delete from',
     ];
     const lowerSql = sqlContent.toLowerCase();
     for (const pattern of BLOCKED_SQL_PATTERNS) {
