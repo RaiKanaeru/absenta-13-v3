@@ -10,8 +10,9 @@ import AdmZip from 'adm-zip';
 import { sendDatabaseError, sendErrorResponse, sendValidationError, sendNotFoundError, sendServiceUnavailableError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
-import { exec } from 'node:child_process';
+import { exec, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createWriteStream } from 'node:fs';
 import { splitSqlStatements } from '../utils/sqlParser.js';
 import db from '../config/db.js';
 
@@ -1679,8 +1680,24 @@ const createManualBackup = async (req, res) => {
                 env.MYSQL_PWD = dbPassword;
             }
 
-            const mysqldumpCmd = `mysqldump -h ${dbHost} -u ${dbUser} ${dbName} > "${filepath}"`;
-            await execAsync(mysqldumpCmd, { env });
+            // Execute mysqldump with spawn instead of execAsync to avoid shell command injection
+            // and pipe stdout to a file stream to avoid memory exhaustion (buffer overflow)
+            await new Promise((resolve, reject) => {
+                const dumpProcess = spawn('mysqldump', ['-h', dbHost, '-u', dbUser, dbName], { env });
+                const fileStream = createWriteStream(filepath);
+
+                dumpProcess.stdout.pipe(fileStream);
+
+                dumpProcess.on('error', reject);
+
+                dumpProcess.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`mysqldump process exited with code ${code}`));
+                    }
+                });
+            });
 
             logger.info('mysqldump backup created successfully');
 
