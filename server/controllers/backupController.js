@@ -1673,6 +1673,12 @@ const createManualBackup = async (req, res) => {
             const dbName = process.env.DB_NAME || 'absenta13';
             const dbPassword = process.env.DB_PASSWORD || '';
 
+            // Validate database connection variables to prevent OS command injection
+            const dbVarRegex = /^[a-zA-Z0-9_.-]+$/;
+            if (!dbVarRegex.test(dbHost) || !dbVarRegex.test(dbUser) || !dbVarRegex.test(dbName)) {
+                throw new Error("Invalid database configuration values");
+            }
+
             const env = { ...process.env };
             if (dbPassword) {
                 // Security: Pass password via MYSQL_PWD environment variable instead of
