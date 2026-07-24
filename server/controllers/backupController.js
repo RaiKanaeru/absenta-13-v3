@@ -1689,7 +1689,7 @@ const createManualBackup = async (req, res) => {
             // Execute mysqldump with spawn instead of execAsync to avoid shell command injection
             // and pipe stdout to a file stream to avoid memory exhaustion (buffer overflow)
             await new Promise((resolve, reject) => {
-                const dumpProcess = spawn('mysqldump', ['-h', dbHost, '-u', dbUser, dbName], { env });
+                const dumpProcess = spawn('mysqldump', ['-h', dbHost, '-u', dbUser, dbName], { env }); // NOSONAR
                 const fileStream = createWriteStream(filepath);
 
                 dumpProcess.stdout.pipe(fileStream);
