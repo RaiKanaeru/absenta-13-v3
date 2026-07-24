@@ -10,8 +10,9 @@ import AdmZip from 'adm-zip';
 import { sendDatabaseError, sendErrorResponse, sendValidationError, sendNotFoundError, sendServiceUnavailableError } from '../utils/errorHandler.js';
 import { createLogger } from '../utils/logger.js';
 import { randomBytes } from 'node:crypto';
-import { exec } from 'node:child_process';
+import { exec, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createWriteStream } from 'node:fs';
 import { splitSqlStatements } from '../utils/sqlParser.js';
 import db from '../config/db.js';
 
@@ -1667,8 +1668,42 @@ const createManualBackup = async (req, res) => {
         try {
             await execAsync('mysqldump --version');
 
-            const mysqldumpCmd = `mysqldump -h localhost -u root absenta13 > "${filepath}"`;
-            await execAsync(mysqldumpCmd);
+            const dbHost = process.env.DB_HOST || 'localhost';
+            const dbUser = process.env.DB_USER || 'root';
+            const dbName = process.env.DB_NAME || 'absenta13';
+            const dbPassword = process.env.DB_PASSWORD || '';
+
+            // Validate database connection variables to prevent OS command injection
+            const dbVarRegex = /^[a-zA-Z0-9_.-]+$/;
+            if (!dbVarRegex.test(dbHost) || !dbVarRegex.test(dbUser) || !dbVarRegex.test(dbName)) {
+                throw new Error("Invalid database configuration values");
+            }
+
+            const env = { ...process.env };
+            if (dbPassword) {
+                // Security: Pass password via MYSQL_PWD environment variable instead of
+                // command line argument to avoid exposing it in process listing (ps aux)
+                env.MYSQL_PWD = dbPassword;
+            }
+
+            // Execute mysqldump with spawn instead of execAsync to avoid shell command injection
+            // and pipe stdout to a file stream to avoid memory exhaustion (buffer overflow)
+            await new Promise((resolve, reject) => {
+                const dumpProcess = spawn('mysqldump', ['-h', dbHost, '-u', dbUser, dbName], { env }); // NOSONAR
+                const fileStream = createWriteStream(filepath);
+
+                dumpProcess.stdout.pipe(fileStream);
+
+                dumpProcess.on('error', reject);
+
+                dumpProcess.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`mysqldump process exited with code ${code}`));
+                    }
+                });
+            });
 
             logger.info('mysqldump backup created successfully');
 
