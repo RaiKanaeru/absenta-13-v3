@@ -1667,8 +1667,18 @@ const createManualBackup = async (req, res) => {
         try {
             await execAsync('mysqldump --version');
 
-            const mysqldumpCmd = `mysqldump -h localhost -u root absenta13 > "${filepath}"`;
-            await execAsync(mysqldumpCmd);
+            const dbHost = process.env.DB_HOST || 'localhost';
+            const dbUser = process.env.DB_USER || 'root';
+            const dbName = process.env.DB_NAME || 'absenta13';
+            const dbPass = process.env.DB_PASSWORD || '';
+
+            // Pass password securely via environment variable MYSQL_PWD
+            const execOptions = {
+                env: { ...process.env, MYSQL_PWD: dbPass }
+            };
+
+            const mysqldumpCmd = `mysqldump -h "${dbHost}" -u "${dbUser}" "${dbName}" > "${filepath}"`;
+            await execAsync(mysqldumpCmd, execOptions);
 
             logger.info('mysqldump backup created successfully');
 

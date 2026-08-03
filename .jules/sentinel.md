@@ -1,0 +1,4 @@
+## 2024-05-27 - Fix Hardcoded Database Credentials in Backup Controller
+**Vulnerability:** Found hardcoded database credentials (`localhost`, `root`, `absenta13`) in the `mysqldump` command inside `server/controllers/backupController.js`. The password was also omitted.
+**Learning:** Shell commands constructed with hardcoded credentials or without consideration for environment configurations can lead to insecure deployments or break easily in production environments. Using `process.env` directly is necessary. However, passing the password directly on the command line for `mysqldump` can leak it to the process list.
+**Prevention:** Always use environment variables for connection parameters. For passwords in child processes like `mysqldump`, pass them securely via the `MYSQL_PWD` environment variable within the options argument of `execAsync` or `spawn` to avoid leaking credentials in the process list.
